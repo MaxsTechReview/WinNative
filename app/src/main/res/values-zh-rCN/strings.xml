@@ -505,9 +505,12 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">FEXCore 预设</string>
     <string name="container_fexcore_version">FEXCore 版本</string>
+    <string name="use_unix_libs">使用 UnixLibs</string>
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">图形驱动</string>
+    <string name="container_graphics_transcoder">BCn 转码器</string>
+    <string name="container_graphics_quality">BCn 质量</string>
     <string name="container_graphics_configuration">图形驱动配置</string>
     <string name="container_graphics_version">图形驱动版本</string>
     <string name="container_graphics_available_extensions">可用扩展</string>
@@ -588,6 +591,7 @@
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">电量</string>
     <string name="session_drawer_hud_element_graph">图表</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">您要结束此进程吗？</string>
@@ -781,10 +785,14 @@
     <string name="settings_debug_box_logs_subtitle">将 Box86 和 Box64 调试输出写入文件</string>
     <string name="settings_debug_fex_logs_title">启用 FEXCore 日志</string>
     <string name="settings_debug_fex_logs_subtitle">将 FEXCore 调试输出写入文件</string>
+    <string name="settings_debug_emulator_logs_title">Box64/FEX 模拟日志</string>
+    <string name="settings_debug_emulator_logs_subtitle">将容器使用的模拟器记录到文件。</string>
     <string name="settings_debug_steam_logs_title">启用 Steam 日志</string>
     <string name="settings_debug_steam_logs_subtitle">记录 Steam 认证和会话事件以便调试。</string>
     <string name="settings_debug_wine_channels_title">Wine 调试通道</string>
     <string name="settings_debug_wine_channels_summary">选择启用 Wine 调试日志时包含哪些 Wine 通道。</string>
+    <string name="settings_debug_wine_classes_title">Wine 日志级别</string>
+    <string name="settings_debug_wine_classes_summary">选择要记录的消息类型。Trace 非常详细。</string>
     <string name="settings_debug_input_logs">输入日志</string>
     <string name="settings_debug_input_logs_description">记录手柄、触摸和键盘输入事件</string>
     <string name="settings_debug_download_logs">下载日志</string>
@@ -818,6 +826,8 @@
 
     <string name="settings_other_language_title">语言</string>
     <string name="settings_other_language_summary">选择显示语言</string>
+    <string name="settings_other_game_language_title">游戏语言</string>
+    <string name="settings_other_game_language_summary">Steam/Epic/GOG 下载的首选语言</string>
     <string name="settings_other_language_system_default">系统默认</string>
 
     <string name="settings_other_section_integration">集成</string>
@@ -1169,6 +1179,9 @@
     <string name="cloud_saves_history_restore_success">已从备份还原存档。</string>
     <string name="cloud_saves_history_sign_in">登录 Google 以查看存档历史。</string>
     <string name="cloud_saves_history_title">存档历史</string>
+    <string name="cloud_saves_history_download">下载</string>
+    <string name="cloud_saves_history_download_success">文件已下载。</string>
+    <string name="cloud_saves_history_download_failed">下载失败。</string>
     <string name="cloud_saves_keep_replaced_backup">保留被替换存档的备份</string>
     <string name="cloud_saves_keep_replaced_backup_summary">如果您改变主意，可从存档历史中还原。</string>
     <string name="cloud_saves_no_backups">此游戏暂无备份。</string>
@@ -1307,7 +1320,7 @@
     <string name="cloud_saves_history_steam_unreachable">Steam Cloud 目前无法访问。正在后台重新连接重新上线后点按刷新。</string>
     <string name="steam_session_refused_event">Steam 拒绝了缓存的会话 (EResult=%1$d)。请重新登录。</string>
     <string name="settings_hud_record_to_file_title">将性能记录到文件</string>
-    <string name="settings_hud_record_to_file_summary">游戏过程中每秒将 FPS、CPU、GPU、温度和电池指标写入 /WinNative/logs/。</string>
+    <string name="settings_hud_record_to_file_summary">游戏过程中每秒将 FPS、CPU、GPU、温度和电池指标导出到 /WinNative/logs/。</string>
     <string name="settings_leaderboard_category">性能</string>
     <!-- Preloader > Launch Screen -->
     <string name="preloader_preparing_steam_environment">正在准备 Steam 环境</string>
@@ -1334,6 +1347,16 @@
     <!-- Workshop -->
     <string name="workshop_loading_items">正在加载 Workshop 项目</string>
     <string name="workshop_search_items">搜索 Workshop 项目</string>
+    <string name="workshop_title">STEAM 创意工坊</string>
+    <string name="workshop_loading_subtitle">正在从 Steam 获取您订阅的物品。</string>
+    <string name="workshop_error_title">无法加载创意工坊物品</string>
+    <string name="workshop_error_subtitle">出错了。请重试。</string>
+    <string name="workshop_empty_title">没有已订阅的创意工坊物品</string>
+    <string name="workshop_empty_subtitle">在 Steam 创意工坊订阅物品，然后重新打开此窗口。</string>
+    <string name="workshop_search_empty_title">没有与 \"%1$s\" 匹配的物品</string>
+    <string name="workshop_search_empty_subtitle">请尝试其他搜索词。</string>
+    <string name="workshop_clear_search">清除搜索</string>
+    <string name="workshop_item_fallback">创意工坊物品</string>
     <string name="common_ui_failed">失败</string>
     <string name="steam_presence_snooze">小憩</string>
     <string name="steam_presence_busy">忙碌</string>
@@ -1498,7 +1521,7 @@
     <string name="session_drawer_hud_background">背景</string>
     <string name="session_drawer_hud_background_alpha">背景透明度</string>
     <string name="session_drawer_hud_background_alpha_input_title">设置背景透明度</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">调整大小</string>
     <string name="session_task_bring_to_front">置于顶层</string>
     <string name="session_task_custom_value">自定义值</string>
@@ -1541,5 +1564,6 @@
     <string name="session_record_started">已开始录制</string>
     <string name="steam_chat_setting_stay_running">在后台运行</string>
     <string name="steam_chat_setting_stay_running_desc">退出 WinNative 后保持聊天运行</string>
+    <string name="settings_content_refresh">刷新</string>
 </resources>
 

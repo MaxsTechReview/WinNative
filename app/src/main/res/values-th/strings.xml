@@ -1,0 +1,1565 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Common > UI Labels -->
+    <string name="common_ui_app_name">WinNative</string>
+    <string name="common_ui_run">เรียกใช้</string>
+    <string name="common_ui_edit">แก้ไข</string>
+    <string name="common_ui_remove">นำออก</string>
+    <string name="common_ui_add">เพิ่ม</string>
+    <string name="common_ui_shortcuts">ทางลัด</string>
+    <string name="common_ui_containers">คอนเทนเนอร์</string>
+    <string name="common_ui_input_controls">การควบคุมอินพุต</string>
+    <string name="common_ui_no_items_to_display">ไม่มีรายการที่จะแสดง</string>
+    <string name="common_ui_select_icon">เลือกไอคอน</string>
+    <string name="common_ui_revert_icon">คืนค่าไอคอน</string>
+    <string name="common_ui_select_exe">เลือก EXE</string>
+    <string name="common_ui_select_folder">เลือกโฟลเดอร์</string>
+    <string name="common_ui_current_folder">โฟลเดอร์ปัจจุบัน</string>
+    <string name="common_ui_select_valid_exe_file">โปรดเลือกไฟล์ .exe ที่ถูกต้อง</string>
+    <string name="common_ui_select_valid_icon_file">โปรดเลือกไฟล์ .ico หรือ .png ที่ถูกต้อง</string>
+    <string name="common_ui_exit">ออก</string>
+    <string name="common_ui_exit_app">ออกจากแอป</string>
+    <string name="common_ui_profile">โปรไฟล์</string>
+    <string name="common_ui_name">ชื่อ</string>
+    <string name="common_ui_ok">ตกลง</string>
+    <string name="common_ui_cancel">ยกเลิก</string>
+    <string name="common_ui_untitled">ไม่มีชื่อ</string>
+    <string name="common_ui_disabled">ปิดใช้งาน</string>
+    <string name="common_ui_container">คอนเทนเนอร์</string>
+    <string name="common_ui_value">ค่า</string>
+    <string name="common_ui_none">ไม่มี</string>
+    <string name="common_ui_custom_text">ข้อความกำหนดเอง</string>
+    <string name="common_ui_icon">ไอคอน</string>
+    <string name="common_ui_duplicate">ทำสำเนา</string>
+    <string name="common_ui_credits_and_third_party_apps">เครดิตและแอปของบุคคลที่สาม</string>
+    <string name="common_ui_loading">กำลังโหลด</string>
+    <string name="common_ui_exporting">กำลังส่งออก</string>
+    <string name="common_ui_enable">เปิดใช้งาน</string>
+    <string name="common_ui_disable">ปิดใช้งาน</string>
+    <string name="common_ui_force">บังคับ</string>
+    <string name="common_ui_version">เวอร์ชัน</string>
+    <string name="common_ui_advanced">ขั้นสูง</string>
+    <string name="common_ui_graphics">กราฟิก</string>
+    <string name="common_ui_system">ระบบ</string>
+    <string name="common_ui_width">ความกว้าง</string>
+    <string name="common_ui_height">ความสูง</string>
+    <string name="common_ui_open_file">เปิดไฟล์</string>
+    <string name="common_ui_download_file">ดาวน์โหลดไฟล์</string>
+    <string name="common_ui_downloading_file">กำลังดาวน์โหลดไฟล์</string>
+    <string name="common_ui_browse">เรียกดู</string>
+    <string name="common_ui_options">ตัวเลือก</string>
+    <string name="common_ui_export">ส่งออก</string>
+    <string name="common_ui_new_file">ไฟล์ใหม่</string>
+    <string name="common_ui_description">คำอธิบาย</string>
+    <string name="common_ui_continue">ดำเนินการต่อ</string>
+    <string name="common_ui_warning">คำเตือน</string>
+    <string name="common_ui_copy">คัดลอก</string>
+    <string name="common_ui_reset">รีเซ็ต</string>
+    <string name="common_ui_close">ปิด</string>
+    <string name="common_ui_confirm">ยืนยัน</string>
+    <string name="common_ui_unnamed">ไม่มีชื่อ</string>
+    <string name="common_ui_download">ดาวน์โหลด</string>
+    <string name="common_ui_uninstall">ถอนการติดตั้ง</string>
+    <string name="common_ui_other">อื่นๆ</string>
+    <string name="common_ui_status">สถานะ</string>
+    <string name="common_ui_size">ขนาด</string>
+    <string name="common_ui_release_date">วันที่วางจำหน่าย</string>
+    <string name="common_ui_installed">ติดตั้งแล้ว</string>
+    <string name="common_ui_available">พร้อมใช้งาน</string>
+    <string name="common_ui_settings">การตั้งค่า</string>
+    <string name="common_ui_enable_all">เปิดใช้งานทั้งหมด</string>
+    <string name="common_ui_disable_all">ปิดใช้งานทั้งหมด</string>
+    <string name="common_ui_select_all">เลือกทั้งหมด</string>
+    <string name="common_ui_deselect_all">ยกเลิกการเลือกทั้งหมด</string>
+    <string name="common_ui_on">เปิด</string>
+    <string name="common_ui_off">ปิด</string>
+    <string name="common_ui_already_set">ตั้งค่าไว้แล้ว</string>
+    <string name="common_ui_shortcut">ทางลัด</string>
+    <string name="common_ui_custom">กำหนดเอง</string>
+    <string name="common_ui_about">เกี่ยวกับ</string>
+    <string name="common_ui_back">กลับ</string>
+    <string name="common_ui_apply">ใช้</string>
+    <string name="common_ui_save">บันทึก</string>
+    <string name="common_ui_clone">โคลน</string>
+    <string name="common_ui_properties">คุณสมบัติ</string>
+    <string name="common_ui_store">ร้านค้า</string>
+    <string name="common_ui_library">คลัง</string>
+    <string name="common_ui_downloads">ดาวน์โหลด</string>
+    <string name="common_ui_import">นำเข้า</string>
+    <string name="common_ui_sync">ซิงค์</string>
+    <string name="common_ui_sign_in">เข้าสู่ระบบ</string>
+    <string name="common_ui_submit">ส่ง</string>
+    <string name="common_ui_coming_soon">เร็วๆนี้</string>
+    <string name="common_ui_signed_in">เข้าสู่ระบบแล้ว</string>
+    <string name="common_ui_required">จำเป็น</string>
+    <string name="common_ui_optional">ไม่บังคับ</string>
+    <string name="common_ui_notifications">การแจ้งเตือน</string>
+    <string name="common_ui_mode">โหมด</string>
+    <string name="common_ui_experimental">(ทดลอง)</string>
+    <string name="common_ui_current_version_label">เวอร์ชันปัจจุบัน:</string>
+    <string name="common_ui_cannot_write_folder">ไม่สามารถเขียนไปยังโฟลเดอร์ที่เลือกได้</string>
+    <string name="common_ui_failed_create_directory">สร้างไดเรกทอรีเริ่มต้นไม่สำเร็จ</string>
+    <string name="common_ui_device_not_supported">ขออภัยอุปกรณ์ของคุณอาจไม่รองรับ</string>
+    <string name="common_ui_please_wait">โปรดรอสักครู่…</string>
+    <string name="common_ui_done">เสร็จสิ้น</string>
+    <string name="common_ui_open">เปิด</string>
+    <string name="common_ui_connected">เชื่อมต่อแล้ว</string>
+    <string name="common_ui_install">ติดตั้ง</string>
+    <string name="common_ui_application">แอปพลิเคชัน</string>
+    <string name="common_ui_check">ตรวจสอบ</string>
+    <string name="store_game_check_for_update">ตรวจสอบการอัปเดต</string>
+    <string name="store_game_checking_for_update">กำลังตรวจสอบ</string>
+    <string name="store_game_download_update">ดาวน์โหลดการอัปเดต</string>
+    <string name="store_game_no_update_available">ไม่มีการอัปเดตที่พร้อมใช้งาน</string>
+    <string name="store_game_update_available">มีการอัปเดตพร้อมใช้งาน</string>
+    <string name="store_game_update_check_failed">ตรวจสอบการอัปเดตไม่สำเร็จ</string>
+    <string name="store_game_update">อัปเดต</string>
+    <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_verify_files">ตรวจสอบไฟล์</string>
+    <string name="store_game_verify_started">กำลังตรวจสอบ %1$s — ดูที่แท็บดาวน์โหลด</string>
+    <string name="store_game_steam_options">ตัวเลือก Steam</string>
+    <string name="store_game_verify_complete">ตรวจสอบไฟล์เสร็จสมบูรณ์</string>
+    <string name="store_game_verify_failed_notice">ตรวจสอบไฟล์ไม่สำเร็จ</string>
+    <string name="store_game_progress_background_hint">คุณสามารถปิดหน้านี้ได้ — มันจะทำงานต่อไป ตรวจสอบที่แท็บดาวน์โหลดได้ตลอดเวลา</string>
+    <string name="store_game_checking_updates">กำลังตรวจสอบการอัปเดต</string>
+    <string name="store_game_no_updates_notice">ไม่มีการอัปเดตที่พร้อมใช้งาน</string>
+    <string name="store_game_update_complete">อัปเดตเสร็จสมบูรณ์</string>
+    <string name="store_game_update_failed_notice">อัปเดตไม่สำเร็จ</string>
+    <string name="store_game_update_check_failed_notice">ตรวจสอบการอัปเดตไม่สำเร็จ</string>
+    <string name="store_game_download_already_active">เกมนี้กำลังดาวน์โหลดอยู่แล้ว ยกเลิกการดาวน์โหลดปัจจุบันก่อนเพิ่ม DLC</string>
+    <string name="common_ui_select">เลือก</string>
+    <string name="common_ui_storage_roots">รูทที่เก็บข้อมูล</string>
+    <string name="common_ui_browse_local_folders_directly">เรียกดูโฟลเดอร์ในเครื่องโดยตรง</string>
+    <string name="common_ui_no_folders_available_here">ไม่มีโฟลเดอร์ที่นี่</string>
+    <string name="common_ui_grant_all_files_access_browse">ให้สิทธิ์เข้าถึงไฟล์ทั้งหมดเพื่อเรียกดูโฟลเดอร์โดยตรง</string>
+    <string name="common_ui_not_configured">ยังไม่ได้กำหนดค่า</string>
+    <string name="common_ui_reinstall">ติดตั้งใหม่</string>
+    <string name="common_ui_exit_app_confirm">ออกจาก WinNative?</string>
+    <string name="common_ui_elements_count">%1$d รายการ</string>
+    <string name="common_ui_disabled_placeholder">-- ปิดใช้งาน --</string>
+    <string name="common_ui_enabled">เปิดใช้งานแล้ว</string>
+    <string name="common_ui_unknown_error">ข้อผิดพลาดที่ไม่รู้จัก</string>
+    <string name="common_ui_auto_detected">ตรวจพบอัตโนมัติ</string>
+    <string name="common_ui_change">เปลี่ยน</string>
+    <string name="common_ui_proceed">ดำเนินการ</string>
+    <string name="common_ui_sign_out">ออกจากระบบ</string>
+    <string name="common_ui_name_cannot_be_empty">ชื่อต้องไม่ว่างเปล่า</string>
+    <string name="common_ui_error_with_message">ข้อผิดพลาด: %1$s</string>
+    <string name="common_ui_64_bit">64-BIT</string>
+    <string name="common_ui_32_bit">32-BIT</string>
+    <string name="common_ui_64_bit_and_32_bit">64-BIT &amp; 32-BIT</string>
+    <plurals name="common_ui_folder_count">
+        <item quantity="one">%d โฟลเดอร์</item>
+        <item quantity="other">%d โฟลเดอร์</item>
+    </plurals>
+    <plurals name="common_ui_file_count">
+        <item quantity="one">%d ไฟล์</item>
+        <item quantity="other">%d ไฟล์</item>
+    </plurals>
+
+    <!-- Library > Games -->
+    <string name="library_games_shortcut_created">สร้างทางลัดแล้ว</string>
+    <string name="library_games_failed_to_create_shortcut">สร้างทางลัดไม่สำเร็จ: %s</string>
+    <string name="library_games_install_path">เส้นทางติดตั้ง</string>
+    <string name="library_games_not_enough_space">ต้องการพื้นที่เพิ่มอีก %1$s</string>
+    <string name="library_games_download_slash_install">ดาวน์โหลด / ติดตั้ง</string>
+    <string name="library_games_save_management">การจัดการเซฟ</string>
+    <string name="library_games_download_install_available">%1$s / %2$s • พร้อมใช้งาน: %3$s</string>
+    <string name="library_games_last_played">เล่นล่าสุด</string>
+    <string name="library_games_playtime">เวลาเล่น</string>
+    <string name="library_games_plays">จำนวนครั้งที่เล่น</string>
+    <string name="library_games_dlcs">DLC</string>
+    <string name="library_games_uninstall_game">ถอนการติดตั้งเกม</string>
+    <string name="library_games_remove_game">นำเกมออก</string>
+    <string name="library_games_uninstall_confirm">ถอนการติดตั้ง %1$s และลบโฟลเดอร์เกมที่ติดตั้งไว้อย่างถาวรหรือไม่?</string>
+    <string name="library_games_remove_confirm">นำ %1$s ออกจากคลังของคุณ ไฟล์เกมบนดิสก์จะยังคงอยู่ ดำเนินการต่อหรือไม่?</string>
+    <string name="library_games_game_uninstalled">ถอนการติดตั้ง %1$s แล้ว</string>
+    <string name="library_games_game_removed">นำ %1$s ออกแล้ว</string>
+    <string name="library_games_failed_to_uninstall">ถอนการติดตั้งไม่สำเร็จ</string>
+    <string name="library_games_failed_to_uninstall_reason">ถอนการติดตั้งไม่สำเร็จ: %1$s</string>
+    <string name="library_games_loading">กำลังโหลดคลัง…</string>
+    <string name="library_games_no_games_installed">ไม่มีเกมที่ติดตั้ง ใช้แท็บร้านค้าหรือปุ่ม + เพื่อเพิ่มเกม</string>
+    <string name="library_games_times_played_label">จำนวนครั้งที่เล่น: </string>
+    <string name="library_games_playtime_label">เวลาเล่น: </string>
+    <string name="library_games_no_games_hub">ไม่มีเกมที่ติดตั้ง\nคลิกเพื่อเปิด Winlator Backend</string>
+    <string name="library_games_installed_badge">ติดตั้งแล้ว</string>
+    <string name="library_games_unknown_game">เกมที่ไม่รู้จัก</string>
+    <string name="library_games_layouts_header">เลย์เอาต์คลัง</string>
+    <string name="library_games_layout_carousel">คารูเซล</string>
+    <string name="library_games_layout_list">รายการ</string>
+    <string name="library_games_view_options_header">ตัวเลือกมุมมอง</string>
+    <string name="library_games_immersive_mode">โหมดอิมเมอร์ซีฟ</string>
+    <string name="library_games_immersive_mode_description">ใช้ภาพเกมที่โฟกัสเป็นพื้นหลัง</string>
+    <string name="library_games_immersive_blur">เบลอพื้นหลัง</string>
+    <string name="library_games_immersive_blur_description">ใช้เอฟเฟกต์เบลอกับพื้นหลังอิมเมอร์ซีฟ</string>
+    <string name="library_games_custom_game">เกมกำหนดเอง</string>
+    <string name="library_games_play">เล่น</string>
+    <string name="hero_boot_to_desktop_title">บูตเข้าสู่เดสก์ท็อป</string>
+    <string name="hero_graphics_tests_title">ทดสอบกราฟิก</string>
+    <string name="hero_graphics_test_32">32-bit</string>
+    <string name="hero_graphics_test_64">64-bit</string>
+    <string name="library_games_add_custom_game">เพิ่มเกมกำหนดเอง</string>
+    <string name="library_games_game_name">ชื่อเกม</string>
+    <string name="library_games_game_folder_mapped_drive">โฟลเดอร์เกม (ไดรฟ์เกมที่แมป)</string>
+    <string name="library_games_select_exe_provide_name">เลือกไฟล์ exe และระบุชื่อ</string>
+    <string name="library_games_sign_in_prompt">เข้าสู่ระบบร้านค้าหรือเพิ่มเกมกำหนดเองเพื่อสร้างคลังของคุณ</string>
+
+    <!-- Stores > Accounts -->
+    <string name="stores_accounts_title">ร้านค้า</string>
+    <string name="stores_accounts_steam_integration_title">Steam</string>
+    <string name="stores_accounts_shared_downloads_folder">โฟลเดอร์ดาวน์โหลดที่ใช้ร่วมกัน</string>
+    <string name="stores_accounts_shared_downloads_subtitle">ใช้โฟลเดอร์เดียวสำหรับร้านค้าทั้งหมด</string>
+    <string name="stores_accounts_default_downloads_folder">โฟลเดอร์ดาวน์โหลดเริ่มต้น</string>
+    <string name="stores_accounts_steam_downloads">การดาวน์โหลด Steam</string>
+    <string name="stores_accounts_epic_downloads">การดาวน์โหลด Epic</string>
+    <string name="stores_accounts_gog_downloads">การดาวน์โหลด GOG</string>
+    <string name="stores_accounts_download_speed">ความเร็วดาวน์โหลด</string>
+    <string name="stores_accounts_download_speed_subtitle">ควบคุมจำนวนเธรดดาวน์โหลดพร้อมกันของ Steam</string>
+    <string name="stores_accounts_download_server">เซิร์ฟเวอร์ดาวน์โหลด</string>
+    <string name="stores_accounts_connected_stores">ร้านค้าที่เชื่อมต่อ</string>
+    <string name="stores_accounts_download_settings">การตั้งค่าดาวน์โหลด</string>
+    <string name="stores_accounts_download_speed_conservative">ประหยัด</string>
+    <string name="stores_accounts_download_speed_balanced">สมดุล</string>
+    <string name="stores_accounts_download_speed_standard">มาตรฐาน</string>
+    <string name="stores_accounts_download_speed_performance">ประสิทธิภาพสูง</string>
+    <string name="stores_accounts_download_server_auto_detected">ตรวจพบอัตโนมัติ: %1$s</string>
+    <string name="stores_accounts_download_server_subtitle">ภูมิภาค CDN ของ Steam สำหรับดาวน์โหลดเกม</string>
+    <string name="stores_accounts_sign_out_confirm">ออกจากระบบ %1$s?</string>
+    <string name="stores_accounts_sign_out_message">คุณจะต้องเข้าสู่ระบบอีกครั้งเพื่อเข้าถึงคลังของคุณ</string>
+    <string name="stores_accounts_logged_in_epic">เข้าสู่ระบบ Epic Games แล้ว!</string>
+    <string name="stores_accounts_epic_login_failed">เข้าสู่ระบบ Epic ไม่สำเร็จ: %1$s</string>
+    <string name="stores_accounts_logged_in_gog">เข้าสู่ระบบ GOG แล้ว!</string>
+    <string name="stores_accounts_gog_login_failed">เข้าสู่ระบบ GOG ไม่สำเร็จ: %1$s</string>
+    <string name="stores_accounts_custom_download_path">เส้นทางดาวน์โหลดกำหนดเอง</string>
+    <string name="stores_accounts_custom_download_path_description">มีการกำหนดเส้นทางดาวน์โหลดเริ่มต้นไว้แล้วใน การตั้งค่า &gt; ร้านค้า หากคุณต้องการตั้งเส้นทางกำหนดเองสำหรับการติดตั้งนี้โดยเฉพาะ ให้คลิกดำเนินการ</string>
+    <string name="stores_accounts_not_signed_in">ยังไม่ได้เข้าสู่ระบบ</string>
+    <string name="stores_accounts_status_online">ออนไลน์</string>
+    <string name="stores_accounts_status_away">ไม่อยู่</string>
+    <string name="stores_accounts_status_offline">ออฟไลน์</string>
+    <string name="stores_accounts_status_invisible">ล่องหน</string>
+    <string name="stores_accounts_status_header">สถานะ</string>
+    <string name="stores_accounts_stores_header">ร้านค้า</string>
+    <string name="stores_accounts_sign_in_store_prompt">โปรดเข้าสู่ระบบเพื่อเข้าถึงร้านค้า %1$s</string>
+    <string name="stores_accounts_manage">จัดการบัญชีร้านค้า</string>
+    <string name="stores_accounts_sign_into_store">เข้าสู่ระบบ %1$s</string>
+
+    <!-- Downloads > Queue -->
+    <string name="downloads_queue_cancel_all">ยกเลิกทั้งหมด</string>
+    <string name="downloads_queue_preparing_download">กำลังเตรียมดาวน์โหลด</string>
+    <string name="downloads_queue_installing_package">กำลังติดตั้งแพ็กเกจ</string>
+    <string name="downloads_queue_resume_all">ดำเนินการต่อทั้งหมด</string>
+    <string name="downloads_queue_pause_all">หยุดชั่วคราวทั้งหมด</string>
+    <string name="downloads_queue_clear">ล้าง</string>
+    <string name="downloads_queue_status_label">สถานะ:</string>
+    <string name="downloads_queue_phase_downloading">กำลังดาวน์โหลด</string>
+    <string name="downloads_queue_phase_downloading_file">กำลังดาวน์โหลด [%1$s]</string>
+    <string name="downloads_queue_phase_queued">อยู่ในคิว</string>
+    <string name="downloads_queue_phase_paused">หยุดชั่วคราว</string>
+    <string name="downloads_queue_phase_preparing">กำลังเตรียม</string>
+    <string name="downloads_queue_phase_verifying">กำลังตรวจสอบ</string>
+    <string name="downloads_queue_phase_verifying_file">กำลังตรวจสอบ[%1$s]</string>
+    <string name="downloads_queue_phase_patching">กำลังแพตช์</string>
+    <string name="downloads_queue_phase_applying_data">กำลังใช้ข้อมูล</string>
+    <string name="downloads_queue_phase_finalizing">กำลังสรุปผล</string>
+    <string name="downloads_queue_phase_unpacking">กำลังแตกไฟล์</string>
+    <string name="downloads_queue_phase_updating">กำลังอัปเดต</string>
+    <string name="downloads_queue_phase_complete">เสร็จสมบูรณ์</string>
+    <string name="downloads_queue_phase_cancelled">ยกเลิกแล้ว</string>
+    <string name="downloads_queue_phase_failed">ล้มเหลว: %1$s</string>
+    <string name="downloads_queue_phase_unknown">ไม่ทราบ</string>
+    <string name="downloads_queue_paused_resume_hint">หยุดชั่วคราว - แตะเล่นต่อเพื่อดำเนินการต่อ</string>
+    <string name="downloads_queue_cancel_download">ยกเลิกการดาวน์โหลด</string>
+    <string name="downloads_queue_cancel_download_title">ยกเลิกการดาวน์โหลด?</string>
+    <string name="downloads_queue_cancel_download_confirm">ยกเลิกการดาวน์โหลด%1$sและลบไฟล์ที่ดาวน์โหลดทั้งหมดหรือไม่?</string>
+    <string name="downloads_queue_cancel_download_warning">การยกเลิกการดาวน์โหลด DLC เกม หรืออัปเดตอาจทำให้การติดตั้งเกมของคุณเสียหายได้\n\nคุณแน่ใจหรือไม่ว่าต้องการยกเลิกการดาวน์โหลดนี้และลบไฟล์ที่ดาวน์โหลดไปแล้ว?</string>
+    <string name="downloads_queue_cancel_all_title">ยกเลิกการดาวน์โหลดทั้งหมดหรือไม่?</string>
+    <string name="downloads_queue_cancel_all_warning">การยกเลิกการดาวน์โหลด DLC เกม หรืออัปเดตอาจทำให้การติดตั้งเกมของคุณเสียหายได้\n\nคุณแน่ใจหรือไม่ว่าต้องการยกเลิกการดาวน์โหลดทั้งหมดและลบไฟล์ที่ดาวน์โหลดไปแล้ว?</string>
+    <string name="downloads_queue_this_game">เกมนี้</string>
+    <string name="downloads_queue_empty">ไม่มีการดาวน์โหลดที่กำลังทำงาน</string>
+
+    <!-- Containers > List -->
+    <string name="containers_list_new">คอนเทนเนอร์ใหม่</string>
+    <string name="containers_list_edit">แก้ไขคอนเทนเนอร์</string>
+    <string name="containers_list_creating">กำลังสร้างคอนเทนเนอร์</string>
+    <string name="containers_list_removing">กำลังลบคอนเทนเนอร์</string>
+    <string name="containers_list_duplicating">กำลังทำสำเนาคอนเทนเนอร์</string>
+    <string name="containers_list_remove_title">ลบคอนเทนเนอร์</string>
+    <string name="containers_list_duplicate_title">ทำสำเนาคอนเทนเนอร์</string>
+    <string name="containers_list_confirm_remove">ลบคอนเทนเนอร์นี้หรือไม่? ไฟล์บันทึกเกมที่เก็บไว้ข้างในจะถูกลบอย่างถาวร ไฟล์บันทึกที่ซิงค์กับคลาวด์จะยังอยู่บนคลาวด์ แต่การเปลี่ยนแปลงในเครื่องที่ยังไม่ได้ซิงค์จะสูญหาย — ซิงค์ไฟล์บันทึกบนคลาวด์ของเกมนี้ก่อนหากต้องการเก็บไว้</string>
+    <string name="containers_list_confirm_duplicate">คุณต้องการทำสำเนาคอนเทนเนอร์นี้หรือไม่?</string>
+
+    <!-- Shortcuts > List -->
+    <string name="shortcuts_list_confirm_remove">คุณต้องการลบทางลัดนี้หรือไม่?</string>
+    <string name="shortcuts_list_add_to_home_screen">เพิ่มไปยังหน้าจอหลัก</string>
+    <string name="shortcuts_library_artwork_title">ภาพประกอบไลบรารี</string>
+    <string name="shortcuts_library_artwork_game_card_title">ภาพการ์ดเกม</string>
+    <string name="shortcuts_library_artwork_grid_title">ภาพแบบกริด</string>
+    <string name="shortcuts_library_artwork_carousel_title">ภาพแบบคารูเซล</string>
+    <string name="shortcuts_library_artwork_list_title">ภาพแบบรายการ</string>
+    <string name="shortcuts_library_artwork_selected">เลือกแล้ว: %1$s</string>
+    <string name="shortcuts_library_artwork_set">ตั้งค่าภาพ</string>
+    <string name="shortcuts_library_artwork_change">เปลี่ยนภาพ</string>
+    <string name="shortcuts_library_artwork_failed">โหลดภาพที่เลือกไม่สำเร็จ</string>
+    <string name="shortcuts_library_artwork_open_source">เปิด SteamGridDB</string>
+    <string name="shortcuts_list_not_available">ทางลัดนี้ไม่พร้อมใช้งานอีกต่อไป โปรดลบหรือสร้างใหม่</string>
+    <string name="shortcuts_list_select_a_container">เลือกคอนเทนเนอร์</string>
+    <string name="shortcuts_list_error_opening_settings">เกิดข้อผิดพลาดในการเปิดการตั้งค่าทางลัด</string>
+    <string name="shortcuts_list_removed">ลบทางลัดสำเร็จ</string>
+    <string name="shortcuts_list_remove_failed">ลบทางลัดไม่สำเร็จ โปรดลองอีกครั้ง</string>
+    <string name="shortcuts_list_remove_game_shortcut_message">ลบทางลัด\n%1$s</string>
+    <string name="shortcuts_list_cloned">โคลนทางลัดสำเร็จ</string>
+    <string name="shortcuts_list_clone_failed">โคลนทางลัดไม่สำเร็จ</string>
+    <string name="shortcuts_list_exported_to">ส่งออกทางลัดไปยัง %1$s</string>
+    <string name="shortcuts_list_failed_export">ส่งออกทางลัดไม่สำเร็จ</string>
+    <string name="shortcuts_export_all">ส่งออกทั้งหมด</string>
+    <string name="shortcuts_export_to_frontend">ส่งออกไปยังฟรอนต์เอนด์</string>
+    <string name="shortcuts_export_all_done">ส่งออก %1$d เกมไปยัง %2$s</string>
+    <string name="shortcuts_export_all_none">ไม่มีเกมให้ส่งออก</string>
+    <string name="shortcuts_list_added">เพิ่มทางลัดสำเร็จ</string>
+    <string name="shortcuts_list_readded_existing">เพิ่มทางลัดที่มีอยู่แล้วอีกครั้ง</string>
+    <string name="shortcuts_list_failed_add">เพิ่มทางลัดไม่สำเร็จ</string>
+
+    <!-- Shortcuts > Properties -->
+    <string name="shortcuts_properties_exec_arguments">อาร์กิวเมนต์การเรียกใช้</string>
+    <string name="shortcuts_properties_target_path">เส้นทางเป้าหมาย</string>
+    <string name="shortcuts_properties_disable_xinput">ปิดใช้งาน Xinput (สำหรับการควบคุมด้วยเมาส์/คีย์บอร์ดโดยเฉพาะ)</string>
+    <string name="num_controllers">จำนวนคอนโทรลเลอร์</string>
+    <string name="shortcuts_properties_exclusive_input">อินพุตเฉพาะ</string>
+    <string name="shortcuts_properties_custom_game_settings">การตั้งค่าเกมแบบกำหนดเอง</string>
+    <string name="shortcuts_properties_use_legacy_launcher">ใช้ตัวเรียกใช้แบบเก่า</string>
+    <string name="shortcuts_properties_use_legacy_launcher_description">การจำลอง Steam แบบเก่า: รันเกมผ่านตัวเรียกใช้ ColdClient และถอด SteamStub DRM ออกจากไฟล์ exe ใช้เฉพาะกับเกมเก่าที่ไม่ทำงานกับ Steam Launcher</string>
+    <string name="shortcuts_properties_runtime_patcher">ตัวแพตช์ DRM ขณะรัน</string>
+    <string name="shortcuts_properties_runtime_patcher_description">แทรก DLL ตัวแพตช์ DRM ขณะเปิดใช้งาน ลด FPS — ใช้เฉพาะเมื่อตัวเรียกใช้แบบเก่าเพียงอย่างเดียวล้มเหลว</string>
+    <string name="steam_section_title">Steam</string>
+    <string name="steam_section_real_client">ไคลเอนต์ Steam จริงของ WinNative</string>
+    <string name="steam_section_emulator">ตัวจำลอง Steam แบบเก่า</string>
+    <string name="shortcuts_properties_use_steam_input">ใช้ Steam Input</string>
+    <string name="shortcuts_properties_steam_offline_mode">โหมดออฟไลน์ Steam</string>
+    <string name="shortcuts_properties_steam_offline_mode_description">ทำให้ไคลเอนต์ Steam ที่จำลองรายงานว่าออฟไลน์ เพื่อให้เกมไม่พยายามเชื่อมต่อออนไลน์ ใช้กับเกมที่ค้างเมื่อตรวจสอบเครือข่ายของ Steam</string>
+    <string name="shortcuts_properties_reset">รีเซ็ตคุณสมบัติ</string>
+    <string name="shortcuts_properties_updated_at">อัปเดตทางลัดเมื่อ %1$s</string>
+    <string name="shortcuts_properties_properties_reset">รีเซ็ตคุณสมบัติสำเร็จ</string>
+    <string name="shortcuts_properties_reset_per_game">รีเซ็ตการตั้งค่าเฉพาะเกม</string>
+    <string name="shortcuts_properties_reset_per_game_message">รีเซ็ตเกมนี้ให้ใช้ค่าเริ่มต้นของคอนเทนเนอร์ที่เลือกหรือไม่?</string>
+    <string name="shortcuts_properties_per_game_reset">รีเซ็ตการตั้งค่าเฉพาะเกมเป็นค่าเริ่มต้นของคอนเทนเนอร์ที่เลือกแล้ว</string>
+
+    <!-- Input Controls > Editor -->
+    <string name="input_controls_editor_no_element_selected">ไม่ได้เลือกองค์ประกอบการควบคุม</string>
+    <string name="input_controls_editor_scale">สเกล</string>
+    <string name="input_controls_editor_shape">รูปทรง</string>
+    <string name="input_controls_editor_type">ประเภท</string>
+    <string name="input_controls_editor_binding">การผูกปุ่ม</string>
+    <string name="binding_secondary">การผูกปุ่มรอง</string>
+    <string name="input_controls_editor_binding_up">การผูกปุ่มขึ้น</string>
+    <string name="input_controls_editor_binding_right">การผูกปุ่มขวา</string>
+    <string name="input_controls_editor_binding_down">การผูกปุ่มลง</string>
+    <string name="input_controls_editor_binding_left">การผูกปุ่มซ้าย</string>
+    <string name="input_controls_editor_overlay_opacity">ความทึบของโอเวอร์เลย์</string>
+    <string name="input_controls_editor_opacity">ความทึบ</string>
+    <string name="input_controls_editor_radial_menu">เมนูแบบวงกลม</string>
+    <string name="input_controls_editor_radial_menu_options">ตัวเลือกเมนูแบบวงกลม</string>
+    <string name="input_controls_editor_number_of_bindings">จำนวนการผูกปุ่ม</string>
+    <string name="input_controls_editor_select_profile">เลือกโปรไฟล์</string>
+    <string name="input_controls_select_style">เลือกสไตล์</string>
+    <string name="input_controls_select_label_theme">ป้ายกำกับปุ่ม</string>
+    <string name="input_controls_style_original">ต้นฉบับ</string>
+    <string name="input_controls_style_gamehub">กระจก</string>
+    <string name="input_controls_label_theme_default">ต้นฉบับ</string>
+    <string name="input_controls_label_theme_xbox">Xbox</string>
+    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_edit_duplicating_builtin">โปรไฟล์ในตัว — สร้างสำเนาที่คุณสามารถแก้ไขได้แล้ว</string>
+    <string name="input_controls_editor_profile_name">ชื่อโปรไฟล์</string>
+    <string name="input_controls_editor_no_profile_selected">ไม่ได้เลือกโปรไฟล์</string>
+    <string name="input_controls_editor_no_profile_found">ไม่พบโปรไฟล์</string>
+    <string name="input_controls_editor_tap_to_switch">แตะเพื่อสลับ</string>
+    <string name="input_controls_editor_confirm_remove_profile">คุณต้องการลบโปรไฟล์นี้หรือไม่?</string>
+    <string name="input_controls_editor_confirm_duplicate_profile">คุณต้องการทำสำเนาโปรไฟล์นี้หรือไม่?</string>
+    <string name="input_controls_editor_confirm_reset_profile">รีเซ็ตโปรไฟล์นี้เป็นเลย์เอาต์ต้นฉบับหรือไม่? การเปลี่ยนแปลงที่คุณทำจะสูญหาย</string>
+    <string name="input_controls_editor_profile_reset">รีเซ็ตโปรไฟล์เป็นเลย์เอาต์ต้นฉบับแล้ว</string>
+    <string name="input_controls_editor_reset_unavailable">ไม่มีสแนปช็อตต้นฉบับสำหรับโปรไฟล์นี้</string>
+    <string name="input_controls_editor_title">ตัวแก้ไขการควบคุม</string>
+    <string name="input_controls_editor_toggle_switch">สวิตช์เปิด/ปิด</string>
+    <string name="input_controls_editor_profile_exported_to">ส่งออกโปรไฟล์ไปยัง</string>
+    <string name="input_controls_editor_unable_to_import">ไม่สามารถนำเข้าโปรไฟล์</string>
+    <string name="input_controls_editor_import_profile">นำเข้าโปรไฟล์</string>
+    <string name="input_controls_editor_download_profile">ดาวน์โหลดโปรไฟล์</string>
+    <string name="input_controls_editor_export_profile">ส่งออกโปรไฟล์</string>
+    <string name="input_controls_editor_range">ช่วง</string>
+    <string name="input_controls_editor_confirm_download_profiles">คุณต้องการดาวน์โหลดโปรไฟล์ที่เลือกหรือไม่?</string>
+    <string name="input_controls_editor_unable_to_load_list">ไม่สามารถโหลดรายการโปรไฟล์</string>
+    <string name="input_controls_editor_osc_transparency">ความโปร่งใสของปุ่มควบคุมบนหน้าจอ</string>
+    <string name="input_controls_editor_osc_transparency_description">ปรับความโปร่งใสของปุ่มควบคุมบนหน้าจอ</string>
+
+    <!-- Container > Configuration -->
+    <string name="container_config_screen_size">ขนาดหน้าจอ</string>
+    <string name="container_config_new_env_var">ตัวแปรสภาพแวดล้อมใหม่</string>
+    <string name="container_config_env_vars">ตัวแปรสภาพแวดล้อม</string>
+    <string name="container_config_processor_affinity">ความสัมพันธ์ของโปรเซสเซอร์</string>
+    <string name="container_config_processor_affinity_32bit">ความสัมพันธ์ของโปรเซสเซอร์ (แอป 32-bit)</string>
+    <string name="container_config_audio_driver">ไดรเวอร์เสียง</string>
+    <string name="container_config_win_components">คอมโพเนนต์ Win</string>
+    <string name="container_config_drives">ไดรฟ์</string>
+    <string name="container_config_arch">สถาปัตยกรรม</string>
+    <string name="container_config_storage_info">ข้อมูลพื้นที่จัดเก็บ</string>
+    <string name="container_config_drive_c">ไดรฟ์ C:</string>
+    <string name="container_config_cache">แคช</string>
+    <string name="container_config_total">รวม</string>
+    <string name="container_config_clear_cache">ล้างแคช</string>
+    <string name="container_config_estimated_used_space">พื้นที่ที่ใช้โดยประมาณ</string>
+    <string name="settings_containers_error_saving_wallpaper">เกิดข้อผิดพลาดในการบันทึกวอลเปเปอร์</string>
+    <string name="container_config_directinput_mapper_type">ประเภทตัวแมป DirectInput</string>
+    <string name="container_config_title">การกำหนดค่า</string>
+    <string name="container_config_startup_selection">การเลือกเมื่อเริ่มต้น</string>
+    <string name="container_config_glibc_exp_edition">อ้างอิงจาก</string>
+    <string name="container_config_refresh_rate_default_global">ค่าเริ่มต้น (ส่วนกลาง)</string>
+    <string name="container_config_enable_dinput">เปิดใช้งาน DInput สำหรับเกมใน Wine</string>
+    <string name="container_config_enable_xinput">เปิดใช้งาน XInput สำหรับเกมใน Wine</string>
+    <string name="container_config_dinput_legacy">แบบเก่า (เกมแพดรุ่นเก่า)</string>
+    <string name="container_config_dinput_modern">แบบใหม่ (คล้าย Xinput)</string>
+    <string name="container_config_help_xinput">
+        หากเกมของคุณใช้ &lt;i&gt;&lt;b&gt;XInput API&lt;/b&gt;&lt;/i&gt; สำหรับการรองรับคอนโทรลเลอร์เกม โปรดเปิดใช้งานตัวเลือกนี้&lt;br/&gt;&lt;br/&gt;
+        ตัวเลือกนี้จะมีผลกับคอนโทรลเลอร์เกมทั้งแบบ &lt;i&gt;&lt;b&gt;เสมือน&lt;/b&gt;&lt;/i&gt; (จาก Input Controls) และแบบ &lt;i&gt;&lt;b&gt;กายภาพ&lt;/b&gt;&lt;/i&gt;
+    </string>
+    <string name="container_config_help_dinput">
+        หากเกมของคุณใช้ &lt;i&gt;&lt;b&gt;DInput API&lt;/b&gt;&lt;/i&gt; สำหรับการรองรับคอนโทรลเลอร์เกม โปรดเปิดใช้งานตัวเลือกนี้&lt;br/&gt;&lt;br/&gt;
+        ตัวเลือกนี้จะมีผลกับคอนโทรลเลอร์เกมทั้งแบบ &lt;i&gt;&lt;b&gt;เสมือน&lt;/b&gt;&lt;/i&gt; (จาก Input Controls) และแบบ &lt;i&gt;&lt;b&gt;กายภาพ&lt;/b&gt;&lt;/i&gt;
+    </string>
+    <string name="container_config_xinput_dinput_warning">บางเกมอาจรองรับทั้งสอง API การเปิดใช้งานทั้ง XInput และ DInput พร้อมกันในเกมเหล่านั้นอาจทำให้เกิดปัญหาการควบคุม ดังที่พบในเกมอย่าง The Binding of Isaac และซีรีส์ Resident Evil</string>
+    <string name="container_config_lc_all" translatable="false">LC_ALL</string>
+    <string name="container_config_dll_emulator">ตัวจำลอง 32bit</string>
+    <string name="container_config_emulator_wine_hint">ตัวจำลองถูกกำหนดโดยเวอร์ชัน wine ARM64EC ใช้ FEXCore, x86_64 ใช้ Box64</string>
+    <string name="container_config_label">การกำหนดค่า</string>
+    <string name="container_config_restart_required">รีสตาร์ทคอนเทนเนอร์เพื่อให้การเปลี่ยนแปลงมีผล</string>
+    <string name="container_config_renderer">ตัวเรนเดอร์</string>
+    <string name="container_config_variables">ตัวแปร</string>
+    <string name="container_config_windows">Windows</string>
+    <string name="container_config_inputs">อินพุต</string>
+    <string name="container_config_tab">การตั้งค่า</string>
+    <string name="container_config_av_tab">A/V</string>
+    <string name="container_config_emulator_64bit">ตัวจำลอง 64bit</string>
+    <string name="container_config_emulator_section">ตัวจำลอง</string>
+    <string name="container_config_sdl2_compatibility">เปิดใช้งานความเข้ากันได้ SDL2</string>
+
+    <!-- Container > Wine and DirectX -->
+    <string name="container_wine_configuration">การกำหนดค่า Wine</string>
+    <string name="container_wine_csmt">CSMT (Command Stream Multi-Thread)</string>
+    <string name="container_wine_gpu_name">ชื่อ GPU</string>
+    <string name="container_wine_offscreen_rendering_mode">โหมดการเรนเดอร์นอกหน้าจอ</string>
+    <string name="container_wine_strict_shader_math">การคำนวณเชดเดอร์แบบเข้มงวด</string>
+    <string name="container_wine_video_memory_size">ขนาดหน่วยความจำวิดีโอ</string>
+    <string name="container_wine_dxwrapper">ตัวห่อหุ้ม DX</string>
+    <string name="container_wine_mouse_warp_override">การแทนที่ Mouse Warp</string>
+    <string name="container_wine_directx">DirectX</string>
+    <string name="container_wine_dxvk_version">เวอร์ชัน DXVK</string>
+    <string name="container_wine_dxvk_config_title">การกำหนดค่า DXVK</string>
+    <string name="container_wine_wined3d_config_title">การกำหนดค่า WineD3D</string>
+    <string name="container_wine_vkd3d_version">เวอร์ชัน VKD3D</string>
+    <string name="container_wine_version">เวอร์ชัน Wine</string>
+    <string name="container_wine_dxwrapper_help_content">
+        &lt;i&gt;&lt;b&gt;WineD3D&lt;/b&gt;&lt;/i&gt; เป็นเลเยอร์การแปลสำหรับ DirectX 1-11 เป็น OpenGL&lt;br /&gt;&lt;br /&gt;
+        &lt;i&gt;&lt;b&gt;DXVK&lt;/b&gt;&lt;/i&gt; เป็นเลเยอร์การแปลสำหรับ Direct3D 9-11 เป็น Vulkan&lt;br /&gt;&lt;br /&gt;
+        &lt;i&gt;&lt;b&gt;VKD3D&lt;/b&gt;&lt;/i&gt; เป็นเลเยอร์การแปลสำหรับ Direct3D 12 API เป็น Vulkan&lt;br /&gt;&lt;br /&gt;
+        &lt;i&gt;&lt;b&gt;CNC DDraw&lt;/b&gt;&lt;/i&gt; เป็นการนำ DirectDraw มาใช้เพื่อความเข้ากันได้ที่ดีขึ้นกับเกมคลาสสิก
+    </string>
+    <string name="container_wine_enabled_async">เปิดใช้งาน Async</string>
+    <string name="container_wine_enabled_async_cache">เปิดใช้งาน Async Cache</string>
+    <string name="container_wine_vkd3d_feature_level">ระดับฟีเจอร์ VKD3D</string>
+    <string name="container_wine_ddraw_wrapper">ตัวห่อหุ้ม DDraw</string>
+    <string name="container_wine_error_not_installed">แพ็กเกจ Wine/Proton \'%1$s\' ไม่ได้ติดตั้งและไม่สามารถดาวน์โหลดได้</string>
+    <string name="container_no_wine_installed">ไม่มี Wine หรือ Proton ที่ติดตั้ง โปรดติดตั้งก่อน</string>
+    <string name="container_wine_title">Wine</string>
+    <string name="container_wine_opengl">OpenGL</string>
+    <string name="container_surface_effect">เอฟเฟกต์พื้นผิว</string>
+
+    <!-- Container > Box64 -->
+    <string name="container_box64_title">Box64</string>
+    <string name="container_box64_wowbox64_title">Box64 / Wowbox64</string>
+    <string name="container_wowbox64_title">Wowbox64</string>
+    <string name="container_box64_preset">พรีเซ็ต Box64</string>
+    <string name="container_box64_version">เวอร์ชัน Box64</string>
+    <string name="container_box64_stability">ความเสถียร</string>
+    <string name="container_box64_compatibility">ความเข้ากันได้</string>
+    <string name="container_box64_intermediate">ระดับกลาง</string>
+    <string name="container_box64_performance">ประสิทธิภาพ</string>
+    <string name="box64_env_var_help__dynarec">เปิดหรือปิดใช้งานตัวรีคอมไพล์แบบไดนามิกของ Box64</string>
+    <string name="box64_env_var_help__dynarec_safeflags">
+        การจัดการแฟล็กบน opcode CALL/RET&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : ปฏิบัติต่อ CALL/RET เสมือนไม่ต้องใช้แฟล็ก (เร็วกว่า ไม่เสถียร)&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : RET ส่วนใหญ่ต้องใช้แฟล็ก CALL ส่วนใหญ่ไม่ต้อง&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : CALL/RET ทั้งหมดต้องใช้แฟล็ก (ช้ากว่า)
+    </string>
+    <string name="box64_env_var_help__dynarec_fastnan">การสร้าง -NAN แบบเดียวกับบน x86</string>
+    <string name="box64_env_var_help__dynarec_fastround">การสร้างการปัดเศษ x86 ที่แม่นยำ</string>
+    <string name="box64_env_var_help__dynarec_x87double">การใช้ Float/Double สำหรับการจำลอง x87</string>
+    <string name="box64_env_var_help__dynarec_bigblock">
+        Dynarec สร้าง BigBlock&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : ไม่พยายามสร้างบล็อกให้ใหญ่ที่สุดเท่าที่จะทำได้&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : สร้างบล็อก Dynarec ให้ใหญ่ที่สุดเท่าที่จะทำได้&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : สร้างบล็อก Dynarec ให้ใหญ่ขึ้น (ดำเนินการต่อเมื่อบล็อกซ้อนทับ แต่เฉพาะบล็อกในหน่วยความจำ elf)&lt;br /&gt;
+        &lt;b&gt;3&lt;/b&gt; : สร้างบล็อก Dynarec ให้ใหญ่ขึ้น (ดำเนินการต่อเมื่อบล็อกซ้อนทับ สำหรับหน่วยความจำทุกประเภท)
+    </string>
+    <string name="box64_env_var_help__dynarec_strongmem">
+        การจำลองโมเดล Strong Memory&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : ไม่ทำอะไรเป็นพิเศษ&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : เปิดใช้งาน Memory Barrier บางส่วนเมื่อเขียนลงหน่วยความจำ (บน opcode MOV บางตัว)&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : ทั้งหมดของ 1 บวกกับ Memory Barrier ในทุกการเขียนลงหน่วยความจำโดยใช้ MOV&lt;br /&gt;
+        &lt;b&gt;3&lt;/b&gt; : ทั้งหมดของ 2 บวกกับ Memory Barrier เมื่ออ่านจากหน่วยความจำและบน opcode SSE/SSE2 บางตัว&lt;br /&gt;
+        &lt;b&gt;4&lt;/b&gt; : เลียนแบบ x86 TSO คล้ายกับ QEMU
+    </string>
+    <string name="box64_env_var_help__dynarec_forward">กำหนดค่า forward สูงสุดที่อนุญาตเมื่อสร้างบล็อก</string>
+    <string name="box64_env_var_help__dynarec_callret">การปรับแต่ง opcode CALL/RET ให้เหมาะสม</string>
+    <string name="box64_env_var_help__dynarec_sep">เพิ่มจุดเข้าใช้งานรองเพื่อปรับแต่ง CALL/RET ให้เหมาะสมเมื่อเปิดใช้งาน CALLRET</string>
+    <string name="box64_env_var_help__dynarec_wait">กำหนดว่า Dynarec จะรอให้ FillBlock พร้อมหรือไม่</string>
+    <string name="box64_env_var_help__dynarec_weakbarrier">
+        ปรับแต่ง memory barrier เพื่อลดผลกระทบด้านประสิทธิภาพจากการจำลอง strong memory&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : ใช้ barrier ที่ปลอดภัยแบบปกติ&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : ใช้ weak barrier เพื่อเพิ่มประสิทธิภาพเล็กน้อย&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : ใช้ weak barrier และปิดใช้งาน last write barrier เพิ่มเติม</string>
+    <string name="box64_env_var_help__dynarec_aligned_atomics">
+        สร้างเฉพาะ aligned atomics (ขณะนี้ใช้ได้เฉพาะบน Arm64)&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : สร้างโค้ดจัดการ unaligned atomics&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : สร้างเฉพาะ aligned atomics ซึ่งเร็วกว่าและขนาดโค้ดเล็กกว่า แต่จะทำให้เกิด SIGBUS สำหรับ opcode ที่มี prefix LOCK ที่ทำงานบนที่อยู่ข้อมูลแบบ aligned</string>
+    <string name="box64_env_var_help__dynarec_df">
+        เปิดหรือปิดการใช้ deferred flags&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : ปิดการใช้ deferred flags&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : เปิดการใช้ deferred flags</string>
+    <string name="box64_env_var_help__dynarec_dirty">
+        อนุญาตให้รันบล็อกที่ไม่ได้รับการป้องกันและอาจมีข้อมูลไม่สะอาดต่อไปได้&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : ไม่อนุญาตให้รันบล็อกที่ไม่ได้รับการป้องกันและอาจมีข้อมูลไม่สะอาดต่อไป&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : อนุญาตให้รัน dynablock ที่เขียนข้อมูลในหน้าเดียวกับโค้ดต่อไปได้ อาจทำให้บางเกมโหลดเร็วขึ้นแต่ก็อาจทำให้เกิดการแครชที่ไม่คาดคิดได้เช่นกัน&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : เมื่อตรวจพบ HotPage จะทำเครื่องหมายหน้านั้นเป็น NEVERCLEAN ด้วย ดังนั้นจะไม่ถูกป้องกันการเขียนแต่บล็อกที่สร้างจากหน้านั้นจะถูกทดสอบเสมอ วิธีนี้อาจเร็วกว่า (แต่บางกรณีของ SMC อาจไม่ถูกดักจับ)</string>
+    <string name="box64_env_var_help__dynarec_nativeflags">
+        เปิดหรือปิดการใช้ native flags&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : ไม่ใช้ native flags&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : ใช้ native flags เมื่อทำได้</string>
+    <string name="box64_env_var_help__dynarec_pause">
+        เปิดการจำลอง x86 PAUSE อาจช่วยประสิทธิภาพของ spinlock&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : เพิกเฉยคำสั่ง x86 PAUSE&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : ใช้ YIELD เพื่อจำลองคำสั่ง x86 PAUSE&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : ใช้ WFI เพื่อจำลองคำสั่ง x86 PAUSE&lt;br /&gt;
+        &lt;b&gt;3&lt;/b&gt; : ใช้ SEVL+WFE เพื่อจำลองคำสั่ง x86 PAUSE
+    </string>
+    <string name="box64_env_var_help__dynarec_noarch">ลดข้อมูลเมตาของบล็อก dynarec เพื่อประหยัดหน่วยความจำ โดยแลกกับความเข้ากันได้</string>
+    <string name="box64_env_var_help__dynarec_volatile_metadata">ใช้ข้อมูลเมตา volatile ของ PE เพื่อชี้นำการจำลองหน่วยความจำแบบ strong สำหรับเกม Windows 64 บิต</string>
+    <string name="box64_env_var_help__dynacache">ควบคุมการแคชบล็อก dynarec ที่สร้างขึ้นระหว่างการรันเพื่อเร่งการเริ่มต้น</string>
+    <string name="box64_env_var_help__avx">
+        เปิดเผยความสามารถ AVX ให้กับ guest&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : ปิดส่วนขยาย AVX&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : เปิดส่วนขยาย AVX, BMI1, F16C และ VAES&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : ทั้งหมดของ 1 พร้อมเปิด AVX2, BMI2, FMA, ADX, VPCLMULQDQ และ RDRAND&lt;br /&gt;
+    </string>
+    <string name="box64_env_var_help__aes">เปิดเผยความสามารถ CPU ของ AES ให้กับ guest</string>
+    <string name="box64_env_var_help__pclmulqdq">เปิดเผยความสามารถ CPU ของ PCLMULQDQ ให้กับ guest</string>
+    <string name="box64_env_var_help__shaext">เปิดเผยความสามารถ CPU ของส่วนขยาย SHA ให้กับ guest</string>
+    <string name="box64_env_var_help__sse42">เปิดเผยความสามารถ CPU ของ SSE4.2 ให้กับ guest</string>
+    <string name="box64_env_var_help__sse_flushto0">ควบคุมพฤติกรรม flush-to-zero ของ SSE และการติดตามแฟลกข้อยกเว้น</string>
+    <string name="box64_env_var_help__x87_no80bits">ใช้ double precision 64 บิตแทน long double 80 บิตสำหรับ x87</string>
+    <string name="box64_env_var_help__cputype">เลือกรุ่น CPU ของ Intel หรือ AMD ที่เปิดเผยให้กับ guest</string>
+    <string name="box64_env_var_help__maxcpu">จำนวน CPU สูงสุดที่ Box64 แสดงให้กับโปรแกรม</string>
+    <string name="box64_env_var_help__unityplayer">ตรวจจับ UnityPlayer และทำเครื่องหมายแอปเป็นเกม Unity</string>
+    <string name="box64_env_var_help__unity">ทำเครื่องหมายแอปเป็นเกม Unity และเปิดการจัดการความเข้ากันได้เฉพาะสำหรับ Unity</string>
+    <string name="box64_env_var_help__mmap32">บังคับให้การจัดสรรหน่วยความจำทุกครั้งอยู่ในพื้นที่ที่อยู่ 32 บิต</string>
+
+    <!-- Container > FEXCore -->
+    <string name="fexcore_env_var_help__tsoenabled">เปิดใช้ TSO IR ops (จำเป็นสำหรับแอปแบบมัลติเธรด)</string>
+    <string name="fexcore_env_var_help__vectortsoenabled">ทำให้ vector load/store เป็นแบบ atomic เมื่อเปิด TSO</string>
+    <string name="fexcore_env_var_help__halfbarriertsoenabled">ใช้ half-barrier atomics สำหรับ load/store ที่ไม่จัดแนวภายใต้ TSO</string>
+    <string name="fexcore_env_var_help__memcpysettsoenabled">ทำให้ REP MOVS / REP STOS เป็นแบบ atomic ภายใต้ TSO</string>
+    <string name="fexcore_env_var_help__strictinprocesssplitlocks">ใช้ล็อกแบบเข้มงวดทั้งโปรเซสสำหรับการเข้าถึง atomic ที่ไม่จัดแนวแบบแยกส่วน</string>
+    <string name="fexcore_env_var_help__kernelunalignedatomicbackpatching">แพตช์ย้อนหลัง atomics ที่ไม่จัดแนวซึ่งเคอร์เนลจัดการ เพื่อลดการสลับบริบทของเคอร์เนล</string>
+    <string name="fexcore_env_var_help__multiblock">เปิดใช้การคอมไพล์โค้ดแบบ multiblock อาจทำให้การคอมไพล์ JIT นานขึ้นและกระตุก</string>
+    <string name="fexcore_env_var_help__maxinst">จำนวนคำสั่งสูงสุดที่เก็บในบล็อกที่คอมไพล์แล้ว</string>
+    <string name="fexcore_env_var_help__hostfeatures">ควบคุมการบังคับใช้คุณสมบัติ CPU</string>
+    <string name="fexcore_env_var_help__smalltscscale">ปรับสเกล TSC บนระบบที่มีความถี่ต่ำ</string>
+    <string name="fexcore_env_var_help__hidehybrid">ซ่อนเลย์เอาต์คอร์ CPU แบบไฮบริดจาก guest</string>
+    <string name="fexcore_env_var_help__smc_checks">ตรวจสอบการแก้ไขโค้ดก่อนการเรียกใช้งาน</string>
+    <string name="fexcore_env_var_help__volatilemetadata">ใช้ข้อมูลเมตา volatile จากไฟล์ PE สำหรับ TSO เมื่อมี</string>
+    <string name="fexcore_env_var_help__monohacks">แฮ็ก SMC + JIT block พิเศษสำหรับการตรวจจับ Mono</string>
+    <string name="fexcore_env_var_help__hidehypervisorbit">ซ่อนบิต hypervisor ของ CPUID (มีประโยชน์สำหรับแอปที่แครชเมื่อมีบิตนี้)</string>
+    <string name="fexcore_env_var_help__disablel2cache">ปิดการค้นหาแคช L2 ของ FEXCore JIT ประหยัดหน่วยความจำแต่ทำให้เกิดอาการกระตุก</string>
+    <string name="fexcore_env_var_help__dynamicl1cache">เปลี่ยนแคช L1 ของ FEXCore JIT ให้ปรับขนาดแบบไดนามิก ประหยัดหน่วยความจำแต่ทำให้เกิดอาการกระตุก</string>
+    <string name="fexcore_env_var_help__dynamicl1cacheincreasecountheuristic">เกณฑ์การค้นหาต่อวินาทีสำหรับการขยายแคช L1 แบบไดนามิก</string>
+    <string name="fexcore_env_var_help__dynamicl1cachedecreasecountheuristic">เกณฑ์การค้นหาต่อวินาทีสำหรับการลดขนาดแคช L1 แบบไดนามิก</string>
+    <string name="fexcore_env_var_help__x87reducedprecision">จำลองการคำนวณทศนิยม X87 โดยใช้ความแม่นยำ 64 บิต ซึ่งลดความแม่นยำของการจำลองและอาจทำให้เกิดข้อผิดพลาดในการเรนเดอร์</string>
+    <string name="container_fexcore_config">FEXCore</string>
+    <string name="container_fexcore_preset">พรีเซ็ต FEXCore</string>
+    <string name="container_fexcore_version">เวอร์ชัน FEXCore</string>
+    <string name="use_unix_libs">ใช้ UnixLibs</string>
+
+    <!-- Container > Graphics Driver -->
+    <string name="container_graphics_driver">ไดรเวอร์กราฟิก</string>
+    <string name="container_graphics_configuration">การกำหนดค่าไดรเวอร์กราฟิก</string>
+    <string name="container_graphics_version">เวอร์ชันไดรเวอร์กราฟิก</string>
+    <string name="container_graphics_available_extensions">ส่วนขยายที่ใช้ได้</string>
+    <string name="container_graphics_extensions_enabled_summary">เปิดใช้ %1$d / %2$d</string>
+    <string name="container_graphics_max_device_memory">หน่วยความจำอุปกรณ์สูงสุด</string>
+    <string name="container_graphics_sync_frame">ซิงค์ทุกเฟรม</string>
+    <string name="container_graphics_disable_present_wait">ปิด KHR_present_wait</string>
+    <string name="container_graphics_present_modes">โหมด Present</string>
+    <string name="container_graphics_compositor_present_mode">การซิงค์การแสดงผลของ Vulkan</string>
+    <string name="container_graphics_resource_type">ประเภททรัพยากรหน่วยความจำ</string>
+    <string name="container_graphics_vulkan_version">เวอร์ชัน Vulkan</string>
+    <string name="container_graphics_bcn_emulation">การจำลอง BCn</string>
+    <string name="container_graphics_bcn_emulation_type">ประเภทการจำลอง BCn</string>
+    <string name="container_graphics_bcn_emulation_cache">แคชการจำลอง BCn</string>
+    <string name="container_graphics_transcoder">ตัวถอดรหัส BCn</string>
+    <string name="container_graphics_quality">คุณภาพ BCn</string>
+    <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Game Super Resolution 1</string>
+    <!-- Container > Presets -->
+    <string name="container_presets_confirm_duplicate">คุณต้องการทำสำเนาพรีเซ็ตนี้หรือไม่?</string>
+    <string name="container_presets_confirm_remove">คุณต้องการลบพรีเซ็ตนี้หรือไม่?</string>
+    <string name="container_presets_title">พรีเซ็ต</string>
+    <string name="container_presets_preset">พรีเซ็ต</string>
+    <string name="container_presets_new">พรีเซ็ตใหม่</string>
+    <string name="container_presets_rename">เปลี่ยนชื่อพรีเซ็ต</string>
+    <string name="container_presets_import">นำเข้าพรีเซ็ต</string>
+    <string name="container_presets_custom">กำหนดเอง</string>
+    <string name="container_presets_built_in">ค่าเริ่มต้น</string>
+    <string name="container_presets_changes_auto_saved">การเปลี่ยนแปลงจะบันทึกอัตโนมัติขณะแก้ไขพรีเซ็ตแบบกำหนดเองนี้</string>
+    <string name="container_presets_cannot_rename">ไม่สามารถเปลี่ยนชื่อพรีเซ็ตในตัวได้</string>
+    <string name="container_presets_unable_to_import">ไม่สามารถนำเข้าพรีเซ็ตได้</string>
+    <string name="container_presets_no_description">ไม่มีคำอธิบาย</string>
+    <string name="container_presets_cannot_remove">คุณไม่สามารถลบพรีเซ็ตนี้ได้</string>
+    <string name="container_presets_cannot_export">ไม่สามารถส่งออกพรีเซ็ตนี้ได้</string>
+
+    <!-- Session > XServer -->
+    <string name="session_xserver_title">XServer</string>
+    <string name="session_xserver_simulate_touch_screen">จำลองหน้าจอสัมผัส</string>
+    <string name="session_xserver_preferences_button_text">   การตั้งค่า   </string>
+    <string name="session_xserver_extra_keys_config_desc">ที่นี่คุณสามารถตั้งค่าตัวแปร extra-keys ได้เหมือนในแอป Termux (อ่าน <a href="http://wiki.termux.com/wiki/Touch_Keyboard#Extra_Keys_Row">ที่นี่</a>) และอื่นๆ \n
+เช่น <b>META</b> สำหรับ <i>ปุ่ม META</i>, \n
+<b>KEYBOARD</b> สำหรับ <i>ปุ่มสลับคีย์บอร์ดซอฟต์แวร์</i>, \n
+<b>PREFERENCES</b> สำหรับ <i>ปุ่มเปิดการตั้งค่า</i>, \n
+<b>MOUSE_HELPER</b> สำหรับ <i>ปุ่มสลับตัวช่วยเมาส์</i>, \n
+<b>STYLUS_HELPER</b> สำหรับ <i>ปุ่มสลับโอเวอร์เลย์แทนที่การคลิกด้วยสไตลัส</i>, \n
+<b>EXIT</b> สำหรับ <i>ปุ่มออกจากแอปพลิเคชัน</i></string>
+    <string name="session_xserver_pref_main">การตั้งค่า</string>
+    <string name="session_xserver_pref_output">เอาต์พุต</string>
+    <string name="session_xserver_pref_pointer">ตัวชี้</string>
+    <string name="session_xserver_pref_kbd">คีย์บอร์ด</string>
+    <string name="session_xserver_pref_other">อื่นๆ</string>
+    <string name="session_xserver_pref_version">เวอร์ชัน</string>
+    <string name="session_xserver_notification_description">ข้อความ WinNative XServer</string>
+    <string name="session_xserver_notification_content">WinNative กำลังทำงานอยู่ อย่าปิดหรือปัดการแจ้งเตือนนี้</string>
+
+    <!-- Session > Drawer Menu -->
+    <string name="session_drawer_keyboard">คีย์บอร์ด</string>
+    <string name="session_drawer_fps_monitor">มอนิเตอร์ FPS</string>
+    <string name="session_drawer_fps_monitor_subtitle">แสดงสถิติประสิทธิภาพแบบเรียลไทม์</string>
+    <string name="session_drawer_dual_series_battery">แบตเตอรี่แบบสองชุด</string>
+    <string name="session_drawer_hud_frametime_numeric">แสดง Frametime เป็นตัวเลข</string>
+    <string name="session_drawer_toggle_fullscreen">สลับเต็มหน้าจอ</string>
+    <string name="session_drawer_refactor_size">ปรับขนาดใหม่</string>
+    <string name="session_drawer_show_touchscreen_controls">แสดงปุ่มควบคุมหน้าจอสัมผัส</string>
+    <string name="session_drawer_magnifier">แว่นขยาย</string>
+    <string name="session_drawer_logs">บันทึก</string>
+    <string name="session_drawer_pip_mode">โหมด PiP</string>
+    <string name="session_drawer_toggle_relative_mouse">สลับการเคลื่อนเมาส์แบบสัมพัทธ์</string>
+    <string name="session_drawer_toggle_mouse">สลับเมาส์</string>
+    <string name="session_drawer_pause_resume">หยุดชั่วคราว/ทำต่อ</string>
+    <string name="session_drawer_relative_mouse_movement">การเคลื่อนเมาส์แบบสัมพัทธ์</string>
+    <string name="session_drawer_mouse_input">อินพุตเมาส์</string>
+    <string name="session_drawer_touch">สัมผัส</string>
+    <string name="session_drawer_touch_trackpad">แทร็คแพด</string>
+    <string name="session_drawer_touch_touchscreen">โหมดหน้าจอสัมผัส</string>
+    <string name="session_drawer_touch_map_right_stick">แมปกับสติ๊กขวา</string>
+    <string name="session_drawer_rts_gestures">ท่าทาง RTS</string>
+    <string name="session_drawer_rts_gestures_edit">แก้ไข</string>
+    <string name="session_drawer_right_stick_sensitivity">ความไวสติ๊กขวา</string>
+    <string name="session_rts_action">การทำงาน</string>
+    <string name="session_rts_behavior">พฤติกรรม</string>
+    <string name="session_rts_tap1">แตะ 1 นิ้ว</string>
+    <string name="session_rts_tap2">แตะ 2 นิ้ว</string>
+    <string name="session_rts_tap3">แตะ 3 นิ้ว</string>
+    <string name="session_rts_tap4">แตะ 4 นิ้ว</string>
+    <string name="session_rts_double_tap">แตะสองครั้ง (ดับเบิลคลิกซ้าย)</string>
+    <string name="session_rts_long_press">กดค้าง</string>
+    <string name="session_rts_hold2">กดค้าง 2 นิ้ว</string>
+    <string name="session_rts_hold3">กดค้าง 3 นิ้ว</string>
+    <string name="session_rts_hold4">กดค้าง 4 นิ้ว</string>
+    <string name="session_rts_swipe3">ปัด 3 นิ้ว</string>
+    <string name="session_rts_swipe4">ปัด 4 นิ้ว</string>
+    <string name="session_rts_up">ขึ้น</string>
+    <string name="session_rts_down">ลง</string>
+    <string name="session_rts_left">ซ้าย</string>
+    <string name="session_rts_right">ขวา</string>
+    <string name="session_rts_pan">เลื่อน 2 นิ้ว</string>
+    <string name="session_rts_pan1">เลื่อน 1 นิ้ว</string>
+    <string name="session_rts_zoom">บีบซูม</string>
+    <string name="session_rts_drag">ลาก 1 นิ้ว</string>
+    <string name="session_rts_drag2">ลาก 2 นิ้ว</string>
+    <string name="session_rts_long_press_delay">หน่วงเวลากดค้าง (ms)</string>
+    <string name="session_rts_hold_delay">หน่วงเวลาการกดค้าง (ms)</string>
+    <string name="session_rts_swipe_threshold">เกณฑ์การปัด (px)</string>
+    <string name="session_rts_gesture_threshold">เกณฑ์ท่าทาง (px)</string>
+    <string name="session_rts_double_tap_delay">หน่วงเวลาแตะสองครั้ง (ms)</string>
+    <string name="session_rts_drag_threshold">เกณฑ์การลาก (px)</string>
+    <string name="session_rts_pan_threshold">จุดเริ่มเลื่อน/บีบ (px)</string>
+    <string name="common_ui_rename">เปลี่ยนชื่อ</string>
+    <string name="common_ui_new">ใหม่</string>
+    <string name="input_controls_editor_input_profiles_section">โปรไฟล์อินพุต</string>
+    <string name="session_gesture_profile_section">โปรไฟล์ท่าทาง</string>
+    <string name="gesture_profile_new">โปรไฟล์ท่าทางใหม่</string>
+    <string name="gesture_profile_import">นำเข้าโปรไฟล์ท่าทาง</string>
+    <string name="gesture_profile_export">ส่งออกโปรไฟล์ท่าทาง</string>
+    <string name="gesture_profile_none">ไม่มีโปรไฟล์ท่าทาง</string>
+    <string name="session_drawer_screen_effects">เอฟเฟกต์หน้าจอ</string>
+    <string name="session_drawer_screen_effects_subtitle">การอัปสเกลและเอฟเฟกต์สี</string>
+    <string name="session_drawer_super_resolution">Super Resolution</string>
+    <string name="session_drawer_upscaler_mode">ตัวอัปสเกล</string>
+    <string name="session_drawer_upscaler_fsr">SGSR 1</string>
+    <string name="session_drawer_sgsr_edge_sharpness">ความคมของขอบ</string>
+    <string name="session_drawer_vivid">สดใส</string>
+    <string name="session_drawer_vivid_strength">ระดับความสดใส</string>
+    <string name="session_drawer_color_profile">เอฟเฟกต์สี</string>
+    <string name="session_drawer_picture_in_picture">ภาพซ้อนภาพ</string>
+    <string name="session_drawer_exit_subtitle">ปิดเซสชันที่กำลังทำงานอยู่</string>
+    <string name="session_drawer_touchscreen_overlay">โอเวอร์เลย์หน้าจอสัมผัส</string>
+    <string name="session_drawer_resume">ทำต่อ</string>
+    <string name="session_drawer_retry">ลองใหม่</string>
+    <string name="downloads_no_internet">ไม่มีการเชื่อมต่ออินเทอร์เน็ต</string>
+    <string name="session_drawer_pause">หยุดชั่วคราว</string>
+    <string name="session_drawer_wine_processes_paused">โปรเซส Wine ถูกหยุดชั่วคราว</string>
+    <string name="session_drawer_pause_all_wine_processes">หยุดโปรเซส Wine ทั้งหมดชั่วคราว</string>
+    <string name="session_drawer_controls_section">ปุ่มควบคุม</string>
+    <string name="session_drawer_session_section">เซสชัน</string>
+    <string name="session_drawer_header_subtitle">เข้าถึงปุ่มควบคุม โอเวอร์เลย์ และเครื่องมือเซสชันอย่างรวดเร็ว</string>
+    <string name="session_drawer_swipe_hint">ปัดออกเพื่อกลับเข้าสู่เกม</string>
+    <string name="session_drawer_main_menu_title">เมนู</string>
+    <string name="session_drawer_hud_summary">ปรับการมองเห็นโอเวอร์เลย์และจุดข้อมูล</string>
+    <string name="session_drawer_hud_disabled_hint">เปิดโอเวอร์เลย์เพื่อปรับแต่ง</string>
+    <string name="session_drawer_hud_alpha">อัลฟา</string>
+    <string name="session_drawer_hud_background_alpha">อัลฟาพื้นหลัง</string>
+    <string name="session_drawer_hud_background">พื้นหลัง</string>
+    <string name="session_drawer_hud_scale">ขนาด</string>
+    <string name="session_drawer_hud_elements">องค์ประกอบ HUD</string>
+    <string name="session_drawer_hud_element_fps">FPS</string>
+    <string name="session_drawer_hud_element_api">GFX</string>
+    <string name="session_drawer_hud_element_gpu">GPU</string>
+    <string name="session_drawer_hud_element_cpu">CPU</string>
+    <string name="session_drawer_hud_element_ram">RAM</string>
+    <string name="session_drawer_hud_element_battery">BAT</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
+    <string name="session_drawer_hud_element_graph">กราฟ</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="hud_position_menu_title">ย้าย HUD ไปที่</string>
+    <string name="hud_position_top_left">บนซ้าย</string>
+    <string name="hud_position_top_center">บนกลาง</string>
+    <string name="hud_position_top_right">บนขวา</string>
+    <string name="hud_position_left_center">ซ้ายกลาง</string>
+    <string name="hud_position_right_center">ขวากลาง</string>
+    <string name="hud_position_bottom_left">ล่างซ้าย</string>
+    <string name="hud_position_bottom_center">ล่างกลาง</string>
+    <string name="hud_position_bottom_right">ล่างขวา</string>
+    <string name="session_drawer_hud_alpha_input_title">ตั้งค่าอัลฟา</string>
+    <string name="session_drawer_hud_background_alpha_input_title">ตั้งค่าอัลฟาพื้นหลัง</string>
+    <string name="session_drawer_hud_scale_input_title">ตั้งค่าขนาด</string>
+    <string name="session_drawer_hud_input_hint">ป้อนค่าตั้งแต่ %1$d ถึง %2$d ค่าที่เกินขีดจำกัดจะถูกจำกัดไว้</string>
+    <string name="session_drawer_command_center">ศูนย์ควบคุม</string>
+    <string name="session_drawer_command_center_input">อินพุต</string>
+    <string name="session_drawer_command_center_display">การแสดงผล</string>
+    <string name="session_drawer_command_center_system">ระบบ</string>
+    <string name="session_drawer_fps_limiter">ตัวจำกัด FPS</string>
+    <string name="session_drawer_fps_limiter_off">ปิด</string>
+    <string name="session_drawer_color_profile_disabled">ปิดใช้งาน</string>
+    <string name="session_drawer_color_profile_hdr">HDR</string>
+    <string name="session_drawer_color_profile_natural">ธรรมชาติ</string>
+    <string name="session_drawer_color_profile_crt">เอฟเฟกต์ CRT</string>
+    <string name="session_drawer_color_profile_toon">การ์ตูน</string>
+    <string name="session_drawer_color_profile_ntsc">Ntsc</string>
+    <string name="session_drawer_color_profile_ntsc2">Ntsc2</string>
+    <string name="session_drawer_brightness">ความสว่าง</string>
+    <string name="session_drawer_contrast">คอนทราสต์</string>
+    <string name="session_drawer_gamma">แกมมา</string>
+    <string name="session_drawer_scale">ขนาด</string>
+    <string name="session_drawer_scale_nearest">Nearest</string>
+    <string name="session_drawer_scale_linear">Linear</string>
+    <string name="session_drawer_scale_bicubic">Bicubic</string>
+    <string name="session_drawer_saturation">ความอิ่มตัวสี</string>
+    <string name="session_drawer_temperature">อุณหภูมิสี</string>
+    <string name="session_drawer_tint">โทนสี</string>
+    <string name="session_drawer_sharpen">ความคม</string>
+    <string name="session_drawer_scanlines">เส้นสแกน</string>
+    <string name="session_drawer_pixelate">พิกเซล</string>
+    <string name="session_drawer_block_size">ขนาดบล็อก</string>
+    <string name="session_drawer_strength">ความแรง</string>
+    <string name="session_drawer_intensity">ความเข้ม</string>
+    <string name="session_drawer_color_blind">ตาบอดสี</string>
+    <string name="session_drawer_color_blind_protan">โปรแทน</string>
+    <string name="session_drawer_color_blind_deutan">ดิวแทน</string>
+    <string name="session_drawer_color_blind_tritan">ไทรแทน</string>
+    <string name="session_drawer_reset_effects">รีเซ็ตเอฟเฟกต์</string>
+    <string name="session_drawer_calibrate_advanced">การปรับเทียบขั้นสูง</string>
+    <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_gyro">ไจโร</string>
+    <string name="session_drawer_rail_label_effects">เอฟเฟกต์</string>
+    <string name="session_drawer_rail_label_output">เอาต์พุต</string>
+    <string name="session_drawer_rail_label_apps">เพิ่มเติม</string>
+    <!-- External display / video-out (USB-C, HDMI, DisplayPort) -->
+    <string name="display_output_prompt_title">ตรวจพบจอแสดงผลภายนอก</string>
+    <string name="display_output_prompt_message">ส่งเกมไปยังจอที่เชื่อมต่อหรือไม่? ปุ่มควบคุมบนหน้าจอและเมนูจะยังอยู่บนโทรศัพท์เครื่องนี้</string>
+    <string name="display_output_prompt_swap">สลับจอแสดงผล</string>
+    <string name="display_output_prompt_mirror">มิเรอร์</string>
+    <string name="display_output_swapped_toast">ย้ายเกมไปยังจอแสดงผลภายนอกแล้ว ปุ่มควบคุมยังอยู่บนโทรศัพท์ของคุณ</string>
+    <string name="display_output_cast_unavailable">การตั้งค่าจอแสดงผลไร้สายใช้ไม่ได้บนอุปกรณ์นี้</string>
+    <string name="display_output_restored_toast">ตัดการเชื่อมต่อจอแสดงผลภายนอกแล้ว — เกมกลับมาที่โทรศัพท์</string>
+    <string name="session_drawer_output_title">เอาต์พุตการแสดงผล</string>
+    <string name="session_drawer_output_subtitle">เกมกำลังแสดงบนจอแสดงผลภายนอก</string>
+    <string name="session_drawer_output_device">จอที่เชื่อมต่อ</string>
+    <string name="session_drawer_output_resolution">ความละเอียด</string>
+    <string name="session_drawer_output_refresh_rate">อัตรารีเฟรช</string>
+    <string name="session_drawer_output_aspect_ratio">อัตราส่วนภาพ</string>
+    <string name="session_drawer_output_aspect_fit">พอดี (อัตราส่วน)</string>
+    <string name="session_drawer_output_aspect_stretch">ยืด (เต็มจอ)</string>
+    <string name="session_drawer_output_aspect_zoom">ซูม (ครอบตัด)</string>
+    <string name="session_drawer_output_return_to_phone">กลับไปที่โทรศัพท์</string>
+    <string name="session_drawer_output_refresh_hz">%1$d Hz</string>
+    <string name="session_drawer_output_cast_title">แคสต์ไปยังทีวี</string>
+    <string name="session_drawer_output_cast_body">เชื่อมต่ออะแดปเตอร์ USB-C / HDMI หรือแตะด้านล่างเพื่อเชื่อมต่อจอแสดงผลไร้สาย (Miracast / Wi-Fi Direct) เกมจะแสดงบนทีวีขณะที่ปุ่มควบคุมเหล่านี้ยังอยู่บนโทรศัพท์ของคุณ</string>
+    <string name="session_drawer_output_cast_button">เชื่อมต่อจอแสดงผลไร้สาย</string>
+    <string name="session_drawer_output_cast_note">ทีวีที่รองรับเฉพาะ Chromecast ไม่สามารถแสดงการเล่นเกมสดพร้อมปุ่มควบคุมส่วนตัวได้ — ใช้จอแสดงผลไร้สายหรืออะแดปเตอร์ USB-C/HDMI เพื่อผลลัพธ์ที่ดีที่สุด</string>
+    <string name="session_drawer_output_render_note">โหมดที่จอแสดงผลของคุณรายงานจะสลับเอาต์พุตจริง (อาจดำวูบสั้นๆ ขณะกำลังเริ่มต้นใหม่) ความละเอียดอื่นๆ จะเรนเดอร์ที่ขนาดนั้นและถูกปรับขนาดด้วยฮาร์ดแวร์ให้พอดีกับหน้าจอ — สูงกว่าความละเอียดดั้งเดิมจะคมชัดขึ้น (ซูเปอร์แซมพลิง) ต่ำกว่าจะทำงานเร็วขึ้น</string>
+    <string name="session_drawer_output_scaling_note">โทรศัพท์เครื่องนี้ส่งภาพออกที่ความละเอียดดั้งเดิม %1$s และจะไม่สลับโหมด ตัวเลือกนี้จึงกำหนดความละเอียดการเรนเดอร์ — ถูกปรับขนาดด้วยฮาร์ดแวร์ให้พอดีกับหน้าจอ (สูงกว่าดั้งเดิมจะคมชัดขึ้น ต่ำกว่าจะทำงานเร็วขึ้น)</string>
+    <string name="session_drawer_output_game_mode">โหมดเกม (ความหน่วงต่ำ)</string>
+    <string name="session_drawer_output_game_mode_on">เปิด</string>
+    <string name="session_drawer_output_game_mode_off">ปิด</string>
+    <string name="session_drawer_output_game_mode_note">ร้องขอโหมดความหน่วงต่ำ / โหมดเกมของทีวี (HDMI ALLM) เพื่อลดความหน่วงของอินพุต แสดงเฉพาะเมื่อจอที่เชื่อมต่อรองรับเท่านั้น</string>
+    <string name="session_drawer_output_send_to_display">ส่งเกมไปยังจอแสดงผล</string>
+    <string name="session_drawer_output_to_display">ส่งออกไปยังจอแสดงผลภายนอก</string>
+    <string name="session_drawer_output_send_note">มีจอแสดงผลเชื่อมต่ออยู่ ส่งเกมไปยังจอนั้น — ปุ่มควบคุมและเมนูของคุณยังอยู่บนโทรศัพท์เครื่องนี้ คุณสามารถนำกลับมาที่นี่ได้ทุกเมื่อ</string>
+    <string name="session_drawer_output_display">จอแสดงผล</string>
+    <string name="session_drawer_output_glasses">แว่นตา</string>
+    <string name="session_drawer_output_brightness">ความสว่าง</string>
+    <string name="session_drawer_output_shade">แรเงา (หรี่แสง)</string>
+    <string name="session_drawer_output_3d">3D (แบบเคียงข้าง)</string>
+    <string name="glasses_panel_refresh">อัตรารีเฟรช</string>
+    <string name="glasses_panel_sunblock">กันแดด</string>
+    <string name="session_drawer_output_volume">ระดับเสียง</string>
+    <string name="session_drawer_output_glasses_note">ส่งตรงไปยังแว่นตา Viture ของคุณผ่าน USB</string>
+    <string name="session_drawer_rail_label_keyboard">แป้นพิมพ์</string>
+    <string name="session_drawer_rail_label_input_controls">ปุ่มควบคุม</string>
+    <string name="session_drawer_rail_label_relative_mouse">เมาส์สัมพัทธ์</string>
+    <string name="session_drawer_rail_label_mouse">เมาส์</string>
+    <string name="session_drawer_rail_label_fullscreen">เต็มจอ</string>
+    <string name="session_drawer_rail_label_pip">PiP</string>
+    <string name="session_drawer_rail_label_magnifier">ซูม</string>
+    <string name="session_drawer_rail_label_task_manager">งาน</string>
+    <string name="session_drawer_rail_label_record">บันทึก</string>
+    <string name="session_drawer_rail_label_logs">ล็อก</string>
+    <string name="session_record_started">เริ่มบันทึกแล้ว</string>
+    <string name="session_record_saved">บันทึกวิดีโอไปยัง WinNative/Recordings แล้ว</string>
+    <string name="session_record_failed">ไม่สามารถเริ่มบันทึกได้</string>
+    <string name="session_record_settings_title">การตั้งค่าการบันทึก</string>
+    <string name="session_record_fps">อัตราเฟรม</string>
+    <string name="session_record_resolution">ความละเอียด</string>
+    <string name="session_record_quality">คุณภาพ</string>
+    <string name="session_record_include_ui">บันทึก UI</string>
+    <string name="session_record_include_ui_subtitle">รวม HUD และปุ่มควบคุมบนหน้าจอ</string>
+    <string name="session_record_now">บันทึกตอนนี้</string>
+    <string name="session_drawer_logs_clear">ล้าง</string>
+    <string name="session_drawer_logs_pause">หยุดชั่วคราว</string>
+    <string name="session_drawer_logs_resume">ทำต่อ</string>
+    <string name="session_drawer_logs_paused_indicator">หยุดชั่วคราว</string>
+    <string name="session_drawer_logs_line_count">%1$d บรรทัด</string>
+    <string name="session_drawer_logs_share">แชร์</string>
+    <string name="session_drawer_logs_share_subject">ล็อกเซสชัน</string>
+    <string name="session_drawer_logs_share_chooser">แชร์ล็อกเซสชัน</string>
+    <string name="session_drawer_logs_share_failed">แชร์ล็อกไม่สำเร็จ</string>
+    <string name="session_drawer_logs_share_empty">ไม่มีบรรทัดล็อกให้แชร์</string>
+    <string name="session_gyroscope_activator">ตัวเปิดใช้งาน</string>
+
+    <!-- Session > Task Manager -->
+    <string name="session_task_confirm_end_process">คุณต้องการสิ้นสุดกระบวนการนี้หรือไม่?</string>
+    <string name="session_task_title">ตัวจัดการงาน</string>
+    <string name="session_task_process_name">ชื่อกระบวนการ</string>
+    <string name="session_task_pid">PID</string>
+    <string name="session_task_memory">หน่วยความจำ</string>
+    <string name="session_task_end_process">สิ้นสุดกระบวนการ</string>
+    <string name="session_task_set_affinity">ตั้งค่า Affinity</string>
+    <string name="session_task_affinity_title">Affinity ของหน่วยประมวลผล</string>
+    <string name="session_task_affinity_all_cores">ทุกคอร์</string>
+    <string name="session_task_new_task">งานใหม่</string>
+    <string name="session_task_bring_to_front">นำมาไว้ด้านหน้า</string>
+    <string name="session_task_custom_value">ค่ากำหนดเอง</string>
+    <string name="session_task_processes">กระบวนการ</string>
+    <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
+    <string name="session_task_per_core_usage">การใช้งานต่อคอร์</string>
+    <string name="session_task_core_label">คอร์ %1$d</string>
+    <plurals name="session_task_core_count">
+        <item quantity="one">%d คอร์</item>
+        <item quantity="other">%d คอร์</item>
+    </plurals>
+
+    <!-- Session > Display -->
+    <string name="session_display_orientation">การวางแนว</string>
+    <string name="session_display_horizontal">แนวนอน</string>
+    <string name="session_display_vertical">แนวตั้ง</string>
+    <string name="session_display_columns">คอลัมน์</string>
+    <string name="session_display_frame_rate">อัตราเฟรม</string>
+    <string name="session_display_title">จอแสดงผล</string>
+    <string name="session_display_fullscreen_stretched">เปิดเต็มจอ (ยืด)</string>
+    <string name="session_display_fps_label">FPS:</string>
+    <string name="session_display_renderer_label">ตัวเรนเดอร์:</string>
+    <string name="session_display_gpu_label">GPU:</string>
+    <string name="session_display_ram_label">RAM:</string>
+    <string name="session_display_ram_usage_format">ใช้ไป %1$s GB / ทั้งหมด %2$s</string>
+
+    <!-- Session > Gamepad -->
+    <string name="session_gamepad_confirm_remove_controller">คุณต้องการนำคอนโทรลเลอร์นี้ออกหรือไม่?</string>
+    <string name="session_gamepad_external_controllers">คอนโทรลเลอร์ภายนอก</string>
+    <string name="session_gamepad_press_any_button">กดปุ่มใดก็ได้บนคอนโทรลเลอร์ของคุณ</string>
+    <string name="session_gamepad_bindings">การผูกปุ่ม</string>
+    <string name="session_gamepad_control_bindings">การผูกปุ่มควบคุม</string>
+    <string name="session_gamepad_game_controller">คอนโทรลเลอร์เกม</string>
+    <string name="session_gamepad_as_button">เป็นปุ่ม</string>
+    <string name="session_gamepad_as_axis">เป็นแกน</string>
+    <string name="session_gamepad_trigger_type">ประเภท</string>
+    <string name="session_gamepad_help_trigger_mode">ขึ้นอยู่กับ&lt;b&gt;คอนโทรลเลอร์จริง&lt;/b&gt;ของคุณ:&lt;br/&gt;&lt;br/&gt;&#x2022; &lt;b&gt;เป็นแกน&lt;/b&gt; — ทริกเกอร์มีช่วงการเคลื่อนไหวแบบเชิงเส้น&lt;br/&gt;&#x2022; &lt;b&gt;เป็นปุ่ม&lt;/b&gt; — ทริกเกอร์ทำงานเหมือนสวิตช์ธรรมดา&lt;br/&gt;&lt;br/&gt;&lt;i&gt;หมายเหตุ: การใช้ \"เป็นปุ่ม\" กับทริกเกอร์เชิงเส้นจะสูญเสียข้อมูลแอนะล็อก&lt;/i&gt;
+    </string>
+    <string name="session_gamepad_button_a">ปุ่ม A</string>
+    <string name="session_gamepad_button_b">ปุ่ม B</string>
+    <string name="session_gamepad_button_x">ปุ่ม X</string>
+    <string name="session_gamepad_button_y">ปุ่ม Y</string>
+    <string name="session_gamepad_button_grip">ปุ่ม Grip</string>
+    <string name="session_gamepad_button_trigger">ปุ่มทริกเกอร์</string>
+    <string name="session_gamepad_thumbstick_left">ทัมบ์สติกซ้าย</string>
+    <string name="session_gamepad_thumbstick_right">ทัมบ์สติกขวา</string>
+    <string name="session_gamepad_thumbstick_up">ทัมบ์สติกขึ้น</string>
+    <string name="session_gamepad_thumbstick_down">ทัมบ์สติกลง</string>
+    <string name="session_gamepad_configure_analog_sticks">กำหนดค่าอนาล็อกสติก</string>
+    <string name="session_gamepad_left_stick">สติกซ้าย</string>
+    <string name="session_gamepad_right_stick">สติกขวา</string>
+    <string name="session_gamepad_controller_manager">ตัวจัดการคอนโทรลเลอร์</string>
+    <string name="session_gamepad_enable_vibration">เปิดการสั่น</string>
+    <string name="session_gamepad_player_1">ผู้เล่น 1</string>
+    <string name="session_gamepad_player_2">ผู้เล่น 2</string>
+    <string name="session_gamepad_player_3">ผู้เล่น 3</string>
+    <string name="session_gamepad_player_4">ผู้เล่น 4</string>
+    <string name="session_gamepad_not_assigned">ยังไม่ได้กำหนด</string>
+    <string name="session_gamepad_assign">กำหนด</string>
+    <string name="session_gamepad_press_any_button_for_player">กดปุ่มใดก็ได้บนคอนโทรลเลอร์สำหรับ</string>
+    <string name="session_gamepad_vibrate">การสั่น</string>
+    <string name="session_gamepad_macros_hint">สลับปุ่มเพื่อเปิดใช้งานยิงอัตโนมัติ</string>
+    <string name="session_gamepad_macros">มาโคร</string>
+    <string name="session_gamepad_include_triggers_note">ใช้เทอร์โบกับ L2/R2 เป็นการกดแบบดิจิทัลด้วย</string>
+    <string name="session_gamepad_square_deadzone">เดดโซนสี่เหลี่ยม</string>
+    <string name="session_gamepad_invert_x">กลับแกน X</string>
+    <string name="session_gamepad_invert_y">กลับแกน Y</string>
+    <string name="session_gamepad_save_profile">บันทึกโปรไฟล์</string>
+    <string name="session_gamepad_load_profile">โหลดโปรไฟล์</string>
+    <string name="session_gamepad_button_start">ปุ่ม Start</string>
+    <string name="session_gamepad_button_select">ปุ่ม Select</string>
+    <string name="session_gamepad_button_l1">ปุ่ม L1</string>
+    <string name="session_gamepad_button_r1">ปุ่ม R1</string>
+    <string name="session_gamepad_button_l2">ปุ่ม L2</string>
+    <string name="session_gamepad_button_r2">ปุ่ม R2</string>
+    <string name="session_gamepad_button_l3">ปุ่ม L3</string>
+    <string name="session_gamepad_button_r3">ปุ่ม R3</string>
+    <string name="session_gamepad_dpad_up">D-pad ขึ้น</string>
+    <string name="session_gamepad_dpad_down">D-pad ลง</string>
+    <string name="session_gamepad_dpad_left">D-pad ซ้าย</string>
+    <string name="session_gamepad_dpad_right">D-pad ขวา</string>
+    <string name="session_gamepad_overwrite">เขียนทับ</string>
+    <string name="session_gamepad_save_as_new">บันทึกเป็นใหม่</string>
+    <string name="session_gamepad_overwrite_profile_message">คุณต้องการเขียนทับโปรไฟล์ปัจจุบันหรือบันทึกเป็นโปรไฟล์ใหม่?</string>
+    <string name="session_gamepad_enter_profile_name">ป้อนชื่อโปรไฟล์</string>
+    <string name="session_gamepad_mappings_saved">บันทึกการแมปแล้ว!</string>
+    <string name="session_gamepad_profile_saved">บันทึกโปรไฟล์แล้ว!</string>
+    <string name="session_gamepad_profile_saved_as_new">บันทึกโปรไฟล์เป็นใหม่แล้ว!</string>
+    <string name="session_gamepad_profile_loaded">โหลดโปรไฟล์แล้ว!</string>
+    <string name="session_gamepad_profile_name_empty">ชื่อโปรไฟล์ต้องไม่ว่างเปล่า</string>
+    <string name="session_gamepad_no_profiles">-- ไม่มีโปรไฟล์ --</string>
+    <string name="session_gamepad_error_loading_profile">เกิดข้อผิดพลาดในการโหลดโปรไฟล์</string>
+
+    <!-- Input controls > Auto-hide on controller -->
+    <string name="input_controls_auto_hide_section">ปุ่มควบคุมบนหน้าจอสัมผัส</string>
+    <string name="input_controls_auto_hide_on_controller_title">ซ่อนอัตโนมัติเมื่อมีคอนโทรลเลอร์</string>
+    <string name="input_controls_auto_hide_on_controller_summary">ซ่อนปุ่มควบคุมบนหน้าจอสัมผัสเมื่อเชื่อมต่อคอนโทรลเลอร์</string>
+
+    <!-- Session > Gyroscope -->
+    <string name="session_gyroscope_title">ไจโรสโคป</string>
+    <string name="session_gyroscope_calibrate">ปรับเทียบไจโรสโคป</string>
+    <string name="session_gyroscope_enable_right_stick">เปิดการเคลื่อนไหวไจโรของสติกขวา</string>
+    <string name="session_gyroscope_activator_button">ปุ่มเปิดใช้งานไจโรสโคป</string>
+    <string name="session_gyroscope_hold">กดค้าง</string>
+    <string name="session_gyroscope_toggle">สลับ</string>
+    <string name="session_gyroscope_orientation_mode">เอียงเพื่อเล็ง (การวางแนว)</string>
+    <string name="session_gyroscope_x_sensitivity">ความไวแกน X</string>
+    <string name="session_gyroscope_y_sensitivity">ความไวแกน Y</string>
+    <string name="session_gyroscope_smoothing">การปรับให้เนียน</string>
+    <string name="session_gyroscope_invert_x">กลับแกน X</string>
+    <string name="session_gyroscope_invert_y">กลับแกน Y</string>
+    <string name="session_gyroscope_filtering">การกรอง</string>
+    <string name="session_gyroscope_deadzone">เดดโซน</string>
+    <string name="session_gyroscope_sensitivity">ความไว</string>
+    <string name="session_gyroscope_direction">ทิศทาง</string>
+    <string name="session_gyroscope_mode">โหมดเปิดใช้งานไจโรสโคป</string>
+    <string name="session_gyroscope_target_stick">ใช้ไจโรกับ</string>
+    <string name="session_gyroscope_enable_stick">เปิดการเคลื่อนไหวไจโรของอนาล็อกสติก</string>
+    <string name="session_gyroscope_reset_stick">รีเซ็ตสติก</string>
+    <string name="session_gyroscope_reset_stick_to_center">รีเซ็ตสติกไปกึ่งกลาง</string>
+    <string name="session_gyroscope_configuration">การกำหนดค่าไจโรสโคป</string>
+    <string name="session_gyroscope_experimental_mouse_movement">การเคลื่อนไหวเมาส์ (ทดลอง)</string>
+    <string name="session_gyroscope_x_sensitivity_format">ความไว X: %1$d%%</string>
+    <string name="session_gyroscope_y_sensitivity_format">ความไว Y: %1$d%%</string>
+    <string name="session_gyroscope_smoothing_format">การปรับให้เนียน: %1$d%%</string>
+    <string name="session_gyroscope_deadzone_format">เดดโซน: %1$d%%</string>
+    <string name="session_gyroscope_sensitivity_format">ความไว: %1$d%%</string>
+    <string name="session_gyroscope_mouse_scale">สเกลเมาส์</string>
+    <string name="session_gyroscope_mouse_sensitivity_format">สเกลเมาส์: %1$d%%</string>
+
+    <!-- Settings > General -->
+    <string name="settings_general_cursor_speed">ความเร็วเคอร์เซอร์</string>
+    <string name="settings_general_theme">ธีม</string>
+    <string name="settings_general_background">พื้นหลัง</string>
+    <string name="settings_general_background_color_hex">สี (hex)</string>
+    <string name="settings_general_wallpaper_selected">เลือกวอลเปเปอร์แล้ว</string>
+    <string name="settings_general_select_wallpaper">เลือกวอลเปเปอร์</string>
+    <string name="settings_general_title">ทั่วไป</string>
+    <string name="settings_general_enable_file_provider">เปิดใช้งาน File Provider</string>
+    <string name="settings_general_take_effect_next_startup">ตัวเลือกนี้จะมีผลเมื่อเริ่มต้นครั้งถัดไป</string>
+    <string name="settings_general_imagefs">Imagefs</string>
+    <string name="settings_general_reinstall_imagefs">ติดตั้ง Imagefs ใหม่</string>
+    <string name="settings_general_confirm_reinstall_imagefs">คุณต้องการติดตั้ง imagefs ใหม่หรือไม่? การดำเนินการนี้จะกู้คืนไฟล์ระบบ คอนเทนเนอร์ของคุณจะไม่ถูกเปลี่ยนแปลง</string>
+    <string name="settings_general_refresh_rate">อัตรารีเฟรช</string>
+    <string name="settings_general_refresh_rate_auto_max">สูงสุด</string>
+    <string name="settings_general_refresh_rate_summary">ตั้งค่าอัตรารีเฟรชการแสดงผลและขีดจำกัดเฟรมของ DXVK</string>
+    <string name="settings_general_touchscreen_timeout">หมดเวลาหน้าจอสัมผัส (ต้องรีสตาร์ท)</string>
+    <string name="settings_general_touchscreen_haptics">เปิดการตอบสนองแบบสั่นของหน้าจอสัมผัส</string>
+    <string name="settings_general_open_with_android_browser">เปิดเบราว์เซอร์ Android ใน Wine</string>
+    <string name="settings_general_share_android_clipboard">แชร์คลิปบอร์ด Android กับ Wine</string>
+    <string name="settings_general_paths_title">การตั้งค่าเส้นทาง</string>
+    <string name="settings_general_paths_summary">จัดการตำแหน่งที่ Winlator เก็บข้อมูลการทำงานและตำแหน่งที่เขียนทางลัดที่ส่งออก</string>
+    <string name="settings_general_winlator_path_title">เส้นทางที่จัดเก็บ</string>
+    <string name="settings_general_shortcut_export_path_title">เส้นทางส่งออกทางลัด</string>
+    <string name="settings_general_choose_path">เลือกเส้นทาง</string>
+    <string name="settings_general_xserver_cursor_summary">ปรับความเร็วตัวชี้สำหรับการสัมผัส แทร็กแพด และเมาส์ภายในเซสชัน XServer</string>
+    <string name="settings_general_cursor_lock_title">การควบคุมเมาส์จริง</string>
+    <string name="settings_general_cursor_lock_summary">เปิดการจับเมาส์โดยตรงไว้สำหรับเกมที่ต้องการอินพุตตัวชี้แบบดิบ ปิดใช้งานด้วยปุ่มลดเสียง</string>
+    <string name="settings_general_xinput_toggle_title">ปิดใช้งาน XInput</string>
+    <string name="settings_general_xinput_toggle_summary">ปิดการจัดการ XInput เมื่อคุณต้องการควบคุมเมาส์และแป้นพิมพ์แบบเฉพาะ</string>
+    <string name="settings_external_display_output_summary">ย้ายเกมไปยังจอแสดงผลภายนอกที่เชื่อมต่อแทนการมิเรอร์หน้าจอนี้ แว่นตาจะใช้จอแสดงผลของตัวเองเสมอ</string>
+    <string name="settings_general_file_provider_summary">เปิดให้ตัวเลือกเอกสารและตัวจัดการไฟล์ของ Android เข้าถึงไฟล์ WinNative ได้</string>
+    <string name="settings_general_open_browser_summary">เปิดลิงก์เว็บที่รองรับในเบราว์เซอร์ของ Android แทนที่จะเปิดใน Wine</string>
+    <string name="settings_general_clipboard_summary">อนุญาตให้คัดลอกและวางระหว่าง Android กับเซสชัน Wine</string>
+    <string name="settings_general_imagefs_summary">คืนค่าไฟล์ระบบที่มาพร้อมเครื่องโดยไม่ลบคอนเทนเนอร์ที่มีอยู่</string>
+    <string name="settings_general_check_for_updates">ตรวจหาการอัปเดต</string>
+    <string name="settings_general_check_for_updates_summary">ตรวจหาแอปเวอร์ชันใหม่โดยอัตโนมัติเมื่อเปิดแอปและเป็นระยะ</string>
+
+    <!-- Settings > Audio -->
+    <string name="settings_audio_midi_sound_font">MIDI SoundFont</string>
+    <string name="settings_audio_sound">เสียง</string>
+    <string name="settings_audio_confirm_remove_sound_font">คุณต้องการลบ soundfont นี้หรือไม่?</string>
+    <string name="settings_audio_sound_font_removed_success">ลบ soundfont สำเร็จ!</string>
+    <string name="settings_audio_sound_font_removed_failed">ลบ soundfont ล้มเหลว!</string>
+    <string name="settings_audio_sound_font_installed_success">ติดตั้ง soundfont สำเร็จ!</string>
+    <string name="settings_audio_sound_font_installed_failed">ติดตั้ง soundfont ล้มเหลว!</string>
+    <string name="settings_audio_sound_font_already_exist">soundfont ที่คุณต้องการติดตั้งมีอยู่แล้ว</string>
+    <string name="settings_audio_unable_to_install_soundfont">ไม่สามารถติดตั้ง soundfont ได้</string>
+    <string name="settings_audio_installing_soundfont">กำลังติดตั้ง SoundFont</string>
+    <string name="settings_audio_sound_font_bad_format">รูปแบบ SoundFont ไม่ถูกต้อง</string>
+    <string name="settings_audio_cannot_remove_default">ไม่สามารถลบ soundfont เริ่มต้นได้</string>
+    <string name="settings_audio_summary">ติดตั้ง ลบ และเลือก SoundFont ที่ใช้สำหรับการเล่น MIDI</string>
+
+    <!-- Settings > Debug -->
+    <string name="settings_debug_wine_debug_channel">ช่องดีบัก Wine</string>
+    <string name="settings_debug_title">ดีบัก</string>
+    <string name="settings_debug_wine_logs_title">เปิดใช้บันทึกดีบัก Wine</string>
+    <string name="settings_debug_wine_logs_subtitle">เขียนผลลัพธ์ดีบัก Wine ลงไฟล์</string>
+    <string name="settings_debug_box_logs_title">เปิดใช้บันทึก Box86/64</string>
+    <string name="settings_debug_box_logs_subtitle">เขียนผลลัพธ์ดีบัก Box86 &amp; Box64 ลงไฟล์</string>
+    <string name="settings_debug_fex_logs_title">เปิดใช้บันทึก FEXCore</string>
+    <string name="settings_debug_fex_logs_subtitle">เขียนผลลัพธ์ดีบัก FEXCore ลงไฟล์</string>
+    <string name="settings_debug_emulator_logs_title">บันทึกการจำลอง Box64/FEX</string>
+    <string name="settings_debug_emulator_logs_subtitle">บันทึกตัวจำลองที่คอนเทนเนอร์ของคุณใช้ลงไฟล์</string>
+    <string name="settings_debug_steam_logs_title">เปิดใช้บันทึก Steam</string>
+    <string name="settings_debug_steam_logs_subtitle">บันทึกเหตุการณ์การยืนยันตัวตนและเซสชันของ Steam สำหรับการดีบัก</string>
+    <string name="settings_debug_wine_channels_title">ช่องดีบัก Wine</string>
+    <string name="settings_debug_wine_channels_summary">เลือกช่อง Wine ที่จะรวมไว้เมื่อเปิดใช้การบันทึกดีบัก Wine</string>
+    <string name="settings_debug_wine_classes_title">ระดับบันทึก Wine</string>
+    <string name="settings_debug_wine_classes_summary">เลือกประเภทข้อความที่จะบันทึก Trace มีรายละเอียดมากเป็นพิเศษ</string>
+    <string name="settings_debug_input_logs">บันทึกอินพุต</string>
+    <string name="settings_debug_input_logs_description">บันทึกเหตุการณ์อินพุตของเกมแพด สัมผัส และคีย์บอร์ด</string>
+    <string name="settings_debug_download_logs">บันทึกการดาวน์โหลด</string>
+    <string name="settings_debug_download_logs_description">บันทึกเหตุการณ์ตัวแก้ไขการดาวน์โหลดและ WinNative fallback</string>
+    <string name="settings_debug_vulkan_validation_layers_title">Vulkan Validation Layers</string>
+    <string name="settings_debug_vulkan_validation_layers_subtitle">รีสตาร์ทการแสดงผลเพื่อนำไปใช้</string>
+    <string name="settings_debug_share_logs">แชร์บันทึก</string>
+    <string name="settings_debug_delete_logs">ลบบันทึก</string>
+    <string name="settings_debug_share_all_logs_short">แชร์ทั้งหมด</string>
+    <string name="settings_debug_download_all_logs_short">ดาวน์โหลดทั้งหมด</string>
+    <string name="settings_debug_logs_saved">บันทึกไว้ที่ %1$s</string>
+    <string name="settings_debug_delete_logs_short">ลบ</string>
+    <string name="settings_debug_delete_all_logs_short">ลบทั้งหมด</string>
+    <string name="settings_debug_open_logs_folder_short">เปิดตัวจัดการบันทึก</string>
+    <string name="settings_debug_logs_deleted">ลบบันทึกแล้ว</string>
+    <string name="settings_debug_delete_logs_confirm_title">ลบบันทึกหรือไม่?</string>
+    <string name="settings_debug_delete_logs_confirm_message">การดำเนินการนี้จะลบไฟล์บันทึกที่จัดเก็บไว้ทั้งหมดอย่างถาวร (%1$s) ไม่สามารถยกเลิกได้</string>
+    <string name="settings_debug_logs_browser_title">บันทึก</string>
+    <string name="settings_debug_log_truncated">กำลังแสดง %1$s ล่าสุดของบันทึกนี้</string>
+    <string name="settings_debug_logs_subject">บันทึก WinNative (%1$s)</string>
+    <string name="settings_debug_no_logs_available">ไม่มีบันทึกดีบัก เปิดใช้ตัวเลือกการดีบักก่อนแล้วเปิดเกม</string>
+    <string name="settings_debug_capture_failed">ไม่สามารถบันทึกได้: %1$s</string>
+    <string name="settings_debug_log_to_file_desc">บันทึกข้อผิดพลาด คำเตือน และการขัดข้องของกระบวนการ WinNative ลงไฟล์</string>
+    <string name="settings_debug_section_emulation">การจำลอง</string>
+    <string name="settings_debug_section_subsystems">ระบบย่อย</string>
+    <string name="settings_debug_section_tools">เครื่องมือ</string>
+    <string name="settings_debug_no_channels_selected">ไม่ได้เลือกช่อง</string>
+    <string name="settings_debug_no_channels_available">ไม่มีช่องที่ใช้ได้</string>
+    <string name="settings_debug_channel_toggle_hint">แตะเพื่อสลับช่อง ช่องที่เปิดใช้จะรวมอยู่ในผลลัพธ์ดีบัก Wine</string>
+    <string name="settings_debug_remove_channel_desc">ลบ %1$s</string>
+
+    <string name="settings_other_language_title">ภาษา</string>
+    <string name="settings_other_language_summary">เลือกภาษาที่แสดง</string>
+    <string name="settings_other_language_system_default">ค่าเริ่มต้นของระบบ</string>
+
+    <string name="settings_other_section_integration">การผสานรวม</string>
+    <string name="settings_other_setup_wizard_title">ตัวช่วยตั้งค่า</string>
+    <string name="settings_other_setup_wizard_summary">เปิดตัวช่วยตั้งค่าอีกครั้งเพื่อตรวจสอบสิทธิ์ ไฟล์ระบบ และคอนเทนเนอร์เริ่มต้น</string>
+    <string name="settings_other_checking_for_updates">กำลังตรวจหาการอัปเดต…</string>
+    <string name="settings_other_update_check_cooldown">โปรดรอ %1$d วินาทีก่อนตรวจสอบอีกครั้ง</string>
+    <string name="settings_other_persistable_permission_failed">ไม่สามารถรับสิทธิ์แบบถาวรได้: %1$s</string>
+    <string name="settings_other_keep_app_open">โปรดเปิดแอปไว้จนกว่าจะเสร็จสิ้น</string>
+
+    <!-- Settings > Content Packages -->
+    <string name="settings_content_install">ติดตั้งเนื้อหา</string>
+    <string name="settings_content_type">หมวดหมู่</string>
+    <string name="settings_content_components">คอมโพเนนต์</string>
+    <string name="settings_content_auto_create_container">สร้างคอนเทนเนอร์อัตโนมัติ</string>
+    <string name="settings_content_remove_title">ลบคอมโพเนนต์หรือไม่?</string>
+    <string name="settings_content_empty_subtitle">ติดตั้งแพ็กเกจหรือสลับประเภทเพื่อเริ่มต้น</string>
+    <string name="settings_content_container_created">สร้างคอนเทนเนอร์แล้ว: %1$s</string>
+    <string name="settings_content_download_failed">ดาวน์โหลดล้มเหลว</string>
+    <string name="common_ui_working">กำลังทำงาน</string>
+    <string name="settings_content_desc_wine">สร้างโดยโปรเจกต์ Wine แปลการเรียก Win32 เป็นบริการเนทีฟของ Linux/Android</string>
+    <string name="settings_content_desc_proton">สร้างโดย Valve รันไทม์ที่ใช้ Wine พร้อมแพตช์เกมสำหรับเกม Windows</string>
+    <string name="settings_content_desc_dxvk">แปลการเรียกกราฟิก Direct3D 9, 10 และ 11 เป็น Vulkan</string>
+    <string name="settings_content_desc_vkd3d">แปลการเรียกกราฟิก Direct3D 12 เป็น Vulkan</string>
+    <string name="settings_content_desc_box64">แปลโค้ด x86_64 Linux เพื่อให้ทำงานบนอุปกรณ์ ARM64 ได้</string>
+    <string name="settings_content_desc_wowbox64">บิลด์ Box64 ที่ WoW64 ใช้เพื่อรันแอป Windows 32 บิตภายใน Wine 64 บิต</string>
+    <string name="settings_content_desc_fexcore">แปลโค้ด x86 และ x86_64 เพื่อให้ทำงานบนอุปกรณ์ ARM64 ได้</string>
+    <string name="settings_content_desc_d7vk">แปลการเรียกกราฟิก DirectDraw (Direct3D 7 และก่อนหน้า) เป็น Vulkan</string>
+    <string name="settings_content_unable_to_install">ไม่สามารถติดตั้งเนื้อหาได้</string>
+    <string name="settings_content_install_failed">ติดตั้งล้มเหลว</string>
+    <string name="settings_content_file_cannot_be_recognized">ไม่รู้จักไฟล์</string>
+    <string name="settings_content_profile_not_found">ไม่พบโปรไฟล์ในเนื้อหา</string>
+    <string name="settings_content_profile_cannot_be_recognized">ไม่รู้จักโปรไฟล์</string>
+    <string name="settings_content_file_list">รายการไฟล์</string>
+    <string name="settings_content_install_directory">ไดเรกทอรีติดตั้ง</string>
+    <string name="settings_content_installed_success">ติดตั้งเนื้อหาสำเร็จ!</string>
+    <string name="settings_content_downloading_title">กำลังดาวน์โหลดเนื้อหา</string>
+    <string name="settings_content_installing_title">กำลังติดตั้งเนื้อหา</string>
+    <string name="settings_content_extracting_title">กำลังแตกเนื้อหา</string>
+    <string name="settings_content_extracting_detail">กำลังแตก (%1$d ไฟล์)</string>
+    <string name="settings_content_preparing_package">กำลังเตรียมแพ็กเกจ</string>
+    <string name="settings_content_download_complete">ดาวน์โหลดเสร็จสิ้น</string>
+    <string name="settings_content_already_installed_title">ติดตั้งคอมโพเนนต์แล้ว</string>
+    <string name="settings_content_already_installed_message">คอมโพเนนต์นี้ติดตั้งไว้แล้ว ลบสำเนาที่ติดตั้งก่อนดาวน์โหลดอีกครั้ง
+
+เส้นทางที่ติดตั้ง:
+%1$s</string>
+    <string name="settings_content_conflicting_title">ติดตั้งเนื้อหาที่ขัดแย้งกัน</string>
+    <string name="settings_content_conflicting_message">โปรดถอนการติดตั้งเนื้อหาที่ขัดแย้งกันก่อนดาวน์โหลดแพ็กเกจนี้
+
+เส้นทางที่ติดตั้ง:
+%1$s</string>
+    <string name="settings_content_cannot_be_trusted">ไม่สามารถเชื่อถือเนื้อหาได้</string>
+    <string name="settings_content_is_incomplete">เนื้อหาไม่สมบูรณ์</string>
+    <string name="settings_content_untrusted_files_warning">คำเตือน: เนื้อหาเพิ่มเติมมีไฟล์ที่ไม่น่าเชื่อถือ โดยทั่วไปไม่ควรแก้ไขไฟล์ต่อไปนี้ โปรดตัดสินใจว่าจะดำเนินการติดตั้งต่อหรือไม่</string>
+    <string name="settings_content_confirm_remove">การดำเนินการนี้จะลบคอมโพเนนต์ออกจากอุปกรณ์ของคุณ</string>
+    <string name="settings_content_unable_to_remove_in_use">ไม่สามารถลบเนื้อหานี้ได้ เนื่องจากมีคอนเทนเนอร์กำลังใช้ Wine นี้อยู่</string>
+    <string name="settings_content_download_in_components">ไม่ได้ดาวน์โหลด โปรดดาวน์โหลดในคอมโพเนนต์</string>
+    <string name="settings_content_types_header">ประเภทเนื้อหา</string>
+
+    <!-- Settings > Drivers -->
+    <string name="settings_drivers_title">ไดรเวอร์</string>
+    <string name="settings_drivers_manager_header">ตัวจัดการไดรเวอร์</string>
+    <string name="settings_drivers_github_repos">ที่เก็บ GitHub</string>
+    <string name="settings_drivers_install">ติดตั้งไดรเวอร์</string>
+    <string name="settings_drivers_installed_success">ติดตั้งไดรเวอร์สำเร็จ</string>
+    <string name="settings_drivers_install_failed">ติดตั้งไดรเวอร์ล้มเหลว</string>
+    <string name="settings_drivers_remove_title">ลบไดรเวอร์หรือไม่?</string>
+    <string name="settings_drivers_confirm_remove">การดำเนินการนี้จะลบไดรเวอร์ออกจากอุปกรณ์ของคุณ</string>
+    <string name="settings_drivers_remove_repo_title">ลบที่เก็บหรือไม่?</string>
+    <string name="settings_drivers_remove_repo_message">%1$s จะถูกลบออกจากรายการที่เก็บของคุณ</string>
+    <string name="settings_drivers_repo_tap_to_load">แตะเพื่อโหลดรุ่นที่เผยแพร่</string>
+    <string name="settings_drivers_repo_loading_releases">กำลังโหลดรุ่นที่เผยแพร่</string>
+    <string name="settings_drivers_repo_release_count">โหลด %1$d รุ่นที่เผยแพร่แล้ว</string>
+    <string name="settings_drivers_repo_no_release_assets">ไม่พบไฟล์ ZIP ที่ดาวน์โหลดได้ในรุ่นที่เผยแพร่ที่ดึงมา</string>
+    <string name="settings_drivers_repo_fetch_failed">ไม่สามารถโหลดรุ่นที่เผยแพร่ของ GitHub ได้</string>
+    <string name="settings_drivers_repo_download_failed">ดาวน์โหลดล้มเหลว</string>
+    <string name="settings_drivers_repo_no_version">ไม่มีเวอร์ชัน</string>
+    <string name="settings_drivers_repo_unknown_size">ไม่ทราบขนาด</string>
+    <string name="settings_drivers_manager">ตัวจัดการไดรเวอร์</string>
+
+    <!-- Setup > Wizard -->
+    <string name="setup_wizard_installing_system_files">กำลังติดตั้งไฟล์ระบบ</string>
+    <string name="setup_wizard_unable_to_install_system_files">ไม่สามารถติดตั้งไฟล์ระบบได้</string>
+    <string name="setup_wizard_system_image_not_installed">ยังไม่ได้ติดตั้งอิมเมจระบบ โปรดติดตั้งคอมโพเนนต์ก่อน</string>
+    <string name="setup_wizard_recommended_components">คอมโพเนนต์ที่แนะนำ</string>
+    <string name="setup_wizard_step_format">ขั้นตอนที่ %1$d จาก %2$d</string>
+    <string name="setup_wizard_allow_file_access">อนุญาตการเข้าถึงไฟล์ทั้งหมด</string>
+    <string name="setup_wizard_install_system_files">ติดตั้งไฟล์ระบบ</string>
+    <string name="setup_wizard_recommended_components_description">คอมโพเนนต์ที่แนะนำจะดาวน์โหลดและติดตั้งแพ็กเกจ DXVK, VKD3D, FEX, Box64 และ Wowbox64 ที่รองรับโดยอัตโนมัติ</string>
+    <string name="setup_wizard_each_button_downloads_description">แต่ละปุ่มจะดาวน์โหลดแพ็กเกจ ติดตั้ง และสร้างคอนเทนเนอร์เริ่มต้นโดยอัตโนมัติ</string>
+    <string name="setup_wizard_recommended_x86_64">แนะนำ x86-64</string>
+    <string name="setup_wizard_recommended_arm64ec">แนะนำ ARM64EC</string>
+    <string name="setup_wizard_choose_components_description">เลือกคอมโพเนนต์ที่จะติดตั้ง Wine/Proton จะสร้างคอนเทนเนอร์อัตโนมัติ</string>
+    <string name="setup_wizard_loading_components">กำลังโหลดคอมโพเนนต์…</string>
+    <string name="setup_wizard_no_components_available">ไม่มีคอมโพเนนต์สำหรับหมวดหมู่นี้</string>
+    <string name="setup_wizard_default_settings">การตั้งค่าเริ่มต้น</string>
+    <string name="setup_wizard_containers">การตั้งค่าคอนเทนเนอร์</string>
+    <string name="setup_wizard_containers_description">เปิดแต่ละคอนเทนเนอร์และตั้งค่าเริ่มต้นที่คุณต้องการให้เกมใหม่ทุกเกมสืบทอด เกมใหม่จะใช้คอนเทนเนอร์ x86-64 เป็นค่าเริ่มต้น</string>
+    <string name="setup_wizard_store_sign_in_optional">การลงชื่อเข้าใช้ร้านค้าเป็นตัวเลือกเสริม การลงชื่อเข้าใช้แต่ละครั้งจะกลับมาที่นี่เมื่อเสร็จสิ้น</string>
+    <string name="setup_wizard_granted">ได้รับสิทธิ์แล้ว</string>
+    <string name="setup_wizard_grant">ให้สิทธิ์</string>
+    <string name="setup_wizard_denied">ปฏิเสธ</string>
+    <string name="setup_wizard_allow">อนุญาต</string>
+    <string name="setup_wizard_installing">กำลังติดตั้ง</string>
+    <string name="setup_wizard_install_failed_reason">ติดตั้งล้มเหลว: %1$s</string>
+    <string name="setup_wizard_install_failed_detail">%1$s - %2$s</string>
+    <string name="setup_wizard_required_access">การเข้าถึงที่จำเป็น</string>
+    <string name="setup_wizard_select_components">เลือกคอมโพเนนต์</string>
+    <string name="setup_wizard_recommended_wine_proton">แนะนำ Wine / Proton</string>
+    <string name="setup_wizard_advanced_setup">การตั้งค่าขั้นสูง</string>
+    <string name="setup_wizard_title">ตัวช่วยตั้งค่า</string>
+    <string name="setup_wizard_advanced_user">ผู้ใช้ขั้นสูง</string>
+    <string name="setup_wizard_next">ถัดไป</string>
+    <string name="setup_wizard_finish">เสร็จสิ้น</string>
+    <string name="setup_wizard_download_and_install">ดาวน์โหลด + ติดตั้ง</string>
+    <string name="setup_wizard_open_drivers">เปิดไดรเวอร์</string>
+    <string name="setup_wizard_ready">พร้อม</string>
+    <string name="setup_wizard_download_and_create">ดาวน์โหลด + สร้าง</string>
+    <string name="setup_wizard_configured">กำหนดค่าแล้ว</string>
+    <string name="setup_wizard_downloading">กำลังดาวน์โหลด %1$s</string>
+    <string name="setup_wizard_installing_package">กำลังติดตั้ง %1$s</string>
+    <string name="setup_wizard_no_runtime_installed">ยังไม่ได้ติดตั้งแพ็กเกจ Wine หรือ Proton</string>
+    <string name="setup_wizard_no_runtime_hint">ติดตั้งแพ็กเกจ Wine หรือ Proton จากขั้นตอนก่อนหน้า หรือข้ามไปก่อน</string>
+    <string name="setup_wizard_recommended_label">แนะนำ</string>
+    <string name="setup_wizard_install_all_recommended">ติดตั้งที่แนะนำทั้งหมด</string>
+    <string name="setup_wizard_create_container">สร้างคอนเทนเนอร์</string>
+    <string name="setup_wizard_creating_container">กำลังสร้าง…</string>
+
+    <string name="input_controls_tap_to_click">แตะเพื่อคลิก</string>
+    <!-- Steam > Login -->
+    <string name="steam_login_auth_webview_title">การอนุญาต</string>
+    <string name="steam_login_sign_in_to_your_account">ลงชื่อเข้าใช้บัญชีของคุณ</string>
+    <string name="steam_login_username">ชื่อผู้ใช้</string>
+    <string name="steam_login_password">รหัสผ่าน</string>
+    <string name="steam_login_invalid_username_or_password">ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง</string>
+    <string name="steam_login_remember_me">จดจำฉันไว้</string>
+    <string name="steam_login_sign_in_with_qr_code">ลงชื่อเข้าใช้ด้วยรหัส QR</string>
+    <string name="steam_login_open_steam_app_qr_hint">เปิดแอป Steam → แตะไอคอน QR</string>
+    <string name="steam_login_failed_to_load_qr_code">โหลดรหัส QR ล้มเหลว</string>
+    <string name="steam_login_retry">ลองใหม่</string>
+    <string name="steam_login_generating_code">กำลังสร้างรหัส…</string>
+    <string name="steam_login_two_factor_auth">การยืนยันตัวตนสองปัจจัย</string>
+    <string name="steam_login_approve_login_steam_app">อนุมัติการเข้าสู่ระบบนี้จาก\nแอป Steam บนมือถือของคุณ</string>
+    <string name="steam_login_enter_code_sent_to">ป้อนรหัสที่ส่งไปยัง\n%1$s</string>
+    <string name="steam_login_enter_steam_guard_code">ป้อนรหัส Steam Guard ของคุณ</string>
+    <string name="steam_login_code">รหัส</string>
+
+    <!-- Google > Cloud Sync -->
+    <string name="google_cloud_title">การซิงค์คลาวด์</string>
+    <string name="google_cloud_sync_started">เริ่มการซิงค์คลาวด์แล้ว</string>
+    <string name="google_cloud_google">Google</string>
+    <string name="google_cloud_services">บริการ Google</string>
+    <string name="google_auto_signin_title">ลงชื่อเข้าใช้ Google เมื่อเปิดแอป</string>
+    <string name="google_auto_signin_summary">เชื่อมต่อกับ Google Play Games โดยอัตโนมัติเมื่อแอปเริ่มทำงาน เพื่อให้การสำรองข้อมูลเซฟและการซิงค์พร้อมใช้งานเสมอ เมื่อปิด แอปจะไม่ลงชื่อเข้าใช้เองเลย</string>
+    <string name="google_auto_signin_section">เมื่อเปิดแอป</string>
+    <string name="google_cloud_play_games">Google Play Games</string>
+    <string name="google_cloud_status_syncing">กำลังซิงค์</string>
+    <string name="google_cloud_status_connected">เชื่อมต่อแล้ว</string>
+    <string name="google_cloud_status_not_signed_in">ยังไม่ได้ลงชื่อเข้าใช้</string>
+    <string name="google_cloud_working">กำลังทำงาน…</string>
+    <string name="google_cloud_sign_in">ลงชื่อเข้าใช้</string>
+    <string name="google_cloud_disable_sync">ปิดการซิงค์</string>
+    <string name="google_cloud_store_logins">การเข้าสู่ระบบร้านค้า</string>
+    <string name="google_cloud_store_login_sync_busy">กำลังซิงค์การเข้าสู่ระบบร้านค้าของคุณ…</string>
+    <string name="google_cloud_saved_games_unavailable">Google Saved Games ไม่พร้อมใช้งาน</string>
+    <string name="google_cloud_snapshot_ready">สแนปช็อตคลาวด์พร้อมแล้ว</string>
+    <string name="google_cloud_waiting_first_backup">กำลังรอการสำรองข้อมูลครั้งแรก</string>
+    <string name="google_cloud_no_store_logins_detected">ไม่พบการเข้าสู่ระบบร้านค้า</string>
+    <string name="google_cloud_last_synced">ซิงค์ล่าสุด %1$s</string>
+    <string name="google_cloud_backup">สำรองข้อมูล</string>
+    <string name="google_cloud_restore">คืนค่า</string>
+    <string name="google_cloud_sign_in_to_sync">ลงชื่อเข้าใช้ Google Play Games เพื่อซิงค์การเข้าสู่ระบบร้านค้า</string>
+    <string name="google_cloud_sign_in_failed">การลงชื่อเข้าใช้ Google Play Games ล้มเหลว</string>
+    <string name="google_cloud_sign_in_finishing">การลงชื่อเข้าใช้ Google Play Games ยังไม่เสร็จสิ้น รอสักครู่แล้วลองซิงค์คลาวด์อีกครั้ง</string>
+    <string name="google_cloud_connected_restore_available">เชื่อมต่อ Google Play Games แล้ว สามารถคืนค่าสำหรับ %1$s ได้</string>
+    <string name="google_cloud_connected_tap_backup">เชื่อมต่อ Google Play Games แล้ว แตะสำรองข้อมูลเพื่อบันทึกการเข้าสู่ระบบ %1$s</string>
+    <string name="google_cloud_connected_ready">เชื่อมต่อ Google Play Games แล้ว การสำรองข้อมูลและการคืนค่าพร้อมใช้งาน</string>
+    <string name="google_cloud_sync_disabled">ปิดการซิงค์ Google Play Games สำหรับแอปนี้แล้ว</string>
+    <string name="google_cloud_sign_in_first">ลงชื่อเข้าใช้ Google Play Games ก่อน</string>
+    <string name="google_cloud_no_saved_logins_found">ไม่พบการเข้าสู่ระบบร้านค้าที่บันทึกไว้ในการซิงค์คลาวด์ของ Google</string>
+    <string name="google_cloud_backup_already_matches">การสำรองข้อมูลคลาวด์ตรงกับการเข้าสู่ระบบร้านค้าปัจจุบันอยู่แล้ว</string>
+    <string name="google_cloud_no_local_logins">ไม่มีการเข้าสู่ระบบร้านค้าในเครื่องที่จะสำรองข้อมูล</string>
+    <string name="google_cloud_logins_restored_and_synced">คืนค่าและซิงค์การเข้าสู่ระบบร้านค้าสำหรับ %1$s แล้ว</string>
+    <string name="google_cloud_logins_restored">คืนค่าการเข้าสู่ระบบร้านค้าสำหรับ %1$s แล้ว</string>
+    <string name="google_cloud_logins_backed_up">สำรองข้อมูลการเข้าสู่ระบบร้านค้าสำหรับ %1$s แล้ว</string>
+    <string name="google_cloud_sync_ready">การซิงค์การเข้าสู่ระบบร้านค้าพร้อมแล้ว</string>
+    <string name="google_cloud_no_logins_to_sync">ยังไม่มีการเข้าสู่ระบบร้านค้าที่จะซิงค์</string>
+    <string name="google_cloud_sign_in_to_backup">ลงชื่อเข้าใช้เพื่อสำรองข้อมูลโทเคนการเข้าสู่ระบบ %1$s</string>
+    <string name="google_cloud_no_backed_up_logins">ยังไม่พบข้อมูลการเข้าสู่ระบบร้านค้าที่สำรองไว้</string>
+    <string name="google_cloud_local_cloud_differ">ข้อมูลการเข้าสู่ระบบร้านค้าในเครื่องกับบนคลาวด์ไม่ตรงกัน ใช้สำรองข้อมูลเพื่อเขียนทับข้อมูลบนคลาวด์ หรือใช้กู้คืนเพื่อดึงโทเคนที่บันทึกไว้</string>
+    <string name="google_cloud_local_ready_to_backup">ข้อมูลการเข้าสู่ระบบร้านค้าในเครื่องพร้อมสำรองสำหรับ %1$s แล้ว</string>
+    <string name="google_cloud_backup_ready">การสำรองข้อมูลการเข้าสู่ระบบร้านค้าพร้อมแล้ว</string>
+    <string name="google_cloud_restore_available">สามารถกู้คืนข้อมูลการเข้าสู่ระบบจากคลาวด์สำหรับ %1$s ได้</string>
+    <string name="google_cloud_logins_synced">ข้อมูลการเข้าสู่ระบบร้านค้าซิงค์กับ Google Play Games แล้ว</string>
+    <string name="google_cloud_sync_problem">การซิงค์ข้อมูลการเข้าสู่ระบบร้านค้าพบปัญหา</string>
+    <string name="google_cloud_error_auth_needed">Google Play Games ต้องยืนยันตัวตนให้เสร็จก่อน การซิงค์บนคลาวด์จึงจะเข้าถึง Saved Games ได้ เปิดหน้าต่างโปรไฟล์ Play Games หากปรากฏขึ้น แล้วลองอีกครั้ง</string>
+    <string name="google_cloud_error_developer">Google Play Games Saved Games ปฏิเสธบิลด์นี้ ตรวจสอบ Play Games app ID ชื่อแพ็กเกจที่เชื่อมโยง และใบรับรองการลงนามใน Play Console</string>
+    <string name="google_cloud_error_build_rejected">เชื่อมต่อบัญชี Google แล้ว แต่ Google Play Games Saved Games ปฏิเสธบิลด์นี้ ตรวจสอบ Play Games app ID แพ็กเกจที่เชื่อมโยง และใบรับรองการลงนาม</string>
+    <string name="google_cloud_error_network">การซิงค์คลาวด์ของ Google ล้มเหลวเนื่องจากคำขอเครือข่ายไม่เสร็จสมบูรณ์ หรือ Google Play services ต้องการการดำเนินการ</string>
+    <string name="google_cloud_error_no_snapshot">ยังไม่พบข้อมูลการเข้าสู่ระบบร้านค้าที่บันทึกไว้ในการซิงค์คลาวด์ของ Google</string>
+    <string name="google_cloud_error_generic">การซิงค์คลาวด์ของ Google ล้มเหลว: %1$s</string>
+    <string name="google_cloud_error_before_open">การซิงค์คลาวด์ของ Google ล้มเหลวก่อนที่ Google Saved Games จะเปิดได้</string>
+    <string name="cloud_saves_title">เซฟบนคลาวด์</string>
+    <string name="cloud_saves_title_for_provider">%1$s เซฟบนคลาวด์ - %2$s</string>
+    <string name="cloud_saves_sync_summary">ดึงเวอร์ชันที่ %1$s มีอยู่ตอนนี้</string>
+    <string name="cloud_saves_sync_summary_generic">ดึงเวอร์ชันปัจจุบันจากคลาวด์</string>
+    <string name="cloud_saves_no_backups">ยังไม่มีข้อมูลสำรองสำหรับเกมนี้</string>
+    <string name="cloud_sync_title">เซฟบนคลาวด์</string>
+    <string name="cloud_sync_disable_title">ปิดเซฟบนคลาวด์</string>
+    <string name="cloud_saves_steam_push_label">ส่งขึ้น Steam Cloud</string>
+    <string name="cloud_saves_steam_push_helper">บังคับอัปโหลดเซฟในเครื่อง</string>
+    <string name="cloud_saves_steam_push_success">ส่งเซฟขึ้น Steam Cloud แล้ว</string>
+    <string name="cloud_saves_steam_push_failed">ไม่สามารถส่งเซฟขึ้น Steam Cloud ได้</string>
+    <string name="cloud_saves_history_steam_unreachable">ไม่สามารถเชื่อมต่อ Steam Cloud ได้ในตอนนี้ กำลังเชื่อมต่อใหม่ในเบื้องหลัง แตะรีเฟรชเมื่อคุณกลับมาออนไลน์</string>
+    <string name="steam_session_refused_event">Steam ปฏิเสธเซสชันที่แคชไว้ (EResult=%1$d) โปรดลงชื่อเข้าใช้อีกครั้ง</string>
+    <string name="cloud_sync_enabled_summary">ดาวน์โหลดเมื่อเริ่ม ส่งขึ้นเมื่อออก</string>
+    <string name="cloud_sync_disabled_summary">เริ่มโดยไม่ดาวน์โหลดเซฟจากคลาวด์หรือซิงค์เมื่อออก</string>
+    <string name="cloud_saves_offline_mode">ปิดการซิงค์คลาวด์</string>
+    <string name="cloud_saves_offline_mode_summary">หยุดกิจกรรมคลาวด์อัตโนมัติทั้งหมดสำหรับเกมนี้</string>
+    <string name="cloud_saves_backing_up">กำลังสำรองเซฟบนคลาวด์…</string>
+    <string name="cloud_saves_restoring">กำลังกู้คืนเซฟบนคลาวด์…</string>
+
+    <!-- Cloud Saves > Provider sync & backup history -->
+    <string name="cloud_saves_sync_from_provider">ซิงค์จาก %1$s Cloud</string>
+    <string name="cloud_saves_sync_from_provider_generic">ซิงค์จากคลาวด์</string>
+    <string name="cloud_saves_syncing_from_provider">กำลังดาวน์โหลดเซฟจาก %1$s…</string>
+    <string name="cloud_saves_sync_from_provider_success">ดาวน์โหลดเซฟบนคลาวด์ %1$s แล้ว</string>
+    <string name="cloud_saves_sync_from_provider_failed">ไม่สามารถดาวน์โหลดเซฟจาก %1$s ได้</string>
+    <string name="cloud_saves_gog_manage_label">จัดการ GOG Cloud Saves</string>
+    <string name="cloud_saves_gog_manage_helper">เปิดเว็บไซต์ GOG อย่างเป็นทางการ</string>
+    <string name="cloud_saves_gog_manage_no_browser">ไม่มีเบราว์เซอร์สำหรับเปิดหน้าเซฟบนคลาวด์ของ GOG</string>
+    <string name="cloud_saves_gog_zip_label">ดาวน์โหลด GOG Cloud Zip</string>
+    <string name="cloud_saves_gog_zip_helper">บันทึกไฟล์บนคลาวด์ปัจจุบัน</string>
+    <string name="cloud_saves_gog_zip_success">บันทึก zip เซฟบนคลาวด์ของ GOG แล้ว</string>
+    <string name="cloud_saves_gog_zip_failed">ไม่สามารถบันทึก zip เซฟบนคลาวด์ของ GOG ได้</string>
+    <string name="cloud_saves_gog_zip_empty">ไม่พบไฟล์เซฟบนคลาวด์ของ GOG</string>
+    <string name="cloud_saves_google_backup_label">สำรองไปยัง Google</string>
+    <string name="cloud_saves_google_backup_helper">บันทึกสำเนาไปยัง Google Play Games</string>
+    <string name="cloud_saves_google_backup_no_save">ไม่พบไฟล์เซฟที่จะสำรอง</string>
+    <string name="cloud_saves_history_title">ประวัติเซฟ</string>
+    <string name="cloud_saves_history_empty">ยังไม่มีเซฟก่อนหน้าที่สำรองไว้ เซฟที่ถูกแทนที่และการสำรองข้อมูลด้วยตนเองจะปรากฏที่นี่เป็นเวลา 30 วัน</string>
+    <string name="cloud_saves_history_loading">กำลังโหลดประวัติเซฟ…</string>
+    <string name="cloud_saves_history_sign_in">ลงชื่อเข้าใช้ Google เพื่อดูประวัติเซฟของคุณ</string>
+    <string name="cloud_saves_history_origin_local">ในเครื่อง</string>
+    <string name="cloud_saves_history_origin_cloud">คลาวด์</string>
+    <string name="cloud_saves_history_origin_manual">ด้วยตนเอง</string>
+    <string name="cloud_saves_history_origin_auto">อัตโนมัติ</string>
+    <!-- Save History badge: where the backup is stored. -->
+    <string name="cloud_saves_history_storage_steam">Steam</string>
+    <string name="cloud_saves_history_storage_google">Google</string>
+    <string name="cloud_saves_history_storage_epic">Epic</string>
+    <string name="cloud_saves_history_storage_gog">GOG</string>
+    <string name="cloud_saves_history_restore">กู้คืน</string>
+    <string name="cloud_saves_history_download">ดาวน์โหลด</string>
+    <string name="cloud_saves_history_download_success">ดาวน์โหลดไฟล์แล้ว</string>
+    <string name="cloud_saves_history_download_failed">ดาวน์โหลดล้มเหลว</string>
+    <string name="cloud_saves_history_cloud_readonly">อ่านอย่างเดียว</string>
+    <string name="cloud_saves_history_restore_confirm_title">กู้คืนข้อมูลสำรองนี้หรือไม่?</string>
+    <string name="cloud_saves_history_restore_confirm_body">การกระทำนี้จะแทนที่เซฟในเครื่องปัจจุบันของคุณด้วยข้อมูลสำรองจาก %1$s</string>
+    <string name="cloud_saves_history_restore_success">กู้คืนเซฟจากข้อมูลสำรองแล้ว</string>
+    <string name="cloud_saves_history_restore_failed">ไม่สามารถกู้คืนข้อมูลสำรองนี้ได้</string>
+    <string name="cloud_saves_keep_replaced_backup">เก็บข้อมูลสำรองของเซฟที่ถูกแทนที่</string>
+    <string name="cloud_saves_keep_replaced_backup_summary">หากคุณเปลี่ยนใจ คุณสามารถกู้คืนได้จากประวัติเซฟ</string>
+    <string name="cloud_saves_history_refresh">รีเฟรช</string>
+    <string name="cloud_saves_history_rename">เปลี่ยนชื่อ</string>
+    <string name="cloud_saves_history_rename_title">ตั้งชื่อข้อมูลสำรองนี้</string>
+    <string name="cloud_saves_history_rename_hint">เช่น สู้บอส ก่อนจบเกม</string>
+    <string name="cloud_saves_history_rename_save">บันทึก</string>
+    <string name="cloud_saves_history_rename_clear">ล้าง</string>
+    <string name="cloud_saves_history_rename_success">เปลี่ยนชื่อข้อมูลสำรองแล้ว</string>
+    <string name="cloud_saves_history_rename_failed">ไม่สามารถเปลี่ยนชื่อข้อมูลสำรองได้</string>
+
+    <!-- Cloud Saves > Custom save folder picker -->
+    <string name="cloud_saves_custom_select_folder">เลือกโฟลเดอร์เซฟ</string>
+    <string name="cloud_saves_custom_folder_label">โฟลเดอร์เซฟ</string>
+    <string name="cloud_saves_custom_select_folder_summary">ชี้ไปยังไดเรกทอรีเซฟภายในคอนเทนเนอร์</string>
+    <string name="cloud_saves_custom_no_container">ไม่มีคอนเทนเนอร์สำหรับทางลัดนี้</string>
+    <string name="cloud_saves_custom_picker_title">เลือกโฟลเดอร์เซฟ</string>
+    <string name="cloud_saves_custom_outside_drive_c">โฟลเดอร์ที่เลือกต้องอยู่ในไดรฟ์ C: ของคอนเทนเนอร์</string>
+    <string name="cloud_saves_custom_path_map_failed">ไม่สามารถแมปโฟลเดอร์ที่เลือกไปยังพาธ Windows ได้</string>
+    <string name="cloud_saves_custom_folder_set">ตั้งค่าโฟลเดอร์เซฟเป็น %1$s แล้ว</string>
+
+    <!-- Cloud Saves > Steam Cloud actions -->
+    <string name="cloud_saves_steam_sync_label">ซิงค์จาก Steam Cloud</string>
+    <string name="cloud_saves_steam_sync_helper">ดาวน์โหลดเซฟล่าสุด</string>
+    <string name="cloud_saves_steam_sync_success">ซิงค์จาก Steam Cloud แล้ว</string>
+    <string name="cloud_saves_steam_sync_failed">การซิงค์ Steam Cloud ล้มเหลว</string>
+    <string name="cloud_saves_steam_browse_label">ดูเซฟบน Steam Cloud</string>
+    <string name="cloud_saves_steam_browse_helper">เปิดที่เก็บข้อมูลบนคลาวด์</string>
+    <string name="cloud_saves_steam_browse_no_browser">ไม่มีเบราว์เซอร์สำหรับเปิดหน้า Steam</string>
+    <string name="cloud_saves_steam_import_label">นำเข้าไฟล์</string>
+    <string name="cloud_saves_steam_import_helper">กู้คืนไฟล์ที่ดาวน์โหลด</string>
+    <string name="cloud_saves_steam_import_picker_unavailable">ตัวเลือกไฟล์ไม่พร้อมใช้งาน</string>
+    <string name="cloud_saves_steam_restore_overwrite_body">การกระทำนี้จะดาวน์โหลดไฟล์เซฟปัจจุบันของ Steam Cloud และเขียนทับไฟล์เซฟปัจจุบัน</string>
+
+    <!-- Cloud Saves > Internal result messages -->
+    <string name="cloud_saves_invalid_app_id">app ID ไม่ถูกต้อง</string>
+    <string name="cloud_saves_label_saved">บันทึกป้ายกำกับแล้ว</string>
+
+    <!-- Saves > Import and Export -->
+    <string name="saves_import_export_title">เซฟ</string>
+    <string name="saves_import_export_confirm_selection">ยืนยันการเลือก</string>
+    <string name="saves_import_export_select_directory">เลือกไดเรกทอรีเซฟของคุณ</string>
+    <string name="saves_import_export_up_directory">ขึ้นไดเรกทอรี</string>
+    <string name="saves_import_export_select_container">คอนเทนเนอร์เป้าหมาย:</string>
+    <string name="saves_import_export_exported">ส่งออกเซฟสำเร็จ</string>
+    <string name="saves_import_export_exported_failed">ส่งออกเซฟล้มเหลว: %1$s</string>
+    <string name="saves_import_export_imported">นำเข้าเซฟสำเร็จ</string>
+    <string name="saves_import_export_imported_failed">นำเข้าเซฟล้มเหลว: %1$s</string>
+    <string name="saves_export_path_summary">เซฟจะถูกส่งออกไปยัง /WinNative/saves</string>
+    <string name="saves_export_success_path">ส่งออกไปยัง %1$s แล้ว</string>
+    <string name="saves_export_warning_title">ใช้กับเกมที่กำหนดเองเท่านั้น</string>
+    <string name="saves_export_warning_body">การส่งออกอาจรวมเซฟจากเกมที่ติดตั้งจากร้านค้าหรือเกมที่ซิงค์คลาวด์</string>
+    <string name="saves_import_warning_title">การกระทำนี้จะเขียนทับเซฟที่มีอยู่ในคอนเทนเนอร์นี้</string>
+    <string name="saves_import_warning_body">เมื่อกู้คืนข้อมูลสำรองเก่าที่มีหลายเกม ให้คัดลอกเซฟที่ใหม่กว่าเข้าไปในไฟล์ zip ด้วยตัวจัดการไฟล์ก่อน เฉพาะเซฟที่มีอยู่ในไฟล์ .zip เท่านั้นที่จะได้รับผลกระทบ จัดการเซฟอย่างชาญฉลาด</string>
+
+    <!-- Preloader > Launch Screen -->
+    <string name="preloader_default_name">คอนเทนเนอร์</string>
+    <string name="preloader_initializing">กำลังเริ่มต้น</string>
+    <string name="preloader_launching">กำลังเปิด</string>
+    <string name="preloader_closing">กำลังปิด %1$s</string>
+    <string name="preloader_preparing_steam_environment">กำลังเตรียมสภาพแวดล้อม Steam</string>
+    <string name="preloader_starting_wine">กำลังเริ่ม Wine</string>
+    <string name="preloader_starting_steam_launcher">กำลังเริ่ม Steam Launcher</string>
+    <string name="preloader_loading_steam_client">กำลังโหลดไคลเอนต์ Steam</string>
+    <string name="preloader_connecting_to_steam">กำลังเชื่อมต่อกับ Steam</string>
+    <string name="preloader_signing_in_to_steam">กำลังลงชื่อเข้าใช้ Steam</string>
+    <string name="preloader_fetching_game_info">ลงชื่อเข้าใช้แล้ว — กำลังดึงข้อมูลเกม</string>
+    <string name="preloader_steam_ready">Steam พร้อมแล้ว</string>
+    <string name="preloader_updating_game_info">กำลังอัปเดตข้อมูลเกม</string>
+    <string name="preloader_verifying_install">กำลังตรวจสอบการติดตั้ง</string>
+    <string name="preloader_scanning_redists">กำลังสแกน redistributables</string>
+    <string name="preloader_installing_redist_single">กำลังติดตั้ง redistributable</string>
+    <string name="preloader_installing_named_redist">กำลังติดตั้ง %1$s</string>
+    <string name="preloader_installing_named_redist_progress">กำลังติดตั้ง %1$s (%2$s)</string>
+    <string name="preloader_redists_ready">Redistributables พร้อมแล้ว</string>
+    <string name="preloader_no_redists">ไม่มี redistributables ที่จะติดตั้ง</string>
+    <string name="preloader_steam_service_running">บริการ Steam กำลังทำงาน</string>
+    <string name="preloader_launching_game">กำลังเปิด %1$s</string>
+    <string name="preloader_steam_launcher_failed_restaging">Steam Launcher ล้มเหลว — กำลังจัดเตรียมทรัพยากรใหม่</string>
+    <string name="preloader_steam_launcher_start_failed">Steam Launcher ไม่สามารถเริ่มได้ กำลังจัดเตรียมใหม่ — โปรดเปิดใหม่อีกครั้ง</string>
+    <string name="preloader_steam_launcher_game_never_started">Steam Launcher ไปถึงเกมแล้วแต่เกมไม่เคยเริ่มทำงาน</string>
+    <string name="preloader_setup_environment">กำลังตั้งค่าสภาพแวดล้อม</string>
+    <string name="preloader_retrying_steam_client_download">กำลังลองดาวน์โหลดไคลเอนต์ Steam อีกครั้ง</string>
+    <string name="preloader_installing_mono">กำลังติดตั้ง Wine Mono v%1$s</string>
+    <string name="preloader_installing_redist">กำลังติดตั้ง redistributables</string>
+    <string name="preloader_unpacking_exe">กำลังแตกไฟล์ปฏิบัติการของเกม</string>
+    <string name="preloader_downloading_cloud">กำลังดาวน์โหลดเซฟบนคลาวด์</string>
+    <string name="preloader_syncing_cloud">กำลังซิงค์เซฟบนคลาวด์</string>
+    <string name="preloader_uploading_cloud">กำลังอัปโหลดเซฟบนคลาวด์</string>
+    <string name="preloader_checking_cloud">กำลังตรวจสอบเซฟบนคลาวด์</string>
+    <string name="preloader_cloud_sync_retry">%1$s ลองใหม่ %2$d/%3$d</string>
+    <string name="preloader_cloud_downloading">กำลังดาวน์โหลดการซิงค์คลาวด์</string>
+    <string name="cloud_sync_failed_provider">การซิงค์เซฟบนคลาวด์ %1$s ล้มเหลว</string>
+    <string name="preloader_platform_steam">Steam</string>
+    <string name="preloader_platform_epic">Epic Games</string>
+    <string name="preloader_platform_gog">GOG</string>
+    <string name="preloader_platform_custom">เกมที่กำหนดเอง</string>
+
+    <!-- Performance recording settings -->
+    <string name="settings_hud_record_to_file_title">บันทึกประสิทธิภาพลงไฟล์</string>
+    <string name="settings_hud_record_to_file_summary">ส่งออกข้อมูล FPS, CPU, GPU, อุณหภูมิ และแบตเตอรี่ต่อวินาทีไปยัง /WinNative/logs/ ระหว่างเล่นเกม</string>
+    <string name="settings_leaderboard_category">ประสิทธิภาพ</string>
+    <!-- Workshop -->
+    <string name="workshop_loading_items">กำลังโหลดรายการ Workshop</string>
+    <string name="workshop_search_items">ค้นหารายการ Workshop</string>
+    <string name="workshop_title">STEAM WORKSHOP</string>
+    <string name="workshop_loading_subtitle">กำลังดึงรายการที่คุณติดตามจาก Steam</string>
+    <string name="workshop_error_title">ไม่สามารถโหลดรายการ Workshop ได้</string>
+    <string name="workshop_error_subtitle">มีบางอย่างผิดพลาด ลองอีกครั้ง</string>
+    <string name="workshop_empty_title">ไม่มีรายการ Workshop ที่ติดตาม</string>
+    <string name="workshop_empty_subtitle">ติดตามรายการบน Steam Workshop แล้วเปิดหน้าต่างนี้อีกครั้ง</string>
+    <string name="workshop_search_empty_title">ไม่มีรายการที่ตรงกับ \"%1$s\"</string>
+    <string name="workshop_search_empty_subtitle">ลองใช้คำค้นหาอื่น</string>
+    <string name="workshop_clear_search">ล้างการค้นหา</string>
+    <string name="workshop_item_fallback">รายการ Workshop</string>
+    <string name="common_ui_failed">ล้มเหลว</string>
+    <string name="steam_presence_snooze">งีบหลับ</string>
+    <string name="steam_presence_busy">ไม่ว่าง</string>
+    <string name="steam_presence_looking_to_trade">ต้องการแลกเปลี่ยน</string>
+    <string name="steam_presence_looking_to_play">ต้องการเล่น</string>
+    <string name="steam_friends_count">เพื่อน — ออนไลน์ %1$d คน</string>
+    <string name="steam_friends_section_in_game">ในเกม (%1$d)</string>
+    <string name="steam_friends_section_online">ออนไลน์ (%1$d)</string>
+    <string name="steam_friends_section_offline">ออฟไลน์ (%1$d)</string>
+    <string name="steam_friends_none_loaded">ยังไม่ได้โหลดเพื่อน</string>
+    <string name="steam_friends_self_you">คุณ</string>
+    <string name="steam_friends_in_game">ในเกม</string>
+    <string name="steam_friends_join">เข้าร่วม</string>
+    <string name="steam_friends_play">เล่น</string>
+    <string name="steam_chat_image_failed">(ส่งรูปภาพไม่สำเร็จ)</string>
+    <string name="steam_chat_empty">ยังไม่มีข้อความ ทักทายกันหน่อย!</string>
+    <string name="steam_chat_uploading_image">กำลังอัปโหลดรูปภาพ…</string>
+    <string name="steam_chat_send_image">ส่งรูปภาพ</string>
+    <string name="steam_chat_message_hint">ข้อความ…</string>
+    <string name="steam_chat_send">ส่ง</string>
+    <string name="steam_chat_image">รูปภาพ</string>
+    <string name="steam_common_back">ย้อนกลับ</string>
+    <string name="steam_achievements_title">ความสำเร็จ</string>
+    <string name="steam_achievements_empty">ไม่พบความสำเร็จสำหรับเกมนี้\nหรือลงชื่อเข้าใช้ Steam เพื่อโหลด</string>
+    <string name="steam_achievements_hidden">ความสำเร็จที่ซ่อนอยู่</string>
+    <string name="steam_achievements_hidden_desc">เล่นต่อไปเพื่อเปิดเผยความสำเร็จนี้</string>
+    <string name="steam_achievements_unlocked_on">ปลดล็อกเมื่อ %1$s</string>
+    <string name="steam_achievements_unlocked">ปลดล็อกแล้ว</string>
+    <string name="steam_join_joining">กำลังเข้าร่วม %1$s ใน %2$s…</string>
+    <string name="steam_join_install">ติดตั้ง %1$s เพื่อเข้าร่วม %2$s</string>
+    <string name="steam_join_not_owned">คุณไม่ได้เป็นเจ้าของ %1$s</string>
+    <string name="steam_chat_not_sent">(ยังไม่ได้ส่ง)</string>
+    <string name="steam_join_the_game">เกม</string>
+    <string name="steam_friends_settings">การตั้งค่า</string>
+    <string name="steam_chat_settings_title">การตั้งค่าแชท</string>
+    <string name="steam_chat_setting_notifications">การแจ้งเตือนแชท</string>
+    <string name="steam_chat_setting_notifications_desc">แสดงการแจ้งเตือนเมื่อคุณได้รับข้อความ</string>
+    <string name="steam_chat_setting_heads">หัวแชท</string>
+    <string name="steam_chat_setting_heads_desc">ฟองลอยสำหรับอ่านและตอบข้อความ</string>
+    <string name="steam_chat_setting_ingame">เปิดใช้งานแชทในเกม</string>
+    <string name="steam_chat_setting_ingame_desc">รับและส่งข้อความขณะเล่น</string>
+    <string name="steam_chat_setting_stay_running">ทำงานในเบื้องหลัง</string>
+    <string name="steam_chat_setting_stay_running_desc">ให้แชททำงานต่อหลังจากคุณออกจาก WinNative</string>
+    <string name="steam_chat_settings_overlay_needed">อนุญาตให้แสดงทับแอปอื่นเพื่อใช้หัวแชท</string>
+    <string name="steam_chat_heads_title">ข้อความ</string>
+    <string name="steam_chat_heads_recent_title">ล่าสุด</string>
+    <string name="steam_chat_heads_online_title">ออนไลน์</string>
+    <string name="steam_chat_heads_new_chat">ข้อความใหม่</string>
+    <string name="steam_chat_setting_autohide">ซ่อนอัตโนมัติ</string>
+    <string name="steam_chat_setting_autohide_desc">จางหัวแชทหลังไม่มีการใช้งาน 10 วินาที</string>
+    <string name="steam_chat_heads_friends_title">เพื่อน</string>
+    <!-- File manager -->
+    <string name="file_manager_title">ไฟล์</string>
+    <string name="file_manager_copy">คัดลอก</string>
+    <string name="file_manager_cut">ตัด</string>
+    <string name="file_manager_paste">วาง</string>
+    <string name="file_manager_paste_here">วางที่นี่</string>
+    <string name="file_manager_new_folder">โฟลเดอร์ใหม่</string>
+    <string name="file_manager_create">สร้าง</string>
+    <string name="file_manager_delete">ลบ</string>
+    <string name="file_manager_run_boot">รัน / บูต</string>
+    <string name="file_manager_create_shortcut">สร้างทางลัด</string>
+    <string name="file_manager_run_in_container">รันในคอนเทนเนอร์</string>
+    <string name="file_manager_no_containers">ไม่มีคอนเทนเนอร์ที่พร้อมใช้งาน</string>
+    <string name="file_manager_delete_confirm">ลบ \"%1$s\" หรือไม่? การกระทำนี้ไม่สามารถยกเลิกได้</string>
+    <string name="file_manager_copying">กำลังคัดลอก %1$s</string>
+    <string name="file_manager_moving">กำลังย้าย %1$s</string>
+    <string name="file_manager_paste_into_itself">ไม่สามารถวางโฟลเดอร์ลงในตัวมันเองได้</string>
+    <string name="file_manager_operation_failed">การดำเนินการล้มเหลว</string>
+    <string name="file_manager_delete_failed">ลบล้มเหลว</string>
+    <string name="file_manager_rename_failed">เปลี่ยนชื่อล้มเหลว</string>
+    <string name="file_manager_create_folder_failed">สร้างโฟลเดอร์ล้มเหลว</string>
+
+    <string name="settings_content_refresh">รีเฟรช</string>
+</resources>

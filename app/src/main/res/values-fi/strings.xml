@@ -1,0 +1,1565 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Common > UI Labels -->
+    <string name="common_ui_app_name">WinNative</string>
+    <string name="common_ui_run">Suorita</string>
+    <string name="common_ui_edit">Muokkaa</string>
+    <string name="common_ui_remove">Poista</string>
+    <string name="common_ui_add">Lisää</string>
+    <string name="common_ui_shortcuts">Pikakuvakkeet</string>
+    <string name="common_ui_containers">Säiliöt</string>
+    <string name="common_ui_input_controls">Syöttöohjaimet</string>
+    <string name="common_ui_no_items_to_display">Ei näytettäviä kohteita</string>
+    <string name="common_ui_select_icon">Valitse kuvake</string>
+    <string name="common_ui_revert_icon">Palauta kuvake</string>
+    <string name="common_ui_select_exe">Valitse EXE</string>
+    <string name="common_ui_select_folder">Valitse kansio</string>
+    <string name="common_ui_current_folder">Nykyinen kansio</string>
+    <string name="common_ui_select_valid_exe_file">Valitse kelvollinen .exe-tiedosto</string>
+    <string name="common_ui_select_valid_icon_file">Valitse kelvollinen .ico- tai .png-tiedosto.</string>
+    <string name="common_ui_exit">Poistu</string>
+    <string name="common_ui_exit_app">Poistu sovelluksesta</string>
+    <string name="common_ui_profile">Profiili</string>
+    <string name="common_ui_name">Nimi</string>
+    <string name="common_ui_ok">OK</string>
+    <string name="common_ui_cancel">Peruuta</string>
+    <string name="common_ui_untitled">Nimetön</string>
+    <string name="common_ui_disabled">Poistettu käytöstä</string>
+    <string name="common_ui_container">Säiliö</string>
+    <string name="common_ui_value">Arvo</string>
+    <string name="common_ui_none">Ei mitään</string>
+    <string name="common_ui_custom_text">Mukautettu teksti</string>
+    <string name="common_ui_icon">Kuvake</string>
+    <string name="common_ui_duplicate">Monista</string>
+    <string name="common_ui_credits_and_third_party_apps">Tekijät ja kolmannen osapuolen sovellukset</string>
+    <string name="common_ui_loading">Ladataan</string>
+    <string name="common_ui_exporting">Viedään</string>
+    <string name="common_ui_enable">Ota käyttöön</string>
+    <string name="common_ui_disable">Poista käytöstä</string>
+    <string name="common_ui_force">Pakota</string>
+    <string name="common_ui_version">Versio</string>
+    <string name="common_ui_advanced">Lisäasetukset</string>
+    <string name="common_ui_graphics">Grafiikka</string>
+    <string name="common_ui_system">Järjestelmä</string>
+    <string name="common_ui_width">Leveys</string>
+    <string name="common_ui_height">Korkeus</string>
+    <string name="common_ui_open_file">Avaa tiedosto</string>
+    <string name="common_ui_download_file">Lataa tiedosto</string>
+    <string name="common_ui_downloading_file">Ladataan tiedostoa</string>
+    <string name="common_ui_browse">Selaa</string>
+    <string name="common_ui_options">Valinnat</string>
+    <string name="common_ui_export">Vie</string>
+    <string name="common_ui_new_file">Uusi tiedosto</string>
+    <string name="common_ui_description">Kuvaus</string>
+    <string name="common_ui_continue">Jatka</string>
+    <string name="common_ui_warning">Varoitus</string>
+    <string name="common_ui_copy">kopio</string>
+    <string name="common_ui_reset">Nollaa</string>
+    <string name="common_ui_close">Sulje</string>
+    <string name="common_ui_confirm">Vahvista</string>
+    <string name="common_ui_unnamed">Nimetön</string>
+    <string name="common_ui_download">Lataa</string>
+    <string name="common_ui_uninstall">Poista asennus</string>
+    <string name="common_ui_other">Muu</string>
+    <string name="common_ui_status">Tila</string>
+    <string name="common_ui_size">Koko</string>
+    <string name="common_ui_release_date">Julkaisupäivä</string>
+    <string name="common_ui_installed">Asennettu</string>
+    <string name="common_ui_available">Saatavilla</string>
+    <string name="common_ui_settings">Asetukset</string>
+    <string name="common_ui_enable_all">Ota kaikki käyttöön</string>
+    <string name="common_ui_disable_all">Poista kaikki käytöstä</string>
+    <string name="common_ui_select_all">Valitse kaikki</string>
+    <string name="common_ui_deselect_all">Poista kaikki valinnat</string>
+    <string name="common_ui_on">Päällä</string>
+    <string name="common_ui_off">Pois</string>
+    <string name="common_ui_already_set">Jo asetettu</string>
+    <string name="common_ui_shortcut">Pikakuvake</string>
+    <string name="common_ui_custom">Mukautettu</string>
+    <string name="common_ui_about">Tietoja</string>
+    <string name="common_ui_back">Takaisin</string>
+    <string name="common_ui_apply">Käytä</string>
+    <string name="common_ui_save">Tallenna</string>
+    <string name="common_ui_clone">Kloonaa</string>
+    <string name="common_ui_properties">Ominaisuudet</string>
+    <string name="common_ui_store">Kauppa</string>
+    <string name="common_ui_library">Kirjasto</string>
+    <string name="common_ui_downloads">Lataukset</string>
+    <string name="common_ui_import">Tuo</string>
+    <string name="common_ui_sync">Synkronoi</string>
+    <string name="common_ui_sign_in">Kirjaudu sisään</string>
+    <string name="common_ui_submit">Lähetä</string>
+    <string name="common_ui_coming_soon">Tulossa pian</string>
+    <string name="common_ui_signed_in">Kirjautunut sisään</string>
+    <string name="common_ui_required">Pakollinen</string>
+    <string name="common_ui_optional">Valinnainen</string>
+    <string name="common_ui_notifications">Ilmoitukset</string>
+    <string name="common_ui_mode">Tila</string>
+    <string name="common_ui_experimental">(Kokeellinen)</string>
+    <string name="common_ui_current_version_label">Nykyinen versio:</string>
+    <string name="common_ui_cannot_write_folder">Valittuun kansioon ei voi kirjoittaa</string>
+    <string name="common_ui_failed_create_directory">Oletushakemiston luonti epäonnistui</string>
+    <string name="common_ui_device_not_supported">Valitettavasti laitettasi ei ehkä tueta</string>
+    <string name="common_ui_please_wait">Odota\u2026</string>
+    <string name="common_ui_done">Valmis</string>
+    <string name="common_ui_open">Avaa</string>
+    <string name="common_ui_connected">Yhdistetty</string>
+    <string name="common_ui_install">Asenna</string>
+    <string name="common_ui_application">Sovellus</string>
+    <string name="common_ui_check">Tarkista</string>
+    <string name="store_game_check_for_update">Tarkista päivitykset</string>
+    <string name="store_game_checking_for_update">Tarkistetaan</string>
+    <string name="store_game_download_update">Lataa päivitys</string>
+    <string name="store_game_no_update_available">Ei päivityksiä saatavilla</string>
+    <string name="store_game_update_available">Päivitys saatavilla</string>
+    <string name="store_game_update_check_failed">Päivitysten tarkistus epäonnistui</string>
+    <string name="store_game_update">Päivitä</string>
+    <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_verify_files">Tarkista tiedostot</string>
+    <string name="store_game_verify_started">Tarkistetaan %1$s — katso Lataukset-välilehteä</string>
+    <string name="store_game_steam_options">Steam-asetukset</string>
+    <string name="store_game_verify_complete">Tiedostojen tarkistus valmis</string>
+    <string name="store_game_verify_failed_notice">Tiedostojen tarkistus epäonnistui</string>
+    <string name="store_game_progress_background_hint">Voit sulkea tämän — toiminto jatkuu. Katso Lataukset-välilehteä milloin tahansa.</string>
+    <string name="store_game_checking_updates">Tarkistetaan päivityksiä</string>
+    <string name="store_game_no_updates_notice">Ei päivityksiä saatavilla</string>
+    <string name="store_game_update_complete">Päivitys valmis</string>
+    <string name="store_game_update_failed_notice">Päivitys epäonnistui</string>
+    <string name="store_game_update_check_failed_notice">Päivitysten tarkistus epäonnistui</string>
+    <string name="store_game_download_already_active">Tätä peliä ladataan jo. Peruuta nykyinen lataus ennen DLC:n lisäämistä.</string>
+    <string name="common_ui_select">Valitse</string>
+    <string name="common_ui_storage_roots">Tallennussijainnit</string>
+    <string name="common_ui_browse_local_folders_directly">Selaa paikallisia kansioita suoraan</string>
+    <string name="common_ui_no_folders_available_here">Täällä ei ole kansioita saatavilla</string>
+    <string name="common_ui_grant_all_files_access_browse">Myönnä kaikkien tiedostojen käyttöoikeus selataksesi kansioita suoraan.</string>
+    <string name="common_ui_not_configured">Ei määritetty</string>
+    <string name="common_ui_reinstall">Asenna uudelleen</string>
+    <string name="common_ui_exit_app_confirm">Poistutaanko WinNativesta?</string>
+    <string name="common_ui_elements_count">%1$d elementtiä</string>
+    <string name="common_ui_disabled_placeholder">-- Poistettu käytöstä --</string>
+    <string name="common_ui_enabled">Käytössä</string>
+    <string name="common_ui_unknown_error">Tuntematon virhe</string>
+    <string name="common_ui_auto_detected">Tunnistettu automaattisesti</string>
+    <string name="common_ui_change">Vaihda</string>
+    <string name="common_ui_proceed">Jatka</string>
+    <string name="common_ui_sign_out">Kirjaudu ulos</string>
+    <string name="common_ui_name_cannot_be_empty">Nimi ei voi olla tyhjä</string>
+    <string name="common_ui_error_with_message">Virhe: %1$s</string>
+    <string name="common_ui_64_bit">64-BITTINEN</string>
+    <string name="common_ui_32_bit">32-BITTINEN</string>
+    <string name="common_ui_64_bit_and_32_bit">64-BITTINEN &amp; 32-BITTINEN</string>
+    <plurals name="common_ui_folder_count">
+        <item quantity="one">%d kansio</item>
+        <item quantity="other">%d kansiota</item>
+    </plurals>
+    <plurals name="common_ui_file_count">
+        <item quantity="one">%d tiedosto</item>
+        <item quantity="other">%d tiedostoa</item>
+    </plurals>
+
+    <!-- Library > Games -->
+    <string name="library_games_shortcut_created">Pikakuvake luotu</string>
+    <string name="library_games_failed_to_create_shortcut">Pikakuvakkeen luonti epäonnistui: %s</string>
+    <string name="library_games_install_path">Asennuspolku</string>
+    <string name="library_games_not_enough_space">Tarvitaan %1$s lisää tilaa</string>
+    <string name="library_games_download_slash_install">Lataa / Asenna</string>
+    <string name="library_games_save_management">TALLENNUSTEN HALLINTA</string>
+    <string name="library_games_download_install_available">%1$s / %2$s • Saatavilla: %3$s</string>
+    <string name="library_games_last_played">Viimeksi pelattu</string>
+    <string name="library_games_playtime">Peliaika</string>
+    <string name="library_games_plays">Pelikerrat</string>
+    <string name="library_games_dlcs">DLC:t</string>
+    <string name="library_games_uninstall_game">POISTA PELIN ASENNUS</string>
+    <string name="library_games_remove_game">POISTA PELI</string>
+    <string name="library_games_uninstall_confirm">Poistetaanko pelin %1$s asennus ja sen asennettu pelikansio pysyvästi?</string>
+    <string name="library_games_remove_confirm">Poistetaanko %1$s kirjastostasi? Levyllä olevat pelitiedostot säilyvät koskemattomina.</string>
+    <string name="library_games_game_uninstalled">Pelin %1$s asennus poistettu.</string>
+    <string name="library_games_game_removed">%1$s poistettu.</string>
+    <string name="library_games_failed_to_uninstall">Asennuksen poisto epäonnistui.</string>
+    <string name="library_games_failed_to_uninstall_reason">Asennuksen poisto epäonnistui: %1$s</string>
+    <string name="library_games_loading">Ladataan kirjastoa\u2026</string>
+    <string name="library_games_no_games_installed">Ei asennettuja pelejä. Lisää pelejä Kauppa-välilehden tai +-painikkeen avulla.</string>
+    <string name="library_games_times_played_label">Pelikertojen määrä: </string>
+    <string name="library_games_playtime_label">Peliaika: </string>
+    <string name="library_games_no_games_hub">Ei asennettuja pelejä\nAvaa Winlator-taustajärjestelmä napsauttamalla</string>
+    <string name="library_games_installed_badge">ASENNETTU</string>
+    <string name="library_games_unknown_game">Tuntematon peli</string>
+    <string name="library_games_layouts_header">KIRJASTON ASETTELUT</string>
+    <string name="library_games_layout_carousel">Karuselli</string>
+    <string name="library_games_layout_list">Luettelo</string>
+    <string name="library_games_view_options_header">NÄKYMÄASETUKSET</string>
+    <string name="library_games_immersive_mode">Immersiivinen tila</string>
+    <string name="library_games_immersive_mode_description">Käytä valitun pelin kuvitusta taustana</string>
+    <string name="library_games_immersive_blur">Sumenna tausta</string>
+    <string name="library_games_immersive_blur_description">Lisää sumennustehoste immersiiviseen taustaan</string>
+    <string name="library_games_custom_game">Mukautettu peli</string>
+    <string name="library_games_play">Pelaa</string>
+    <string name="hero_boot_to_desktop_title">Käynnistä työpöydälle</string>
+    <string name="hero_graphics_tests_title">Grafiikkatestit</string>
+    <string name="hero_graphics_test_32">32-bittinen</string>
+    <string name="hero_graphics_test_64">64-bittinen</string>
+    <string name="library_games_add_custom_game">Lisää mukautettu peli</string>
+    <string name="library_games_game_name">Pelin nimi</string>
+    <string name="library_games_game_folder_mapped_drive">Pelikansio (yhdistetty peliasema)</string>
+    <string name="library_games_select_exe_provide_name">Valitse exe ja anna nimi</string>
+    <string name="library_games_sign_in_prompt">Kirjaudu kauppaan tai lisää mukautettu peli rakentaaksesi kirjastosi.</string>
+
+    <!-- Stores > Accounts -->
+    <string name="stores_accounts_title">Kaupat</string>
+    <string name="stores_accounts_steam_integration_title">Steam</string>
+    <string name="stores_accounts_shared_downloads_folder">Jaettu latauskansio</string>
+    <string name="stores_accounts_shared_downloads_subtitle">Käytä yhtä kansiota kaikissa kaupoissa</string>
+    <string name="stores_accounts_default_downloads_folder">Oletuslatauskansio</string>
+    <string name="stores_accounts_steam_downloads">Steam-lataukset</string>
+    <string name="stores_accounts_epic_downloads">Epic-lataukset</string>
+    <string name="stores_accounts_gog_downloads">GOG-lataukset</string>
+    <string name="stores_accounts_download_speed">Latausnopeus</string>
+    <string name="stores_accounts_download_speed_subtitle">Ohjaa Steam-latausten säikeiden rinnakkaisuutta</string>
+    <string name="stores_accounts_download_server">Latauspalvelin</string>
+    <string name="stores_accounts_connected_stores">Yhdistetyt kaupat</string>
+    <string name="stores_accounts_download_settings">Latausasetukset</string>
+    <string name="stores_accounts_download_speed_conservative">Varovainen</string>
+    <string name="stores_accounts_download_speed_balanced">Tasapainoinen</string>
+    <string name="stores_accounts_download_speed_standard">Vakio</string>
+    <string name="stores_accounts_download_speed_performance">Suorituskyky</string>
+    <string name="stores_accounts_download_server_auto_detected">Tunnistettu automaattisesti: %1$s</string>
+    <string name="stores_accounts_download_server_subtitle">Steam CDN -alue pelilatauksia varten</string>
+    <string name="stores_accounts_sign_out_confirm">Kirjaudutaanko ulos palvelusta %1$s?</string>
+    <string name="stores_accounts_sign_out_message">Sinun on kirjauduttava uudelleen sisään päästäksesi kirjastoosi.</string>
+    <string name="stores_accounts_logged_in_epic">Kirjauduttu Epic Gamesiin!</string>
+    <string name="stores_accounts_epic_login_failed">Epic-kirjautuminen epäonnistui: %1$s</string>
+    <string name="stores_accounts_logged_in_gog">Kirjauduttu GOGiin!</string>
+    <string name="stores_accounts_gog_login_failed">GOG-kirjautuminen epäonnistui: %1$s</string>
+    <string name="stores_accounts_custom_download_path">Mukautettu latauspolku</string>
+    <string name="stores_accounts_custom_download_path_description">Oletuslatauspolku on jo määritetty kohdassa Asetukset &gt; Kaupat. Jos haluat asettaa yksilöllisen mukautetun polun tälle asennukselle, napsauta Jatka.</string>
+    <string name="stores_accounts_not_signed_in">Ei kirjautunut</string>
+    <string name="stores_accounts_status_online">Paikalla</string>
+    <string name="stores_accounts_status_away">Poissa</string>
+    <string name="stores_accounts_status_offline">Poissa linjoilta</string>
+    <string name="stores_accounts_status_invisible">Näkymätön</string>
+    <string name="stores_accounts_status_header">TILA</string>
+    <string name="stores_accounts_stores_header">KAUPAT</string>
+    <string name="stores_accounts_sign_in_store_prompt">Kirjaudu sisään käyttääksesi %1$s-kauppaa.</string>
+    <string name="stores_accounts_manage">Hallitse kauppatilejä</string>
+    <string name="stores_accounts_sign_into_store">Kirjaudu palveluun %1$s</string>
+
+    <!-- Downloads > Queue -->
+    <string name="downloads_queue_cancel_all">Peruuta kaikki</string>
+    <string name="downloads_queue_preparing_download">Valmistellaan latausta</string>
+    <string name="downloads_queue_installing_package">Asennetaan pakettia</string>
+    <string name="downloads_queue_resume_all">Jatka kaikkia</string>
+    <string name="downloads_queue_pause_all">Keskeytä kaikki</string>
+    <string name="downloads_queue_clear">Tyhjennä</string>
+    <string name="downloads_queue_status_label">Tila:</string>
+    <string name="downloads_queue_phase_downloading">Ladataan</string>
+    <string name="downloads_queue_phase_downloading_file">Ladataan [%1$s]</string>
+    <string name="downloads_queue_phase_queued">Jonossa</string>
+    <string name="downloads_queue_phase_paused">Keskeytetty</string>
+    <string name="downloads_queue_phase_preparing">Valmistellaan</string>
+    <string name="downloads_queue_phase_verifying">Tarkistetaan</string>
+    <string name="downloads_queue_phase_verifying_file">Tarkistetaan [%1$s]</string>
+    <string name="downloads_queue_phase_patching">Korjataan</string>
+    <string name="downloads_queue_phase_applying_data">Otetaan tiedot käyttöön</string>
+    <string name="downloads_queue_phase_finalizing">Viimeistellään</string>
+    <string name="downloads_queue_phase_unpacking">Puretaan</string>
+    <string name="downloads_queue_phase_updating">Päivitetään</string>
+    <string name="downloads_queue_phase_complete">Valmis</string>
+    <string name="downloads_queue_phase_cancelled">Peruutettu</string>
+    <string name="downloads_queue_phase_failed">Epäonnistui: %1$s</string>
+    <string name="downloads_queue_phase_unknown">Tuntematon</string>
+    <string name="downloads_queue_paused_resume_hint">Keskeytetty – jatka napauttamalla Jatka</string>
+    <string name="downloads_queue_cancel_download">Peruuta lataus</string>
+    <string name="downloads_queue_cancel_download_title">Peruutetaanko lataus?</string>
+    <string name="downloads_queue_cancel_download_confirm">Peruutetaanko kohteen %1$s lataus ja poistetaanko kaikki ladatut tiedostot?</string>
+    <string name="downloads_queue_cancel_download_warning">DLC:n, pelin tai päivityksen latauksen peruuttaminen voi vahingoittaa pelin asennusta.\n\nHaluatko varmasti peruuttaa tämän latauksen ja poistaa tähän mennessä ladatut tiedostot?</string>
+    <string name="downloads_queue_cancel_all_title">Peruutetaanko kaikki lataukset?</string>
+    <string name="downloads_queue_cancel_all_warning">DLC-, peli- tai päivityslatausten peruuttaminen voi vahingoittaa pelien asennuksia.\n\nHaluatko varmasti peruuttaa kaikki lataukset ja poistaa tähän mennessä ladatut tiedostot?</string>
+    <string name="downloads_queue_this_game">tämä peli</string>
+    <string name="downloads_queue_empty">Ei aktiivisia latauksia.</string>
+
+    <!-- Containers > List -->
+    <string name="containers_list_new">Uusi säiliö</string>
+    <string name="containers_list_edit">Muokkaa säiliötä</string>
+    <string name="containers_list_creating">Luodaan säiliötä</string>
+    <string name="containers_list_removing">Poistetaan säiliötä</string>
+    <string name="containers_list_duplicating">Kopioidaan säiliötä</string>
+    <string name="containers_list_remove_title">Poista säiliö</string>
+    <string name="containers_list_duplicate_title">Kopioi säiliö</string>
+    <string name="containers_list_confirm_remove">Poistetaanko tämä säiliö? Kaikki sen sisältämät pelitallennukset poistetaan pysyvästi. Pilveen synkronoidut tallennukset säilyvät pilvessä, mutta paikalliset muutokset, joita ei ole vielä synkronoitu, menetetään – synkronoi tämän pelin pilvitallennukset ensin, jos haluat säilyttää ne.</string>
+    <string name="containers_list_confirm_duplicate">Haluatko kopioida tämän säiliön?</string>
+
+    <!-- Shortcuts > List -->
+    <string name="shortcuts_list_confirm_remove">Haluatko poistaa tämän pikakuvakkeen?</string>
+    <string name="shortcuts_list_add_to_home_screen">Lisää aloitusnäyttöön</string>
+    <string name="shortcuts_library_artwork_title">Kirjaston kuvitus</string>
+    <string name="shortcuts_library_artwork_game_card_title">Pelikortin kuva</string>
+    <string name="shortcuts_library_artwork_grid_title">Ruudukkokuva</string>
+    <string name="shortcuts_library_artwork_carousel_title">Karusellikuva</string>
+    <string name="shortcuts_library_artwork_list_title">Listakuva</string>
+    <string name="shortcuts_library_artwork_selected">Valittu: %1$s</string>
+    <string name="shortcuts_library_artwork_set">Aseta kuva</string>
+    <string name="shortcuts_library_artwork_change">Vaihda kuva</string>
+    <string name="shortcuts_library_artwork_failed">Valitun kuvan lataaminen epäonnistui.</string>
+    <string name="shortcuts_library_artwork_open_source">Avaa SteamGridDB</string>
+    <string name="shortcuts_list_not_available">Tämä pikakuvake ei ole enää käytettävissä. Poista tai luo se uudelleen.</string>
+    <string name="shortcuts_list_select_a_container">Valitse säiliö</string>
+    <string name="shortcuts_list_error_opening_settings">Virhe avattaessa pikakuvakkeen asetuksia</string>
+    <string name="shortcuts_list_removed">Pikakuvake poistettu onnistuneesti.</string>
+    <string name="shortcuts_list_remove_failed">Pikakuvakkeen poistaminen epäonnistui. Yritä uudelleen.</string>
+    <string name="shortcuts_list_remove_game_shortcut_message">Poista pikakuvake\n%1$s</string>
+    <string name="shortcuts_list_cloned">Pikakuvake kloonattu onnistuneesti.</string>
+    <string name="shortcuts_list_clone_failed">Pikakuvakkeen kloonaaminen epäonnistui.</string>
+    <string name="shortcuts_list_exported_to">Pikakuvake viety kohteeseen %1$s</string>
+    <string name="shortcuts_list_failed_export">Pikakuvakkeen vieminen epäonnistui</string>
+    <string name="shortcuts_export_all">Vie kaikki</string>
+    <string name="shortcuts_export_to_frontend">Vie käyttöliittymään</string>
+    <string name="shortcuts_export_all_done">Viety %1$d peliä kohteeseen %2$s</string>
+    <string name="shortcuts_export_all_none">Ei vietäviä pelejä</string>
+    <string name="shortcuts_list_added">Pikakuvake lisätty onnistuneesti.</string>
+    <string name="shortcuts_list_readded_existing">Olemassa oleva pikakuvake lisätty uudelleen</string>
+    <string name="shortcuts_list_failed_add">Pikakuvakkeen lisääminen epäonnistui.</string>
+
+    <!-- Shortcuts > Properties -->
+    <string name="shortcuts_properties_exec_arguments">Suoritusargumentit</string>
+    <string name="shortcuts_properties_target_path">Kohdepolku</string>
+    <string name="shortcuts_properties_disable_xinput">Poista Xinput käytöstä (yksinomaiseen hiiri/näppäimistö-ohjaukseen)</string>
+    <string name="num_controllers">Ohjainten määrä</string>
+    <string name="shortcuts_properties_exclusive_input">Yksinomainen syöte</string>
+    <string name="shortcuts_properties_custom_game_settings">Mukautetut peliasetukset</string>
+    <string name="shortcuts_properties_use_legacy_launcher">Käytä vanhaa käynnistintä</string>
+    <string name="shortcuts_properties_use_legacy_launcher_description">Vanha Steam-emulointi: suorittaa pelin ColdClient-käynnistimen kautta ja poistaa SteamStub-DRM-suojauksen exe-tiedostosta. Käytä vain vanhoihin peleihin, jotka eivät toimi Steam-käynnistimen kanssa.</string>
+    <string name="shortcuts_properties_runtime_patcher">DRM-suorituksenaikainen korjain</string>
+    <string name="shortcuts_properties_runtime_patcher_description">Lisää DRM-korjaimen DLL:n käynnistyksen yhteydessä. Laskee FPS:ää – käytä vain, jos pelkkä vanha käynnistin epäonnistuu.</string>
+    <string name="steam_section_title">Steam</string>
+    <string name="steam_section_real_client">WinNative-oikea Steam-asiakas</string>
+    <string name="steam_section_emulator">Vanha Steam-emulaattori</string>
+    <string name="shortcuts_properties_use_steam_input">Käytä Steam-syötettä</string>
+    <string name="shortcuts_properties_steam_offline_mode">Steamin offline-tila</string>
+    <string name="shortcuts_properties_steam_offline_mode_description">Saa emuloidun Steam-asiakkaan ilmoittautumaan offline-tilaan, jotta peli ei yritä muodostaa verkkoyhteyksiä. Käytä peleihin, jotka jumittuvat Steamin verkkotarkistuksessa.</string>
+    <string name="shortcuts_properties_reset">Palauta ominaisuudet</string>
+    <string name="shortcuts_properties_updated_at">Pikakuvake päivitetty %1$s</string>
+    <string name="shortcuts_properties_properties_reset">Ominaisuudet palautettu onnistuneesti.</string>
+    <string name="shortcuts_properties_reset_per_game">Palauta pelikohtaiset asetukset</string>
+    <string name="shortcuts_properties_reset_per_game_message">Palautetaanko tämä peli käyttämään valitun säiliön oletusasetuksia?</string>
+    <string name="shortcuts_properties_per_game_reset">Pelikohtaiset asetukset palautettu valitun säiliön oletusasetuksiin</string>
+
+    <!-- Input Controls > Editor -->
+    <string name="input_controls_editor_no_element_selected">Ei valittua ohjauselementtiä</string>
+    <string name="input_controls_editor_scale">Skaala</string>
+    <string name="input_controls_editor_shape">Muoto</string>
+    <string name="input_controls_editor_type">Tyyppi</string>
+    <string name="input_controls_editor_binding">Sidonta</string>
+    <string name="binding_secondary">Toissijainen sidonta</string>
+    <string name="input_controls_editor_binding_up">Sidonta ylös</string>
+    <string name="input_controls_editor_binding_right">Sidonta oikealle</string>
+    <string name="input_controls_editor_binding_down">Sidonta alas</string>
+    <string name="input_controls_editor_binding_left">Sidonta vasemmalle</string>
+    <string name="input_controls_editor_overlay_opacity">Peittokuvan peittävyys</string>
+    <string name="input_controls_editor_opacity">Peittävyys</string>
+    <string name="input_controls_editor_radial_menu">Säteittäinen valikko</string>
+    <string name="input_controls_editor_radial_menu_options">Säteittäisen valikon asetukset</string>
+    <string name="input_controls_editor_number_of_bindings">Sidontojen määrä</string>
+    <string name="input_controls_editor_select_profile">Valitse profiili</string>
+    <string name="input_controls_select_style">Valitse tyyli</string>
+    <string name="input_controls_select_label_theme">Painikkeiden nimiöt</string>
+    <string name="input_controls_style_original">Alkuperäinen</string>
+    <string name="input_controls_style_gamehub">Lasi</string>
+    <string name="input_controls_label_theme_default">Alkuperäinen</string>
+    <string name="input_controls_label_theme_xbox">Xbox</string>
+    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_edit_duplicating_builtin">Sisäänrakennettu profiili – luotiin kopio, jota voit muokata.</string>
+    <string name="input_controls_editor_profile_name">Profiilin nimi</string>
+    <string name="input_controls_editor_no_profile_selected">Ei valittua profiilia</string>
+    <string name="input_controls_editor_no_profile_found">Profiilia ei löytynyt</string>
+    <string name="input_controls_editor_tap_to_switch">Vaihda napauttamalla</string>
+    <string name="input_controls_editor_confirm_remove_profile">Haluatko poistaa tämän profiilin?</string>
+    <string name="input_controls_editor_confirm_duplicate_profile">Haluatko kopioida tämän profiilin?</string>
+    <string name="input_controls_editor_confirm_reset_profile">Palautetaanko tämä profiili alkuperäiseen asetteluunsa? Kaikki tekemäsi muutokset menetetään.</string>
+    <string name="input_controls_editor_profile_reset">Profiili palautettu alkuperäiseen asetteluunsa.</string>
+    <string name="input_controls_editor_reset_unavailable">Tälle profiilille ei ole saatavilla alkuperäistä tilannevedosta.</string>
+    <string name="input_controls_editor_title">Ohjausten muokkain</string>
+    <string name="input_controls_editor_toggle_switch">Vaihtokytkin</string>
+    <string name="input_controls_editor_profile_exported_to">Profiili viety kohteeseen</string>
+    <string name="input_controls_editor_unable_to_import">Profiilia ei voitu tuoda</string>
+    <string name="input_controls_editor_import_profile">Tuo profiili</string>
+    <string name="input_controls_editor_download_profile">Lataa profiili</string>
+    <string name="input_controls_editor_export_profile">Vie profiili</string>
+    <string name="input_controls_editor_range">Alue</string>
+    <string name="input_controls_editor_confirm_download_profiles">Haluatko ladata valitut profiilit?</string>
+    <string name="input_controls_editor_unable_to_load_list">Profiililuetteloa ei voitu ladata</string>
+    <string name="input_controls_editor_osc_transparency">Näyttöohjainten läpinäkyvyys</string>
+    <string name="input_controls_editor_osc_transparency_description">Säädä näyttöohjainten läpinäkyvyyttä.</string>
+
+    <!-- Container > Configuration -->
+    <string name="container_config_screen_size">Näytön koko</string>
+    <string name="container_config_new_env_var">Uusi ympäristömuuttuja</string>
+    <string name="container_config_env_vars">Ympäristömuuttujat</string>
+    <string name="container_config_processor_affinity">Suorittimen affiniteetti</string>
+    <string name="container_config_processor_affinity_32bit">Suorittimen affiniteetti (32-bittiset sovellukset)</string>
+    <string name="container_config_audio_driver">Ääniohjain</string>
+    <string name="container_config_win_components">Win-komponentit</string>
+    <string name="container_config_drives">Asemat</string>
+    <string name="container_config_arch">Arkkitehtuuri</string>
+    <string name="container_config_storage_info">Tallennustilan tiedot</string>
+    <string name="container_config_drive_c">C:-asema</string>
+    <string name="container_config_cache">Välimuisti</string>
+    <string name="container_config_total">Yhteensä</string>
+    <string name="container_config_clear_cache">Tyhjennä välimuisti</string>
+    <string name="container_config_estimated_used_space">Arvioitu käytetty tila</string>
+    <string name="settings_containers_error_saving_wallpaper">Virhe taustakuvaa tallennettaessa</string>
+    <string name="container_config_directinput_mapper_type">DirectInput-määritystyyppi</string>
+    <string name="container_config_title">Määritykset</string>
+    <string name="container_config_startup_selection">Käynnistysvalinta</string>
+    <string name="container_config_glibc_exp_edition">Perustuu</string>
+    <string name="container_config_refresh_rate_default_global">Oletus (yleinen)</string>
+    <string name="container_config_enable_dinput">Ota DInput käyttöön Wine-peleissä</string>
+    <string name="container_config_enable_xinput">Ota XInput käyttöön Wine-peleissä</string>
+    <string name="container_config_dinput_legacy">Vanha (vanhat ohjaimet)</string>
+    <string name="container_config_dinput_modern">Moderni (Xinput-tyyppinen)</string>
+    <string name="container_config_help_xinput">
+        Jos pelisi käyttää &lt;i&gt;&lt;b&gt;XInput API&lt;/b&gt;&lt;/i&gt; -rajapintaa peliohjaimen tukeen, ota tämä asetus käyttöön.&lt;br/&gt;&lt;br/&gt;
+        Tämä asetus vaikuttaa sekä &lt;i&gt;&lt;b&gt;virtuaalisiin&lt;/b&gt;&lt;/i&gt; (Input Controls -toiminnon tarjoamiin) että &lt;i&gt;&lt;b&gt;fyysisiin&lt;/b&gt;&lt;/i&gt; peliohjaimiin.
+    </string>
+    <string name="container_config_help_dinput">
+        Jos pelisi käyttää &lt;i&gt;&lt;b&gt;DInput API&lt;/b&gt;&lt;/i&gt; -rajapintaa peliohjaimen tukeen, ota tämä asetus käyttöön.&lt;br/&gt;&lt;br/&gt;
+        Tämä asetus vaikuttaa sekä &lt;i&gt;&lt;b&gt;virtuaalisiin&lt;/b&gt;&lt;/i&gt; (Input Controls -toiminnon tarjoamiin) että &lt;i&gt;&lt;b&gt;fyysisiin&lt;/b&gt;&lt;/i&gt; peliohjaimiin.
+    </string>
+    <string name="container_config_xinput_dinput_warning">Jotkin pelit voivat tukea molempia rajapintoja. XInputin ja DInputin ottaminen käyttöön samanaikaisesti tällaisissa peleissä voi aiheuttaa ohjausongelmia, kuten peleissä The Binding of Isaac ja Resident Evil -sarja.</string>
+    <string name="container_config_lc_all" translatable="false">LC_ALL</string>
+    <string name="container_config_dll_emulator">32-bittinen emulaattori</string>
+    <string name="container_config_emulator_wine_hint">Emulaattori määräytyy wine-version mukaan. ARM64EC käyttää FEXCorea, x86_64 käyttää Box64:ää.</string>
+    <string name="container_config_label">Määritykset</string>
+    <string name="container_config_restart_required">Käynnistä säiliö uudelleen, jotta muutokset tulevat voimaan</string>
+    <string name="container_config_renderer">Renderöijä</string>
+    <string name="container_config_variables">Muuttujat</string>
+    <string name="container_config_windows">Windows</string>
+    <string name="container_config_inputs">Syötteet</string>
+    <string name="container_config_tab">Määritys</string>
+    <string name="container_config_av_tab">A/V</string>
+    <string name="container_config_emulator_64bit">64-bittinen emulaattori</string>
+    <string name="container_config_emulator_section">Emulaattori</string>
+    <string name="container_config_sdl2_compatibility">Ota SDL2-yhteensopivuus käyttöön</string>
+
+    <!-- Container > Wine and DirectX -->
+    <string name="container_wine_configuration">Wine-määritykset</string>
+    <string name="container_wine_csmt">CSMT (Command Stream Multi-Thread)</string>
+    <string name="container_wine_gpu_name">GPU:n nimi</string>
+    <string name="container_wine_offscreen_rendering_mode">Näytön ulkopuolinen renderöintitila</string>
+    <string name="container_wine_strict_shader_math">Tiukka varjostinmatematiikka</string>
+    <string name="container_wine_video_memory_size">Näyttömuistin koko</string>
+    <string name="container_wine_dxwrapper">DX-käärin</string>
+    <string name="container_wine_mouse_warp_override">Hiiren siirron ohitus</string>
+    <string name="container_wine_directx">DirectX</string>
+    <string name="container_wine_dxvk_version">DXVK-versio</string>
+    <string name="container_wine_dxvk_config_title">DXVK-määritykset</string>
+    <string name="container_wine_wined3d_config_title">WineD3D-määritykset</string>
+    <string name="container_wine_vkd3d_version">VKD3D-versio</string>
+    <string name="container_wine_version">Wine-versio</string>
+    <string name="container_wine_dxwrapper_help_content">
+        &lt;i&gt;&lt;b&gt;WineD3D&lt;/b&gt;&lt;/i&gt; on käännöskerros DirectX 1–11:stä OpenGL:ään.&lt;br /&gt;&lt;br /&gt;
+        &lt;i&gt;&lt;b&gt;DXVK&lt;/b&gt;&lt;/i&gt; on käännöskerros Direct3D 9–11:stä Vulkaniin.&lt;br /&gt;&lt;br /&gt;
+        &lt;i&gt;&lt;b&gt;VKD3D&lt;/b&gt;&lt;/i&gt; on käännöskerros Direct3D 12 -rajapinnasta Vulkaniin.&lt;br /&gt;&lt;br /&gt;
+        &lt;i&gt;&lt;b&gt;CNC DDraw&lt;/b&gt;&lt;/i&gt; on DirectDraw-toteutus, joka parantaa yhteensopivuutta klassisten pelien kanssa.
+    </string>
+    <string name="container_wine_enabled_async">Ota Async käyttöön</string>
+    <string name="container_wine_enabled_async_cache">Ota Async-välimuisti käyttöön</string>
+    <string name="container_wine_vkd3d_feature_level">VKD3D-ominaisuustaso</string>
+    <string name="container_wine_ddraw_wrapper">DDraw-käärin</string>
+    <string name="container_wine_error_not_installed">Wine/Proton-pakettia \'%1$s\' ei ole asennettu, eikä sitä voitu ladata.</string>
+    <string name="container_no_wine_installed">Wineä tai Protonia ei ole asennettu. Asenna ensin toinen niistä.</string>
+    <string name="container_wine_title">Wine</string>
+    <string name="container_wine_opengl">OpenGL</string>
+    <string name="container_surface_effect">Pintaefekti</string>
+
+    <!-- Container > Box64 -->
+    <string name="container_box64_title">Box64</string>
+    <string name="container_box64_wowbox64_title">Box64 / Wowbox64</string>
+    <string name="container_wowbox64_title">Wowbox64</string>
+    <string name="container_box64_preset">Box64-esiasetus</string>
+    <string name="container_box64_version">Box64-versio</string>
+    <string name="container_box64_stability">Vakaus</string>
+    <string name="container_box64_compatibility">Yhteensopivuus</string>
+    <string name="container_box64_intermediate">Keskitaso</string>
+    <string name="container_box64_performance">Suorituskyky</string>
+    <string name="box64_env_var_help__dynarec">Ottaa käyttöön tai poistaa käytöstä Box64:n dynaamisen uudelleenkääntäjän.</string>
+    <string name="box64_env_var_help__dynarec_safeflags">
+        Lippujen käsittely CALL/RET-opkoodeissa&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Käsittelee CALL/RET:n kuin se ei koskaan tarvitsisi lippuja (nopeampi, epävakaa)&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Useimmat RET tarvitsevat lippuja, useimmat CALL:t eivät&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Kaikki CALL/RET tarvitsevat lippuja (hitaampi)
+    </string>
+    <string name="box64_env_var_help__dynarec_fastnan">-NAN:n generointi kuten x86:ssa</string>
+    <string name="box64_env_var_help__dynarec_fastround">Tarkan x86-pyöristyksen generointi</string>
+    <string name="box64_env_var_help__dynarec_x87double">Float/Double-arvojen käyttö x87-emulointiin</string>
+    <string name="box64_env_var_help__dynarec_bigblock">
+        Dynarec rakentaa BigBlock-lohkon&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Älä yritä rakentaa lohkosta mahdollisimman suurta&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Rakenna Dynarec-lohkosta mahdollisimman suuri&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Rakenna Dynarec-lohkosta suurempi (jatka lohkojen limittyessä, mutta vain elf-muistissa oleville lohkoille)&lt;br /&gt;
+        &lt;b&gt;3&lt;/b&gt; : Rakenna Dynarec-lohkosta suurempi (jatka lohkojen limittyessä, kaikentyyppiselle muistille)
+    </string>
+    <string name="box64_env_var_help__dynarec_strongmem">
+        Vahvan muistimallin simulointi&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Älä yritä mitään erityistä&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Ota käyttöön jokin muistieste muistiin kirjoitettaessa (joissakin MOV-opkoodeissa)&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Kaikki 1 sekä muistieste jokaisella MOV:lla tehtävällä muistiin kirjoituksella&lt;br /&gt;
+        &lt;b&gt;3&lt;/b&gt; : Kaikki 2 sekä muistieste muistista luettaessa ja joissakin SSE/SSE2-opkoodeissa&lt;br /&gt;
+        &lt;b&gt;4&lt;/b&gt; : Jäljittelee x86 TSO:ta samaan tapaan kuin QEMU.
+    </string>
+    <string name="box64_env_var_help__dynarec_forward">Määrittää suurimman sallitun eteenpäinarvon lohkoa rakennettaessa</string>
+    <string name="box64_env_var_help__dynarec_callret">CALL/RET-opkoodien optimointi</string>
+    <string name="box64_env_var_help__dynarec_sep">Lisää toissijaisia sisääntulokohtia CALL/RET:n optimoimiseksi, kun CALLRET on käytössä.</string>
+    <string name="box64_env_var_help__dynarec_wait">Määrittää, odottaako Dynarec FillBlockin valmistumista vai ei</string>
+    <string name="box64_env_var_help__dynarec_weakbarrier">
+        Säädä muistiesteitä vahvan muistiemuloinnin suorituskykyvaikutuksen vähentämiseksi&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Käytä tavallisia turvallisia esteitä&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Käytä heikkoja esteitä lievän suorituskykyparannuksen saamiseksi&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Käytä heikkoja esteitä ja poista lisäksi viimeisen kirjoituksen esteet käytöstä</string>
+    <string name="box64_env_var_help__dynarec_aligned_atomics">
+        Generoi vain tasatut atomioperaatiot (tällä hetkellä saatavilla vain Arm64:llä).&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Generoi tasaamattomien atomioperaatioiden käsittelykoodi.&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Generoi vain tasatut atomioperaatiot, mikä on nopeampaa ja pienemmän koodikoon, mutta aiheuttaa SIGBUS-virheen LOCK-etuliitteisille opkoodeille, jotka toimivat tasatuissa data-osoitteissa.</string>
+    <string name="box64_env_var_help__dynarec_df">
+        Ota lykättyjen lippujen käyttö käyttöön tai poista se käytöstä.&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Poista lykättyjen lippujen käyttö käytöstä.&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Ota lykättyjen lippujen käyttö käyttöön.</string>
+    <string name="box64_env_var_help__dynarec_dirty">
+        Salli sellaisen lohkon suorittamisen jatkaminen, joka on suojaamaton ja mahdollisesti likainen.&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Älä salli sellaisen lohkon suorittamisen jatkamista, joka on suojaamaton ja mahdollisesti likainen.&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Salli sellaisen dynablock-lohkon suorittamisen jatkaminen, joka kirjoittaa dataa samalle sivulle kuin koodi. Se voi nopeuttaa joidenkin pelien latausaikaa, mutta voi myös aiheuttaa odottamattomia kaatumisia.&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Kun HotPage havaitaan, myös merkitsee kyseisen sivun NEVERCLEAN-tilaan, jolloin sitä ei suojata kirjoitukselta, mutta kyseiseltä sivulta rakennettu lohko testataan aina. Tämä voi olla nopeampaa (mutta joitakin SMC-tapauksia ei ehkä havaita).</string>
+    <string name="box64_env_var_help__dynarec_nativeflags">
+        Ota natiivilippujen käyttö käyttöön tai poista se käytöstä.&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Älä käytä natiivilippuja.&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Käytä natiivilippuja, kun mahdollista.</string>
+    <string name="box64_env_var_help__dynarec_pause">
+        Ota käyttöön x86 PAUSE -emulointi, joka voi parantaa spinlockien suorituskykyä.&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Ohita x86 PAUSE -käsky.&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Käytä YIELD-käskyä x86 PAUSE -käskyn emulointiin.&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Käytä WFI-käskyä x86 PAUSE -käskyn emulointiin.&lt;br /&gt;
+        &lt;b&gt;3&lt;/b&gt; : Käytä SEVL+WFE-käskyä x86 PAUSE -käskyn emulointiin.
+    </string>
+    <string name="box64_env_var_help__dynarec_noarch">Vähentää dynarec-lohkojen metatietoja muistin säästämiseksi yhteensopivuuden kustannuksella.</string>
+    <string name="box64_env_var_help__dynarec_volatile_metadata">Käyttää PE:n volatile-metatietoja ohjaamaan vahvaa muistiemulointia 64-bittisille Windows-peleille.</string>
+    <string name="box64_env_var_help__dynacache">Ohjaa luotujen dynarec-lohkojen välimuistiin tallennusta ajokertojen välillä käynnistyksen nopeuttamiseksi.</string>
+    <string name="box64_env_var_help__avx">
+        Tuo AVX-ominaisuudet vieraskäyttöjärjestelmän saataville.&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Poista AVX-laajennus käytöstä&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : ota käyttöön AVX-, BMI1-, F16C- ja VAES-laajennukset.&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Kaikki tason 1 lisäksi ota käyttöön AVX2, BMI2, FMA, ADX, VPCLMULQDQ ja RDRAND.&lt;br /&gt;
+    </string>
+    <string name="box64_env_var_help__aes">Tuo AES-suorittimen ominaisuudet vieraskäyttöjärjestelmän saataville.</string>
+    <string name="box64_env_var_help__pclmulqdq">Tuo PCLMULQDQ-suorittimen ominaisuudet vieraskäyttöjärjestelmän saataville.</string>
+    <string name="box64_env_var_help__shaext">Tuo SHA-laajennuksen suoritinominaisuudet vieraskäyttöjärjestelmän saataville.</string>
+    <string name="box64_env_var_help__sse42">Tuo SSE4.2-suorittimen ominaisuudet vieraskäyttöjärjestelmän saataville.</string>
+    <string name="box64_env_var_help__sse_flushto0">Ohjaa SSE:n flush-to-zero-toimintaa ja poikkeuslippujen seurantaa.</string>
+    <string name="box64_env_var_help__x87_no80bits">Käyttää 64-bittistä double-tarkkuutta 80-bittisen long double -tarkkuuden sijaan x87:lle.</string>
+    <string name="box64_env_var_help__cputype">Valitsee vieraskäyttöjärjestelmälle näytettävän Intel- tai AMD-suoritinmallin.</string>
+    <string name="box64_env_var_help__maxcpu">Box64:n ohjelmille esittämä suorittimien enimmäismäärä</string>
+    <string name="box64_env_var_help__unityplayer">Tunnistaa UnityPlayerin ja merkitsee sovelluksen Unity-peliksi.</string>
+    <string name="box64_env_var_help__unity">Merkitsee sovelluksen Unity-peliksi ja ottaa käyttöön Unity-kohtaisen yhteensopivuuskäsittelyn.</string>
+    <string name="box64_env_var_help__mmap32">Pakota kaikki muistinvaraukset 32-bittisiin osoiteavaruuksiin</string>
+
+    <!-- Container > FEXCore -->
+    <string name="fexcore_env_var_help__tsoenabled">Ottaa käyttöön TSO IR -operaatiot (vaaditaan monisäikeisille sovelluksille).</string>
+    <string name="fexcore_env_var_help__vectortsoenabled">Tekee vektorien lataus-/tallennusoperaatioista atomisia, kun TSO on käytössä.</string>
+    <string name="fexcore_env_var_help__halfbarriertsoenabled">Käyttää half-barrier-atomeja kohdistamattomiin lataus-/tallennusoperaatioihin TSO:n alaisuudessa.</string>
+    <string name="fexcore_env_var_help__memcpysettsoenabled">Tekee REP MOVS- / REP STOS -operaatioista atomisia TSO:n alaisuudessa.</string>
+    <string name="fexcore_env_var_help__strictinprocesssplitlocks">Käyttää tiukkaa prosessinlaajuista lukkoa jaettuihin kohdistamattomiin atomisiin käyttöihin.</string>
+    <string name="fexcore_env_var_help__kernelunalignedatomicbackpatching">Korjaa jälkikäteen ytimen käsittelemät kohdistamattomat atomit ytimen kontekstinvaihtojen vähentämiseksi.</string>
+    <string name="fexcore_env_var_help__multiblock">Ottaa käyttöön monilohkoisen koodin kääntämisen. Voi aiheuttaa pidempää JIT-kääntämistä ja nykimistä.</string>
+    <string name="fexcore_env_var_help__maxinst">Käännettyyn lohkoon tallennettavien käskyjen enimmäismäärä.</string>
+    <string name="fexcore_env_var_help__hostfeatures">Ohjaa suoritinominaisuuksien pakottamista.</string>
+    <string name="fexcore_env_var_help__smalltscscale">Skaalaa TSC:tä matalataajuisissa järjestelmissä.</string>
+    <string name="fexcore_env_var_help__hidehybrid">Piilottaa hybridisuoritinytimien asettelun vieraskäyttöjärjestelmältä.</string>
+    <string name="fexcore_env_var_help__smc_checks">Tarkistaa koodin muutokset ennen suorittamista.</string>
+    <string name="fexcore_env_var_help__volatilemetadata">Käyttää PE-tiedostojen volatile-metatietoja TSO:lle, kun saatavilla.</string>
+    <string name="fexcore_env_var_help__monohacks">Erityiset SMC- + JIT-lohkovirittelyt Monon tunnistukseen.</string>
+    <string name="fexcore_env_var_help__hidehypervisorbit">Piilottaa CPUID:n hypervisor-bitin (hyödyllinen sovelluksille, jotka kaatuvat sen kanssa).</string>
+    <string name="fexcore_env_var_help__disablel2cache">Poistaa käytöstä FEXCore JIT L2 -välimuistihaun, mikä säästää muistia mutta aiheuttaa nykimistä.</string>
+    <string name="fexcore_env_var_help__dynamicl1cache">Vaihtaa FEXCore JIT L1 -välimuistin dynaamisesti kokoutuvaksi, mikä säästää muistia mutta aiheuttaa nykimistä.</string>
+    <string name="fexcore_env_var_help__dynamicl1cacheincreasecountheuristic">Hakuja sekunnissa -kynnys dynaamisen L1-välimuistin kasvattamiseen.</string>
+    <string name="fexcore_env_var_help__dynamicl1cachedecreasecountheuristic">Hakuja sekunnissa -kynnys dynaamisen L1-välimuistin pienentämiseen.</string>
+    <string name="fexcore_env_var_help__x87reducedprecision">Emuloi X87-liukulukuja 64-bittisellä tarkkuudella. Tämä heikentää emuloinnin tarkkuutta ja voi aiheuttaa renderöintivirheitä.</string>
+    <string name="container_fexcore_config">FEXCore</string>
+    <string name="container_fexcore_preset">FEXCore-esiasetus</string>
+    <string name="container_fexcore_version">FEXCore-versio</string>
+    <string name="use_unix_libs">Käytä UnixLibs-kirjastoja</string>
+
+    <!-- Container > Graphics Driver -->
+    <string name="container_graphics_driver">Grafiikka-ajuri</string>
+    <string name="container_graphics_configuration">Grafiikka-ajurin asetukset</string>
+    <string name="container_graphics_version">Grafiikka-ajurin versio</string>
+    <string name="container_graphics_available_extensions">Saatavilla olevat laajennukset</string>
+    <string name="container_graphics_extensions_enabled_summary">%1$d / %2$d käytössä</string>
+    <string name="container_graphics_max_device_memory">Laitteen enimmäismuisti</string>
+    <string name="container_graphics_sync_frame">Synkronoi joka kehys</string>
+    <string name="container_graphics_disable_present_wait">Poista KHR_present_wait käytöstä</string>
+    <string name="container_graphics_present_modes">Esitystilat</string>
+    <string name="container_graphics_compositor_present_mode">Vulkan-näytön synkronointi</string>
+    <string name="container_graphics_resource_type">Muistiresurssin tyyppi</string>
+    <string name="container_graphics_vulkan_version">Vulkan-versio</string>
+    <string name="container_graphics_bcn_emulation">BCn-emulointi</string>
+    <string name="container_graphics_bcn_emulation_type">BCn-emuloinnin tyyppi</string>
+    <string name="container_graphics_bcn_emulation_cache">BCn-emuloinnin välimuisti</string>
+    <string name="container_graphics_transcoder">BCn-transkooderi</string>
+    <string name="container_graphics_quality">BCn-laatu</string>
+    <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Game Super Resolution 1</string>
+    <!-- Container > Presets -->
+    <string name="container_presets_confirm_duplicate">Haluatko monistaa tämän esiasetuksen?</string>
+    <string name="container_presets_confirm_remove">Haluatko poistaa tämän esiasetuksen?</string>
+    <string name="container_presets_title">Esiasetukset</string>
+    <string name="container_presets_preset">Esiasetus</string>
+    <string name="container_presets_new">Uusi esiasetus</string>
+    <string name="container_presets_rename">Nimeä esiasetus uudelleen</string>
+    <string name="container_presets_import">Tuo esiasetus</string>
+    <string name="container_presets_custom">Mukautettu</string>
+    <string name="container_presets_built_in">Oletus</string>
+    <string name="container_presets_changes_auto_saved">Muutokset tallennetaan automaattisesti tätä mukautettua esiasetusta muokattaessa.</string>
+    <string name="container_presets_cannot_rename">Sisäänrakennettuja esiasetuksia ei voi nimetä uudelleen</string>
+    <string name="container_presets_unable_to_import">Esiasetuksen tuominen ei onnistu</string>
+    <string name="container_presets_no_description">Kuvausta ei ole saatavilla</string>
+    <string name="container_presets_cannot_remove">Tätä esiasetusta ei voi poistaa</string>
+    <string name="container_presets_cannot_export">Tätä esiasetusta ei voi viedä</string>
+
+    <!-- Session > XServer -->
+    <string name="session_xserver_title">XServer</string>
+    <string name="session_xserver_simulate_touch_screen">Simuloi kosketusnäyttöä</string>
+    <string name="session_xserver_preferences_button_text">   ASETUKSET   </string>
+    <string name="session_xserver_extra_keys_config_desc">Täällä voit asettaa extra-keys-muuttujan arvon kuten Termux-sovelluksessa (lue <a href="http://wiki.termux.com/wiki/Touch_Keyboard#Extra_Keys_Row">tämä</a>) ja paljon muuta \n
+E.g. <b>META</b> for <i>META-näppäin</i>, \n
+<b>KEYBOARD</b> for <i>ohjelmistonäppäimistön vaihtonäppäin</i>, \n
+<b>PREFERENCES</b> for <i>asetusten avausnäppäin</i>, \n
+<b>MOUSE_HELPER</b> for <i>hiiriapurin vaihtonäppäin</i>, \n
+<b>STYLUS_HELPER</b> for <i>kynän klikkauksen ohituspeittokuvan vaihtonäppäin</i>, \n
+<b>EXIT</b> for <i>sovelluksen lopetusnäppäin</i>.</string>
+    <string name="session_xserver_pref_main">Asetukset</string>
+    <string name="session_xserver_pref_output">Ulostulo</string>
+    <string name="session_xserver_pref_pointer">Osoitin</string>
+    <string name="session_xserver_pref_kbd">Näppäimistö</string>
+    <string name="session_xserver_pref_other">Muut</string>
+    <string name="session_xserver_pref_version">Versio</string>
+    <string name="session_xserver_notification_description">WinNative XServer -viestit</string>
+    <string name="session_xserver_notification_content">WinNative on käynnissä, älä sulje tai pyyhkäise tätä ilmoitusta pois</string>
+
+    <!-- Session > Drawer Menu -->
+    <string name="session_drawer_keyboard">Näppäimistö</string>
+    <string name="session_drawer_fps_monitor">FPS-mittari</string>
+    <string name="session_drawer_fps_monitor_subtitle">Näytä reaaliaikaiset suorituskykytiedot</string>
+    <string name="session_drawer_dual_series_battery">Dual Series -akku</string>
+    <string name="session_drawer_hud_frametime_numeric">Näytä kehysaika numerona</string>
+    <string name="session_drawer_toggle_fullscreen">Vaihda koko näyttö</string>
+    <string name="session_drawer_refactor_size">Muokkaa kokoa</string>
+    <string name="session_drawer_show_touchscreen_controls">Näytä kosketusnäytön ohjaimet</string>
+    <string name="session_drawer_magnifier">Suurennuslasi</string>
+    <string name="session_drawer_logs">Lokit</string>
+    <string name="session_drawer_pip_mode">PiP-tila</string>
+    <string name="session_drawer_toggle_relative_mouse">Vaihda suhteellinen hiiren liike</string>
+    <string name="session_drawer_toggle_mouse">Vaihda hiiri</string>
+    <string name="session_drawer_pause_resume">Keskeytä/jatka</string>
+    <string name="session_drawer_relative_mouse_movement">Suhteellinen hiiren liike</string>
+    <string name="session_drawer_mouse_input">Hiiren syöte</string>
+    <string name="session_drawer_touch">Kosketus</string>
+    <string name="session_drawer_touch_trackpad">Kosketuslevy</string>
+    <string name="session_drawer_touch_touchscreen">Kosketusnäyttötila</string>
+    <string name="session_drawer_touch_map_right_stick">Yhdistä oikeaan sauvaan</string>
+    <string name="session_drawer_rts_gestures">RTS-eleet</string>
+    <string name="session_drawer_rts_gestures_edit">Muokkaa</string>
+    <string name="session_drawer_right_stick_sensitivity">Oikean sauvan herkkyys</string>
+    <string name="session_rts_action">Toiminto</string>
+    <string name="session_rts_behavior">Toiminta</string>
+    <string name="session_rts_tap1">1 sormen napautus</string>
+    <string name="session_rts_tap2">2 sormen napautus</string>
+    <string name="session_rts_tap3">3 sormen napautus</string>
+    <string name="session_rts_tap4">4 sormen napautus</string>
+    <string name="session_rts_double_tap">Kaksoisnapautus (kaksoisklikkaus vasemmalla)</string>
+    <string name="session_rts_long_press">Pitkä painallus</string>
+    <string name="session_rts_hold2">2 sormen pito</string>
+    <string name="session_rts_hold3">3 sormen pito</string>
+    <string name="session_rts_hold4">4 sormen pito</string>
+    <string name="session_rts_swipe3">3 sormen pyyhkäisy</string>
+    <string name="session_rts_swipe4">4 sormen pyyhkäisy</string>
+    <string name="session_rts_up">Ylös</string>
+    <string name="session_rts_down">Alas</string>
+    <string name="session_rts_left">Vasen</string>
+    <string name="session_rts_right">Oikea</string>
+    <string name="session_rts_pan">2 sormen panorointi</string>
+    <string name="session_rts_pan1">1 sormen panorointi</string>
+    <string name="session_rts_zoom">Nipistyszoomaus</string>
+    <string name="session_rts_drag">1 sormen veto</string>
+    <string name="session_rts_drag2">2 sormen veto</string>
+    <string name="session_rts_long_press_delay">Pitkän painalluksen viive (ms)</string>
+    <string name="session_rts_hold_delay">Pidon viive (ms)</string>
+    <string name="session_rts_swipe_threshold">Pyyhkäisyn kynnys (px)</string>
+    <string name="session_rts_gesture_threshold">Eleen kynnys (px)</string>
+    <string name="session_rts_double_tap_delay">Kaksoisnapautuksen viive (ms)</string>
+    <string name="session_rts_drag_threshold">Vedon kynnys (px)</string>
+    <string name="session_rts_pan_threshold">Panoroinnin/nipistyksen aloitus (px)</string>
+    <string name="common_ui_rename">Nimeä uudelleen</string>
+    <string name="common_ui_new">Uusi</string>
+    <string name="input_controls_editor_input_profiles_section">Syöteprofiilit</string>
+    <string name="session_gesture_profile_section">Eleprofiili</string>
+    <string name="gesture_profile_new">Uusi eleprofiili</string>
+    <string name="gesture_profile_import">Tuo eleprofiili</string>
+    <string name="gesture_profile_export">Vie eleprofiili</string>
+    <string name="gesture_profile_none">Ei eleprofiileja</string>
+    <string name="session_drawer_screen_effects">Näyttötehosteet</string>
+    <string name="session_drawer_screen_effects_subtitle">Skaalaus ja väritehosteet</string>
+    <string name="session_drawer_super_resolution">Super Resolution</string>
+    <string name="session_drawer_upscaler_mode">Skaalain</string>
+    <string name="session_drawer_upscaler_fsr">SGSR 1</string>
+    <string name="session_drawer_sgsr_edge_sharpness">Reunojen terävyys</string>
+    <string name="session_drawer_vivid">Eloisa</string>
+    <string name="session_drawer_vivid_strength">Eloisuuden voimakkuus</string>
+    <string name="session_drawer_color_profile">Väritehoste</string>
+    <string name="session_drawer_picture_in_picture">Kuva kuvassa</string>
+    <string name="session_drawer_exit_subtitle">Sulje käynnissä oleva istunto</string>
+    <string name="session_drawer_touchscreen_overlay">Kosketusnäytön peittokuva</string>
+    <string name="session_drawer_resume">Jatka</string>
+    <string name="session_drawer_retry">Yritä uudelleen</string>
+    <string name="downloads_no_internet">Ei internetyhteyttä</string>
+    <string name="session_drawer_pause">Keskeytä</string>
+    <string name="session_drawer_wine_processes_paused">Wine-prosessit on keskeytetty</string>
+    <string name="session_drawer_pause_all_wine_processes">Keskeytä kaikki Wine-prosessit</string>
+    <string name="session_drawer_controls_section">Ohjaimet</string>
+    <string name="session_drawer_session_section">Istunto</string>
+    <string name="session_drawer_header_subtitle">Pikapääsy ohjaimiin, peittokuviin ja istuntotyökaluihin</string>
+    <string name="session_drawer_swipe_hint">Pyyhkäise pois palataksesi peliin</string>
+    <string name="session_drawer_main_menu_title">Valikko</string>
+    <string name="session_drawer_hud_summary">Säädä peittokuvan näkyvyyttä ja datapisteitä</string>
+    <string name="session_drawer_hud_disabled_hint">Ota peittokuva käyttöön mukauttaaksesi sitä</string>
+    <string name="session_drawer_hud_alpha">Alfa</string>
+    <string name="session_drawer_hud_background_alpha">Taustan alfa</string>
+    <string name="session_drawer_hud_background">Tausta</string>
+    <string name="session_drawer_hud_scale">Skaala</string>
+    <string name="session_drawer_hud_elements">HUD-elementit</string>
+    <string name="session_drawer_hud_element_fps">FPS</string>
+    <string name="session_drawer_hud_element_api">GFX</string>
+    <string name="session_drawer_hud_element_gpu">GPU</string>
+    <string name="session_drawer_hud_element_cpu">CPU</string>
+    <string name="session_drawer_hud_element_ram">RAM</string>
+    <string name="session_drawer_hud_element_battery">BAT</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
+    <string name="session_drawer_hud_element_graph">Kaavio</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="hud_position_menu_title">Siirrä HUD kohtaan</string>
+    <string name="hud_position_top_left">Ylävasen</string>
+    <string name="hud_position_top_center">Yläkeskusta</string>
+    <string name="hud_position_top_right">Yläoikea</string>
+    <string name="hud_position_left_center">Vasen keskusta</string>
+    <string name="hud_position_right_center">Oikea keskusta</string>
+    <string name="hud_position_bottom_left">Alavasen</string>
+    <string name="hud_position_bottom_center">Alakeskusta</string>
+    <string name="hud_position_bottom_right">Alaoikea</string>
+    <string name="session_drawer_hud_alpha_input_title">Aseta alfa</string>
+    <string name="session_drawer_hud_background_alpha_input_title">Aseta taustan alfa</string>
+    <string name="session_drawer_hud_scale_input_title">Aseta skaala</string>
+    <string name="session_drawer_hud_input_hint">Syötä arvo väliltä %1$d–%2$d. Rajan ylittävät arvot rajataan.</string>
+    <string name="session_drawer_command_center">Komentokeskus</string>
+    <string name="session_drawer_command_center_input">Syöte</string>
+    <string name="session_drawer_command_center_display">Näyttö</string>
+    <string name="session_drawer_command_center_system">Järjestelmä</string>
+    <string name="session_drawer_fps_limiter">FPS-rajoitin</string>
+    <string name="session_drawer_fps_limiter_off">Pois</string>
+    <string name="session_drawer_color_profile_disabled">Ei käytössä</string>
+    <string name="session_drawer_color_profile_hdr">HDR</string>
+    <string name="session_drawer_color_profile_natural">Luonnollinen</string>
+    <string name="session_drawer_color_profile_crt">CRT-tehoste</string>
+    <string name="session_drawer_color_profile_toon">Sarjakuva</string>
+    <string name="session_drawer_color_profile_ntsc">Ntsc</string>
+    <string name="session_drawer_color_profile_ntsc2">Ntsc2</string>
+    <string name="session_drawer_brightness">Kirkkaus</string>
+    <string name="session_drawer_contrast">Kontrasti</string>
+    <string name="session_drawer_gamma">Gamma</string>
+    <string name="session_drawer_scale">Skaala</string>
+    <string name="session_drawer_scale_nearest">Lähin</string>
+    <string name="session_drawer_scale_linear">Lineaarinen</string>
+    <string name="session_drawer_scale_bicubic">Bikuubinen</string>
+    <string name="session_drawer_saturation">Kylläisyys</string>
+    <string name="session_drawer_temperature">Lämpötila</string>
+    <string name="session_drawer_tint">Sävy</string>
+    <string name="session_drawer_sharpen">Terävöitä</string>
+    <string name="session_drawer_scanlines">Juovat</string>
+    <string name="session_drawer_pixelate">Pikselöi</string>
+    <string name="session_drawer_block_size">Lohkon koko</string>
+    <string name="session_drawer_strength">Voimakkuus</string>
+    <string name="session_drawer_intensity">Intensiteetti</string>
+    <string name="session_drawer_color_blind">Värisokeus</string>
+    <string name="session_drawer_color_blind_protan">Protan</string>
+    <string name="session_drawer_color_blind_deutan">Deutan</string>
+    <string name="session_drawer_color_blind_tritan">Tritan</string>
+    <string name="session_drawer_reset_effects">Palauta tehosteet</string>
+    <string name="session_drawer_calibrate_advanced">Lisäkalibrointi</string>
+    <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_gyro">Gyro</string>
+    <string name="session_drawer_rail_label_effects">FX</string>
+    <string name="session_drawer_rail_label_output">Ulostulo</string>
+    <string name="session_drawer_rail_label_apps">Lisää</string>
+    <!-- External display / video-out (USB-C, HDMI, DisplayPort) -->
+    <string name="display_output_prompt_title">Ulkoinen näyttö havaittu</string>
+    <string name="display_output_prompt_message">Lähetetäänkö peli liitettyyn näyttöön? Näytön ohjaimet ja valikko pysyvät tässä puhelimessa.</string>
+    <string name="display_output_prompt_swap">Vaihda näyttöjä</string>
+    <string name="display_output_prompt_mirror">Peilaa</string>
+    <string name="display_output_swapped_toast">Peli siirretty ulkoiseen näyttöön. Ohjaimet pysyvät puhelimessa.</string>
+    <string name="display_output_cast_unavailable">Langattoman näytön asetukset eivät ole käytettävissä tässä laitteessa.</string>
+    <string name="display_output_restored_toast">Ulkoinen näyttö irrotettu — peli palautettu puhelimeen.</string>
+    <string name="session_drawer_output_title">Näytön ulostulo</string>
+    <string name="session_drawer_output_subtitle">Peli näkyy ulkoisessa näytössä.</string>
+    <string name="session_drawer_output_device">Liitetty näyttö</string>
+    <string name="session_drawer_output_resolution">Tarkkuus</string>
+    <string name="session_drawer_output_refresh_rate">Virkistystaajuus</string>
+    <string name="session_drawer_output_aspect_ratio">Kuvasuhde</string>
+    <string name="session_drawer_output_aspect_fit">Sovita (kuvasuhde)</string>
+    <string name="session_drawer_output_aspect_stretch">Venytä (täytä)</string>
+    <string name="session_drawer_output_aspect_zoom">Zoomaa (rajaa)</string>
+    <string name="session_drawer_output_return_to_phone">Palauta puhelimeen</string>
+    <string name="session_drawer_output_refresh_hz">%1$d Hz</string>
+    <string name="session_drawer_output_cast_title">Lähetä televisioon</string>
+    <string name="session_drawer_output_cast_body">Liitä USB-C- / HDMI-sovitin tai yhdistä langaton näyttö napauttamalla alta (Miracast / Wi-Fi Direct). Peli näkyy televisiossa, kun nämä ohjaimet pysyvät puhelimessa.</string>
+    <string name="session_drawer_output_cast_button">Yhdistä langaton näyttö</string>
+    <string name="session_drawer_output_cast_note">Pelkät Chromecast-televisiot eivät voi näyttää live-peliä yksityisillä ohjaimilla — käytä langatonta näyttöä tai USB-C-/HDMI-sovitinta parhaan tuloksen saamiseksi.</string>
+    <string name="session_drawer_output_render_note">Näyttösi ilmoittamat tilat vaihtavat sen todellisen ulostulon (se saattaa hetkeksi mennä mustaksi uudelleenalustuksen aikana). Muut tarkkuudet renderöidään siinä koossa ja skaalataan laitteistolla paneeliin — natiivia korkeampi terävöittää (supersampling), matalampi toimii nopeammin.</string>
+    <string name="session_drawer_output_scaling_note">Tämä puhelin lähettää näytön natiivilla %1$s -tarkkuudella eikä vaihda sen tilaa, joten tämä asettaa renderöintitarkkuuden — se skaalataan laitteistolla paneeliin (natiivia korkeampi terävöittää, matalampi toimii nopeammin).</string>
+    <string name="session_drawer_output_game_mode">Pelitila (matala viive)</string>
+    <string name="session_drawer_output_game_mode_on">Päällä</string>
+    <string name="session_drawer_output_game_mode_off">Pois</string>
+    <string name="session_drawer_output_game_mode_note">Pyytää television matalan viiveen / pelitilan (HDMI ALLM) syöttöviiveen minimoimiseksi. Näkyy vain, kun liitetty näyttö tukee sitä.</string>
+    <string name="session_drawer_output_send_to_display">Lähetä peli näyttöön</string>
+    <string name="session_drawer_output_to_display">Ulostulo ulkoiseen näyttöön</string>
+    <string name="session_drawer_output_send_note">Näyttö on liitetty. Lähetä peli siihen — ohjaimet ja valikko pysyvät tässä puhelimessa. Voit palauttaa sen tänne milloin tahansa.</string>
+    <string name="session_drawer_output_display">Näyttö</string>
+    <string name="session_drawer_output_glasses">Lasit</string>
+    <string name="session_drawer_output_brightness">Kirkkaus</string>
+    <string name="session_drawer_output_shade">Tummennus (himmennys)</string>
+    <string name="session_drawer_output_3d">3D (rinnakkain)</string>
+    <string name="glasses_panel_refresh">Virkistystaajuus</string>
+    <string name="glasses_panel_sunblock">Auringonsuoja</string>
+    <string name="session_drawer_output_volume">Äänenvoimakkuus</string>
+    <string name="session_drawer_output_glasses_note">Lähetetään suoraan Viture-laseihisi USB:n kautta.</string>
+    <string name="session_drawer_rail_label_keyboard">Näppäimistö</string>
+    <string name="session_drawer_rail_label_input_controls">Ohjaimet</string>
+    <string name="session_drawer_rail_label_relative_mouse">SuhtHiiri</string>
+    <string name="session_drawer_rail_label_mouse">Hiiri</string>
+    <string name="session_drawer_rail_label_fullscreen">Koko näyttö</string>
+    <string name="session_drawer_rail_label_pip">PiP</string>
+    <string name="session_drawer_rail_label_magnifier">Zoomaus</string>
+    <string name="session_drawer_rail_label_task_manager">Tehtävät</string>
+    <string name="session_drawer_rail_label_record">Tallenna</string>
+    <string name="session_drawer_rail_label_logs">Lokit</string>
+    <string name="session_record_started">Tallennus aloitettu</string>
+    <string name="session_record_saved">Tallennus tallennettu kansioon WinNative/Recordings</string>
+    <string name="session_record_failed">Tallennusta ei voitu aloittaa</string>
+    <string name="session_record_settings_title">Tallennusasetukset</string>
+    <string name="session_record_fps">Ruutunopeus</string>
+    <string name="session_record_resolution">Tarkkuus</string>
+    <string name="session_record_quality">Laatu</string>
+    <string name="session_record_include_ui">Tallenna käyttöliittymä</string>
+    <string name="session_record_include_ui_subtitle">Sisällytä HUD ja näytön ohjaimet</string>
+    <string name="session_record_now">Tallenna nyt</string>
+    <string name="session_drawer_logs_clear">Tyhjennä</string>
+    <string name="session_drawer_logs_pause">Keskeytä</string>
+    <string name="session_drawer_logs_resume">Jatka</string>
+    <string name="session_drawer_logs_paused_indicator">Keskeytetty</string>
+    <string name="session_drawer_logs_line_count">%1$d riviä</string>
+    <string name="session_drawer_logs_share">Jaa</string>
+    <string name="session_drawer_logs_share_subject">Istuntolokit</string>
+    <string name="session_drawer_logs_share_chooser">Jaa istuntolokit</string>
+    <string name="session_drawer_logs_share_failed">Lokien jakaminen epäonnistui</string>
+    <string name="session_drawer_logs_share_empty">Ei jaettavia lokirivejä</string>
+    <string name="session_gyroscope_activator">Aktivointi</string>
+
+    <!-- Session > Task Manager -->
+    <string name="session_task_confirm_end_process">Haluatko lopettaa tämän prosessin?</string>
+    <string name="session_task_title">Tehtävienhallinta</string>
+    <string name="session_task_process_name">Prosessin nimi</string>
+    <string name="session_task_pid">PID</string>
+    <string name="session_task_memory">Muisti</string>
+    <string name="session_task_end_process">Lopeta prosessi</string>
+    <string name="session_task_set_affinity">Aseta affiniteetti</string>
+    <string name="session_task_affinity_title">Suoritinaffiniteetti</string>
+    <string name="session_task_affinity_all_cores">Kaikki ytimet</string>
+    <string name="session_task_new_task">Uusi tehtävä</string>
+    <string name="session_task_bring_to_front">Tuo eteen</string>
+    <string name="session_task_custom_value">Mukautettu arvo</string>
+    <string name="session_task_processes">Prosessit</string>
+    <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
+    <string name="session_task_per_core_usage">Ydinkohtainen käyttö</string>
+    <string name="session_task_core_label">Ydin %1$d</string>
+    <plurals name="session_task_core_count">
+        <item quantity="one">%d ydin</item>
+        <item quantity="other">%d ydintä</item>
+    </plurals>
+
+    <!-- Session > Display -->
+    <string name="session_display_orientation">Suunta</string>
+    <string name="session_display_horizontal">Vaaka</string>
+    <string name="session_display_vertical">Pysty</string>
+    <string name="session_display_columns">Sarakkeet</string>
+    <string name="session_display_frame_rate">Ruutunopeus</string>
+    <string name="session_display_title">Näyttö</string>
+    <string name="session_display_fullscreen_stretched">Ota käyttöön koko näyttö (venytetty)</string>
+    <string name="session_display_fps_label">FPS:</string>
+    <string name="session_display_renderer_label">Renderöijä:</string>
+    <string name="session_display_gpu_label">GPU:</string>
+    <string name="session_display_ram_label">RAM:</string>
+    <string name="session_display_ram_usage_format">%1$s Gt käytössä / %2$s yhteensä</string>
+
+    <!-- Session > Gamepad -->
+    <string name="session_gamepad_confirm_remove_controller">Haluatko poistaa tämän ohjaimen?</string>
+    <string name="session_gamepad_external_controllers">Ulkoiset ohjaimet</string>
+    <string name="session_gamepad_press_any_button">Paina mitä tahansa painiketta ohjaimessasi</string>
+    <string name="session_gamepad_bindings">sidokset</string>
+    <string name="session_gamepad_control_bindings">Ohjaussidokset</string>
+    <string name="session_gamepad_game_controller">Peliohjain</string>
+    <string name="session_gamepad_as_button">On painike</string>
+    <string name="session_gamepad_as_axis">On akseli</string>
+    <string name="session_gamepad_trigger_type">Tyyppi</string>
+    <string name="session_gamepad_help_trigger_mode">Riippuu &lt;b&gt;fyysisestä ohjaimestasi&lt;/b&gt;:&lt;br/&gt;&lt;br/&gt;&#x2022; &lt;b&gt;On akseli&lt;/b&gt; — liipaisimella on lineaarinen liikealue&lt;br/&gt;&#x2022; &lt;b&gt;On painike&lt;/b&gt; — liipaisin toimii yksinkertaisena kytkimenä&lt;br/&gt;&lt;br/&gt;&lt;i&gt;Huomaa: On painike -asetuksen käyttö lineaarisen liipaisimen kanssa hukkaa analogitiedot.&lt;/i&gt;
+    </string>
+    <string name="session_gamepad_button_a">Painike A</string>
+    <string name="session_gamepad_button_b">Painike B</string>
+    <string name="session_gamepad_button_x">Painike X</string>
+    <string name="session_gamepad_button_y">Painike Y</string>
+    <string name="session_gamepad_button_grip">Grip-painike</string>
+    <string name="session_gamepad_button_trigger">Liipaisinpainike</string>
+    <string name="session_gamepad_thumbstick_left">Sauva vasemmalle</string>
+    <string name="session_gamepad_thumbstick_right">Sauva oikealle</string>
+    <string name="session_gamepad_thumbstick_up">Sauva ylös</string>
+    <string name="session_gamepad_thumbstick_down">Sauva alas</string>
+    <string name="session_gamepad_configure_analog_sticks">Määritä analogisauvat</string>
+    <string name="session_gamepad_left_stick">Vasen sauva</string>
+    <string name="session_gamepad_right_stick">Oikea sauva</string>
+    <string name="session_gamepad_controller_manager">Ohjainten hallinta</string>
+    <string name="session_gamepad_enable_vibration">Ota tärinä käyttöön</string>
+    <string name="session_gamepad_player_1">Pelaaja 1</string>
+    <string name="session_gamepad_player_2">Pelaaja 2</string>
+    <string name="session_gamepad_player_3">Pelaaja 3</string>
+    <string name="session_gamepad_player_4">Pelaaja 4</string>
+    <string name="session_gamepad_not_assigned">Ei määritetty</string>
+    <string name="session_gamepad_assign">Määritä</string>
+    <string name="session_gamepad_press_any_button_for_player">Paina mitä tahansa painiketta ohjaimessa pelaajalle</string>
+    <string name="session_gamepad_vibrate">Tärinä</string>
+    <string name="session_gamepad_macros_hint">Ota automaattilaukaus käyttöön painikkeiden kytkimillä.</string>
+    <string name="session_gamepad_macros">Makrot</string>
+    <string name="session_gamepad_include_triggers_note">Käytä turboa myös L2/R2-painikkeisiin digitaalisina painalluksina</string>
+    <string name="session_gamepad_square_deadzone">Neliömäinen kuollut alue</string>
+    <string name="session_gamepad_invert_x">Käännä X</string>
+    <string name="session_gamepad_invert_y">Käännä Y</string>
+    <string name="session_gamepad_save_profile">Tallenna profiili</string>
+    <string name="session_gamepad_load_profile">Lataa profiili</string>
+    <string name="session_gamepad_button_start">Painike Start</string>
+    <string name="session_gamepad_button_select">Painike Select</string>
+    <string name="session_gamepad_button_l1">Painike L1</string>
+    <string name="session_gamepad_button_r1">Painike R1</string>
+    <string name="session_gamepad_button_l2">Painike L2</string>
+    <string name="session_gamepad_button_r2">Painike R2</string>
+    <string name="session_gamepad_button_l3">Painike L3</string>
+    <string name="session_gamepad_button_r3">Painike R3</string>
+    <string name="session_gamepad_dpad_up">Ristiohjain ylös</string>
+    <string name="session_gamepad_dpad_down">Ristiohjain alas</string>
+    <string name="session_gamepad_dpad_left">Ristiohjain vasemmalle</string>
+    <string name="session_gamepad_dpad_right">Ristiohjain oikealle</string>
+    <string name="session_gamepad_overwrite">Korvaa</string>
+    <string name="session_gamepad_save_as_new">Tallenna uutena</string>
+    <string name="session_gamepad_overwrite_profile_message">Haluatko korvata nykyisen profiilin vai tallentaa uutena profiilina?</string>
+    <string name="session_gamepad_enter_profile_name">Anna profiilin nimi</string>
+    <string name="session_gamepad_mappings_saved">Määritykset tallennettu!</string>
+    <string name="session_gamepad_profile_saved">Profiili tallennettu!</string>
+    <string name="session_gamepad_profile_saved_as_new">Profiili tallennettu uutena!</string>
+    <string name="session_gamepad_profile_loaded">Profiili ladattu!</string>
+    <string name="session_gamepad_profile_name_empty">Profiilin nimi ei voi olla tyhjä</string>
+    <string name="session_gamepad_no_profiles">-- Ei profiileja --</string>
+    <string name="session_gamepad_error_loading_profile">Virhe profiilin latauksessa</string>
+
+    <!-- Input controls > Auto-hide on controller -->
+    <string name="input_controls_auto_hide_section">Kosketusnäytön ohjaimet</string>
+    <string name="input_controls_auto_hide_on_controller_title">Piilota automaattisesti ohjaimella</string>
+    <string name="input_controls_auto_hide_on_controller_summary">Piilota kosketusnäytön ohjaimet, kun ohjain on liitetty</string>
+
+    <!-- Session > Gyroscope -->
+    <string name="session_gyroscope_title">Gyroskooppi</string>
+    <string name="session_gyroscope_calibrate">Kalibroi gyroskooppi</string>
+    <string name="session_gyroscope_enable_right_stick">Ota oikean sauvan gyroskooppiliike käyttöön</string>
+    <string name="session_gyroscope_activator_button">Gyroskoopin aktivointipainike</string>
+    <string name="session_gyroscope_hold">Pidä pohjassa</string>
+    <string name="session_gyroscope_toggle">Vaihda</string>
+    <string name="session_gyroscope_orientation_mode">Kallista tähdätäksesi (asento)</string>
+    <string name="session_gyroscope_x_sensitivity">X-akselin herkkyys</string>
+    <string name="session_gyroscope_y_sensitivity">Y-akselin herkkyys</string>
+    <string name="session_gyroscope_smoothing">Pehmennys</string>
+    <string name="session_gyroscope_invert_x">Käännä X-akseli</string>
+    <string name="session_gyroscope_invert_y">Käännä Y-akseli</string>
+    <string name="session_gyroscope_filtering">Suodatus</string>
+    <string name="session_gyroscope_deadzone">Kuollut alue</string>
+    <string name="session_gyroscope_sensitivity">Herkkyys</string>
+    <string name="session_gyroscope_direction">Suunta</string>
+    <string name="session_gyroscope_mode">Gyroskoopin aktivointitila</string>
+    <string name="session_gyroscope_target_stick">Kohdista gyro</string>
+    <string name="session_gyroscope_enable_stick">Ota analogisauvan gyroskooppiliike käyttöön</string>
+    <string name="session_gyroscope_reset_stick">Nollaa sauva</string>
+    <string name="session_gyroscope_reset_stick_to_center">Nollaa sauva keskelle</string>
+    <string name="session_gyroscope_configuration">Gyroskoopin määritys</string>
+    <string name="session_gyroscope_experimental_mouse_movement">Kokeellinen hiiren liike</string>
+    <string name="session_gyroscope_x_sensitivity_format">X-herkkyys: %1$d%%</string>
+    <string name="session_gyroscope_y_sensitivity_format">Y-herkkyys: %1$d%%</string>
+    <string name="session_gyroscope_smoothing_format">Pehmennys: %1$d%%</string>
+    <string name="session_gyroscope_deadzone_format">Kuollut alue: %1$d%%</string>
+    <string name="session_gyroscope_sensitivity_format">Herkkyys: %1$d%%</string>
+    <string name="session_gyroscope_mouse_scale">Hiiren skaala</string>
+    <string name="session_gyroscope_mouse_sensitivity_format">Hiiren skaala: %1$d%%</string>
+
+    <!-- Settings > General -->
+    <string name="settings_general_cursor_speed">Osoittimen nopeus</string>
+    <string name="settings_general_theme">Teema</string>
+    <string name="settings_general_background">Tausta</string>
+    <string name="settings_general_background_color_hex">Väri (heksa)</string>
+    <string name="settings_general_wallpaper_selected">Taustakuva valittu</string>
+    <string name="settings_general_select_wallpaper">Valitse taustakuva</string>
+    <string name="settings_general_title">Yleiset</string>
+    <string name="settings_general_enable_file_provider">Ota tiedostojen tarjoaja käyttöön</string>
+    <string name="settings_general_take_effect_next_startup">Tämä asetus tulee voimaan seuraavalla käynnistyksellä.</string>
+    <string name="settings_general_imagefs">Imagefs</string>
+    <string name="settings_general_reinstall_imagefs">Asenna Imagefs uudelleen</string>
+    <string name="settings_general_confirm_reinstall_imagefs">Haluatko asentaa imagefs:n uudelleen? Tämä toiminto palauttaa järjestelmätiedostot, säiliöitäsi ei muuteta.</string>
+    <string name="settings_general_refresh_rate">Virkistystaajuus</string>
+    <string name="settings_general_refresh_rate_auto_max">Maksimi</string>
+    <string name="settings_general_refresh_rate_summary">Aseta näytön virkistystaajuus ja DXVK-ruuturaja</string>
+    <string name="settings_general_touchscreen_timeout">Kosketusnäytön aikakatkaisu (vaatii uudelleenkäynnistyksen)</string>
+    <string name="settings_general_touchscreen_haptics">Ota kosketusnäytön haptinen palaute käyttöön</string>
+    <string name="settings_general_open_with_android_browser">Avaa Android-selain Winessä</string>
+    <string name="settings_general_share_android_clipboard">Jaa Androidin leikepöytä Winen kanssa</string>
+    <string name="settings_general_paths_title">Polkuasetukset</string>
+    <string name="settings_general_paths_summary">Hallitse mihin Winlator tallentaa työtietonsa ja mihin viedyt pikakuvakkeet kirjoitetaan.</string>
+    <string name="settings_general_winlator_path_title">Tallennuspolku</string>
+    <string name="settings_general_shortcut_export_path_title">Pikakuvakkeiden vientipolku</string>
+    <string name="settings_general_choose_path">Valitse polku</string>
+    <string name="settings_general_xserver_cursor_summary">Säädä osoittimen nopeutta kosketus-, ohjauslevy- ja hiirisyötteelle XServer-istunnossa.</string>
+    <string name="settings_general_cursor_lock_title">Todellinen hiiren hallinta</string>
+    <string name="settings_general_cursor_lock_summary">Pitää suoran hiiren kaappauksen käytössä peleille, jotka tarvitsevat raakaa osoitinsyötettä. Poista se käytöstä äänenvoimakkuuden vähennyspainikkeella.</string>
+    <string name="settings_general_xinput_toggle_title">Poista XInput käytöstä</string>
+    <string name="settings_general_xinput_toggle_summary">Poistaa XInput-käsittelyn käytöstä, kun haluat yksinomaisen hiiren ja näppäimistön hallinnan.</string>
+    <string name="settings_external_display_output_summary">Siirrä peli liitettyyn ulkoiseen näyttöön tämän näytön peilaamisen sijaan. Lasit käyttävät aina omaa näyttöään.</string>
+    <string name="settings_general_file_provider_summary">Tuo WinNative-tiedostot Androidin dokumenttien valitsimien ja tiedostonhallintaohjelmien saataville.</string>
+    <string name="settings_general_open_browser_summary">Avaa tuetut verkkolinkit Androidin selaimessa Wine-istunnon sijaan.</string>
+    <string name="settings_general_clipboard_summary">Salli kopiointi ja liittäminen Androidin ja Wine-istuntojen välillä.</string>
+    <string name="settings_general_imagefs_summary">Palauta mukana toimitetut järjestelmätiedostot poistamatta olemassa olevia säilöjä.</string>
+    <string name="settings_general_check_for_updates">Tarkista päivitykset</string>
+    <string name="settings_general_check_for_updates_summary">Tarkista uudet sovellusversiot automaattisesti käynnistyksen yhteydessä ja säännöllisesti.</string>
+
+    <!-- Settings > Audio -->
+    <string name="settings_audio_midi_sound_font">MIDI SoundFont</string>
+    <string name="settings_audio_sound">Ääni</string>
+    <string name="settings_audio_confirm_remove_sound_font">Haluatko poistaa tämän soundfontin?</string>
+    <string name="settings_audio_sound_font_removed_success">Soundfont poistettu onnistuneesti!</string>
+    <string name="settings_audio_sound_font_removed_failed">Soundfontin poisto epäonnistui!</string>
+    <string name="settings_audio_sound_font_installed_success">Soundfont asennettu onnistuneesti!</string>
+    <string name="settings_audio_sound_font_installed_failed">Soundfontin asennus epäonnistui!</string>
+    <string name="settings_audio_sound_font_already_exist">Asennettava soundfont on jo olemassa.</string>
+    <string name="settings_audio_unable_to_install_soundfont">Soundfontin asennus ei onnistu</string>
+    <string name="settings_audio_installing_soundfont">Asennetaan SoundFontia</string>
+    <string name="settings_audio_sound_font_bad_format">Virheellinen SoundFont-muoto.</string>
+    <string name="settings_audio_cannot_remove_default">Oletussoundfontia ei voi poistaa</string>
+    <string name="settings_audio_summary">Asenna, poista ja valitse MIDI-toistoon käytettävä SoundFont.</string>
+
+    <!-- Settings > Debug -->
+    <string name="settings_debug_wine_debug_channel">Wine-virheenkorjauskanava</string>
+    <string name="settings_debug_title">Virheenkorjaus</string>
+    <string name="settings_debug_wine_logs_title">Ota Wine-virheenkorjauslokit käyttöön</string>
+    <string name="settings_debug_wine_logs_subtitle">Kirjoita Wine-virheenkorjaustuloste tiedostoon</string>
+    <string name="settings_debug_box_logs_title">Ota Box86/64-lokit käyttöön</string>
+    <string name="settings_debug_box_logs_subtitle">Kirjoita Box86- &amp; Box64-virheenkorjaustuloste tiedostoon</string>
+    <string name="settings_debug_fex_logs_title">Ota FEXCore-lokit käyttöön</string>
+    <string name="settings_debug_fex_logs_subtitle">Kirjoita FEXCore-virheenkorjaustuloste tiedostoon</string>
+    <string name="settings_debug_emulator_logs_title">Box64/FEX-emulointilokit</string>
+    <string name="settings_debug_emulator_logs_subtitle">Kirjaa lokiin sen emulaattorin, jota säiliösi käyttää.</string>
+    <string name="settings_debug_steam_logs_title">Ota Steam-lokit käyttöön</string>
+    <string name="settings_debug_steam_logs_subtitle">Kirjaa Steam-todennus- ja istuntotapahtumat virheenkorjausta varten.</string>
+    <string name="settings_debug_wine_channels_title">Wine-virheenkorjauskanavat</string>
+    <string name="settings_debug_wine_channels_summary">Valitse, mitkä Wine-kanavat sisällytetään, kun Wine-virheenkorjauskirjaus on käytössä.</string>
+    <string name="settings_debug_wine_classes_title">Wine-lokitasot</string>
+    <string name="settings_debug_wine_classes_summary">Valitse, mitkä viestityypit kirjataan lokiin. Jäljitys on erittäin monisanainen.</string>
+    <string name="settings_debug_input_logs">Syötelokit</string>
+    <string name="settings_debug_input_logs_description">Kirjaa peliohjaimen, kosketuksen ja näppäimistön syötetapahtumat</string>
+    <string name="settings_debug_download_logs">Latauslokit</string>
+    <string name="settings_debug_download_logs_description">Kirjaa latausten selvitys- ja WinNative-varajärjestelmätapahtumat</string>
+    <string name="settings_debug_vulkan_validation_layers_title">Vulkan-validointikerrokset</string>
+    <string name="settings_debug_vulkan_validation_layers_subtitle">Käynnistä näyttö uudelleen ottaaksesi käyttöön.</string>
+    <string name="settings_debug_share_logs">Jaa lokit</string>
+    <string name="settings_debug_delete_logs">Poista lokit</string>
+    <string name="settings_debug_share_all_logs_short">Jaa kaikki</string>
+    <string name="settings_debug_download_all_logs_short">Lataa kaikki</string>
+    <string name="settings_debug_logs_saved">Tallennettu kohteeseen %1$s</string>
+    <string name="settings_debug_delete_logs_short">Poista</string>
+    <string name="settings_debug_delete_all_logs_short">Poista kaikki</string>
+    <string name="settings_debug_open_logs_folder_short">Avaa lokien hallinta</string>
+    <string name="settings_debug_logs_deleted">Lokit poistettu</string>
+    <string name="settings_debug_delete_logs_confirm_title">Poistetaanko lokit?</string>
+    <string name="settings_debug_delete_logs_confirm_message">Tämä poistaa pysyvästi kaikki tallennetut lokitiedostot (%1$s). Tätä ei voi kumota.</string>
+    <string name="settings_debug_logs_browser_title">Lokit</string>
+    <string name="settings_debug_log_truncated">Näytetään tämän lokin viimeiset %1$s</string>
+    <string name="settings_debug_logs_subject">WinNative-lokit (%1$s)</string>
+    <string name="settings_debug_no_logs_available">Virheenkorjauslokeja ei ole saatavilla. Ota ensin virheenkorjausasetukset käyttöön ja käynnistä peli.</string>
+    <string name="settings_debug_capture_failed">Lokien kaappaus epäonnistui: %1$s</string>
+    <string name="settings_debug_log_to_file_desc">Kirjaa WinNative-prosessin virheet, varoitukset ja kaatumiset tiedostoon</string>
+    <string name="settings_debug_section_emulation">Emulointi</string>
+    <string name="settings_debug_section_subsystems">Alijärjestelmät</string>
+    <string name="settings_debug_section_tools">Työkalut</string>
+    <string name="settings_debug_no_channels_selected">Ei valittuja kanavia</string>
+    <string name="settings_debug_no_channels_available">Ei saatavilla olevia kanavia</string>
+    <string name="settings_debug_channel_toggle_hint">Vaihda kanavia napauttamalla. Käyttöön otetut kanavat sisällytetään Wine-virheenkorjaustulosteeseen.</string>
+    <string name="settings_debug_remove_channel_desc">Poista %1$s</string>
+
+    <string name="settings_other_language_title">Kieli</string>
+    <string name="settings_other_language_summary">Valitse näyttökieli</string>
+    <string name="settings_other_language_system_default">Järjestelmän oletus</string>
+
+    <string name="settings_other_section_integration">Integrointi</string>
+    <string name="settings_other_setup_wizard_title">Ohjattu asennus</string>
+    <string name="settings_other_setup_wizard_summary">Avaa ohjattu asennus uudelleen tarkistaaksesi käyttöoikeudet, järjestelmätiedostot ja oletussäiliöt.</string>
+    <string name="settings_other_checking_for_updates">Tarkistetaan päivityksiä…</string>
+    <string name="settings_other_update_check_cooldown">Odota %1$d s ennen uutta tarkistusta</string>
+    <string name="settings_other_persistable_permission_failed">Pysyvien käyttöoikeuksien ottaminen ei onnistu: %1$s</string>
+    <string name="settings_other_keep_app_open">Pidä sovellus auki, kunnes tämä on valmis.</string>
+
+    <!-- Settings > Content Packages -->
+    <string name="settings_content_install">Asenna sisältöä</string>
+    <string name="settings_content_type">Luokka</string>
+    <string name="settings_content_components">Komponentit</string>
+    <string name="settings_content_auto_create_container">Luo säiliö automaattisesti</string>
+    <string name="settings_content_remove_title">Poistetaanko komponentti?</string>
+    <string name="settings_content_empty_subtitle">Aloita asentamalla paketti tai vaihtamalla tyyppiä.</string>
+    <string name="settings_content_container_created">Luotu säiliö: %1$s</string>
+    <string name="settings_content_download_failed">Lataus epäonnistui.</string>
+    <string name="common_ui_working">Käsitellään</string>
+    <string name="settings_content_desc_wine">Wine-projektin tekemä; kääntää Win32-kutsut natiiveiksi Linux-/Android-palveluiksi.</string>
+    <string name="settings_content_desc_proton">Valven tekemä; Wine-pohjainen ajonaikainen ympäristö, jossa on pelikorjauksia Windows-peleille.</string>
+    <string name="settings_content_desc_dxvk">Kääntää Direct3D 9-, 10- ja 11 -grafiikkakutsut Vulkaniksi.</string>
+    <string name="settings_content_desc_vkd3d">Kääntää Direct3D 12 -grafiikkakutsut Vulkaniksi.</string>
+    <string name="settings_content_desc_box64">Kääntää x86_64 Linux -koodin, jotta se voi toimia ARM64-laitteilla.</string>
+    <string name="settings_content_desc_wowbox64">Box64-käännös, jota WoW64 käyttää 32-bittisten Windows-sovellusten ajamiseen 64-bittisessä Winessä.</string>
+    <string name="settings_content_desc_fexcore">Kääntää x86- ja x86_64-koodin, jotta se voi toimia ARM64-laitteilla.</string>
+    <string name="settings_content_desc_d7vk">Kääntää DirectDraw (Direct3D 7 ja aiemmat) -grafiikkakutsut Vulkaniksi.</string>
+    <string name="settings_content_unable_to_install">Sisällön asennus ei onnistu.</string>
+    <string name="settings_content_install_failed">Asennus epäonnistui</string>
+    <string name="settings_content_file_cannot_be_recognized">Tiedostoa ei tunnisteta.</string>
+    <string name="settings_content_profile_not_found">Profiilia ei löytynyt sisällöstä.</string>
+    <string name="settings_content_profile_cannot_be_recognized">Profiilia ei tunnisteta</string>
+    <string name="settings_content_file_list">Tiedostoluettelo</string>
+    <string name="settings_content_install_directory">Asennushakemisto</string>
+    <string name="settings_content_installed_success">Sisältö asennettu onnistuneesti!</string>
+    <string name="settings_content_downloading_title">Ladataan sisältöä</string>
+    <string name="settings_content_installing_title">Asennetaan sisältöä</string>
+    <string name="settings_content_extracting_title">Puretaan sisältöä</string>
+    <string name="settings_content_extracting_detail">Puretaan (%1$d tiedostoa)</string>
+    <string name="settings_content_preparing_package">Valmistellaan pakettia</string>
+    <string name="settings_content_download_complete">Lataus valmis</string>
+    <string name="settings_content_already_installed_title">Komponentti on jo asennettu</string>
+    <string name="settings_content_already_installed_message">Tämä komponentti on jo asennettu. Poista asennettu kopio ennen kuin lataat sen uudelleen.
+
+Asennuspolku:
+%1$s</string>
+    <string name="settings_content_conflicting_title">Ristiriitainen sisältö asennettu</string>
+    <string name="settings_content_conflicting_message">Poista ristiriitainen sisältö ennen tämän paketin lataamista.
+
+Asennuspolku:
+%1$s</string>
+    <string name="settings_content_cannot_be_trusted">Sisältöön ei voi luottaa.</string>
+    <string name="settings_content_is_incomplete">Sisältö on epätäydellinen.</string>
+    <string name="settings_content_untrusted_files_warning">Varoitus: Lisäsisältö sisältää tiedostoja, joihin ei voi luottaa. Yleensä seuraavia tiedostoja ei tulisi muokata. Päätä, jatketaanko asennusta.</string>
+    <string name="settings_content_confirm_remove">Tämä poistaa komponentin laitteestasi.</string>
+    <string name="settings_content_unable_to_remove_in_use">Tätä sisältöä ei voi poistaa, koska säiliö käyttää parhaillaan tätä Wineä.</string>
+    <string name="settings_content_download_in_components">Ei ladattua. Lataa yksi Komponentit-osiossa.</string>
+    <string name="settings_content_types_header">SISÄLTÖTYYPIT</string>
+
+    <!-- Settings > Drivers -->
+    <string name="settings_drivers_title">Ajurit</string>
+    <string name="settings_drivers_manager_header">Ajurien hallinta</string>
+    <string name="settings_drivers_github_repos">GitHub-repot</string>
+    <string name="settings_drivers_install">Asenna ajureita</string>
+    <string name="settings_drivers_installed_success">Ajuri asennettu onnistuneesti.</string>
+    <string name="settings_drivers_install_failed">Ajurin asennus epäonnistui.</string>
+    <string name="settings_drivers_remove_title">Poistetaanko ajuri?</string>
+    <string name="settings_drivers_confirm_remove">Tämä poistaa ajurin laitteestasi.</string>
+    <string name="settings_drivers_remove_repo_title">Poistetaanko repo?</string>
+    <string name="settings_drivers_remove_repo_message">%1$s poistetaan repoluettelostasi.</string>
+    <string name="settings_drivers_repo_tap_to_load">Lataa julkaisut napauttamalla</string>
+    <string name="settings_drivers_repo_loading_releases">Ladataan julkaisuja</string>
+    <string name="settings_drivers_repo_release_count">%1$d julkaisua ladattu</string>
+    <string name="settings_drivers_repo_no_release_assets">Haetuista julkaisuista ei löytynyt ladattavia ZIP-tiedostoja.</string>
+    <string name="settings_drivers_repo_fetch_failed">GitHub-julkaisujen lataaminen epäonnistui.</string>
+    <string name="settings_drivers_repo_download_failed">Lataus epäonnistui.</string>
+    <string name="settings_drivers_repo_no_version">Versio ei ole saatavilla</string>
+    <string name="settings_drivers_repo_unknown_size">Tuntematon koko</string>
+    <string name="settings_drivers_manager">Ajurien hallinta</string>
+
+    <!-- Setup > Wizard -->
+    <string name="setup_wizard_installing_system_files">Asennetaan järjestelmätiedostoja</string>
+    <string name="setup_wizard_unable_to_install_system_files">Järjestelmätiedostojen asennus ei onnistu</string>
+    <string name="setup_wizard_system_image_not_installed">Järjestelmävedosta ei ole asennettu. Asenna ensin komponentit.</string>
+    <string name="setup_wizard_recommended_components">Suositellut komponentit</string>
+    <string name="setup_wizard_step_format">Vaihe %1$d / %2$d</string>
+    <string name="setup_wizard_allow_file_access">Salli kaikki tiedostojen käyttö</string>
+    <string name="setup_wizard_install_system_files">Asenna järjestelmätiedostot</string>
+    <string name="setup_wizard_recommended_components_description">Suositellut komponentit lataa ja asentaa tuetut DXVK-, VKD3D-, FEX-, Box64- ja Wowbox64-paketit automaattisesti.</string>
+    <string name="setup_wizard_each_button_downloads_description">Jokainen painike lataa paketin, asentaa sen ja luo sen oletussäiliön automaattisesti.</string>
+    <string name="setup_wizard_recommended_x86_64">Suositeltu x86-64</string>
+    <string name="setup_wizard_recommended_arm64ec">Suositeltu ARM64EC</string>
+    <string name="setup_wizard_choose_components_description">Valitse asennettavat komponentit. Wine/Proton luo säiliön automaattisesti.</string>
+    <string name="setup_wizard_loading_components">Ladataan komponentteja…</string>
+    <string name="setup_wizard_no_components_available">Tälle luokalle ei ole saatavilla komponentteja.</string>
+    <string name="setup_wizard_default_settings">Oletusasetukset</string>
+    <string name="setup_wizard_containers">Säiliön määritys</string>
+    <string name="setup_wizard_containers_description">Avaa jokainen säiliö ja aseta oletukset, jotka haluat jokaisen uuden pelin perivän. Uudet pelit kohdistetaan oletuksena x86-64-säiliöön.</string>
+    <string name="setup_wizard_store_sign_in_optional">Kauppaan kirjautuminen on valinnaista. Jokainen kirjautuminen palaa tänne, kun se on valmis.</string>
+    <string name="setup_wizard_granted">Myönnetty</string>
+    <string name="setup_wizard_grant">Myönnä</string>
+    <string name="setup_wizard_denied">Evätty</string>
+    <string name="setup_wizard_allow">Salli</string>
+    <string name="setup_wizard_installing">Asennetaan</string>
+    <string name="setup_wizard_install_failed_reason">Asennus epäonnistui: %1$s</string>
+    <string name="setup_wizard_install_failed_detail">%1$s - %2$s</string>
+    <string name="setup_wizard_required_access">Vaadittu käyttöoikeus</string>
+    <string name="setup_wizard_select_components">Valitse komponentit</string>
+    <string name="setup_wizard_recommended_wine_proton">Suositeltu Wine / Proton</string>
+    <string name="setup_wizard_advanced_setup">Lisäasetukset</string>
+    <string name="setup_wizard_title">Ohjattu asennus</string>
+    <string name="setup_wizard_advanced_user">Edistynyt käyttäjä</string>
+    <string name="setup_wizard_next">Seuraava</string>
+    <string name="setup_wizard_finish">Valmis</string>
+    <string name="setup_wizard_download_and_install">Lataa + asenna</string>
+    <string name="setup_wizard_open_drivers">Avaa ajurit</string>
+    <string name="setup_wizard_ready">Valmis</string>
+    <string name="setup_wizard_download_and_create">Lataa + luo</string>
+    <string name="setup_wizard_configured">Määritetty</string>
+    <string name="setup_wizard_downloading">Ladataan %1$s</string>
+    <string name="setup_wizard_installing_package">Asennetaan %1$s</string>
+    <string name="setup_wizard_no_runtime_installed">Wine- tai Proton-paketteja ei ole vielä asennettu.</string>
+    <string name="setup_wizard_no_runtime_hint">Asenna Wine- tai Proton-paketti edellisestä vaiheesta tai ohita tämä toistaiseksi.</string>
+    <string name="setup_wizard_recommended_label">Suositeltu</string>
+    <string name="setup_wizard_install_all_recommended">Asenna kaikki suositellut</string>
+    <string name="setup_wizard_create_container">Luo säiliö</string>
+    <string name="setup_wizard_creating_container">Luodaan…</string>
+
+    <string name="input_controls_tap_to_click">Napauta klikataksesi</string>
+    <!-- Steam > Login -->
+    <string name="steam_login_auth_webview_title">Valtuutus</string>
+    <string name="steam_login_sign_in_to_your_account">Kirjaudu tilillesi</string>
+    <string name="steam_login_username">Käyttäjänimi</string>
+    <string name="steam_login_password">Salasana</string>
+    <string name="steam_login_invalid_username_or_password">Virheellinen käyttäjänimi tai salasana</string>
+    <string name="steam_login_remember_me">Muista minut</string>
+    <string name="steam_login_sign_in_with_qr_code">Kirjaudu QR-koodilla</string>
+    <string name="steam_login_open_steam_app_qr_hint">Avaa Steam-sovellus → napauta QR-kuvaketta</string>
+    <string name="steam_login_failed_to_load_qr_code">QR-koodin lataaminen epäonnistui</string>
+    <string name="steam_login_retry">Yritä uudelleen</string>
+    <string name="steam_login_generating_code">Luodaan koodia…</string>
+    <string name="steam_login_two_factor_auth">Kaksivaiheinen todennus</string>
+    <string name="steam_login_approve_login_steam_app">Hyväksy tämä kirjautuminen\nSteam-mobiilisovelluksellasi</string>
+    <string name="steam_login_enter_code_sent_to">Anna koodi, joka lähetettiin osoitteeseen\n%1$s</string>
+    <string name="steam_login_enter_steam_guard_code">Anna Steam Guard -koodisi</string>
+    <string name="steam_login_code">Koodi</string>
+
+    <!-- Google > Cloud Sync -->
+    <string name="google_cloud_title">Pilvisynkronointi</string>
+    <string name="google_cloud_sync_started">Pilvisynkronointi aloitettu.</string>
+    <string name="google_cloud_google">Google</string>
+    <string name="google_cloud_services">Google-palvelut</string>
+    <string name="google_auto_signin_title">Kirjaudu Googleen käynnistyksen yhteydessä</string>
+    <string name="google_auto_signin_summary">Yhdistä automaattisesti Google Play Gamesiin sovelluksen käynnistyessä, jotta tallennusten varmuuskopiointi ja synkronointi ovat aina valmiina. Kun tämä on pois päältä, sovellus ei koskaan kirjaudu sisään itsestään.</string>
+    <string name="google_auto_signin_section">Käynnistyksessä</string>
+    <string name="google_cloud_play_games">Google Play Games</string>
+    <string name="google_cloud_status_syncing">Synkronoidaan</string>
+    <string name="google_cloud_status_connected">Yhdistetty</string>
+    <string name="google_cloud_status_not_signed_in">Ei kirjautunut sisään</string>
+    <string name="google_cloud_working">Käsitellään…</string>
+    <string name="google_cloud_sign_in">Kirjaudu sisään</string>
+    <string name="google_cloud_disable_sync">Poista synkronointi käytöstä</string>
+    <string name="google_cloud_store_logins">Kauppojen kirjautumiset</string>
+    <string name="google_cloud_store_login_sync_busy">Käsitellään kauppojen kirjautumisten synkronointia…</string>
+    <string name="google_cloud_saved_games_unavailable">Googlen tallennetut pelit eivät ole käytettävissä</string>
+    <string name="google_cloud_snapshot_ready">Pilvitilannevedos valmis</string>
+    <string name="google_cloud_waiting_first_backup">Odotetaan ensimmäistä varmuuskopiota</string>
+    <string name="google_cloud_no_store_logins_detected">Kauppojen kirjautumisia ei havaittu</string>
+    <string name="google_cloud_last_synced">Viimeksi synkronoitu %1$s</string>
+    <string name="google_cloud_backup">Varmuuskopioi</string>
+    <string name="google_cloud_restore">Palauta</string>
+    <string name="google_cloud_sign_in_to_sync">Kirjaudu Google Play Gamesiin synkronoidaksesi kauppojen kirjautumiset.</string>
+    <string name="google_cloud_sign_in_failed">Google Play Gamesiin kirjautuminen epäonnistui.</string>
+    <string name="google_cloud_sign_in_finishing">Google Play Gamesiin kirjautuminen on vielä käynnissä. Odota hetki ja yritä pilvisynkronointia uudelleen.</string>
+    <string name="google_cloud_connected_restore_available">Google Play Games yhdistetty. Palautus on saatavilla kohteelle %1$s.</string>
+    <string name="google_cloud_connected_tap_backup">Google Play Games yhdistetty. Napauta Varmuuskopioi tallentaaksesi %1$s kirjautumista.</string>
+    <string name="google_cloud_connected_ready">Google Play Games yhdistetty. Varmuuskopiointi ja palautus ovat valmiina.</string>
+    <string name="google_cloud_sync_disabled">Google Play Games -synkronointi on poistettu käytöstä tälle sovellukselle.</string>
+    <string name="google_cloud_sign_in_first">Kirjaudu ensin Google Play Gamesiin.</string>
+    <string name="google_cloud_no_saved_logins_found">Google-pilvisynkronoinnista ei löytynyt tallennettuja kauppojen kirjautumisia.</string>
+    <string name="google_cloud_backup_already_matches">Pilvivarmuuskopio vastaa jo nykyisiä kauppojen kirjautumisia.</string>
+    <string name="google_cloud_no_local_logins">Varmuuskopioitavia paikallisia kauppojen kirjautumisia ei ole saatavilla.</string>
+    <string name="google_cloud_logins_restored_and_synced">Kauppojen kirjautumiset palautettu ja synkronoitu kohteelle %1$s.</string>
+    <string name="google_cloud_logins_restored">Palautettiin kauppojen kirjautumiset kohteelle %1$s.</string>
+    <string name="google_cloud_logins_backed_up">Varmuuskopioitiin kauppojen kirjautumiset kohteelle %1$s.</string>
+    <string name="google_cloud_sync_ready">Kauppojen kirjautumisten synkronointi on valmis.</string>
+    <string name="google_cloud_no_logins_to_sync">Synkronoitavia kauppojen kirjautumisia ei ole vielä saatavilla.</string>
+    <string name="google_cloud_sign_in_to_backup">Kirjaudu sisään varmuuskopioidaksesi %1$s-kirjautumistunnukset.</string>
+    <string name="google_cloud_no_backed_up_logins">Varmuuskopioituja kaupan kirjautumisia ei vielä löytynyt.</string>
+    <string name="google_cloud_local_cloud_differ">Paikalliset ja pilvessä olevat kaupan kirjautumiset eroavat toisistaan. Käytä Varmuuskopiointi korvataksesi pilvidatan tai Palauta hakeaksesi tallennetut tunnukset.</string>
+    <string name="google_cloud_local_ready_to_backup">Paikalliset kaupan kirjautumiset ovat valmiita varmuuskopioitaviksi kohteelle %1$s.</string>
+    <string name="google_cloud_backup_ready">Kaupan kirjautumisen varmuuskopio on valmis.</string>
+    <string name="google_cloud_restore_available">Pilvikirjautumisen palautus on saatavilla kohteelle %1$s.</string>
+    <string name="google_cloud_logins_synced">Kaupan kirjautumiset on synkronoitu Google Play Games -palvelun kanssa.</string>
+    <string name="google_cloud_sync_problem">Kaupan kirjautumisen synkronoinnissa ilmeni ongelma.</string>
+    <string name="google_cloud_error_auth_needed">Google Play Games -palvelun on viimeisteltävä todennus, ennen kuin pilvisynkronointi voi käyttää tallennettuja pelejä. Avaa Play Games -profiilikehote, jos se näkyy, ja yritä uudelleen.</string>
+    <string name="google_cloud_error_developer">Google Play Games -tallennetut pelit hylkäsi tämän koontiversion. Tarkista Play Games -sovellustunnus, linkitetty paketin nimi ja allekirjoitusvarmenne Play Consolessa.</string>
+    <string name="google_cloud_error_build_rejected">Google-tili on yhdistetty, mutta Google Play Games -tallennetut pelit hylkäsi tämän koontiversion. Tarkista Play Games -sovellustunnus, linkitetty paketti ja allekirjoitusvarmenne.</string>
+    <string name="google_cloud_error_network">Google-pilvisynkronointi epäonnistui, koska verkkopyyntö ei valmistunut tai Google Play -palvelut vaativat huomiota.</string>
+    <string name="google_cloud_error_no_snapshot">Google-pilvisynkronoinnista ei vielä löytynyt tallennettuja kaupan kirjautumisia.</string>
+    <string name="google_cloud_error_generic">Google-pilvisynkronointi epäonnistui: %1$s</string>
+    <string name="google_cloud_error_before_open">Google-pilvisynkronointi epäonnistui, ennen kuin Google-tallennetut pelit ehti avautua.</string>
+    <string name="cloud_saves_title">Pilvitallennukset</string>
+    <string name="cloud_saves_title_for_provider">%1$s-pilvitallennukset – %2$s</string>
+    <string name="cloud_saves_sync_summary">Hae versio, joka %1$s:lla on juuri nyt.</string>
+    <string name="cloud_saves_sync_summary_generic">Hae nykyinen pilviversio.</string>
+    <string name="cloud_saves_no_backups">Ei vielä varmuuskopioita tälle pelille.</string>
+    <string name="cloud_sync_title">Pilvitallennukset</string>
+    <string name="cloud_sync_disable_title">Poista pilvitallennukset käytöstä</string>
+    <string name="cloud_saves_steam_push_label">Lähetä Steam Cloudiin</string>
+    <string name="cloud_saves_steam_push_helper">Pakota paikallisen tallennuksen lähetys</string>
+    <string name="cloud_saves_steam_push_success">Tallennus lähetetty Steam Cloudiin.</string>
+    <string name="cloud_saves_steam_push_failed">Tallennuksen lähetys Steam Cloudiin epäonnistui.</string>
+    <string name="cloud_saves_history_steam_unreachable">Steam Cloud ei ole juuri nyt tavoitettavissa. Yhdistetään uudelleen taustalla — napauta päivitä, kun olet taas verkossa.</string>
+    <string name="steam_session_refused_event">Steam hylkäsi välimuistiin tallennetun istunnon (EResult=%1$d). Kirjaudu uudelleen sisään.</string>
+    <string name="cloud_sync_enabled_summary">Lataa käynnistyksessä, lähetä lopetettaessa.</string>
+    <string name="cloud_sync_disabled_summary">Käynnistä ilman pilvitallennuksen latausta tai lopetussynkronointia.</string>
+    <string name="cloud_saves_offline_mode">Poista pilvisynkronointi käytöstä</string>
+    <string name="cloud_saves_offline_mode_summary">Pysäyttää kaiken automaattisen pilvitoiminnan tälle pelille.</string>
+    <string name="cloud_saves_backing_up">Varmuuskopioidaan pilvitallennusta…</string>
+    <string name="cloud_saves_restoring">Palautetaan pilvitallennusta…</string>
+
+    <!-- Cloud Saves > Provider sync & backup history -->
+    <string name="cloud_saves_sync_from_provider">Synkronoi %1$s-pilvestä</string>
+    <string name="cloud_saves_sync_from_provider_generic">Synkronoi pilvestä</string>
+    <string name="cloud_saves_syncing_from_provider">Ladataan tallennusta kohteesta %1$s…</string>
+    <string name="cloud_saves_sync_from_provider_success">%1$s-pilvitallennus ladattu.</string>
+    <string name="cloud_saves_sync_from_provider_failed">Tallennuksen lataus kohteesta %1$s epäonnistui.</string>
+    <string name="cloud_saves_gog_manage_label">Hallitse GOG-pilvitallennuksia</string>
+    <string name="cloud_saves_gog_manage_helper">Avaa virallisen GOG-verkkosivuston</string>
+    <string name="cloud_saves_gog_manage_no_browser">Ei selainta, jolla avata GOG-pilvitallennusten sivu</string>
+    <string name="cloud_saves_gog_zip_label">Lataa GOG-pilvi-zip</string>
+    <string name="cloud_saves_gog_zip_helper">Tallenna nykyiset pilvitiedostot</string>
+    <string name="cloud_saves_gog_zip_success">GOG-pilvitallennusten zip tallennettu.</string>
+    <string name="cloud_saves_gog_zip_failed">GOG-pilvitallennusten zipin tallennus epäonnistui.</string>
+    <string name="cloud_saves_gog_zip_empty">GOG-pilvitallennustiedostoja ei löytynyt.</string>
+    <string name="cloud_saves_google_backup_label">Varmuuskopioi Googleen</string>
+    <string name="cloud_saves_google_backup_helper">Tallenna kopio Google Play Gamesiin</string>
+    <string name="cloud_saves_google_backup_no_save">Varmuuskopioitavia tallennustiedostoja ei löytynyt.</string>
+    <string name="cloud_saves_history_title">Tallennushistoria</string>
+    <string name="cloud_saves_history_empty">Aiempia tallennuksia ei ole vielä varmuuskopioitu. Korvatut tallennukset ja manuaaliset varmuuskopiot näkyvät täällä 30 päivän ajan.</string>
+    <string name="cloud_saves_history_loading">Ladataan tallennushistoriaa…</string>
+    <string name="cloud_saves_history_sign_in">Kirjaudu Googleen nähdäksesi tallennushistoriasi.</string>
+    <string name="cloud_saves_history_origin_local">paikallinen</string>
+    <string name="cloud_saves_history_origin_cloud">pilvi</string>
+    <string name="cloud_saves_history_origin_manual">manuaalinen</string>
+    <string name="cloud_saves_history_origin_auto">automaattinen</string>
+    <!-- Save History badge: where the backup is stored. -->
+    <string name="cloud_saves_history_storage_steam">Steam</string>
+    <string name="cloud_saves_history_storage_google">Google</string>
+    <string name="cloud_saves_history_storage_epic">Epic</string>
+    <string name="cloud_saves_history_storage_gog">GOG</string>
+    <string name="cloud_saves_history_restore">Palauta</string>
+    <string name="cloud_saves_history_download">Lataa</string>
+    <string name="cloud_saves_history_download_success">Tiedosto ladattu.</string>
+    <string name="cloud_saves_history_download_failed">Lataus epäonnistui.</string>
+    <string name="cloud_saves_history_cloud_readonly">Vain luku</string>
+    <string name="cloud_saves_history_restore_confirm_title">Palautetaanko tämä varmuuskopio?</string>
+    <string name="cloud_saves_history_restore_confirm_body">Tämä korvaa nykyisen paikallisen tallennuksesi kohteen %1$s varmuuskopiolla.</string>
+    <string name="cloud_saves_history_restore_success">Tallennus palautettu varmuuskopiosta.</string>
+    <string name="cloud_saves_history_restore_failed">Tämän varmuuskopion palautus epäonnistui.</string>
+    <string name="cloud_saves_keep_replaced_backup">Säilytä varmuuskopio korvatusta tallennuksesta</string>
+    <string name="cloud_saves_keep_replaced_backup_summary">Jos muutat mielesi, voit palauttaa sen Tallennushistoriasta.</string>
+    <string name="cloud_saves_history_refresh">Päivitä</string>
+    <string name="cloud_saves_history_rename">Nimeä uudelleen</string>
+    <string name="cloud_saves_history_rename_title">Nimeä tämä varmuuskopio</string>
+    <string name="cloud_saves_history_rename_hint">esim. Pomotaistelu, Ennen loppua</string>
+    <string name="cloud_saves_history_rename_save">Tallenna</string>
+    <string name="cloud_saves_history_rename_clear">Tyhjennä</string>
+    <string name="cloud_saves_history_rename_success">Varmuuskopio nimetty uudelleen.</string>
+    <string name="cloud_saves_history_rename_failed">Varmuuskopion uudelleennimeäminen epäonnistui.</string>
+
+    <!-- Cloud Saves > Custom save folder picker -->
+    <string name="cloud_saves_custom_select_folder">Valitse tallennuskansio</string>
+    <string name="cloud_saves_custom_folder_label">Tallennuskansio</string>
+    <string name="cloud_saves_custom_select_folder_summary">Osoita säilön sisäiseen tallennushakemistoon</string>
+    <string name="cloud_saves_custom_no_container">Säilö ei ole saatavilla tälle pikakuvakkeelle</string>
+    <string name="cloud_saves_custom_picker_title">Valitse tallennuskansio</string>
+    <string name="cloud_saves_custom_outside_drive_c">Valitun kansion on oltava säilön C:-aseman sisällä</string>
+    <string name="cloud_saves_custom_path_map_failed">Valittua kansiota ei voitu yhdistää Windows-polkuun.</string>
+    <string name="cloud_saves_custom_folder_set">Tallennuskansioksi asetettu %1$s</string>
+
+    <!-- Cloud Saves > Steam Cloud actions -->
+    <string name="cloud_saves_steam_sync_label">Synkronoi Steam Cloudista</string>
+    <string name="cloud_saves_steam_sync_helper">Lataa uusin tallennus</string>
+    <string name="cloud_saves_steam_sync_success">Synkronoitu Steam Cloudista</string>
+    <string name="cloud_saves_steam_sync_failed">Steam Cloud -synkronointi epäonnistui</string>
+    <string name="cloud_saves_steam_browse_label">Näytä Steam Cloud -tallennukset</string>
+    <string name="cloud_saves_steam_browse_helper">Avaa pilvitallennustila</string>
+    <string name="cloud_saves_steam_browse_no_browser">Ei selainta, jolla avata Steam-sivu</string>
+    <string name="cloud_saves_steam_import_label">Tuo tiedostot</string>
+    <string name="cloud_saves_steam_import_helper">Palauta ladatut tiedostot</string>
+    <string name="cloud_saves_steam_import_picker_unavailable">Tiedostonvalitsin ei ole saatavilla</string>
+    <string name="cloud_saves_steam_restore_overwrite_body">Tämä lataa Steam Cloudin nykyiset tallennustiedostot ja korvaa nykyiset tallennustiedostot.</string>
+
+    <!-- Cloud Saves > Internal result messages -->
+    <string name="cloud_saves_invalid_app_id">Virheellinen sovellustunnus</string>
+    <string name="cloud_saves_label_saved">Nimike tallennettu</string>
+
+    <!-- Saves > Import and Export -->
+    <string name="saves_import_export_title">Tallennukset</string>
+    <string name="saves_import_export_confirm_selection">Vahvista valinta</string>
+    <string name="saves_import_export_select_directory">Valitse tallennushakemistosi</string>
+    <string name="saves_import_export_up_directory">Ylempi hakemisto</string>
+    <string name="saves_import_export_select_container">Kohdesäilö:</string>
+    <string name="saves_import_export_exported">Tallennukset vietiin onnistuneesti</string>
+    <string name="saves_import_export_exported_failed">Tallennusten vienti epäonnistui: %1$s</string>
+    <string name="saves_import_export_imported">Tallennukset tuotiin onnistuneesti</string>
+    <string name="saves_import_export_imported_failed">Tallennusten tuonti epäonnistui: %1$s</string>
+    <string name="saves_export_path_summary">Tallennukset viedään kansioon /WinNative/saves</string>
+    <string name="saves_export_success_path">Viety kohteeseen %1$s</string>
+    <string name="saves_export_warning_title">Käytä tätä vain mukautettujen pelien kanssa</string>
+    <string name="saves_export_warning_body">Vienti voi sisältää tallennuksia kaupasta asennetuista tai pilvisynkronoiduista peleistä.</string>
+    <string name="saves_import_warning_title">Tämä korvaa tämän säilön olemassa olevat tallennukset</string>
+    <string name="saves_import_warning_body">Kun palautat vanhempaa varmuuskopiota, jossa on useita pelejä, kopioi ensin uudemmat tallennukset zip-tiedostoon tiedostonhallinnallasi. Muutos koskee vain zip-tiedostossa olevia tallennuksia. Hallitse tallennuksia viisaasti.</string>
+
+    <!-- Preloader > Launch Screen -->
+    <string name="preloader_default_name">Säilö</string>
+    <string name="preloader_initializing">Alustetaan</string>
+    <string name="preloader_launching">Käynnistetään</string>
+    <string name="preloader_closing">Suljetaan %1$s</string>
+    <string name="preloader_preparing_steam_environment">Valmistellaan Steam-ympäristöä</string>
+    <string name="preloader_starting_wine">Käynnistetään Wine</string>
+    <string name="preloader_starting_steam_launcher">Käynnistetään Steam Launcher</string>
+    <string name="preloader_loading_steam_client">Ladataan Steam-asiakasohjelmaa</string>
+    <string name="preloader_connecting_to_steam">Yhdistetään Steamiin</string>
+    <string name="preloader_signing_in_to_steam">Kirjaudutaan Steamiin</string>
+    <string name="preloader_fetching_game_info">Kirjauduttu sisään — haetaan pelitietoja</string>
+    <string name="preloader_steam_ready">Steam valmis</string>
+    <string name="preloader_updating_game_info">Päivitetään pelitietoja</string>
+    <string name="preloader_verifying_install">Vahvistetaan asennusta</string>
+    <string name="preloader_scanning_redists">Tarkistetaan jaettavia komponentteja</string>
+    <string name="preloader_installing_redist_single">Asennetaan jaettavaa komponenttia</string>
+    <string name="preloader_installing_named_redist">Asennetaan %1$s</string>
+    <string name="preloader_installing_named_redist_progress">Asennetaan %1$s (%2$s)</string>
+    <string name="preloader_redists_ready">Jaettavat komponentit valmiina</string>
+    <string name="preloader_no_redists">Ei asennettavia jaettavia komponentteja</string>
+    <string name="preloader_steam_service_running">Steam-palvelu käynnissä</string>
+    <string name="preloader_launching_game">Käynnistetään %1$s</string>
+    <string name="preloader_steam_launcher_failed_restaging">Steam Launcher epäonnistui — valmistellaan resursseja uudelleen</string>
+    <string name="preloader_steam_launcher_start_failed">Steam Launcher ei voinut käynnistyä. Valmistellaan uudelleen — käynnistä uudelleen</string>
+    <string name="preloader_steam_launcher_game_never_started">Steam Launcher tavoitti pelin, mutta se ei koskaan käynnistynyt</string>
+    <string name="preloader_setup_environment">Määritetään ympäristöä</string>
+    <string name="preloader_retrying_steam_client_download">Yritetään Steam-asiakasohjelman latausta uudelleen</string>
+    <string name="preloader_installing_mono">Asennetaan Wine Mono v%1$s</string>
+    <string name="preloader_installing_redist">Asennetaan jaettavia komponentteja</string>
+    <string name="preloader_unpacking_exe">Puretaan pelin suoritustiedostoa</string>
+    <string name="preloader_downloading_cloud">Ladataan pilvitallennuksia</string>
+    <string name="preloader_syncing_cloud">Synkronoidaan pilvitallennuksia</string>
+    <string name="preloader_uploading_cloud">Lähetetään pilvitallennuksia</string>
+    <string name="preloader_checking_cloud">Tarkistetaan pilvitallennuksia</string>
+    <string name="preloader_cloud_sync_retry">%1$s Yritys %2$d/%3$d</string>
+    <string name="preloader_cloud_downloading">Pilvisynkronointi lataa</string>
+    <string name="cloud_sync_failed_provider">%1$s-pilvitallennuksen synkronointi epäonnistui.</string>
+    <string name="preloader_platform_steam">Steam</string>
+    <string name="preloader_platform_epic">Epic Games</string>
+    <string name="preloader_platform_gog">GOG</string>
+    <string name="preloader_platform_custom">Mukautettu peli</string>
+
+    <!-- Performance recording settings -->
+    <string name="settings_hud_record_to_file_title">Tallenna suorituskyky tiedostoon</string>
+    <string name="settings_hud_record_to_file_summary">Vie sekuntikohtaiset FPS-, CPU-, GPU-, lämpötila- ja akkumittarit kansioon /WinNative/logs/ pelaamisen aikana.</string>
+    <string name="settings_leaderboard_category">Suorituskyky</string>
+    <!-- Workshop -->
+    <string name="workshop_loading_items">Ladataan Workshop-kohteita</string>
+    <string name="workshop_search_items">Hae Workshop-kohteita</string>
+    <string name="workshop_title">STEAM WORKSHOP</string>
+    <string name="workshop_loading_subtitle">Haetaan tilaamiasi kohteita Steamista.</string>
+    <string name="workshop_error_title">Workshop-kohteiden lataus epäonnistui</string>
+    <string name="workshop_error_subtitle">Jokin meni pieleen. Yritä uudelleen.</string>
+    <string name="workshop_empty_title">Ei tilattuja Workshop-kohteita</string>
+    <string name="workshop_empty_subtitle">Tilaa kohteita Steam Workshopissa ja avaa tämä ikkuna uudelleen.</string>
+    <string name="workshop_search_empty_title">Yksikään kohde ei vastaa hakua \"%1$s\"</string>
+    <string name="workshop_search_empty_subtitle">Kokeile eri hakusanaa.</string>
+    <string name="workshop_clear_search">Tyhjennä haku</string>
+    <string name="workshop_item_fallback">Workshop-kohde</string>
+    <string name="common_ui_failed">Epäonnistui</string>
+    <string name="steam_presence_snooze">Torkku</string>
+    <string name="steam_presence_busy">Varattu</string>
+    <string name="steam_presence_looking_to_trade">Etsii vaihtoa</string>
+    <string name="steam_presence_looking_to_play">Etsii pelikaveria</string>
+    <string name="steam_friends_count">Kaverit — %1$d verkossa</string>
+    <string name="steam_friends_section_in_game">Pelissä (%1$d)</string>
+    <string name="steam_friends_section_online">Verkossa (%1$d)</string>
+    <string name="steam_friends_section_offline">Poissa verkosta (%1$d)</string>
+    <string name="steam_friends_none_loaded">Kavereita ei ole vielä ladattu.</string>
+    <string name="steam_friends_self_you">Sinä</string>
+    <string name="steam_friends_in_game">Pelissä</string>
+    <string name="steam_friends_join">Liity</string>
+    <string name="steam_friends_play">Pelaa</string>
+    <string name="steam_chat_image_failed">(kuvan lähetys epäonnistui)</string>
+    <string name="steam_chat_empty">Ei vielä viestejä. Tervehdi!</string>
+    <string name="steam_chat_uploading_image">Lähetetään kuvaa…</string>
+    <string name="steam_chat_send_image">Lähetä kuva</string>
+    <string name="steam_chat_message_hint">Viesti…</string>
+    <string name="steam_chat_send">Lähetä</string>
+    <string name="steam_chat_image">Kuva</string>
+    <string name="steam_common_back">Takaisin</string>
+    <string name="steam_achievements_title">Saavutukset</string>
+    <string name="steam_achievements_empty">Tälle pelille ei löytynyt saavutuksia,\ntai kirjaudu Steamiin ladataksesi ne.</string>
+    <string name="steam_achievements_hidden">Piilotettu saavutus</string>
+    <string name="steam_achievements_hidden_desc">Jatka pelaamista paljastaaksesi tämän saavutuksen.</string>
+    <string name="steam_achievements_unlocked_on">Avattu %1$s</string>
+    <string name="steam_achievements_unlocked">Avattu</string>
+    <string name="steam_join_joining">Liitytään kohteeseen %1$s pelissä %2$s…</string>
+    <string name="steam_join_install">Asenna %1$s liittyäksesi kohteeseen %2$s</string>
+    <string name="steam_join_not_owned">Et omista peliä %1$s</string>
+    <string name="steam_chat_not_sent">(ei lähetetty)</string>
+    <string name="steam_join_the_game">peli</string>
+    <string name="steam_friends_settings">Asetukset</string>
+    <string name="steam_chat_settings_title">Chatin asetukset</string>
+    <string name="steam_chat_setting_notifications">Chat-ilmoitukset</string>
+    <string name="steam_chat_setting_notifications_desc">Näytä ilmoitus, kun saat viestin</string>
+    <string name="steam_chat_setting_heads">Chat-kuplat</string>
+    <string name="steam_chat_setting_heads_desc">Kelluvat kuplat viestien lukemiseen ja vastaamiseen</string>
+    <string name="steam_chat_setting_ingame">Ota chat käyttöön pelissä</string>
+    <string name="steam_chat_setting_ingame_desc">Vastaanota ja lähetä viestejä pelatessasi</string>
+    <string name="steam_chat_setting_stay_running">Suorita taustalla</string>
+    <string name="steam_chat_setting_stay_running_desc">Pidä chat käynnissä, kun poistut WinNativesta</string>
+    <string name="steam_chat_settings_overlay_needed">Salli näyttö muiden sovellusten päällä käyttääksesi chat-kuplia</string>
+    <string name="steam_chat_heads_title">Viestit</string>
+    <string name="steam_chat_heads_recent_title">Viimeaikaiset</string>
+    <string name="steam_chat_heads_online_title">Verkossa</string>
+    <string name="steam_chat_heads_new_chat">Uusi viesti</string>
+    <string name="steam_chat_setting_autohide">Piilota automaattisesti</string>
+    <string name="steam_chat_setting_autohide_desc">Häivytä chat-kupla 10 sekunnin käyttämättömyyden jälkeen</string>
+    <string name="steam_chat_heads_friends_title">Kaverit</string>
+    <!-- File manager -->
+    <string name="file_manager_title">Tiedostot</string>
+    <string name="file_manager_copy">Kopioi</string>
+    <string name="file_manager_cut">Leikkaa</string>
+    <string name="file_manager_paste">Liitä</string>
+    <string name="file_manager_paste_here">Liitä tähän</string>
+    <string name="file_manager_new_folder">Uusi kansio</string>
+    <string name="file_manager_create">Luo</string>
+    <string name="file_manager_delete">Poista</string>
+    <string name="file_manager_run_boot">Suorita / käynnistä</string>
+    <string name="file_manager_create_shortcut">Luo pikakuvake</string>
+    <string name="file_manager_run_in_container">Suorita säilössä</string>
+    <string name="file_manager_no_containers">Ei saatavilla olevia säilöjä</string>
+    <string name="file_manager_delete_confirm">Poistetaanko \"%1$s\"? Tätä ei voi kumota.</string>
+    <string name="file_manager_copying">Kopioidaan %1$s</string>
+    <string name="file_manager_moving">Siirretään %1$s</string>
+    <string name="file_manager_paste_into_itself">Kansiota ei voi liittää itseensä</string>
+    <string name="file_manager_operation_failed">Toiminto epäonnistui</string>
+    <string name="file_manager_delete_failed">Poisto epäonnistui</string>
+    <string name="file_manager_rename_failed">Uudelleennimeäminen epäonnistui</string>
+    <string name="file_manager_create_folder_failed">Kansion luonti epäonnistui</string>
+
+    <string name="settings_content_refresh">Päivitä</string>
+</resources>

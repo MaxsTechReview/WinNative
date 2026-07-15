@@ -25,11 +25,9 @@ object SteamLaunchOptions {
         return Parsed(env, after)
     }
 
-    /** Command-line arguments to pass to the game executable. */
     @JvmStatic
     fun gameArgs(execArgs: String?): String = parse(execArgs).gameArgs
 
-    /** Environment variables to apply to the game process. */
     @JvmStatic
     fun parseEnvVars(execArgs: String?): Map<String, String> = parse(execArgs).env
 

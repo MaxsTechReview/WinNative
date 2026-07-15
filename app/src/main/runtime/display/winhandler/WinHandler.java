@@ -547,18 +547,51 @@ public class WinHandler {
     if (this.vibrationExecutor != null) this.vibrationExecutor.shutdownNow();
   }
 
+  // Hand the socket/threads to a replacement handler while keeping the fake-input writers/rings the running guest is mapped to (unlike stop()).
+  public void stopForReattach() {
+    synchronized (this.actions) {
+      this.running = false;
+      this.actions.clear();
+      this.actions.notifyAll();
+    }
+    this.vibrationRunning = false;
+    if (this.socket != null) {
+      this.socket.close();
+      this.socket = null;
+    }
+    if (this.vibrationServer != null) {
+      try {
+        this.vibrationServer.close();
+      } catch (IOException ignored) {
+      }
+      this.vibrationServer = null;
+    }
+    if (this.sendExecutor != null) this.sendExecutor.shutdownNow();
+    if (this.receiveExecutor != null) this.receiveExecutor.shutdownNow();
+    if (this.vibrationExecutor != null) this.vibrationExecutor.shutdownNow();
+  }
+
+  private void applyInitHandshake() {
+    this.initReceived = true;
+    this.preferences =
+        PreferenceManager.getDefaultSharedPreferences(this.activity.getBaseContext());
+    if (!this.xinputDisabledInitialized) {
+      this.xinputDisabled = this.preferences.getBoolean("xinput_toggle", false);
+    }
+    synchronized (this.actions) {
+      this.actions.notifyAll();
+    }
+  }
+
+  // Reused session: the guest already handshook and won't repeat it, so adopt init state or mouse/keyboard input stays gated off.
+  public void markSessionInitialized() {
+    applyInitHandshake();
+  }
+
   private void handleRequest(byte requestCode, int port) {
     switch (requestCode) {
       case 1:
-        this.initReceived = true;
-        this.preferences =
-            PreferenceManager.getDefaultSharedPreferences(this.activity.getBaseContext());
-        if (!this.xinputDisabledInitialized) {
-          this.xinputDisabled = this.preferences.getBoolean("xinput_toggle", false);
-        }
-        synchronized (this.actions) {
-          this.actions.notifyAll();
-        }
+        applyInitHandshake();
         return;
       case 5:
         if (this.onGetProcessInfoListener != null) {
@@ -729,6 +762,35 @@ public class WinHandler {
         controller, shouldApplyGyroToTarget(GAMEPAD_SOURCE_CONTROLLER, controller));
     XServer xServer = activity.getXServer();
     if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
+  }
+
+  // Menu owns the controller while open; zero tracked state and push it once so nothing stays held in the guest.
+  public void neutralizeControllers() {
+    for (ExternalController controller : this.controllers.values()) {
+      if (controller == null) {
+        continue;
+      }
+      clearGamepadState(controller.state);
+      clearGamepadState(controller.remappedState);
+      int slot = assignSlot(controller.getDeviceId());
+      if (slot >= 0 && this.writers[slot] != null) {
+        try {
+          this.writers[slot].writeGamepadState(controller.state);
+        } catch (IOException ignored) {
+        }
+      }
+    }
+  }
+
+  private static void clearGamepadState(GamepadState state) {
+    state.thumbLX = 0;
+    state.thumbLY = 0;
+    state.thumbRX = 0;
+    state.thumbRY = 0;
+    state.triggerL = 0;
+    state.triggerR = 0;
+    state.buttons = 0;
+    state.dpad[0] = state.dpad[1] = state.dpad[2] = state.dpad[3] = false;
   }
 
   private void writeControllerGamepadState(

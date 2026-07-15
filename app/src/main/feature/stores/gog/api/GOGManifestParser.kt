@@ -291,13 +291,20 @@ class GOGManifestParser
                 val baseCdnUrl = productUrls.first()
 
                 // Where aa/bb are first 4 chars of MD5 hash
-                val chunkUrl =
+                val chunkSuffix =
                     if (chunkMd5.length >= 4) {
                         val first2 = chunkMd5.substring(0, 2)
                         val next2 = chunkMd5.substring(2, 4)
-                        "$baseCdnUrl/$first2/$next2/$chunkMd5"
+                        "/$first2/$next2/$chunkMd5"
                     } else {
-                        "$baseCdnUrl/$chunkMd5"
+                        "/$chunkMd5"
+                    }
+                val queryIndex = baseCdnUrl.indexOf('?')
+                val chunkUrl =
+                    if (queryIndex >= 0) {
+                        baseCdnUrl.substring(0, queryIndex) + chunkSuffix + baseCdnUrl.substring(queryIndex)
+                    } else {
+                        baseCdnUrl + chunkSuffix
                     }
 
                 chunkUrlMap[chunkMd5] = chunkUrl

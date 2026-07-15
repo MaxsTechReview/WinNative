@@ -505,9 +505,12 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">Preset de FEXCore</string>
     <string name="container_fexcore_version">Versión de FEXCore</string>
+    <string name="use_unix_libs">Usar UnixLibs</string>
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Controlador gráfico</string>
+    <string name="container_graphics_transcoder">Transcodificador BCn</string>
+    <string name="container_graphics_quality">Calidad BCn</string>
     <string name="container_graphics_configuration">Configuración del controlador gráfico</string>
     <string name="container_graphics_version">Versión del controlador gráfico</string>
     <string name="container_graphics_available_extensions">Extensiones disponibles</string>
@@ -588,6 +591,7 @@ Ej. <b>META</b> para la <i>tecla META</i>, \n
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Bat.</string>
     <string name="session_drawer_hud_element_graph">Gráf.</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">¿Deseas finalizar este proceso?</string>
@@ -781,10 +785,14 @@ Ej. <b>META</b> para la <i>tecla META</i>, \n
     <string name="settings_debug_box_logs_subtitle">Escribir salida de depuración de Box86 y Box64 en archivo</string>
     <string name="settings_debug_fex_logs_title">Activar registros de FEXCore</string>
     <string name="settings_debug_fex_logs_subtitle">Escribir salida de depuración de FEXCore en archivo</string>
+    <string name="settings_debug_emulator_logs_title">Registros de emulación Box64/FEX</string>
+    <string name="settings_debug_emulator_logs_subtitle">Registra en archivo el emulador que usa tu contenedor.</string>
     <string name="settings_debug_steam_logs_title">Activar registros de Steam</string>
     <string name="settings_debug_steam_logs_subtitle">Registrar eventos de autenticación y sesión de Steam para depuración.</string>
     <string name="settings_debug_wine_channels_title">Canales de depuración de Wine</string>
     <string name="settings_debug_wine_channels_summary">Elegir qué canales de Wine se incluyen cuando el registro de depuración de Wine está activado.</string>
+    <string name="settings_debug_wine_classes_title">Niveles de registro de Wine</string>
+    <string name="settings_debug_wine_classes_summary">Elige qué tipos de mensajes se registran. Trace es extremadamente detallado.</string>
     <string name="settings_debug_input_logs">Registros de entrada</string>
     <string name="settings_debug_input_logs_description">Registrar eventos de entrada de mando, táctil y teclado</string>
     <string name="settings_debug_download_logs">Registros de descarga</string>
@@ -818,6 +826,8 @@ Ej. <b>META</b> para la <i>tecla META</i>, \n
 
     <string name="settings_other_language_title">Idioma</string>
     <string name="settings_other_language_summary">Elige el idioma de visualización</string>
+    <string name="settings_other_game_language_title">Idioma del juego</string>
+    <string name="settings_other_game_language_summary">Idioma preferido para las descargas de Steam/Epic/GOG</string>
     <string name="settings_other_language_system_default">Predeterminado del sistema</string>
 
     <string name="settings_other_section_integration">Integración</string>
@@ -1169,6 +1179,9 @@ Ruta instalada:
     <string name="cloud_saves_history_restore_success">Partida restaurada desde la copia de seguridad.</string>
     <string name="cloud_saves_history_sign_in">Inicia sesión en Google para ver tu historial de partidas.</string>
     <string name="cloud_saves_history_title">Historial de partidas</string>
+    <string name="cloud_saves_history_download">Descargar</string>
+    <string name="cloud_saves_history_download_success">Archivo descargado.</string>
+    <string name="cloud_saves_history_download_failed">Error al descargar.</string>
     <string name="cloud_saves_keep_replaced_backup">Guardar una copia de seguridad de la partida reemplazada</string>
     <string name="cloud_saves_keep_replaced_backup_summary">Si cambias de opinión, puedes restaurarla desde el Historial de partidas.</string>
     <string name="cloud_saves_no_backups">Aún no hay copias de seguridad para este juego.</string>
@@ -1307,7 +1320,7 @@ Ruta instalada:
     <string name="cloud_saves_history_steam_unreachable">Steam Cloud no está disponible ahora. Reconectando en segundo plano toca actualizar cuando vuelvas a estar en línea.</string>
     <string name="steam_session_refused_event">Steam rechazó la sesión en caché (EResult=%1$d). Inicia sesión de nuevo.</string>
     <string name="settings_hud_record_to_file_title">Grabar rendimiento en archivo</string>
-    <string name="settings_hud_record_to_file_summary">Escribe métricas por segundo de FPS, CPU, GPU, temperatura y batería en /WinNative/logs/ durante el juego.</string>
+    <string name="settings_hud_record_to_file_summary">Exporta métricas por segundo de FPS, CPU, GPU, temperatura y batería a /WinNative/logs/ durante el juego.</string>
     <string name="settings_leaderboard_category">Rendimiento</string>
     <!-- Preloader > Launch Screen -->
     <string name="preloader_preparing_steam_environment">Preparando entorno de Steam</string>
@@ -1334,6 +1347,16 @@ Ruta instalada:
     <!-- Workshop -->
     <string name="workshop_loading_items">Cargando elementos de Workshop</string>
     <string name="workshop_search_items">Buscar elementos de Workshop</string>
+    <string name="workshop_title">STEAM WORKSHOP</string>
+    <string name="workshop_loading_subtitle">Obteniendo tus elementos suscritos de Steam.</string>
+    <string name="workshop_error_title">No se pudieron cargar los elementos del Workshop</string>
+    <string name="workshop_error_subtitle">Algo salió mal. Inténtalo de nuevo.</string>
+    <string name="workshop_empty_title">No hay elementos del Workshop suscritos</string>
+    <string name="workshop_empty_subtitle">Suscríbete a elementos en el Steam Workshop y vuelve a abrir esta ventana.</string>
+    <string name="workshop_search_empty_title">Ningún elemento coincide con \"%1$s\"</string>
+    <string name="workshop_search_empty_subtitle">Prueba con otro término de búsqueda.</string>
+    <string name="workshop_clear_search">Borrar búsqueda</string>
+    <string name="workshop_item_fallback">Elemento del Workshop</string>
     <string name="common_ui_failed">Fallido</string>
     <string name="steam_presence_snooze">Inactivo</string>
     <string name="steam_presence_busy">Ocupado</string>
@@ -1498,7 +1521,7 @@ Ruta instalada:
     <string name="session_drawer_hud_background">Fondo</string>
     <string name="session_drawer_hud_background_alpha">Alfa del fondo</string>
     <string name="session_drawer_hud_background_alpha_input_title">Establecer alfa del fondo</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">Ajustar tamaño</string>
     <string name="session_task_bring_to_front">Traer al frente</string>
     <string name="session_task_custom_value">Valor personalizado</string>
@@ -1541,5 +1564,6 @@ Ruta instalada:
     <string name="session_record_started">Grabación iniciada</string>
     <string name="steam_chat_setting_stay_running">Ejecutar en segundo plano</string>
     <string name="steam_chat_setting_stay_running_desc">Mantener el chat activo después de salir de WinNative</string>
+    <string name="settings_content_refresh">Actualizar</string>
 </resources>
 

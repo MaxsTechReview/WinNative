@@ -1,28 +1,48 @@
 package com.winlator.cmod.runtime.display.environment.components;
 
 import android.content.Context;
-import android.media.AudioManager;
-import android.os.Process;
+import android.util.Log;
 import com.winlator.cmod.runtime.display.connector.UnixSocketConfig;
 import com.winlator.cmod.runtime.display.environment.EnvironmentComponent;
 import com.winlator.cmod.runtime.system.ProcessHelper;
 import com.winlator.cmod.runtime.wine.EnvVars;
-import com.winlator.cmod.shared.android.AppUtils;
 import com.winlator.cmod.shared.io.FileUtils;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
+/**
+ * PulseAudio server management.
+ *
+ * <p>This mirrors the GameNative PulseAudio stack, which is the coherent, maintained build that
+ * reliably resumes audio after interruptions such as phone calls. The pieces that make resume work
+ * live in the native binaries, not here:
+ *
+ * <ul>
+ *   <li>{@code libpulseaudio.so} + the PulseAudio libs ship as jniLibs and run from
+ *       {@code nativeLibraryDir}.
+ *   <li>The {@code pulseaudio.tzst} asset provides a real {@code pactl} plus a minimal, matched
+ *       module set ({@code module-native-protocol-unix}, {@code module-aaudio-sink},
+ *       {@code libprotocol-native}). The {@code module-aaudio-sink} registers an AAudio error
+ *       callback and reopens its output stream when Android disconnects it during a call — the
+ *       actual recovery mechanism the previous build lacked.
+ * </ul>
+ *
+ * <p>Pause/resume simply suspend and un-suspend the sink via {@code pactl suspend-sink}; the module
+ * closes the AAudio device on suspend and reopens it on resume.
+ */
 public class PulseAudioComponent extends EnvironmentComponent {
+  private static final String TAG = "PulseAudioComponent";
+  private static final String SINK_NAME = "AAudioSink";
+
   private final UnixSocketConfig socketConfig;
   private final Options options;
-  private static int pid = -1;
   private static final Object lock = new Object();
+  private boolean isPaused = false;
 
   public PulseAudioComponent(UnixSocketConfig socketConfig) {
     this(socketConfig, new Options());
@@ -34,7 +54,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
   }
 
   public static class Options {
-    public static final int DEFAULT_LATENCY_MILLIS = 144;
+    public static final int DEFAULT_LATENCY_MILLIS = 40;
     public static final int DEFAULT_FRAGMENT_MILLIS = 10;
     public static final int DEFAULT_SAMPLE_RATE = 48000;
     public static final int DEFAULT_ALTERNATE_SAMPLE_RATE = 44100;
@@ -156,221 +176,176 @@ public class PulseAudioComponent extends EnvironmentComponent {
   @Override
   public void start() {
     synchronized (lock) {
-      stop();
-      pid = execPulseAudio();
+      if (!isServerRunning()) {
+        killAllPulseAudioProcesses();
+        startPulseAudio();
+        isPaused = false;
+      }
     }
   }
 
   @Override
   public void stop() {
     synchronized (lock) {
-      if (pid != -1) {
-        Process.killProcess(pid);
-        pid = -1;
-      }
+      updateSink(true);
+      isPaused = false;
+      killAllPulseAudioProcesses();
     }
   }
 
   public void suspend() {
     synchronized (lock) {
-      if (pid != -1) ProcessHelper.suspendProcess(pid);
+      if (!isPaused && isServerRunning()) {
+        isPaused = true;
+        updateSink(true);
+      }
     }
   }
 
   public void resume() {
     synchronized (lock) {
-      if (pid != -1) ProcessHelper.resumeProcess(pid);
-    }
-  }
-
-  private void copyFromLibraryDir(File dst) {
-    String[] libs =
-        new String[] {
-          "libltdl.so",
-          "libpulseaudio.so",
-          "libpulse.so",
-          "libpulsecommon-13.0.so",
-          "libpulsecore-13.0.so",
-          "libsndfile.so"
-        };
-    for (int i = 0; i < libs.length; i++) {
-      Path dstDir = Paths.get(dst.getAbsolutePath() + "/" + libs[i]);
-      try (InputStream is =
-          environment.getContext().getAssets().open("pulseaudio-bin/" + libs[i])) {
-        if (is != null) {
-          Files.copy(is, dstDir, StandardCopyOption.REPLACE_EXISTING);
-          FileUtils.chmod(dstDir.toFile(), 0771);
+      if (isPaused) {
+        if (isServerRunning()) {
+          isPaused = false;
+          updateSink(false);
+        } else {
+          // Daemon died while backgrounded; relaunch it. default.pa re-creates the sink.
+          start();
         }
-      } catch (IOException e) {
-        throw new RuntimeException(e);
       }
     }
   }
 
-  private int execPulseAudio() {
+  public boolean isServerRunning() {
+    String info = execPactlCommand("info").toLowerCase(java.util.Locale.ROOT);
+    return info.contains("server name:") && !info.contains("connection failure");
+  }
+
+  private void updateSink(boolean suspend) {
+    execPactlCommand("suspend-sink " + SINK_NAME + " " + (suspend ? "true" : "false"));
+  }
+
+  private void killAllPulseAudioProcesses() {
+    File proc = new File("/proc");
+    String[] allPids =
+        proc.list((dir, name) -> new File(dir, name).isDirectory() && name.matches("[0-9]+"));
+    if (allPids == null) return;
+    boolean killed = false;
+    for (String pidStr : allPids) {
+      String cmdline = readProcCmdline(pidStr);
+      if (cmdline.contains("libpulseaudio.so")) {
+        try {
+          ProcessHelper.killProcess(Integer.parseInt(pidStr));
+          killed = true;
+        } catch (NumberFormatException ignored) {
+        }
+      }
+    }
+    if (killed) {
+      try {
+        Thread.sleep(200);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
+  }
+
+  private static String readProcCmdline(String pid) {
+    try (FileInputStream fr = new FileInputStream("/proc/" + pid + "/cmdline")) {
+      byte[] bytes = fr.readAllBytes();
+      return new String(bytes, StandardCharsets.UTF_8).replace('\0', ' ');
+    } catch (IOException e) {
+      return "";
+    }
+  }
+
+  private void startPulseAudio() {
     Context context = environment.getContext();
+    String nativeLibraryDir = context.getApplicationInfo().nativeLibraryDir;
+
     File workingDir = new File(context.getFilesDir(), "/pulseaudio");
     if (!workingDir.isDirectory()) {
       workingDir.mkdirs();
       FileUtils.chmod(workingDir, 0771);
     }
 
-    File configDir = new File(workingDir, ".config/pulse");
-    if (!configDir.isDirectory()) configDir.mkdirs();
-    File runtimeDir = new File(workingDir, "run");
-    if (!runtimeDir.isDirectory()) runtimeDir.mkdirs();
+    // Clear any stale runtime state (e.g. cookie) from a previous run.
+    File configDir = new File(workingDir, ".config");
+    if (configDir.exists()) FileUtils.delete(configDir);
 
-    int sampleRate =
-        options.sampleRateOverridden ? options.sampleRate : getNativeOutputSampleRate(context);
-    int alternateSampleRate =
-        options.alternateSampleRateOverridden
-            ? options.alternateSampleRate
-            : getAlternateSampleRate(sampleRate);
-    String channelMap = getChannelMap(options.channels);
-
-    File daemonConfigFile = new File(configDir, "daemon.conf");
-    FileUtils.writeString(
-        daemonConfigFile,
-        String.join(
-            "\n",
-            "high-priority = yes",
-            "realtime-scheduling = no",
-            "flat-volumes = no",
-            "enable-deferred-volume = no",
-            "resample-method = speex-float-1",
-            "avoid-resampling = yes",
-            "default-sample-format = s16le",
-            "default-sample-rate = " + sampleRate,
-            "alternate-sample-rate = " + alternateSampleRate,
-            "default-sample-channels = " + options.channels,
-            "default-channel-map = " + channelMap,
-            "default-fragments = 4",
-            "default-fragment-size-msec = " + options.fragmentMillis,
-            ""));
+    boolean lowLatency = Options.PERFORMANCE_MODE_LOW_LATENCY.equals(options.performanceMode);
+    String sinkParams = "volume=" + options.volume + " performance_mode=1";
+    if (lowLatency) sinkParams += " low_latency=true";
 
     File configFile = new File(workingDir, "default.pa");
     FileUtils.writeString(
         configFile,
         String.join(
             "\n",
-            "load-module module-native-protocol-unix auth-anonymous=1 auth-cookie-enabled=0 socket=\""
+            "load-module module-native-protocol-unix auth-anonymous=1 auth-cookie-enabled=false socket=\""
                 + socketConfig.path
                 + "\"",
-            "load-module module-aaudio-sink sink_name=AAudioSink rate=" + sampleRate,
-            "set-default-sink AAudioSink",
-            "set-sink-volume AAudioSink " + pulseVolumeHex(options.volume),
+            "load-module module-aaudio-sink " + sinkParams,
             ""));
 
-    String archName = AppUtils.getArchName();
-    File modulesDir = new File(workingDir, "modules/" + archName);
-    patchAAudioSinkPerformanceMode(modulesDir);
-    String systemLibPath = archName.equals("arm64") ? "/system/lib64" : "/system/lib";
+    File modulesDir = new File(workingDir, "modules");
 
     ArrayList<String> envVars = new ArrayList<>();
-    envVars.add(
-        "LD_LIBRARY_PATH=" + systemLibPath + ":" + modulesDir + ":" + workingDir.getAbsolutePath());
+    envVars.add("LD_LIBRARY_PATH=/system/lib64:" + nativeLibraryDir + ":" + modulesDir);
     envVars.add("HOME=" + workingDir);
-    envVars.add("XDG_CONFIG_HOME=" + new File(workingDir, ".config").getAbsolutePath());
-    envVars.add("PULSE_RUNTIME_PATH=" + runtimeDir.getAbsolutePath());
-    envVars.add("PULSE_LATENCY_MSEC=" + options.latencyMillis);
     envVars.add("TMPDIR=" + environment.getTmpDir());
 
-    copyFromLibraryDir(workingDir);
-
-    String command = workingDir.getAbsolutePath() + "/libpulseaudio.so";
+    String command = nativeLibraryDir + "/libpulseaudio.so";
     command += " --system=false";
     command += " --disable-shm=true";
     command += " --fail=false";
     command += " -n --file=default.pa";
-    command += " --daemonize=false";
+    command += " --daemonize=true";
     command += " --use-pid-file=false";
     command += " --exit-idle-time=-1";
-    command += " --high-priority=true";
-    command += " --realtime=false";
-    command += " --resample-method=speex-float-1";
 
-    return ProcessHelper.exec(command, envVars.toArray(new String[0]), workingDir);
+    ProcessHelper.exec(command, envVars.toArray(new String[0]), workingDir);
   }
 
-  private static String pulseVolumeHex(float linearVolume) {
-    int pulseVolume = Math.max(0, Math.round(0x10000 * linearVolume));
-    return "0x" + Integer.toHexString(pulseVolume);
-  }
+  private String execPactlCommand(String command) {
+    Context context = environment.getContext();
+    String nativeLibraryDir = context.getApplicationInfo().nativeLibraryDir;
+    File workingDir = new File(context.getFilesDir(), "/pulseaudio");
+    if (!workingDir.isDirectory()) return "";
 
-  private static int getNativeOutputSampleRate(Context context) {
-    try {
-      AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-      String value = audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE);
-      if (value != null && !value.isEmpty()) return Math.max(8000, Integer.parseInt(value));
-    } catch (Exception ignored) {
+    File pactl = new File(workingDir, "pactl");
+    if (!pactl.isFile()) {
+      Log.w(TAG, "pactl not found at " + pactl.getAbsolutePath());
+      return "";
     }
-    return Options.DEFAULT_SAMPLE_RATE;
-  }
+    if (!pactl.canExecute()) FileUtils.chmod(pactl, 0755);
 
-  private static int getAlternateSampleRate(int sampleRate) {
-    return sampleRate == Options.DEFAULT_ALTERNATE_SAMPLE_RATE
-        ? Options.DEFAULT_SAMPLE_RATE
-        : Options.DEFAULT_ALTERNATE_SAMPLE_RATE;
-  }
-
-  private static String getChannelMap(int channels) {
-    return channels <= 1 ? "mono" : "front-left,front-right";
-  }
-
-  private void patchAAudioSinkPerformanceMode(File modulesDir) {
-    File module = new File(modulesDir, "module-aaudio-sink.so");
-    if (!module.isFile()) return;
-
-    int mode = 10;
-    if (Options.PERFORMANCE_MODE_POWER_SAVING.equals(options.performanceMode)) mode = 11;
-    else if (Options.PERFORMANCE_MODE_LOW_LATENCY.equals(options.performanceMode)) mode = 12;
-
-    byte[][] searchPatterns = {
-      {0x41, 0x01, (byte) 0x80, 0x52},
-      {0x61, 0x01, (byte) 0x80, 0x52},
-      {(byte) 0x81, 0x01, (byte) 0x80, 0x52},
-      {0x0a, 0x10, (byte) 0xa0, (byte) 0xe3},
-      {0x0b, 0x10, (byte) 0xa0, (byte) 0xe3},
-      {0x0c, 0x10, (byte) 0xa0, (byte) 0xe3}
-    };
-    byte[] arm64Replacement = {(byte) (0x01 | (mode << 5)), 0x01, (byte) 0x80, 0x52};
-    byte[] armhfReplacement = {(byte) mode, 0x10, (byte) 0xa0, (byte) 0xe3};
-
+    File modulesDir = new File(workingDir, "modules");
+    StringBuilder output = new StringBuilder();
     try {
-      byte[] data = Files.readAllBytes(module.toPath());
-      if (data.length < 4
-          || data[0] != 0x7F
-          || data[1] != 'E'
-          || data[2] != 'L'
-          || data[3] != 'F') return;
-      boolean changed = false;
-      for (byte[] searchPattern : searchPatterns) {
-        int offset = findPattern(data, searchPattern, 0);
-        if (offset < 0) continue;
-        if (findPattern(data, searchPattern, offset + 1) >= 0) continue;
-        byte[] replacement = searchPattern[2] == (byte) 0x80 ? arm64Replacement : armhfReplacement;
-        for (int j = 0; j < replacement.length; j++) {
-          data[offset + j] = replacement[j];
-        }
-        changed = true;
-        break;
-      }
-      if (changed) Files.write(module.toPath(), data);
-    } catch (IOException ignored) {
-    }
-  }
-
-  private static int findPattern(byte[] data, byte[] pattern, int fromIndex) {
-    for (int i = Math.max(0, fromIndex); i <= data.length - pattern.length; i++) {
-      boolean found = true;
-      for (int j = 0; j < pattern.length; j++) {
-        if (data[i + j] != pattern[j]) {
-          found = false;
-          break;
+      String[] envp =
+          new String[] {
+            "LD_LIBRARY_PATH=/system/lib64:" + nativeLibraryDir + ":" + modulesDir,
+            "HOME=" + workingDir,
+            "PULSE_SERVER=" + socketConfig.path,
+            "TMPDIR=" + environment.getTmpDir()
+          };
+      Process process =
+          Runtime.getRuntime().exec(pactl.getAbsolutePath() + " " + command, envp, workingDir);
+      try (BufferedReader reader =
+          new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+        String line;
+        while ((line = reader.readLine()) != null) {
+          output.append(line).append('\n');
         }
       }
-      if (found) return i;
+      process.waitFor();
+    } catch (IOException e) {
+      return "";
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return "";
     }
-    return -1;
+    return output.toString();
   }
 }

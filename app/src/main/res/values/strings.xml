@@ -585,6 +585,7 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">FEXCore Preset</string>
     <string name="container_fexcore_version">FEXCore Version</string>
+    <string name="use_unix_libs">Use UnixLibs</string>
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Graphics Driver</string>
@@ -602,6 +603,8 @@
     <string name="container_graphics_bcn_emulation">BCn Emulation</string>
     <string name="container_graphics_bcn_emulation_type">BCn Emulation Type</string>
     <string name="container_graphics_bcn_emulation_cache">BCn Emulation Cache</string>
+    <string name="container_graphics_transcoder">BCn Transcoder</string>
+    <string name="container_graphics_quality">BCn Quality</string>
     <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Game Super Resolution 1</string>
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">Do you want to duplicate this preset?</string>
@@ -737,8 +740,9 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_hud_element_cpu">CPU</string>
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">BAT</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_hud_element_graph">Graph</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
     <string name="hud_position_menu_title">Move HUD to</string>
     <string name="hud_position_top_left">Top Left</string>
     <string name="hud_position_top_center">Top Center</string>
@@ -1067,10 +1071,14 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_debug_box_logs_subtitle">Write Box86 &amp; Box64 debug output to file</string>
     <string name="settings_debug_fex_logs_title">Enable FEXCore Logs</string>
     <string name="settings_debug_fex_logs_subtitle">Write FEXCore debug output to file</string>
+    <string name="settings_debug_emulator_logs_title">Box64/FEX Emulation logs</string>
+    <string name="settings_debug_emulator_logs_subtitle">Logs whichever emulator your container uses, to file.</string>
     <string name="settings_debug_steam_logs_title">Enable Steam Logs</string>
     <string name="settings_debug_steam_logs_subtitle">Log Steam authentication and session events for debugging.</string>
     <string name="settings_debug_wine_channels_title">Wine Debug Channels</string>
     <string name="settings_debug_wine_channels_summary">Choose which Wine channels are included when Wine debug logging is enabled.</string>
+    <string name="settings_debug_wine_classes_title">Wine Log Levels</string>
+    <string name="settings_debug_wine_classes_summary">Pick which message types are logged. Trace is extremely verbose.</string>
     <string name="settings_debug_input_logs">Input Logs</string>
     <string name="settings_debug_input_logs_description">Log gamepad, touch, and keyboard input events</string>
     <string name="settings_debug_download_logs">Download Logs</string>
@@ -1105,6 +1113,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_other_language_title">Language</string>
     <string name="settings_other_language_summary">Choose the display language</string>
     <string name="settings_other_language_system_default">System default</string>
+    <string name="settings_other_game_language_title">Game Language</string>
+    <string name="settings_other_game_language_summary">Preferred language for Steam/Epic/GOG downloads</string>
 
     <string name="settings_other_section_integration">Integration</string>
     <string name="settings_other_setup_wizard_title">Setup Wizard</string>
@@ -1358,6 +1368,9 @@ Installed path:
     <string name="cloud_saves_history_storage_epic">Epic</string>
     <string name="cloud_saves_history_storage_gog">GOG</string>
     <string name="cloud_saves_history_restore">Restore</string>
+    <string name="cloud_saves_history_download">Download</string>
+    <string name="cloud_saves_history_download_success">File downloaded.</string>
+    <string name="cloud_saves_history_download_failed">Download failed.</string>
     <string name="cloud_saves_history_cloud_readonly">Read-only</string>
     <string name="cloud_saves_history_restore_confirm_title">Restore this backup?</string>
     <string name="cloud_saves_history_restore_confirm_body">This will replace your current local save with the backup from %1$s.</string>
@@ -1463,11 +1476,21 @@ Installed path:
 
     <!-- Performance recording settings -->
     <string name="settings_hud_record_to_file_title">Record performance to file</string>
-    <string name="settings_hud_record_to_file_summary">Write per-second FPS, CPU, GPU, temperature, and battery metrics to /WinNative/logs/ during gameplay.</string>
+    <string name="settings_hud_record_to_file_summary">Exports per-second FPS, CPU, GPU, temperature, and battery metrics to /WinNative/logs/ during gameplay.</string>
     <string name="settings_leaderboard_category">Performance</string>
     <!-- Workshop -->
     <string name="workshop_loading_items">Loading Workshop items</string>
     <string name="workshop_search_items">Search Workshop items</string>
+    <string name="workshop_title">STEAM WORKSHOP</string>
+    <string name="workshop_loading_subtitle">Fetching your subscribed items from Steam.</string>
+    <string name="workshop_error_title">Couldn\'t load Workshop items</string>
+    <string name="workshop_error_subtitle">Something went wrong. Try again.</string>
+    <string name="workshop_empty_title">No subscribed Workshop items</string>
+    <string name="workshop_empty_subtitle">Subscribe to items on the Steam Workshop, then reopen this window.</string>
+    <string name="workshop_search_empty_title">No items match \"%1$s\"</string>
+    <string name="workshop_search_empty_subtitle">Try a different search term.</string>
+    <string name="workshop_clear_search">Clear search</string>
+    <string name="workshop_item_fallback">Workshop item</string>
     <string name="common_ui_failed">Failed</string>
     <string name="steam_presence_snooze">Snooze</string>
     <string name="steam_presence_busy">Busy</string>
@@ -1478,6 +1501,7 @@ Installed path:
     <string name="steam_friends_section_online">Online (%1$d)</string>
     <string name="steam_friends_section_offline">Offline (%1$d)</string>
     <string name="steam_friends_none_loaded">No friends loaded yet.</string>
+    <string name="steam_friends_chat_off">Chat is off. Turn Chat Service back on to see your friends.</string>
     <string name="steam_friends_self_you">You</string>
     <string name="steam_friends_in_game">In game</string>
     <string name="steam_friends_join">Join</string>
@@ -1503,6 +1527,8 @@ Installed path:
     <string name="steam_join_the_game">the game</string>
     <string name="steam_friends_settings">Settings</string>
     <string name="steam_chat_settings_title">Chat Settings</string>
+    <string name="steam_chat_setting_service">Chat Service</string>
+    <string name="steam_chat_setting_service_desc">Sign in to friends and chat; turn off to go offline</string>
     <string name="steam_chat_setting_notifications">Chat Notifications</string>
     <string name="steam_chat_setting_notifications_desc">Show a notification when you receive a message</string>
     <string name="steam_chat_setting_heads">Chat Heads</string>
@@ -1540,4 +1566,5 @@ Installed path:
     <string name="file_manager_delete_failed">Delete failed</string>
     <string name="file_manager_rename_failed">Rename failed</string>
     <string name="file_manager_create_folder_failed">Create folder failed</string>
+    <string name="settings_content_refresh">Refresh</string>
 </resources>

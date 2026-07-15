@@ -115,6 +115,9 @@ class SessionRecordingController(
         frameRating.setFrameObserver(this)
     }
 
+    /** True while a recording session is running (record-to-file on). */
+    fun isActive(): Boolean = active.get()
+
     override fun onFramePresent(nanoTime: Long) {
         collector?.onFramePresent(nanoTime)
         recorder?.recordFramePresent(nanoTime)

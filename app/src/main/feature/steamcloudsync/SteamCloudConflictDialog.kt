@@ -14,6 +14,8 @@ import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.winlator.cmod.feature.sync.google.GameSaveBackupManager
 import com.winlator.cmod.shared.theme.WinNativeTheme
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.bindPaneNav
 
 object SteamCloudConflictDialog {
     @JvmStatic
@@ -35,6 +37,8 @@ object SteamCloudConflictDialog {
                     setBackgroundDrawableResource(android.R.color.transparent)
                 }
             }
+
+        val navRegistry = PaneNavRegistry()
 
         val composeView =
             ComposeView(activity).apply {
@@ -60,6 +64,7 @@ object SteamCloudConflictDialog {
                             ),
                     ) {
                         SteamCloudConflictDialogContent(
+                            navRegistry = navRegistry,
                             timestamps = timestamps,
                             initialKeepBackup = GameSaveBackupManager.isKeepReplacedBackupEnabled(activity),
                             onKeepBackupChanged = { enabled ->
@@ -80,6 +85,8 @@ object SteamCloudConflictDialog {
 
         dialog.setContentView(composeView)
         dialog.show()
+        val restoreNav = dialog.window?.bindPaneNav(navRegistry, onDismiss = {})
+        dialog.setOnDismissListener { restoreNav?.invoke() }
         dialog.window?.apply {
             val dm = activity.resources.displayMetrics
             val horizontalMarginPx =

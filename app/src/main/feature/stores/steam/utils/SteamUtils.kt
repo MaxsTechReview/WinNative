@@ -17,6 +17,7 @@ import com.winlator.cmod.runtime.wine.WineUtils
 import com.winlator.cmod.runtime.wine.WineRegistryEditor
 import com.winlator.cmod.feature.stores.steam.enums.EOSType
 import com.winlator.cmod.feature.stores.steam.enums.EPersonaState
+import com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.getOwnedAppDlc
 import kotlinx.coroutines.runBlocking
 import okhttp3.Call
 import okhttp3.Callback
@@ -814,15 +815,33 @@ object SteamUtils {
         branch: String,
         installedDepotIds: Set<Int>,
         installedDlcAppIds: Set<Int>,
+        language: String,
     ): LinkedHashMap<Int, ManifestInfo> {
         val allKnownDepots = linkedMapOf<Int, DepotInfo>()
         appInfo.depots.forEach { (depotId, depot) -> allKnownDepots[depotId] = depot }
-        SteamService.getDownloadableDepots(steamAppId).forEach { (depotId, depot) ->
+        SteamService.getDownloadableDepots(steamAppId, language).forEach { (depotId, depot) ->
             allKnownDepots[depotId] = depot
         }
 
+        val installedDlcDepotsIds = SteamService.getInstalledDlcDepotsOf(steamAppId)
+        installedDlcDepotsIds?.forEach { appId ->
+            try {
+                runBlocking {
+                    getOwnedAppDlc(appId).forEach { (depotId, depot) ->
+                        allKnownDepots[depotId] = depot
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to resolve owned DLC depots for appId=$appId")
+            }
+        }
+
+
         val installedDepots = linkedMapOf<Int, ManifestInfo>()
         allKnownDepots.forEach { (depotId, depotInfo) ->
+            // Exclude shared depots from InstalledDepots — they belong in SharedDepots only
+            if (depotInfo.sharedInstall) return@forEach
+
             val shouldInclude =
                 depotId in installedDepotIds ||
                     (
@@ -839,9 +858,11 @@ object SteamUtils {
     }
 
     @JvmStatic
+    @JvmOverloads
     fun createAppManifest(
         context: Context,
         steamAppId: Int,
+        language: String = "english",
     ) {
         try {
             Timber.i("Attempting to createAppManifest for appId: $steamAppId")
@@ -890,26 +911,68 @@ object SteamUtils {
                     branch = selectedBranch,
                     installedDepotIds = installedDepotIds,
                     installedDlcAppIds = installedDlcAppIds,
+                    language = language,
                 )
+
+            // Compute total download and stage sizes from resolved depots
+            val totalBytesToDownload = installedDepots.values.sumOf { it.download }
+            val totalBytesToStage = installedDepots.values.sumOf { it.size }
+
+            // Collect dlcAppId mapping for InstalledDepots entries
+            val allKnownDepots = linkedMapOf<Int, com.winlator.cmod.feature.stores.steam.data.DepotInfo>()
+            appInfo.depots.forEach { (depotId, depot) -> allKnownDepots[depotId] = depot }
+            SteamService.getDownloadableDepots(steamAppId, language).forEach { (depotId, depot) ->
+                allKnownDepots[depotId] = depot
+            }
+
+            // Collect shared depots for SharedDepots section
+            val sharedDepots = linkedMapOf<Int, Int>()
+            allKnownDepots.forEach { (depotId, depotInfo) ->
+                if (depotInfo.sharedInstall && depotInfo.depotFromApp != SteamService.INVALID_APP_ID) {
+                    sharedDepots[depotId] = depotInfo.depotFromApp
+                }
+            }
+
+            // Collect install scripts for InstallScripts section
+            val installScripts = linkedMapOf<Int, String>()
+            if (appInfo.installScript.isNotBlank()) {
+                // Map the base game depot(s) to the install script (base app's own depots only,
+                // matching the native launcher env-var path in XServerDisplayActivity).
+                appInfo.depots.forEach { (depotId, depotInfo) ->
+                    if (depotInfo.dlcAppId == SteamService.INVALID_APP_ID &&
+                        depotInfo.depotFromApp == SteamService.INVALID_APP_ID
+                    ) {
+                        installScripts[depotId] = appInfo.installScript
+                    }
+                }
+            }
 
             val acfContent =
                 buildString {
                     appendLine("\"AppState\"")
                     appendLine("{")
                     appendLine("\t\"appid\"\t\t\"$steamAppId\"")
-                    appendLine("\t\"Universe\"\t\t\"1\"")
+                    appendLine("\t\"universe\"\t\t\"1\"")
+                    appendLine("\t\"LauncherPath\"\t\t\"C:\\\\Program Files (x86)\\\\Steam\\\\steam.exe\"")
                     appendLine("\t\"name\"\t\t\"${escapeString(appInfo.name)}\"")
                     appendLine("\t\"StateFlags\"\t\t\"4\"")
-                    appendLine("\t\"LastUpdated\"\t\t\"${System.currentTimeMillis() / 1000}\"")
-                    appendLine("\t\"SizeOnDisk\"\t\t\"$sizeOnDisk\"")
-                    appendLine("\t\"buildid\"\t\t\"$buildId\"")
 
                     val actualInstallDir = gameName
                     appendLine("\t\"installdir\"\t\t\"${escapeString(actualInstallDir)}\"")
 
+                    appendLine("\t\"LastUpdated\"\t\t\"${System.currentTimeMillis() / 1000}\"")
+                    appendLine("\t\"LastPlayed\"\t\t\"0\"")
+                    appendLine("\t\"SizeOnDisk\"\t\t\"$sizeOnDisk\"")
+                    appendLine("\t\"StagingSize\"\t\t\"0\"")
+                    appendLine("\t\"buildid\"\t\t\"$buildId\"")
                     appendLine("\t\"LastOwner\"\t\t\"$ownerSteamId\"")
-                    appendLine("\t\"BytesToDownload\"\t\t\"0\"")
-                    appendLine("\t\"BytesDownloaded\"\t\t\"0\"")
+                    appendLine("\t\"DownloadType\"\t\t\"1\"")
+                    appendLine("\t\"UpdateResult\"\t\t\"0\"")
+                    appendLine("\t\"BytesToDownload\"\t\t\"$totalBytesToDownload\"")
+                    appendLine("\t\"BytesDownloaded\"\t\t\"$totalBytesToDownload\"")
+                    appendLine("\t\"BytesToStage\"\t\t\"$totalBytesToStage\"")
+                    appendLine("\t\"BytesStaged\"\t\t\"$totalBytesToStage\"")
+                    appendLine("\t\"TargetBuildID\"\t\t\"$buildId\"")
                     appendLine("\t\"AutoUpdateBehavior\"\t\t\"0\"")
                     appendLine("\t\"AllowOtherDownloadsWhileRunning\"\t\t\"0\"")
                     appendLine("\t\"ScheduledAutoUpdate\"\t\t\"0\"")
@@ -922,6 +985,12 @@ object SteamUtils {
                             appendLine("\t\t{")
                             appendLine("\t\t\t\"manifest\"\t\t\"${manifest.gid}\"")
                             appendLine("\t\t\t\"size\"\t\t\"${manifest.size}\"")
+                            val dlcAppId = allKnownDepots[depotId]?.dlcAppId
+                            if (dlcAppId != null && dlcAppId != SteamService.INVALID_APP_ID) {
+                                appendLine("\t\t\t\"dlcappid\"\t\t\"$dlcAppId\"")
+                            } else if (depotId in installedDlcAppIds) {
+                                appendLine("\t\t\t\"dlcappid\"\t\t\"$depotId\"")
+                            }
                             appendLine("\t\t}")
                         }
                         appendLine("\t}")
@@ -932,8 +1001,32 @@ object SteamUtils {
                         )
                     }
 
-                    appendLine("\t\"UserConfig\" { \"language\" \"english\" }")
-                    appendLine("\t\"MountedConfig\" { \"language\" \"english\" }")
+                    if (installScripts.isNotEmpty()) {
+                        appendLine("\t\"InstallScripts\"")
+                        appendLine("\t{")
+                        installScripts.forEach { (depotId, script) ->
+                            appendLine("\t\t\"$depotId\"\t\t\"${escapeString(script)}\"")
+                        }
+                        appendLine("\t}")
+                    }
+
+                    if (sharedDepots.isNotEmpty()) {
+                        appendLine("\t\"SharedDepots\"")
+                        appendLine("\t{")
+                        sharedDepots.forEach { (depotId, appTarget) ->
+                            appendLine("\t\t\"$depotId\"\t\t\"$appTarget\"")
+                        }
+                        appendLine("\t}")
+                    }
+
+                    appendLine("\t\"UserConfig\"")
+                    appendLine("\t{")
+                    appendLine("\t\t\"language\"\t\t\"$language\"")
+                    appendLine("\t}")
+                    appendLine("\t\"MountedConfig\"")
+                    appendLine("\t{")
+                    appendLine("\t\t\"language\"\t\t\"$language\"")
+                    appendLine("\t}")
                     appendLine("}")
                 }
 
@@ -948,13 +1041,43 @@ object SteamUtils {
                         appendLine("\"AppState\"")
                         appendLine("{")
                         appendLine("\t\"appid\"\t\t\"228980\"")
-                        appendLine("\t\"Universe\"\t\t\"1\"")
+                        appendLine("\t\"universe\"\t\t\"1\"")
+                        appendLine("\t\"LauncherPath\"\t\t\"C:\\\\Program Files (x86)\\\\Steam\\\\steam.exe\"")
                         appendLine("\t\"name\"\t\t\"Steamworks Common Redistributables\"")
                         appendLine("\t\"StateFlags\"\t\t\"4\"")
                         appendLine("\t\"installdir\"\t\t\"Steamworks Shared\"")
+                        appendLine("\t\"LastUpdated\"\t\t\"${System.currentTimeMillis() / 1000}\"")
+                        appendLine("\t\"LastPlayed\"\t\t\"0\"")
+                        appendLine("\t\"SizeOnDisk\"\t\t\"0\"")
+                        appendLine("\t\"StagingSize\"\t\t\"0\"")
                         appendLine("\t\"buildid\"\t\t\"1\"")
+                        appendLine("\t\"LastOwner\"\t\t\"0\"")
+                        appendLine("\t\"DownloadType\"\t\t\"1\"")
+                        appendLine("\t\"UpdateResult\"\t\t\"0\"")
                         appendLine("\t\"BytesToDownload\"\t\t\"0\"")
                         appendLine("\t\"BytesDownloaded\"\t\t\"0\"")
+                        appendLine("\t\"BytesToStage\"\t\t\"0\"")
+                        appendLine("\t\"BytesStaged\"\t\t\"0\"")
+                        appendLine("\t\"TargetBuildID\"\t\t\"1\"")
+                        appendLine("\t\"AutoUpdateBehavior\"\t\t\"0\"")
+                        appendLine("\t\"AllowOtherDownloadsWhileRunning\"\t\t\"0\"")
+                        appendLine("\t\"ScheduledAutoUpdate\"\t\t\"0\"")
+                        appendLine("\t\"InstalledDepots\"")
+                        appendLine("\t{")
+                        appendLine("\t\t\"228980\"")
+                        appendLine("\t\t{")
+                        appendLine("\t\t\t\"manifest\"\t\t\"0\"")
+                        appendLine("\t\t\t\"size\"\t\t\"0\"")
+                        appendLine("\t\t}")
+                        appendLine("\t}")
+                        appendLine("\t\"UserConfig\"")
+                        appendLine("\t{")
+                        appendLine("\t\t\"language\"\t\t\"english\"")
+                        appendLine("\t}")
+                        appendLine("\t\"MountedConfig\"")
+                        appendLine("\t{")
+                        appendLine("\t\t\"language\"\t\t\"english\"")
+                        appendLine("\t}")
                         appendLine("}")
                     }
 
@@ -1059,7 +1182,7 @@ object SteamUtils {
 
     private fun escapeString(input: String?): String {
         if (input == null) return ""
-        return input.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
+        return input.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
     }
 
     private fun calculateDirectorySize(directory: File): Long {
@@ -1482,8 +1605,8 @@ object SteamUtils {
                     container
                         .getExtra("containerLanguage", null)
                         ?.takeIf { it.isNotEmpty() }
-                        ?: "english"
-                }.getOrDefault("english")
+                        ?: PrefManager.containerLanguage
+                }.getOrDefault(PrefManager.containerLanguage)
 
             val steamappsDir = File(steamPath, "steamapps")
             val appManifestFile = File(steamappsDir, "appmanifest_$appId.acf")

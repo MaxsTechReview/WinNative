@@ -54,6 +54,21 @@ import com.winlator.cmod.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -66,11 +81,14 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private val BgDark = Color(0xFF18181D)
-private val SurfaceDark = Color(0xFF1E252E)
+private val WsBg = Color(0xFF12121B)
+private val CardBorder = Color(0xFF2A2A3A)
+private val BgDark = Color(0xFF171722)
+private val SurfaceDark = Color(0xFF1B1B27)
 private val Accent = Color(0xFF1A9FFF)
+private val AccentGlow = Color(0xFF58A6FF)
 private val TextPrimary = Color(0xFFF0F4FF)
-private val TextSecondary = Color(0xFF7A8FA8)
+private val TextSecondary = Color(0xFF93A6BC)
 
 private val IMG_BBCODE = Regex("""\[img](.+?)\[/img]""", RegexOption.IGNORE_CASE)
 // Steam delivers chat images as [img src=URL] or as a bare UGC URL.
@@ -180,130 +198,170 @@ fun SteamChatScreen(
         }
     }
 
-    Surface(color = BgDark, modifier = Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().statusBarsPadding()) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .background(SurfaceDark)
-                    .padding(horizontal = 6.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onClose) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.steam_common_back), tint = TextPrimary)
-                }
-                Box(
-                    Modifier.size(38.dp).clip(CircleShape).background(BgDark),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (friend.avatarUrl != null) {
-                        AsyncImage(
-                            model = friend.avatarUrl,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.size(38.dp).clip(CircleShape),
-                        )
-                    }
-                }
-                Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        friend.name.ifBlank { friend.steamId.toString() },
-                        color = TextPrimary,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleSmall,
-                    )
-                    Text(
-                        if (friend.isPlayingGame) friend.gameName.ifBlank { stringResource(R.string.steam_friends_in_game) }
-                        else if (friend.isOnline) stringResource(R.string.stores_accounts_status_online) else stringResource(R.string.stores_accounts_status_offline),
-                        color = if (friend.isOnline) Accent else TextSecondary,
-                        style = MaterialTheme.typography.labelSmall,
-                    )
-                }
-            }
+    val registry = remember { PaneNavRegistry() }
+    val fieldFocus = remember { FocusRequester() }
+    registry.onEdgeUp = { scope.launch { runCatching { listState.animateScrollBy(-280f) } } }
+    registry.onEdgeDown = { scope.launch { runCatching { listState.animateScrollBy(280f) } } }
 
-            Box(Modifier.weight(1f).fillMaxWidth()) {
-                if (loading) {
-                    CircularProgressIndicator(
-                        color = Accent,
-                        modifier = Modifier.size(28.dp).align(Alignment.Center),
-                    )
-                } else if (messages.isEmpty()) {
-                    Text(
-                        stringResource(R.string.steam_chat_empty),
-                        color = TextSecondary,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.align(Alignment.Center),
-                    )
-                } else {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
+    Dialog(
+        onDismissRequest = onClose,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        CompositionLocalProvider(LocalPaneNav provides registry) {
+            DialogPaneNav(registry, onDismiss = onClose)
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = WsBg,
+                border = BorderStroke(1.dp, CardBorder),
+                modifier = Modifier
+                    .fillMaxWidth(0.95f)
+                    .fillMaxHeight(0.95f)
+                    .imePadding(),
+            ) {
+                Column(Modifier.fillMaxSize()) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(start = 14.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        item { Spacer(Modifier.height(8.dp)) }
-                        items(messages) { msg -> MessageBubble(msg) }
-                        item { Spacer(Modifier.height(8.dp)) }
+                        Box(
+                            Modifier.size(40.dp).clip(CircleShape).background(BgDark),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (friend.avatarUrl != null) {
+                                AsyncImage(
+                                    model = friend.avatarUrl,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.size(40.dp).clip(CircleShape),
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                friend.name.ifBlank { friend.steamId.toString() },
+                                color = TextPrimary,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Text(
+                                if (friend.isPlayingGame) friend.gameName.ifBlank { stringResource(R.string.steam_friends_in_game) }
+                                else if (friend.isOnline) stringResource(R.string.stores_accounts_status_online) else stringResource(R.string.stores_accounts_status_offline),
+                                color = if (friend.isOnline) Accent else TextSecondary,
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        }
+                        IconButton(
+                            onClick = onClose,
+                            modifier = Modifier.size(36.dp).paneNavItem(cornerRadius = 18.dp, onActivate = onClose, tapToSelect = true, navRow = 0, navCol = 0),
+                        ) {
+                            Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.steam_common_back), tint = TextSecondary)
+                        }
                     }
-                }
-            }
+                    HorizontalDivider(color = CardBorder, thickness = 0.5.dp)
 
-            if (uploading) {
-                Row(
-                    Modifier.fillMaxWidth().background(SurfaceDark).padding(horizontal = 16.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    CircularProgressIndicator(color = Accent, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(10.dp))
-                    Text(stringResource(R.string.steam_chat_uploading_image), color = TextSecondary, style = MaterialTheme.typography.labelMedium)
-                }
-            }
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .background(SurfaceDark)
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(
-                    onClick = {
-                        pickImage.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                    Box(Modifier.weight(1f).fillMaxWidth()) {
+                        if (loading) {
+                            CircularProgressIndicator(
+                                color = Accent,
+                                modifier = Modifier.size(28.dp).align(Alignment.Center),
+                            )
+                        } else if (messages.isEmpty()) {
+                            Text(
+                                stringResource(R.string.steam_chat_empty),
+                                color = TextSecondary,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.align(Alignment.Center),
+                            )
+                        } else {
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                item { Spacer(Modifier.height(8.dp)) }
+                                items(messages) { msg -> MessageBubble(msg) }
+                                item { Spacer(Modifier.height(8.dp)) }
+                            }
+                        }
+                    }
+
+                    if (uploading) {
+                        Row(
+                            Modifier.fillMaxWidth().background(SurfaceDark).padding(horizontal = 16.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            CircularProgressIndicator(color = Accent, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(10.dp))
+                            Text(stringResource(R.string.steam_chat_uploading_image), color = TextSecondary, style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                    HorizontalDivider(color = CardBorder, thickness = 0.5.dp)
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        IconButton(
+                            onClick = {
+                                pickImage.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                                )
+                            },
+                            enabled = !uploading,
+                            modifier = Modifier.size(42.dp).paneNavItem(
+                                cornerRadius = 21.dp,
+                                onActivate = {
+                                    if (!uploading) pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                },
+                                tapToSelect = true,
+                                navRow = 1,
+                                navCol = 0,
+                            ),
+                        ) {
+                            Icon(
+                                Icons.Outlined.Image,
+                                contentDescription = stringResource(R.string.steam_chat_send_image),
+                                tint = if (uploading) TextSecondary else Accent,
+                            )
+                        }
+                        OutlinedTextField(
+                            value = input,
+                            onValueChange = { input = it },
+                            modifier = Modifier
+                                .weight(1f)
+                                .focusRequester(fieldFocus)
+                                .paneNavItem(cornerRadius = 22.dp, onActivate = { runCatching { fieldFocus.requestFocus() } }, navRow = 1, navCol = 1, isEntry = true),
+                            placeholder = { Text(stringResource(R.string.steam_chat_message_hint), color = TextSecondary) },
+                            maxLines = 4,
+                            shape = RoundedCornerShape(22.dp),
+                            keyboardActions = KeyboardActions(onSend = { send() }),
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = BgDark,
+                                unfocusedContainerColor = BgDark,
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary,
+                                cursorColor = Accent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                            ),
                         )
-                    },
-                    enabled = !uploading,
-                ) {
-                    Icon(
-                        Icons.Outlined.Image,
-                        contentDescription = stringResource(R.string.steam_chat_send_image),
-                        tint = if (uploading) TextSecondary else Accent,
-                    )
-                }
-                OutlinedTextField(
-                    value = input,
-                    onValueChange = { input = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text(stringResource(R.string.steam_chat_message_hint), color = TextSecondary) },
-                    maxLines = 4,
-                    shape = RoundedCornerShape(22.dp),
-                    keyboardActions = KeyboardActions(onSend = { send() }),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = BgDark,
-                        unfocusedContainerColor = BgDark,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary,
-                        cursorColor = Accent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                    ),
-                )
-                Spacer(Modifier.width(6.dp))
-                IconButton(onClick = { send() }, enabled = input.isNotBlank() && !sending) {
-                    Icon(
-                        Icons.AutoMirrored.Outlined.Send,
-                        contentDescription = stringResource(R.string.steam_chat_send),
-                        tint = if (input.isNotBlank() && !sending) Accent else TextSecondary,
-                    )
+                        Spacer(Modifier.width(6.dp))
+                        IconButton(
+                            onClick = { send() },
+                            enabled = input.isNotBlank() && !sending,
+                            modifier = Modifier.size(42.dp).paneNavItem(cornerRadius = 21.dp, onActivate = { send() }, tapToSelect = true, navRow = 1, navCol = 2),
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Outlined.Send,
+                                contentDescription = stringResource(R.string.steam_chat_send),
+                                tint = if (input.isNotBlank() && !sending) Accent else TextSecondary,
+                            )
+                        }
+                    }
                 }
             }
         }

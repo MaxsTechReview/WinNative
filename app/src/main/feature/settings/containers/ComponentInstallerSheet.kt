@@ -3,7 +3,6 @@ package com.winlator.cmod.feature.settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -18,8 +17,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
@@ -27,8 +30,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,13 +43,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.runtime.content.Downloader
 import com.winlator.cmod.runtime.content.component.ComponentInstaller
@@ -164,6 +176,7 @@ fun ComponentInstallerSheet(
     val scope = rememberCoroutineScope()
     val installStates = remember { mutableStateMapOf<String, InstallUi>() }
     var ui by remember { mutableStateOf<CatalogUiState>(CatalogUiState.Loading) }
+    val registry = remember { PaneNavRegistry() }
 
     LaunchedEffect(Unit) {
         ui =
@@ -206,6 +219,8 @@ fun ComponentInstallerSheet(
                 decorFitsSystemWindows = false,
             ),
     ) {
+        DialogPaneNav(registry, onDismiss = onDismiss, onStart = onDismiss)
+        CompositionLocalProvider(LocalPaneNav provides registry) {
         BoxWithConstraints(
             modifier =
                 Modifier
@@ -274,6 +289,7 @@ fun ComponentInstallerSheet(
                 }
             }
         }
+        }
     }
 }
 
@@ -309,10 +325,11 @@ private fun SheetHeader(
                         .clip(RoundedCornerShape(8.dp))
                         .background(SheetSubcard)
                         .border(1.dp, SheetOutline, RoundedCornerShape(8.dp))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onClose,
+                        .paneNavItem(
+                            cornerRadius = 8.dp,
+                            onActivate = onClose,
+                            tapToSelect = true,
+                            isEntry = true,
                         ),
                 contentAlignment = Alignment.Center,
             ) {
@@ -336,13 +353,50 @@ private fun ComponentList(
     onInstall: (CatalogComponent) -> Unit,
 ) {
     val grouped = items.groupBy { it.category }
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+    val nav = LocalPaneNav.current
+    val scrollState = rememberScrollState()
+    val density = LocalDensity.current
+    var viewportTop by remember { mutableStateOf(0f) }
+    var viewportHeight by remember { mutableIntStateOf(0) }
+    if (nav != null) {
+        LaunchedEffect(nav.activeRow, nav.activeCol, viewportHeight) {
+            if (!nav.controllerActive || nav.manualSelection) return@LaunchedEffect
+            val bounds = nav.activeItemBounds() ?: return@LaunchedEffect
+            val margin = with(density) { 16.dp.toPx() }
+            val vpTop = viewportTop
+            val vpBottom = viewportTop + viewportHeight
+            val delta = when {
+                bounds.second + margin > vpBottom -> bounds.second + margin - vpBottom
+                bounds.first - margin < vpTop -> bounds.first - margin - vpTop
+                else -> 0f
+            }
+            if (delta != 0f) runCatching { scrollState.animateScrollBy(delta) }
+        }
+    }
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .then(
+                    if (nav != null) {
+                        Modifier.onGloballyPositioned {
+                            viewportTop = it.positionInWindow().y
+                            viewportHeight = it.size.height
+                        }
+                    } else {
+                        Modifier
+                    },
+                ),
     ) {
-        grouped.forEach { (category, group) ->
-            item(key = "h_$category") {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            grouped.forEach { (category, group) ->
                 Text(
                     text = category.uppercase(),
                     color = SheetTextSecondary,
@@ -351,14 +405,14 @@ private fun ComponentList(
                     letterSpacing = 1.2.sp,
                     modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 2.dp),
                 )
-            }
-            items(group.size, key = { group[it].manifest }) { idx ->
-                val component = group[idx]
-                ComponentRow(
-                    item = component,
-                    status = installStates[component.name],
-                    onInstall = onInstall,
-                )
+                group.forEachIndexed { idx, component ->
+                    ComponentRow(
+                        item = component,
+                        status = installStates[component.name],
+                        onInstall = onInstall,
+                        isEntry = category == grouped.keys.first() && idx == 0,
+                    )
+                }
             }
         }
     }
@@ -369,6 +423,7 @@ private fun ComponentRow(
     item: CatalogComponent,
     status: InstallUi?,
     onInstall: (CatalogComponent) -> Unit,
+    isEntry: Boolean = false,
 ) {
     Row(
         modifier =
@@ -377,6 +432,11 @@ private fun ComponentRow(
                 .clip(RoundedCornerShape(10.dp))
                 .background(SheetCard)
                 .border(1.dp, SheetOutline, RoundedCornerShape(10.dp))
+                .paneNavItem(
+                    cornerRadius = 10.dp,
+                    onActivate = { if (status == null || status is InstallUi.Failed) onInstall(item) },
+                    isEntry = isEntry,
+                )
                 .padding(horizontal = 12.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -481,11 +541,8 @@ private fun InstallButton(
                 .clip(RoundedCornerShape(8.dp))
                 .background(SheetAccent.copy(alpha = 0.14f))
                 .border(1.dp, SheetAccent.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
-                ).padding(horizontal = 14.dp),
+                .clickable(onClick = onClick)
+                .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(

@@ -21,6 +21,7 @@
     <string-array name="graphics_driver_entries">
         <item>Wrapper</item>
         <item>Wrapper-Leegao</item>
+        <item>Wrapper-Gamenative</item>
     </string-array>
     <string-array name="wrapper_graphics_driver_version_entries">
         <item>System</item>
@@ -97,6 +98,14 @@
     <string-array name="bcn_emulation_cache_entries">
         <item>0</item>
         <item>1</item>
+    </string-array>
+    <string-array name="wrapper_transcoder_entries">
+        <item>cpu</item>
+        <item>gpu</item>
+    </string-array>
+    <string-array name="wrapper_quality_entries">
+        <item>low</item>
+        <item>high</item>
     </string-array>
     <string-array name="video_memory_size_entries">
         <item>32 MB</item>

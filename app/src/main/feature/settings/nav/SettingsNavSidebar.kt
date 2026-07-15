@@ -2,15 +2,19 @@ package com.winlator.cmod.feature.settings
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -41,11 +45,13 @@ import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -119,6 +125,7 @@ private val sectionedNavItems: Map<NavSection, List<SettingsNavItem>> =
 @Composable
 fun SettingsNavSidebar(
     selectedItem: SettingsNavItem,
+    railActive: Boolean = true,
     onItemSelected: (SettingsNavItem) -> Unit,
     onBackPressed: () -> Unit,
     bordersPaused: Boolean = false,
@@ -127,6 +134,32 @@ fun SettingsNavSidebar(
     val navBarPadding = WindowInsets.navigationBars.asPaddingValues()
     val navStartInset = navBarPadding.calculateStartPadding(layoutDirection)
     val navBottomInset = navBarPadding.calculateBottomPadding()
+
+    val listState = rememberLazyListState()
+    val selectedLazyIndex =
+        remember(selectedItem) {
+            var idx = 0
+            var found = 0
+            NavSection.entries.forEachIndexed { sIdx, section ->
+                if (sIdx > 0) idx++
+                idx++
+                val secItems = sectionedNavItems[section].orEmpty()
+                val pos = secItems.indexOf(selectedItem)
+                if (pos >= 0) found = idx + pos
+                idx += secItems.size
+            }
+            found
+        }
+    LaunchedEffect(selectedLazyIndex) {
+        val info = listState.layoutInfo
+        if (info.visibleItemsInfo.isEmpty()) return@LaunchedEffect
+        val visible = info.visibleItemsInfo.firstOrNull { it.index == selectedLazyIndex }
+        val fullyVisible =
+            visible != null &&
+                visible.offset >= info.viewportStartOffset &&
+                visible.offset + visible.size <= info.viewportEndOffset
+        if (!fullyVisible) runCatching { listState.animateScrollToItem(selectedLazyIndex) }
+    }
 
     Row(
         modifier =
@@ -146,6 +179,7 @@ fun SettingsNavSidebar(
 
             // Scrollable nav items
             LazyColumn(
+                state = listState,
                 modifier =
                     Modifier
                         .weight(1f)
@@ -175,6 +209,7 @@ fun SettingsNavSidebar(
                         NavItemRow(
                             item = item,
                             isSelected = item == selectedItem,
+                            railActive = railActive,
                             borderPaused = bordersPaused,
                             onClick = { onItemSelected(item) },
                         )
@@ -253,16 +288,21 @@ private fun SectionHeader(label: String) {
 
 // ─── Navigation item row ────────────────────────────────────────────
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun NavItemRow(
     item: SettingsNavItem,
     isSelected: Boolean,
+    railActive: Boolean = true,
     borderPaused: Boolean = false,
     onClick: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
-    val isFocused by interactionSource.collectIsFocusedAsState()
+    val bringIntoView = remember { BringIntoViewRequester() }
+    LaunchedEffect(isSelected) {
+        if (isSelected) runCatching { bringIntoView.bringIntoView() }
+    }
 
     val iconTint by animateColorAsState(
         targetValue = if (isSelected) AccentSelected else IconMuted,
@@ -274,11 +314,12 @@ private fun NavItemRow(
         animationSpec = tween(280),
         label = "textColor",
     )
+    val showFill = isSelected && railActive
     val bgAlpha by animateFloatAsState(
         targetValue =
             when {
-                isSelected -> 1f
-                isHovered || isFocused -> 0.5f
+                showFill -> 1f
+                isHovered -> 0.5f
                 else -> 0f
             },
         animationSpec = tween(200),
@@ -290,6 +331,7 @@ private fun NavItemRow(
         modifier =
             Modifier
                 .fillMaxWidth()
+                .bringIntoViewRequester(bringIntoView)
                 .padding(vertical = 2.dp)
                 .background(
                     color = SelectedBg.copy(alpha = bgAlpha),
@@ -305,17 +347,15 @@ private fun NavItemRow(
                         Modifier
                     },
                 ).then(
-                    if (!isSelected && (isHovered || isFocused)) {
+                    if (!isSelected && isHovered) {
                         Modifier.staticBorder()
                     } else {
                         Modifier
                     },
                 ).hoverable(interactionSource)
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    onClick = onClick,
-                ).padding(horizontal = 12.dp, vertical = 10.dp),
+                .pointerInput(Unit) {
+                    detectTapGestures { onClick() }
+                }.padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         Icon(
             imageVector = item.icon,
