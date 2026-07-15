@@ -3460,6 +3460,14 @@ class UnifiedActivity :
         LaunchedEffect(shortcutRefreshKey, localLibraryRefreshKey) {
             shortcutsLoaded = false
 
+            // Pull-to-refresh only: rescan disk so a manually moved game is picked up without faking a re-download.
+            // Skipped on the initial pass because the scan walks every known app.
+            if (pullRefreshing) {
+                runCatching {
+                    withContext(Dispatchers.IO) { SteamService.repairInstalledMetadataFromDisk() }
+                }.onFailure { Log.w("UnifiedActivity", "Pull-to-refresh install repair failed", it) }
+            }
+
             val shortcutScanResult =
                 runCatching {
                     withContext(Dispatchers.IO) {

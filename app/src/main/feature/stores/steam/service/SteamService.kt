@@ -1438,9 +1438,20 @@ class SteamService : Service() {
             }
         }
 
+        /** The chosen download folder is not a steamapps root, so it never appears in [allInstallPaths] and marker scans miss games installed there. */
+        private fun configuredDownloadRoot(): String? =
+            runCatching {
+                val context = PluviaApp.instance.applicationContext ?: return@runCatching null
+                val storeDefaultUri =
+                    if (PrefManager.useSingleDownloadFolder) PrefManager.defaultDownloadFolder else PrefManager.steamDownloadFolder
+                if (storeDefaultUri.isEmpty()) return@runCatching null
+                com.winlator.cmod.shared.io.FileUtils
+                    .getFilePathFromUri(context, android.net.Uri.parse(storeDefaultUri))
+            }.getOrNull()
+
         private fun countCompletedInstallMarkers(maxCount: Int = Int.MAX_VALUE): Int {
             var count = 0
-            for (basePath in allInstallPaths) {
+            for (basePath in (allInstallPaths + listOfNotNull(configuredDownloadRoot())).distinct()) {
                 val baseDir = File(basePath)
                 val appDirs = baseDir.listFiles() ?: continue
                 for (appDir in appDirs) {
