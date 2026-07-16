@@ -97,10 +97,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p artifacts
-          gh run download "$RUN_ID" --repo "$SOURCE_REPO" --name apk-standard --dir artifacts/standard
-          gh run download "$RUN_ID" --repo "$SOURCE_REPO" --name apk-ludashi --dir artifacts/ludashi
-          gh run download "$RUN_ID" --repo "$SOURCE_REPO" --name apk-pubg --dir artifacts/pubg
-          gh run download "$RUN_ID" --repo "$SOURCE_REPO" --name apk-antunu --dir artifacts/antunu
+          # Download all flavors in parallel; the sequential form left the runner's network idle per transfer.
+          pids=()
+          for flavor in standard ludashi pubg antunu; do
+            gh run download "$RUN_ID" --repo "$SOURCE_REPO" --name "apk-$flavor" --dir "artifacts/$flavor" &
+            pids+=($!)
+          done
+          for pid in "${pids[@]}"; do
+            wait "$pid"
+          done
 
       - name: Build release notes from PR metadata
         if: ${{ steps.scope.outputs.allowed == 'true' }}
