@@ -6230,11 +6230,14 @@ class UnifiedActivity :
                                         else -> null
                                     }
                                 val launchAppName =
-                                    when {
-                                        isEpic -> epicGame?.title?.takeIf { it.isNotBlank() } ?: app.name
-                                        isGog -> gogGame?.title?.takeIf { it.isNotBlank() } ?: app.name
-                                        else -> app.name
-                                    }
+                                    homeShortcutState.shortcut
+                                        ?.getExtra("custom_name", "")
+                                        ?.takeIf { it.isNotBlank() }
+                                        ?: when {
+                                            isEpic -> epicGame?.title?.takeIf { it.isNotBlank() } ?: app.name
+                                            isGog -> gogGame?.title?.takeIf { it.isNotBlank() } ?: app.name
+                                            else -> app.name
+                                        }
                                 val heroToastAnchor = LocalView.current
                                 var heroPopup by remember { mutableStateOf<HeroLaunchPopup?>(null) }
                                 var bootShortcut by remember { mutableStateOf<com.winlator.cmod.runtime.container.Shortcut?>(null) }

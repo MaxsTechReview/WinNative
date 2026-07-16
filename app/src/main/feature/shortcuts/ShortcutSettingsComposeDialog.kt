@@ -963,6 +963,7 @@ class ShortcutSettingsComposeDialog private constructor(
 
         if (nameChanged) {
             shortcut.putExtra("custom_name", name)
+            shouldRefreshLibraryOnSave = true
         }
 
         if (true) {
