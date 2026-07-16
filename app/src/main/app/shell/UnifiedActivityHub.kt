@@ -1371,7 +1371,14 @@ internal fun UnifiedActivity.TopBar(
     val controllerSearchActivity = LocalContext.current as? UnifiedActivity
     LaunchedEffect(Unit) {
         controllerSearchActivity?.openSearchSignal?.collect {
-            if (!isDownloadsTab) isSearchExpanded = true
+            if (!isDownloadsTab) {
+                if (isSearchExpanded) {
+                    onSearchQueryChange(TextFieldValue(""))
+                    isSearchExpanded = false
+                } else {
+                    isSearchExpanded = true
+                }
+            }
         }
     }
     LaunchedEffect(Unit) {
