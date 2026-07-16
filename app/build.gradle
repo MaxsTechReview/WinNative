@@ -167,6 +167,10 @@ android {
             dimension "branding"
             applicationId "com.tencent.ig"
         }
+        antunu {
+            dimension "branding"
+            applicationId "com.antutu.ABenchMark"
+        }
     }
 
     ndkVersion '27.3.13750724'

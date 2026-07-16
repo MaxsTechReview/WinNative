@@ -10,7 +10,7 @@
 
 ## WinNative: A Community Built Windows Emulation App for Android
 
-**WinNative** is an advanced, high-performance Windows (x86_64) emulation environment for Android. It bridges the gap between desktop gaming and mobile by unifying the best technologies from **Winlator Bionic** and **Pluvia**.
+ **WinNative** is an advanced, high-performance Windows (x86_64) emulation environment for Android. It bridges the gap between desktop gaming and mobile by unifying the best technologies from **Winlator Bionic** and **Pluvia**.
 
 Designed for enthusiasts and power users, WinNative delivers the full Winlator experience while making it easy to connect your Steam, Epic, and GOG game libraries.
 
@@ -20,8 +20,10 @@ Designed for enthusiasts and power users, WinNative delivers the full Winlator e
 
 1. **Download:** Get the latest APK from the [Releases](https://github.com/WinNative-Emu/WinNative/releases) section.
 2. **Variants:**
-   - `Ludashi`: Best for Xiaomi/RedMagic (Performance Mode trigger).
+   - `Ludashi`: Forces both Max GPU and CPU clocks on some devices. (Performance Mode trigger).
    - `Vanilla`: Standard package name for side-loading with other forks.
+   -  `Antutu`: Forces Max GPU clocks on most devices. (antunu benchmark spoof)
+   -  `Pubg`: Standard pubg package name which allows some Game Booster advanced Features.
 3. **Setup:** Launch the app, allow the ImageFS to install, and start adding your games manually or sync your library. 
 
 ---
