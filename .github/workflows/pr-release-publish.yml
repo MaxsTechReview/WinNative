@@ -8,7 +8,8 @@ on:
       - completed
 
 concurrency:
-  group: pr-release-${{ github.event.workflow_run.id }}
+  # Serialize publishes of the same PR branch; per-run-id groups let them race each other.
+  group: pr-release-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: false
 
 jobs:
@@ -135,6 +136,7 @@ jobs:
           {
             printf '# PR #%s\n\n' "$PR_NUMBER"
             printf 'Title: %s\n\n' "$safe_title"
+            printf 'Author: @%s\n\n' "$pr_author"
             printf 'Source PR: %s\n' "$pr_url"
             printf 'Source branch: %s\n' "$head_ref"
             printf 'Source commit: `%s`\n' "$HEAD_SHA"
@@ -167,9 +169,20 @@ jobs:
           discord_marker='<!-- discord-posted -->'
           discord_posted=false
 
-          if gh release view "$tag" --repo "$TARGET_REPO" >/dev/null 2>&1; then
+          # A transient API error must not be read as "release doesn't exist" — that ends in
+          # a create over an existing tag (HTTP 422).
+          if view_out=$(gh api "repos/$TARGET_REPO/releases/tags/$tag" 2>&1); then
+            release_exists=true
+          elif printf '%s' "$view_out" | grep -qi 'Not Found'; then
+            release_exists=false
+          else
+            printf '%s\n' "$view_out"
+            exit 1
+          fi
+
+          if [ "$release_exists" = true ]; then
             created=false
-            existing_body=$(gh release view "$tag" --repo "$TARGET_REPO" --json body --jq '.body // ""')
+            existing_body=$(printf '%s' "$view_out" | jq -r '.body // ""')
             if printf '%s' "$existing_body" | grep -Fq "$discord_marker"; then
               discord_posted=true
               if ! grep -Fq "$discord_marker" release-notes.md; then
@@ -183,11 +196,19 @@ jobs:
               --prerelease
           else
             created=true
-            gh release create "$tag" \
+            if ! gh release create "$tag" \
               --repo "$TARGET_REPO" \
               --title "$title" \
               --notes-file release-notes.md \
-              --prerelease
+              --prerelease; then
+              # Another publish run created it between our check and the create — update instead.
+              created=false
+              gh release edit "$tag" \
+                --repo "$TARGET_REPO" \
+                --title "$title" \
+                --notes-file release-notes.md \
+                --prerelease
+            fi
           fi
 
           standard_path="artifacts/standard/${{ steps.apk.outputs.standard }}"
