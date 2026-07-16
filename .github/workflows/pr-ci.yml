@@ -22,6 +22,26 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+    strategy:
+      fail-fast: false
+      matrix:
+        flavor:
+          - name: Standard
+            artifactName: apk-standard
+            gradleTask: assembleStandardDebug
+            apkPath: app/build/outputs/apk/standard/debug/standard.apk
+          - name: Ludashi
+            artifactName: apk-ludashi
+            gradleTask: assembleLudashiDebug
+            apkPath: app/build/outputs/apk/ludashi/debug/ludashi.apk
+          - name: Pubg
+            artifactName: apk-pubg
+            gradleTask: assemblePubgDebug
+            apkPath: app/build/outputs/apk/pubg/debug/pubg.apk
+          - name: Antunu
+            artifactName: apk-antunu
+            gradleTask: assembleAntunuDebug
+            apkPath: app/build/outputs/apk/antunu/debug/antunu.apk
 
     steps:
     - name: Clone repository
@@ -70,7 +90,7 @@ jobs:
         cache-read-only: ${{ github.event_name == 'pull_request' }}
 
     - name: Decode keystore and build
-      timeout-minutes: 30
+      timeout-minutes: 15
       env:
         KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -92,12 +112,7 @@ jobs:
             -storepass dummypass -keypass dummypass \
             -dname "CN=CI, OU=CI, O=CI, L=CI, ST=CI, C=US"
         fi
-        ./gradlew \
-          :app:assembleStandardDebug \
-          :app:assembleLudashiDebug \
-          :app:assemblePubgDebug \
-          :app:assembleAntunuDebug \
-          --build-cache --parallel -x lint
+        ./gradlew :app:${{ matrix.flavor.gradleTask }} --build-cache --parallel -x lint
 
     - name: Compute artifact label
       id: label
@@ -122,47 +137,17 @@ jobs:
           fi
         fi
 
-    - name: Prepare APKs for upload
+    - name: Prepare APK for upload
       run: |
-        prepare() {
-          dir="artifacts/$2"
-          mkdir -p "$dir"
-          cp "$3" "$dir/WinNative-Debug-$1-${{ steps.label.outputs.name }}.apk"
-        }
-        prepare Standard apk-standard app/build/outputs/apk/standard/debug/standard.apk
-        prepare Ludashi  apk-ludashi  app/build/outputs/apk/ludashi/debug/ludashi.apk
-        prepare Pubg     apk-pubg     app/build/outputs/apk/pubg/debug/pubg.apk
-        prepare Antunu   apk-antunu   app/build/outputs/apk/antunu/debug/antunu.apk
+        upload_dir="artifacts/${{ matrix.flavor.artifactName }}"
+        mkdir -p "$upload_dir"
+        cp ${{ matrix.flavor.apkPath }} "$upload_dir/WinNative-Debug-${{ matrix.flavor.name }}-${{ steps.label.outputs.name }}.apk"
 
-    - name: Upload Standard APK
+    - name: Upload APK
       uses: actions/upload-artifact@v7
       with:
-        name: apk-standard
-        path: artifacts/apk-standard/*.apk
-        retention-days: 7
-        if-no-files-found: error
-
-    - name: Upload Ludashi APK
-      uses: actions/upload-artifact@v7
-      with:
-        name: apk-ludashi
-        path: artifacts/apk-ludashi/*.apk
-        retention-days: 7
-        if-no-files-found: error
-
-    - name: Upload Pubg APK
-      uses: actions/upload-artifact@v7
-      with:
-        name: apk-pubg
-        path: artifacts/apk-pubg/*.apk
-        retention-days: 7
-        if-no-files-found: error
-
-    - name: Upload Antunu APK
-      uses: actions/upload-artifact@v7
-      with:
-        name: apk-antunu
-        path: artifacts/apk-antunu/*.apk
+        name: ${{ matrix.flavor.artifactName }}
+        path: artifacts/${{ matrix.flavor.artifactName }}/*.apk
         retention-days: 7
         if-no-files-found: error
 

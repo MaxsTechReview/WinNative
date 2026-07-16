@@ -15,6 +15,26 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        flavor:
+          - name: Standard
+            variant: Standard
+            gradleTask: assembleStandardDebug
+            apkPath: app/build/outputs/apk/standard/debug/standard.apk
+          - name: Ludashi
+            variant: Ludashi
+            gradleTask: assembleLudashiDebug
+            apkPath: app/build/outputs/apk/ludashi/debug/ludashi.apk
+          - name: Pubg
+            variant: Pubg
+            gradleTask: assemblePubgDebug
+            apkPath: app/build/outputs/apk/pubg/debug/pubg.apk
+          - name: Antunu
+            variant: Antunu
+            gradleTask: assembleAntunuDebug
+            apkPath: app/build/outputs/apk/antunu/debug/antunu.apk
 
     steps:
       - name: Clone repository
@@ -84,58 +104,26 @@ jobs:
               -storepass dummypass -keypass dummypass \
               -dname "CN=CI, OU=CI, O=CI, L=CI, ST=CI, C=US"
           fi
-          ./gradlew \
-            :app:assembleStandardDebug \
-            :app:assembleLudashiDebug \
-            :app:assemblePubgDebug \
-            :app:assembleAntunuDebug \
-            --build-cache --parallel -x lint
+          ./gradlew :app:${{ matrix.flavor.gradleTask }} --build-cache --parallel -x lint
 
-      - name: Prepare APKs for upload
+      - name: Prepare APK for upload
         id: package
         env:
+          APK_PATH: ${{ matrix.flavor.apkPath }}
+          VARIANT_NAME: ${{ matrix.flavor.variant }}
           REF_NAME: ${{ github.ref_name }}
         run: |
+          upload_dir="artifacts/apk"
+          mkdir -p "$upload_dir"
           safe_ref=$(printf '%s' "$REF_NAME" | tr '/[:space:]' '-' | tr -cd 'A-Za-z0-9._-')
-          echo "safe_ref=$safe_ref" >> "$GITHUB_OUTPUT"
-          prepare() {
-            dir="artifacts/$1"
-            mkdir -p "$dir"
-            cp "$2" "$dir/WinNative-${safe_ref}-$1.apk"
-          }
-          prepare Standard app/build/outputs/apk/standard/debug/standard.apk
-          prepare Ludashi  app/build/outputs/apk/ludashi/debug/ludashi.apk
-          prepare Pubg     app/build/outputs/apk/pubg/debug/pubg.apk
-          prepare Antunu   app/build/outputs/apk/antunu/debug/antunu.apk
+          apk_name="WinNative-${safe_ref}-${VARIANT_NAME}.apk"
+          cp "$APK_PATH" "$upload_dir/$apk_name"
+          echo "artifact_name=WinNative-${safe_ref}-${VARIANT_NAME}" >> "$GITHUB_OUTPUT"
 
-      - name: Upload Standard APK
+      - name: Upload APK
         uses: actions/upload-artifact@v7
         with:
-          name: WinNative-${{ steps.package.outputs.safe_ref }}-Standard
-          path: artifacts/Standard/*.apk
-          retention-days: 30
-          if-no-files-found: error
-
-      - name: Upload Ludashi APK
-        uses: actions/upload-artifact@v7
-        with:
-          name: WinNative-${{ steps.package.outputs.safe_ref }}-Ludashi
-          path: artifacts/Ludashi/*.apk
-          retention-days: 30
-          if-no-files-found: error
-
-      - name: Upload Pubg APK
-        uses: actions/upload-artifact@v7
-        with:
-          name: WinNative-${{ steps.package.outputs.safe_ref }}-Pubg
-          path: artifacts/Pubg/*.apk
-          retention-days: 30
-          if-no-files-found: error
-
-      - name: Upload Antunu APK
-        uses: actions/upload-artifact@v7
-        with:
-          name: WinNative-${{ steps.package.outputs.safe_ref }}-Antunu
-          path: artifacts/Antunu/*.apk
+          name: ${{ steps.package.outputs.artifact_name }}
+          path: artifacts/apk/*.apk
           retention-days: 30
           if-no-files-found: error
