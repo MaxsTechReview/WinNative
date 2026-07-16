@@ -3528,14 +3528,10 @@ class UnifiedActivity :
         var stableGogByPseudoId by remember { mutableStateOf<Map<Int, GOGGame>>(emptyMap()) }
         var stableEpicByPseudoId by remember { mutableStateOf<Map<Int, EpicGame>>(emptyMap()) }
         var customArtworkPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
-        var customGridArtworkPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
-        var customCarouselArtworkPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
-        var customListArtworkPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
+        var customIconArtworkPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
         var customIconPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
         var stableCustomArtworkPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
-        var stableCustomGridArtworkPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
-        var stableCustomCarouselArtworkPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
-        var stableCustomListArtworkPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
+        var stableCustomIconArtworkPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
         var stableCustomIconPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
         var artworkCacheRefreshKey by remember { mutableIntStateOf(0) }
         var libraryLoaded by remember { mutableStateOf(false) }
@@ -3637,7 +3633,7 @@ class UnifiedActivity :
                     }
                 }
 
-            val gridArtworkPaths =
+            val iconArtworkPaths =
                 withContext(Dispatchers.IO) {
                     buildMap<Int, String> {
                         appsSnapshot.forEach { app ->
@@ -3653,56 +3649,8 @@ class UnifiedActivity :
                                 } else {
                                     findShortcutForGame(shortcutsSnapshot, app, isCustom, isEpic, epicId)
                                 }
-                            val customPath = shortcut?.getExtra(LibraryShortcutArtwork.LibraryArtworkSlot.GRID.extraKey)
-                            if (!customPath.isNullOrBlank() && java.io.File(customPath).exists()) {
-                                put(app.id, customPath)
-                            }
-                        }
-                    }
-                }
-
-            val carouselArtworkPaths =
-                withContext(Dispatchers.IO) {
-                    buildMap<Int, String> {
-                        appsSnapshot.forEach { app ->
-                            val gogGame = gogSnapshot[app.id]
-                            val isCustom = app.id < 0
-                            val isEpic = app.id >= 2000000000
-                            val epicId = if (isEpic) app.id - 2000000000 else 0
-                            val shortcut =
-                                if (gogGame != null) {
-                                    shortcutsSnapshot.find {
-                                        it.getExtra("game_source") == "GOG" && it.getExtra("gog_id") == gogGame.id
-                                    }
-                                } else {
-                                    findShortcutForGame(shortcutsSnapshot, app, isCustom, isEpic, epicId)
-                                }
-                            val customPath = shortcut?.getExtra(LibraryShortcutArtwork.LibraryArtworkSlot.CAROUSEL.extraKey)
-                            if (!customPath.isNullOrBlank() && java.io.File(customPath).exists()) {
-                                put(app.id, customPath)
-                            }
-                        }
-                    }
-                }
-
-            val listArtworkPaths =
-                withContext(Dispatchers.IO) {
-                    buildMap<Int, String> {
-                        appsSnapshot.forEach { app ->
-                            val gogGame = gogSnapshot[app.id]
-                            val isCustom = app.id < 0
-                            val isEpic = app.id >= 2000000000
-                            val epicId = if (isEpic) app.id - 2000000000 else 0
-                            val shortcut =
-                                if (gogGame != null) {
-                                    shortcutsSnapshot.find {
-                                        it.getExtra("game_source") == "GOG" && it.getExtra("gog_id") == gogGame.id
-                                    }
-                                } else {
-                                    findShortcutForGame(shortcutsSnapshot, app, isCustom, isEpic, epicId)
-                                }
-                            val customPath = shortcut?.getExtra(LibraryShortcutArtwork.LibraryArtworkSlot.LIST.extraKey)
-                            if (!customPath.isNullOrBlank() && java.io.File(customPath).exists()) {
+                            val customPath = shortcut?.let(LibraryShortcutArtwork::findIconArtworkPath)
+                            if (customPath != null) {
                                 put(app.id, customPath)
                             }
                         }
@@ -3724,15 +3672,11 @@ class UnifiedActivity :
                 }
 
             customArtworkPathByAppId = artworkPaths
-            customGridArtworkPathByAppId = gridArtworkPaths
-            customCarouselArtworkPathByAppId = carouselArtworkPaths
-            customListArtworkPathByAppId = listArtworkPaths
+            customIconArtworkPathByAppId = iconArtworkPaths
             customIconPathByAppId = customIconPaths
             if (appsSnapshot.isNotEmpty()) {
                 stableCustomArtworkPathByAppId = artworkPaths
-                stableCustomGridArtworkPathByAppId = gridArtworkPaths
-                stableCustomCarouselArtworkPathByAppId = carouselArtworkPaths
-                stableCustomListArtworkPathByAppId = listArtworkPaths
+                stableCustomIconArtworkPathByAppId = iconArtworkPaths
                 stableCustomIconPathByAppId = customIconPaths
             }
         }
@@ -3771,12 +3715,8 @@ class UnifiedActivity :
         val visibleEpicByPseudoId = if (keepPreviousLibraryVisible) stableEpicByPseudoId else epicByPseudoId
         val visibleCustomArtworkPathByAppId =
             if (keepPreviousLibraryVisible) stableCustomArtworkPathByAppId else customArtworkPathByAppId
-        val visibleCustomGridArtworkPathByAppId =
-            if (keepPreviousLibraryVisible) stableCustomGridArtworkPathByAppId else customGridArtworkPathByAppId
-        val visibleCustomCarouselArtworkPathByAppId =
-            if (keepPreviousLibraryVisible) stableCustomCarouselArtworkPathByAppId else customCarouselArtworkPathByAppId
-        val visibleCustomListArtworkPathByAppId =
-            if (keepPreviousLibraryVisible) stableCustomListArtworkPathByAppId else customListArtworkPathByAppId
+        val visibleCustomIconArtworkPathByAppId =
+            if (keepPreviousLibraryVisible) stableCustomIconArtworkPathByAppId else customIconArtworkPathByAppId
         val visibleCustomIconPathByAppId =
             if (keepPreviousLibraryVisible) stableCustomIconPathByAppId else customIconPathByAppId
 
@@ -3794,9 +3734,7 @@ class UnifiedActivity :
             visibleGogByPseudoId,
             visibleEpicByPseudoId,
             visibleCustomArtworkPathByAppId,
-            visibleCustomGridArtworkPathByAppId,
-            visibleCustomCarouselArtworkPathByAppId,
-            visibleCustomListArtworkPathByAppId,
+            visibleCustomIconArtworkPathByAppId,
             cachedShortcuts,
         ) {
             var deletedCustomOverrides = false
@@ -3810,9 +3748,7 @@ class UnifiedActivity :
                             gogGame = gogGame,
                             epicGame = epicGame,
                             hasDefaultCustomArt = visibleCustomArtworkPathByAppId[app.id] != null,
-                            hasGridCustomArt = visibleCustomGridArtworkPathByAppId[app.id] != null,
-                            hasCarouselCustomArt = visibleCustomCarouselArtworkPathByAppId[app.id] != null,
-                            hasListCustomArt = visibleCustomListArtworkPathByAppId[app.id] != null,
+                            hasIconCustomArt = visibleCustomIconArtworkPathByAppId[app.id] != null,
                             hasHeroCustomArt =
                                 findLibraryArtworkShortcut(cachedShortcuts, app, gogGame, epicGame)
                                     ?.hasExistingArtwork(LibraryShortcutArtwork.LibraryArtworkSlot.GAME_CARD.extraKey) == true,
@@ -4098,9 +4034,11 @@ class UnifiedActivity :
                             artworkCacheRefreshKey = artworkCacheRefreshKey,
                             isFocusedOverride = index == focusIndex,
                             isControllerActive = isControllerConnected,
-                            customArtworkPath = visibleCustomGridArtworkPathByAppId[app.id] ?: visibleCustomArtworkPathByAppId[app.id],
+                            customArtworkPath = visibleCustomIconArtworkPathByAppId[app.id] ?: visibleCustomArtworkPathByAppId[app.id],
                             customIconPath = visibleCustomIconPathByAppId[app.id],
                             onClick = {
+                                // Keeps the immersive background on the opened game after backing out.
+                                activity?.libraryFocusIndex?.value = index
                                 detailGogGame = visibleGogByPseudoId[app.id]
                                 detailApp = app
                             },
@@ -4141,7 +4079,7 @@ class UnifiedActivity :
                             artworkCacheRefreshKey = artworkCacheRefreshKey,
                             isFocusedOverride = isSelected,
                             isControllerActive = isControllerConnected,
-                            customArtworkPath = visibleCustomCarouselArtworkPathByAppId[app.id] ?: visibleCustomArtworkPathByAppId[app.id],
+                            customArtworkPath = visibleCustomIconArtworkPathByAppId[app.id] ?: visibleCustomArtworkPathByAppId[app.id],
                             customIconPath = visibleCustomIconPathByAppId[app.id],
                             onClick = {
                                 detailGogGame = visibleGogByPseudoId[app.id]
@@ -4184,9 +4122,11 @@ class UnifiedActivity :
                             artworkCacheRefreshKey = artworkCacheRefreshKey,
                             isFocusedOverride = isSelected,
                             isControllerActive = isControllerConnected,
-                            customArtworkPath = visibleCustomListArtworkPathByAppId[app.id] ?: visibleCustomArtworkPathByAppId[app.id],
+                            customArtworkPath = visibleCustomIconArtworkPathByAppId[app.id] ?: visibleCustomArtworkPathByAppId[app.id],
                             customIconPath = visibleCustomIconPathByAppId[app.id],
                             onClick = {
+                                // Keeps the immersive background on the opened game after backing out.
+                                activity?.libraryFocusIndex?.value = index
                                 detailGogGame = visibleGogByPseudoId[app.id]
                                 detailApp = app
                             },
@@ -10540,12 +10480,10 @@ class UnifiedActivity :
         gogGame: GOGGame?,
         epicGame: EpicGame?,
         hasDefaultCustomArt: Boolean,
-        hasGridCustomArt: Boolean,
-        hasCarouselCustomArt: Boolean,
-        hasListCustomArt: Boolean,
+        hasIconCustomArt: Boolean,
         hasHeroCustomArt: Boolean,
     ): Set<String> {
-        val overridesPrimary = hasDefaultCustomArt || hasGridCustomArt || hasCarouselCustomArt || hasListCustomArt
+        val overridesPrimary = hasDefaultCustomArt || hasIconCustomArt
         if (!overridesPrimary && !hasHeroCustomArt) return emptySet()
 
         return when {
@@ -10572,9 +10510,11 @@ class UnifiedActivity :
 
             app.id >= 0 -> {
                 buildSet {
-                    if (hasDefaultCustomArt || hasGridCustomArt) add("capsule")
-                    if (hasDefaultCustomArt || hasCarouselCustomArt) add("library_capsule")
-                    if (hasDefaultCustomArt || hasListCustomArt) add("small_capsule")
+                    if (overridesPrimary) {
+                        add("capsule")
+                        add("library_capsule")
+                        add("small_capsule")
+                    }
                     if (hasHeroCustomArt) add("hero")
                 }
             }

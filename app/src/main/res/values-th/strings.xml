@@ -292,13 +292,9 @@
     <string name="shortcuts_list_confirm_remove">คุณต้องการลบทางลัดนี้หรือไม่?</string>
     <string name="shortcuts_list_add_to_home_screen">เพิ่มไปยังหน้าจอหลัก</string>
     <string name="shortcuts_library_artwork_title">ภาพประกอบไลบรารี</string>
-    <string name="shortcuts_library_artwork_game_card_title">ภาพการ์ดเกม</string>
-    <string name="shortcuts_library_artwork_grid_title">ภาพแบบกริด</string>
-    <string name="shortcuts_library_artwork_carousel_title">ภาพแบบคารูเซล</string>
-    <string name="shortcuts_library_artwork_list_title">ภาพแบบรายการ</string>
-    <string name="shortcuts_library_artwork_selected">เลือกแล้ว: %1$s</string>
+    <string name="shortcuts_library_artwork_icon_title">ภาพไอคอน</string>
+    <string name="shortcuts_library_artwork_hero_title">พื้นหลัง</string>
     <string name="shortcuts_library_artwork_set">ตั้งค่าภาพ</string>
-    <string name="shortcuts_library_artwork_change">เปลี่ยนภาพ</string>
     <string name="shortcuts_library_artwork_failed">โหลดภาพที่เลือกไม่สำเร็จ</string>
     <string name="shortcuts_library_artwork_open_source">เปิด SteamGridDB</string>
     <string name="shortcuts_list_not_available">ทางลัดนี้ไม่พร้อมใช้งานอีกต่อไป โปรดลบหรือสร้างใหม่</string>

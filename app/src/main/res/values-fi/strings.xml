@@ -292,13 +292,9 @@
     <string name="shortcuts_list_confirm_remove">Haluatko poistaa tämän pikakuvakkeen?</string>
     <string name="shortcuts_list_add_to_home_screen">Lisää aloitusnäyttöön</string>
     <string name="shortcuts_library_artwork_title">Kirjaston kuvitus</string>
-    <string name="shortcuts_library_artwork_game_card_title">Pelikortin kuva</string>
-    <string name="shortcuts_library_artwork_grid_title">Ruudukkokuva</string>
-    <string name="shortcuts_library_artwork_carousel_title">Karusellikuva</string>
-    <string name="shortcuts_library_artwork_list_title">Listakuva</string>
-    <string name="shortcuts_library_artwork_selected">Valittu: %1$s</string>
+    <string name="shortcuts_library_artwork_icon_title">Kuvakegrafiikka</string>
+    <string name="shortcuts_library_artwork_hero_title">Tausta</string>
     <string name="shortcuts_library_artwork_set">Aseta kuva</string>
-    <string name="shortcuts_library_artwork_change">Vaihda kuva</string>
     <string name="shortcuts_library_artwork_failed">Valitun kuvan lataaminen epäonnistui.</string>
     <string name="shortcuts_library_artwork_open_source">Avaa SteamGridDB</string>
     <string name="shortcuts_list_not_available">Tämä pikakuvake ei ole enää käytettävissä. Poista tai luo se uudelleen.</string>

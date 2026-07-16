@@ -289,13 +289,9 @@
     <string name="shortcuts_list_confirm_remove">Вы хотите удалить этот ярлык?</string>
     <string name="shortcuts_list_add_to_home_screen">Добавить на главный экран</string>
     <string name="shortcuts_library_artwork_title">Обложки библиотеки</string>
-    <string name="shortcuts_library_artwork_game_card_title">Изображение карточки игры</string>
-    <string name="shortcuts_library_artwork_grid_title">Изображение сетки</string>
-    <string name="shortcuts_library_artwork_carousel_title">Изображение карусели</string>
-    <string name="shortcuts_library_artwork_list_title">Изображение списка</string>
-    <string name="shortcuts_library_artwork_selected">Выбрано: %1$s</string>
+    <string name="shortcuts_library_artwork_icon_title">Изображение значка</string>
+    <string name="shortcuts_library_artwork_hero_title">Фон</string>
     <string name="shortcuts_library_artwork_set">Установить изображение</string>
-    <string name="shortcuts_library_artwork_change">Изменить изображение</string>
     <string name="shortcuts_library_artwork_failed">Не удалось загрузить выбранное изображение.</string>
     <string name="shortcuts_library_artwork_open_source">Открыть SteamGridDB</string>
     <string name="shortcuts_list_not_available">Этот ярлык больше недоступен. Пожалуйста, удалите или создайте заново.</string>

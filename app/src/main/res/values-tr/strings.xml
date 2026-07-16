@@ -292,13 +292,9 @@
     <string name="shortcuts_list_confirm_remove">Bu kısayolu kaldırmak istiyor musunuz?</string>
     <string name="shortcuts_list_add_to_home_screen">Ana Ekrana Ekle</string>
     <string name="shortcuts_library_artwork_title">Kütüphane Görseli</string>
-    <string name="shortcuts_library_artwork_game_card_title">Oyun Kartı Görseli</string>
-    <string name="shortcuts_library_artwork_grid_title">Izgara Görseli</string>
-    <string name="shortcuts_library_artwork_carousel_title">Atlıkarınca Görseli</string>
-    <string name="shortcuts_library_artwork_list_title">Liste Görseli</string>
-    <string name="shortcuts_library_artwork_selected">Seçili: %1$s</string>
+    <string name="shortcuts_library_artwork_icon_title">Simge Görseli</string>
+    <string name="shortcuts_library_artwork_hero_title">Arka Plan</string>
     <string name="shortcuts_library_artwork_set">Görseli ayarla</string>
-    <string name="shortcuts_library_artwork_change">Görseli değiştir</string>
     <string name="shortcuts_library_artwork_failed">Seçilen görsel yüklenemedi.</string>
     <string name="shortcuts_library_artwork_open_source">SteamGridDB\'yi Aç</string>
     <string name="shortcuts_list_not_available">Bu kısayol artık kullanılamıyor. Lütfen silin veya yeniden oluşturun.</string>

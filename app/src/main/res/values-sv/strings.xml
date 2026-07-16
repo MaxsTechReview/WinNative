@@ -292,13 +292,9 @@
     <string name="shortcuts_list_confirm_remove">Vill du ta bort den här genvägen?</string>
     <string name="shortcuts_list_add_to_home_screen">Lägg till på startskärmen</string>
     <string name="shortcuts_library_artwork_title">Biblioteksgrafik</string>
-    <string name="shortcuts_library_artwork_game_card_title">Spelkortsbild</string>
-    <string name="shortcuts_library_artwork_grid_title">Rutnätsbild</string>
-    <string name="shortcuts_library_artwork_carousel_title">Karusellbild</string>
-    <string name="shortcuts_library_artwork_list_title">Listbild</string>
-    <string name="shortcuts_library_artwork_selected">Vald: %1$s</string>
+    <string name="shortcuts_library_artwork_icon_title">Ikonbild</string>
+    <string name="shortcuts_library_artwork_hero_title">Bakgrund</string>
     <string name="shortcuts_library_artwork_set">Ange bild</string>
-    <string name="shortcuts_library_artwork_change">Ändra bild</string>
     <string name="shortcuts_library_artwork_failed">Det gick inte att läsa in den valda bilden.</string>
     <string name="shortcuts_library_artwork_open_source">Öppna SteamGridDB</string>
     <string name="shortcuts_list_not_available">Den här genvägen är inte längre tillgänglig. Radera eller återskapa den.</string>

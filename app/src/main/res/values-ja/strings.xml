@@ -292,13 +292,9 @@
     <string name="shortcuts_list_confirm_remove">このショートカットを削除しますか?</string>
     <string name="shortcuts_list_add_to_home_screen">ホーム画面に追加</string>
     <string name="shortcuts_library_artwork_title">ライブラリのアートワーク</string>
-    <string name="shortcuts_library_artwork_game_card_title">ゲームカード画像</string>
-    <string name="shortcuts_library_artwork_grid_title">グリッド画像</string>
-    <string name="shortcuts_library_artwork_carousel_title">カルーセル画像</string>
-    <string name="shortcuts_library_artwork_list_title">リスト画像</string>
-    <string name="shortcuts_library_artwork_selected">選択済み: %1$s</string>
+    <string name="shortcuts_library_artwork_icon_title">アイコン画像</string>
+    <string name="shortcuts_library_artwork_hero_title">背景</string>
     <string name="shortcuts_library_artwork_set">画像を設定</string>
-    <string name="shortcuts_library_artwork_change">画像を変更</string>
     <string name="shortcuts_library_artwork_failed">選択した画像を読み込めませんでした。</string>
     <string name="shortcuts_library_artwork_open_source">SteamGridDB を開く</string>
     <string name="shortcuts_list_not_available">このショートカットは利用できなくなりました。削除するか再作成してください。</string>

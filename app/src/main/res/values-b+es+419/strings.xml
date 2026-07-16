@@ -292,13 +292,9 @@
     <string name="shortcuts_list_confirm_remove">¿Quieres eliminar este acceso directo?</string>
     <string name="shortcuts_list_add_to_home_screen">Agregar a la pantalla de inicio</string>
     <string name="shortcuts_library_artwork_title">Arte de la biblioteca</string>
-    <string name="shortcuts_library_artwork_game_card_title">Imagen de la tarjeta del juego</string>
-    <string name="shortcuts_library_artwork_grid_title">Imagen de cuadrícula</string>
-    <string name="shortcuts_library_artwork_carousel_title">Imagen del carrusel</string>
-    <string name="shortcuts_library_artwork_list_title">Imagen de lista</string>
-    <string name="shortcuts_library_artwork_selected">Seleccionado: %1$s</string>
+    <string name="shortcuts_library_artwork_icon_title">Arte del icono</string>
+    <string name="shortcuts_library_artwork_hero_title">Fondo</string>
     <string name="shortcuts_library_artwork_set">Establecer imagen</string>
-    <string name="shortcuts_library_artwork_change">Cambiar imagen</string>
     <string name="shortcuts_library_artwork_failed">No se pudo cargar la imagen seleccionada.</string>
     <string name="shortcuts_library_artwork_open_source">Abrir SteamGridDB</string>
     <string name="shortcuts_list_not_available">Este acceso directo ya no está disponible. Elimínalo o vuelve a crearlo.</string>

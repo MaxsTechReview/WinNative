@@ -279,13 +279,9 @@
     <string name="shortcuts_list_confirm_remove">क्या आप इस शॉर्टकट को हटाना चाहते हैं?</string>
     <string name="shortcuts_list_add_to_home_screen">होम स्क्रीन में जोड़ें</string>
     <string name="shortcuts_library_artwork_title">लाइब्रेरी आर्टवर्क</string>
-    <string name="shortcuts_library_artwork_game_card_title">गेम कार्ड छवि</string>
-    <string name="shortcuts_library_artwork_grid_title">ग्रिड छवि</string>
-    <string name="shortcuts_library_artwork_carousel_title">कैरोसेल छवि</string>
-    <string name="shortcuts_library_artwork_list_title">सूची छवि</string>
-    <string name="shortcuts_library_artwork_selected">चयनित: %1$s</string>
+    <string name="shortcuts_library_artwork_icon_title">आइकन आर्ट</string>
+    <string name="shortcuts_library_artwork_hero_title">पृष्ठभूमि</string>
     <string name="shortcuts_library_artwork_set">छवि सेट करें</string>
-    <string name="shortcuts_library_artwork_change">छवि बदलें</string>
     <string name="shortcuts_library_artwork_failed">चयनित छवि लोड करने में विफल.</string>
     <string name="shortcuts_library_artwork_open_source">SteamGridDB खोलें</string>
     <string name="shortcuts_list_not_available">यह शॉर्टकट अब उपलब्ध नहीं है. कृपया इसे हटा दें या पुनः बनाएं।</string>
