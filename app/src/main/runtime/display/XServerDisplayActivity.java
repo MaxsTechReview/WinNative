@@ -3957,7 +3957,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 hudBackgroundAlphaDecoupled,
                 hudBackgroundTransparency,
                 hudScale,
-                hudElements,
+                // Fresh array each build so a toggled HUD element yields a changed state and the chips recompose.
+                hudElements.clone(),
                 dualSeriesBattery,
                 frametimeNumericMode,
                 hudCardExpanded,
