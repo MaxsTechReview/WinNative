@@ -2433,44 +2433,52 @@ internal fun UnifiedActivity.LibraryCarousel(
             }
 
             LibraryLayoutMode.CAROUSEL -> {
-                CarouselView(
-                    items = displayedApps,
-                    modifier = Modifier.tabScreenPadding(top = TabCarouselTopPadding, bottom = TabCarouselBottomPadding),
-                    listState = carouselState,
-                    selectedIndex = focusIndex,
-                    onCenteredIndexChanged = { centeredIndex ->
-                        if (activity != null && activity.libraryFocusIndex.value != centeredIndex) {
-                            activity.libraryFocusIndex.value = centeredIndex
-                        }
-                    },
-                ) { app, index, isSelected, cardWidth, cardHeight ->
-                    GameCapsule(
-                        app = app,
-                        gogGame = visibleGogByPseudoId[app.id],
-                        epicGame = visibleEpicByPseudoId[app.id],
-                        iconRefreshKey = iconRefreshKey,
-                        artworkCacheRefreshKey = artworkCacheRefreshKey,
-                        isFocusedOverride = isSelected,
-                        isControllerActive = isControllerConnected,
-                        customArtworkPath = visibleCustomIconArtworkPathByAppId[app.id] ?: visibleCustomArtworkPathByAppId[app.id],
-                        customIconPath = visibleCustomIconPathByAppId[app.id],
-                        onClick = {
-                            detailGogGame = visibleGogByPseudoId[app.id]
-                            detailApp = app
-                        },
-                        onLongClick = { openSettingsForApp(index, app) },
-                        useLibraryCapsule = true,
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .then(
-                                    if (index in focusRequesters.indices) {
-                                        Modifier.focusRequester(focusRequesters[index])
-                                    } else {
-                                        Modifier
+                // Host the horizontal carousel in a same-height vertical scroll so a downward finger pull reaches the shared PullToRefreshBox.
+                BoxWithConstraints(Modifier.fillMaxSize()) {
+                    val carouselViewportHeight = maxHeight
+                    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+                        Box(Modifier.fillMaxWidth().height(carouselViewportHeight)) {
+                            CarouselView(
+                                items = displayedApps,
+                                modifier = Modifier.tabScreenPadding(top = TabCarouselTopPadding, bottom = TabCarouselBottomPadding),
+                                listState = carouselState,
+                                selectedIndex = focusIndex,
+                                onCenteredIndexChanged = { centeredIndex ->
+                                    if (activity != null && activity.libraryFocusIndex.value != centeredIndex) {
+                                        activity.libraryFocusIndex.value = centeredIndex
+                                    }
+                                },
+                            ) { app, index, isSelected, cardWidth, cardHeight ->
+                                GameCapsule(
+                                    app = app,
+                                    gogGame = visibleGogByPseudoId[app.id],
+                                    epicGame = visibleEpicByPseudoId[app.id],
+                                    iconRefreshKey = iconRefreshKey,
+                                    artworkCacheRefreshKey = artworkCacheRefreshKey,
+                                    isFocusedOverride = isSelected,
+                                    isControllerActive = isControllerConnected,
+                                    customArtworkPath = visibleCustomIconArtworkPathByAppId[app.id] ?: visibleCustomArtworkPathByAppId[app.id],
+                                    customIconPath = visibleCustomIconPathByAppId[app.id],
+                                    onClick = {
+                                        detailGogGame = visibleGogByPseudoId[app.id]
+                                        detailApp = app
                                     },
-                                ),
-                    )
+                                    onLongClick = { openSettingsForApp(index, app) },
+                                    useLibraryCapsule = true,
+                                    modifier =
+                                        Modifier
+                                            .fillMaxSize()
+                                            .then(
+                                                if (index in focusRequesters.indices) {
+                                                    Modifier.focusRequester(focusRequesters[index])
+                                                } else {
+                                                    Modifier
+                                                },
+                                            ),
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
