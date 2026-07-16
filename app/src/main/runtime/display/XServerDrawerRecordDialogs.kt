@@ -398,26 +398,25 @@ internal fun FPSLimiterCard(
                     ) { onLimitChanged(if (enabled) 0 else sliderValue.roundToInt()) },
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.session_drawer_fps_limiter),
-                    color = DrawerTextPrimary,
-                    fontSize = (14f * paneScale).sp,
-                    fontWeight = FontWeight.Medium,
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text =
-                        if (enabled) {
-                            "${sliderValue.roundToInt()} FPS"
-                        } else {
-                            stringResource(R.string.session_drawer_fps_limiter_off)
-                        },
-                    color = if (enabled) DrawerAccent else DrawerTextSecondary,
-                    fontSize = (12f * paneScale).sp,
-                    fontWeight = if (enabled) FontWeight.SemiBold else FontWeight.Normal,
-                )
-            }
+            Text(
+                text = stringResource(R.string.session_drawer_fps_limiter),
+                color = DrawerTextPrimary,
+                fontSize = (14f * paneScale).sp,
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                text =
+                    if (enabled) {
+                        "${sliderValue.roundToInt()} FPS"
+                    } else {
+                        stringResource(R.string.session_drawer_fps_limiter_off)
+                    },
+                color = if (enabled) DrawerAccent else DrawerTextSecondary,
+                fontSize = (14f * paneScale).sp,
+                fontWeight = if (enabled) FontWeight.SemiBold else FontWeight.Normal,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f).padding(horizontal = (8f * paneScale).dp),
+            )
             CompositionLocalProvider(LocalRippleConfiguration provides null) {
                 Switch(
                     checked = enabled,

@@ -258,6 +258,26 @@ internal fun HUDPaneContent(
                 onCheckedChange = { listener.onActionSelected(R.id.main_menu_fps_monitor) },
             )
 
+            // FPS limiter sits directly under the HUD toggle, shown whether the HUD is on or off.
+            Box(
+                Modifier.fillMaxWidth().paneNavItem(
+                    cornerRadius = (12f * paneScale).dp,
+                    onActivate = { listener.onFPSLimitChanged(if (state.fpsLimit > 0) 0 else fpsLimitMemory.coerceIn(FPS_LIMITER_MIN, state.maxRefreshRate)) },
+                    onAdjust = { dir ->
+                        val base = if (state.fpsLimit > 0) state.fpsLimit else fpsLimitMemory
+                        val q = base / 5.0
+                        val units = if (dir > 0) Math.floor(q + 1e-4) + 1 else Math.ceil(q - 1e-4) - 1
+                        listener.onFPSLimitChanged((units * 5).toInt().coerceIn(FPS_LIMITER_MIN, state.maxRefreshRate))
+                    },
+                ),
+            ) {
+                FPSLimiterCard(
+                    currentLimit = state.fpsLimit,
+                    maxRefreshRate = state.maxRefreshRate,
+                    onLimitChanged = listener::onFPSLimitChanged,
+                )
+            }
+
             if (active) {
                 NavSliderRow(
                     label = stringResource(R.string.session_drawer_hud_alpha),
@@ -303,25 +323,6 @@ internal fun HUDPaneContent(
                     checked = state.frametimeNumericEnabled,
                     onCheckedChange = listener::onFrametimeNumericChanged,
                 )
-
-                Box(
-                    Modifier.fillMaxWidth().paneNavItem(
-                        cornerRadius = (12f * paneScale).dp,
-                        onActivate = { listener.onFPSLimitChanged(if (state.fpsLimit > 0) 0 else fpsLimitMemory.coerceIn(FPS_LIMITER_MIN, state.maxRefreshRate)) },
-                        onAdjust = { dir ->
-                            val base = if (state.fpsLimit > 0) state.fpsLimit else fpsLimitMemory
-                            val q = base / 5.0
-                            val units = if (dir > 0) Math.floor(q + 1e-4) + 1 else Math.ceil(q - 1e-4) - 1
-                            listener.onFPSLimitChanged((units * 5).toInt().coerceIn(FPS_LIMITER_MIN, state.maxRefreshRate))
-                        },
-                    ),
-                ) {
-                    FPSLimiterCard(
-                        currentLimit = state.fpsLimit,
-                        maxRefreshRate = state.maxRefreshRate,
-                        onLimitChanged = listener::onFPSLimitChanged,
-                    )
-                }
 
                 Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                     PaneSectionLabel(stringResource(R.string.session_drawer_hud_elements))
