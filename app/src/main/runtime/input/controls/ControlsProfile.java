@@ -205,16 +205,6 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
     return Collections.unmodifiableList(elements);
   }
 
-  public int findColorForBinding(Binding binding) {
-    if (binding == null || binding == Binding.NONE) return -1;
-    for (ControlElement element : elements) {
-      for (Binding b : element.getBindings()) {
-        if (b == binding) return element.getCustomColor();
-      }
-    }
-    return -1;
-  }
-
   public int getElementCountFromFile() {
     File file = getProfileFile(context, id);
     if (file.isFile()) {

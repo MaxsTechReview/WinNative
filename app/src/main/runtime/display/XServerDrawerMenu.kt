@@ -633,8 +633,8 @@ data class XServerDrawerState(
     val inputControlsSelectedProfileIndex: Int = 0,
     val inputControlsStyleNames: List<String> = emptyList(),
     val inputControlsSelectedStyleIndex: Int = 0,
-    val inputControlsLabelThemeNames: List<String> = emptyList(),
-    val inputControlsSelectedLabelThemeIndex: Int = 0,
+    val inputControlsAccentThemeNames: List<String> = emptyList(),
+    val inputControlsSelectedAccentThemeIndex: Int = 0,
     val inputControlsShowOverlay: Boolean = false,
     val inputControlsTapToClick: Boolean = true,
     val inputControlsOverlayOpacity: Float = 0.4f,
@@ -1056,7 +1056,7 @@ interface XServerDrawerActionListener {
 
     fun onInputControlsStyleSelected(index: Int)
 
-    fun onInputControlsLabelThemeSelected(index: Int)
+    fun onInputControlsAccentThemeSelected(index: Int)
 
     fun onInputControlsShowOverlayChanged(enabled: Boolean)
 
@@ -1164,8 +1164,8 @@ fun buildXServerDrawerState(
     inputControlsSelectedProfileIndex: Int = 0,
     inputControlsStyleNames: List<String> = emptyList(),
     inputControlsSelectedStyleIndex: Int = 0,
-    inputControlsLabelThemeNames: List<String> = emptyList(),
-    inputControlsSelectedLabelThemeIndex: Int = 0,
+    inputControlsAccentThemeNames: List<String> = emptyList(),
+    inputControlsSelectedAccentThemeIndex: Int = 0,
     inputControlsShowOverlay: Boolean = false,
     inputControlsTapToClick: Boolean = true,
     inputControlsOverlayOpacity: Float = 0.4f,
@@ -1362,8 +1362,8 @@ fun buildXServerDrawerState(
         inputControlsSelectedProfileIndex = inputControlsSelectedProfileIndex,
         inputControlsStyleNames = inputControlsStyleNames,
         inputControlsSelectedStyleIndex = inputControlsSelectedStyleIndex,
-        inputControlsLabelThemeNames = inputControlsLabelThemeNames,
-        inputControlsSelectedLabelThemeIndex = inputControlsSelectedLabelThemeIndex,
+        inputControlsAccentThemeNames = inputControlsAccentThemeNames,
+        inputControlsSelectedAccentThemeIndex = inputControlsSelectedAccentThemeIndex,
         inputControlsShowOverlay = inputControlsShowOverlay,
         inputControlsTapToClick = inputControlsTapToClick,
         inputControlsOverlayOpacity = inputControlsOverlayOpacity,

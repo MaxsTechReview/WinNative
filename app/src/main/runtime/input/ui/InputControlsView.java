@@ -36,6 +36,7 @@ import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags;
 import com.winlator.cmod.runtime.display.winhandler.WinHandler;
 import com.winlator.cmod.runtime.display.xserver.Pointer;
 import com.winlator.cmod.runtime.display.xserver.XServer;
+import com.winlator.cmod.runtime.input.controls.AccentTheme;
 import com.winlator.cmod.runtime.input.controls.Binding;
 import com.winlator.cmod.runtime.input.controls.ControlElement;
 import com.winlator.cmod.runtime.input.controls.ControlsProfile;
@@ -43,7 +44,6 @@ import com.winlator.cmod.runtime.input.controls.ExternalController;
 import com.winlator.cmod.runtime.input.controls.ExternalControllerBinding;
 import com.winlator.cmod.runtime.input.controls.GamepadState;
 import com.winlator.cmod.runtime.input.controls.InputControlsManager;
-import com.winlator.cmod.runtime.input.controls.LabelTheme;
 import com.winlator.cmod.runtime.input.controls.VisualStyle;
 import com.winlator.cmod.shared.math.Mathf;
 import java.io.IOException;
@@ -75,8 +75,8 @@ public class InputControlsView extends View {
   private volatile float mouseMoveOffsetX = 0f;
   private volatile float mouseMoveOffsetY = 0f;
   private boolean showTouchscreenControls = false;
-  private VisualStyle visualStyle = VisualStyle.ORIGINAL;
-  private LabelTheme labelTheme = LabelTheme.DEFAULT;
+  private VisualStyle visualStyle = VisualStyle.SLATE;
+  private AccentTheme accentTheme = AccentTheme.CYAN;
   private InputControlsManager inputControlsManager;
 
   private Handler timeoutHandler; // Reference to the activity's timeout handler
@@ -187,27 +187,21 @@ public class InputControlsView extends View {
   }
 
   public void setVisualStyle(VisualStyle style) {
-    this.visualStyle = style != null ? style : VisualStyle.ORIGINAL;
+    this.visualStyle = style != null ? style : VisualStyle.SLATE;
     invalidate();
   }
 
-  /** Same as {@link #setVisualStyle} but without {@link #invalidate()}, for internal draw-time
-   * fallbacks where requesting another redraw would loop. */
-  public void setVisualStyleSilent(VisualStyle style) {
-    this.visualStyle = style != null ? style : VisualStyle.ORIGINAL;
+  public AccentTheme getAccentTheme() {
+    return accentTheme;
   }
 
-  public LabelTheme getLabelTheme() {
-    return labelTheme;
+  public void setAccentTheme(AccentTheme theme) {
+    this.accentTheme = theme != null ? theme : AccentTheme.CYAN;
+    invalidate();
   }
 
   public InputControlsManager getInputControlsManager() {
     return inputControlsManager;
-  }
-
-  public void setLabelTheme(LabelTheme theme) {
-    this.labelTheme = theme != null ? theme : LabelTheme.DEFAULT;
-    invalidate();
   }
 
   public int getSnappingSize() {

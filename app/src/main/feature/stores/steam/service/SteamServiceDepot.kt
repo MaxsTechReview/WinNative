@@ -409,7 +409,7 @@ internal fun SteamService.Companion.filterAlreadyInstalledDepots(
 
     return depots.filter { (depotId, depot) ->
         val isInstalledBaseDepot =
-            depot.dlcAppId == INVALID_APP_ID ||
+            depot.dlcAppId == INVALID_APP_ID &&
                 depotId in installedApp.downloadedDepots
         val isInstalledDlcDepot =
             depot.dlcAppId != INVALID_APP_ID &&

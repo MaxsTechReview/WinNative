@@ -693,7 +693,18 @@ internal fun SteamService.Companion.downloadApp(
 
     val service =
         instance ?: run {
+            // Session gave up reconnecting and stopped the service; revive it and say so instead of failing silently.
             Timber.e("SteamService instance is null, cannot start download job.")
+            MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+            runCatching {
+                val context = PluviaApp.instance.applicationContext ?: return@runCatching
+                if (PrefManager.refreshToken.isNotBlank()) start(context)
+                WinToast.show(
+                    context,
+                    "Steam is not connected — reconnecting, try the download again in a moment",
+                    Toast.LENGTH_LONG,
+                )
+            }
             return null
         }
 

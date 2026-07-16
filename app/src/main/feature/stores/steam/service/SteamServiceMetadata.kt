@@ -225,6 +225,15 @@ internal fun SteamService.Companion.getTrustedInstalledAppInfo(appId: Int): AppI
     if (!dir.isDirectory) return null
     if (!MarkerUtils.hasMarker(dirPath, Marker.DOWNLOAD_COMPLETE_MARKER)) return null
 
+    // Backfill the durable install path once (metadata present now) so recognition survives eviction.
+    if (appInfo.installPath.isNullOrEmpty()) {
+        runCatching {
+            runBlocking(Dispatchers.IO) {
+                PluviaDatabase.getInstance().appInfoDao().update(appInfo.copy(installPath = dirPath))
+            }
+        }
+        return appInfo.copy(installPath = dirPath)
+    }
     return appInfo
 }
 
@@ -246,6 +255,7 @@ internal fun SteamService.Companion.tryRecoverInstalledAppInfo(appId: Int): AppI
             isDownloaded = true,
             downloadedDepots = downloadedDepotIds,
             dlcDepots = installedDlcAppIds.sorted(),
+            installPath = dirPath,
         )
 
     runBlocking(Dispatchers.IO) {
@@ -255,9 +265,20 @@ internal fun SteamService.Companion.tryRecoverInstalledAppInfo(appId: Int): AppI
     return recovered
 }
 
+/** The chosen download folder is not a steamapps root, so it never appears in [allInstallPaths] and marker scans miss games installed there. */
+internal fun SteamService.Companion.configuredDownloadRoot(): String? =
+    runCatching {
+        val context = PluviaApp.instance.applicationContext ?: return@runCatching null
+        val storeDefaultUri =
+            if (PrefManager.useSingleDownloadFolder) PrefManager.defaultDownloadFolder else PrefManager.steamDownloadFolder
+        if (storeDefaultUri.isEmpty()) return@runCatching null
+        com.winlator.cmod.shared.io.FileUtils
+            .getFilePathFromUri(context, android.net.Uri.parse(storeDefaultUri))
+    }.getOrNull()
+
 internal fun SteamService.Companion.countCompletedInstallMarkers(maxCount: Int = Int.MAX_VALUE): Int {
     var count = 0
-    for (basePath in allInstallPaths) {
+    for (basePath in (allInstallPaths + listOfNotNull(configuredDownloadRoot())).distinct()) {
         val baseDir = File(basePath)
         val appDirs = baseDir.listFiles() ?: continue
         for (appDir in appDirs) {

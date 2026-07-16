@@ -1418,8 +1418,15 @@ class SteamService : Service() {
                     if (oldName.isNotEmpty() && oldName != appName) add(oldName)
                 }
 
-            // No resolvable folder name (metadata unavailable) — never fall back to a shared root.
+            // No metadata: fall back to the durably-recorded install path (disk-validated, appId-specific; never a shared root).
             if (candidateNames.isEmpty()) {
+                val recordedPath = getInstalledApp(gameId)?.installPath.orEmpty()
+                if (recordedPath.isNotEmpty()) {
+                    val normalizedRecorded = normalizeInstallPath(recordedPath)
+                    if (File(normalizedRecorded).isDirectory && !isSuspiciousSteamInstallPath(normalizedRecorded)) {
+                        return normalizedRecorded
+                    }
+                }
                 Timber.w("getAppDirPath: no metadata to resolve install dir for appId=%d", gameId)
                 return ""
             }
@@ -3610,7 +3617,15 @@ class SteamService : Service() {
 
         /** App-lifecycle hooks from PluviaApp (last activity stops → onAppBackgrounded, first starts → onAppForegrounded) — let the Steam session sleep while the app is minimized and idle. See [handleAppBackgrounded]. */
         fun onAppForegrounded() {
-            instance?.handleAppForegrounded()
+            val service = instance
+            if (service == null) {
+                // Only activity creation starts the service, so without this a stopped session stays dead for the whole process.
+                if (PrefManager.refreshToken.isNotBlank()) {
+                    runCatching { PluviaApp.instance.applicationContext?.let { start(it) } }
+                }
+                return
+            }
+            service.handleAppForegrounded()
         }
 
         fun onAppBackgrounded() {
@@ -3951,6 +3966,16 @@ class SteamService : Service() {
                             record.storeGameId,
                             DownloadRecord.STATUS_FAILED,
                             "Could not start download — retry after Steam finishes loading",
+                        )
+                    }
+                } else if (started.getStatusFlow().value == DownloadPhase.COMPLETE) {
+                    // No downloader runs, so release the slot here; keyed on COMPLETE because a queued job is also inactive.
+                    Timber.i("startQueued: appId=$appId resolved as already complete — releasing coordinator slot")
+                    runBlocking {
+                        DownloadCoordinator.notifyFinished(
+                            DownloadRecord.STORE_STEAM,
+                            record.storeGameId,
+                            DownloadRecord.STATUS_COMPLETE,
                         )
                     }
                 }

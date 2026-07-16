@@ -15,9 +15,6 @@ import android.view.Window
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.Toast
-import androidx.activity.ComponentActivity
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
@@ -42,6 +39,7 @@ import com.winlator.cmod.shared.ui.nav.PaneNavWindowHandlers
 import com.winlator.cmod.shared.ui.nav.bindPaneNav
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.Modifier
+import androidx.core.net.toUri
 import com.winlator.cmod.shared.ui.focus.controllerMenuInput
 import com.winlator.cmod.feature.library.GameSettingsStateHolder
 import com.winlator.cmod.feature.library.WinComponentItem
@@ -88,10 +86,11 @@ import java.util.concurrent.Executors
 
 private enum class LibraryArtworkTarget {
     GAME_CARD,
-    GRID,
-    CAROUSEL,
-    LIST,
+    ICON_ART,
 }
+
+// Only what BitmapFactory can decode.
+private val ARTWORK_EXTENSIONS = setOf("png", "jpg", "jpeg", "webp", "bmp", "gif", "heic", "heif", "ico")
 
 class ShortcutSettingsComposeDialog private constructor(
     private val activity: Activity,
@@ -121,7 +120,6 @@ class ShortcutSettingsComposeDialog private constructor(
     private var box64PresetIds = mutableListOf<String>()
     private var fexcorePresetIds = mutableListOf<String>()
     private var shouldRefreshLibraryOnSave = false
-    private var pendingArtworkTarget = LibraryArtworkTarget.GAME_CARD
 
     // SDL2 Compatibility env vars — must match ContainerDetailFragment.SDL2_ENV_VARS.
     private val sdl2EnvVars = listOf(
@@ -139,15 +137,6 @@ class ShortcutSettingsComposeDialog private constructor(
 
     // Container list for container selection
     private var containerList = mutableListOf<Container>()
-
-    private val artworkPickerLauncher: ActivityResultLauncher<Array<String>>? =
-        (activity as? ComponentActivity)?.activityResultRegistry?.register(
-            "shortcut_artwork_picker",
-            ActivityResultContracts.OpenDocument()
-        ) { uri: Uri? ->
-            if (uri == null) return@register
-            saveSelectedArtwork(uri)
-        }
 
     init {
         state.wined3dCsmtEntries.value =
@@ -245,47 +234,27 @@ class ShortcutSettingsComposeDialog private constructor(
             }
 
             override fun onPickGameCardArtwork() {
-                pendingArtworkTarget = LibraryArtworkTarget.GAME_CARD
-                artworkPickerLauncher?.launch(arrayOf("image/*"))
+                pickLibraryArtwork(LibraryArtworkTarget.GAME_CARD)
             }
 
             override fun onRemoveGameCardArtwork() {
                 clearLibraryArtwork(LibraryArtworkTarget.GAME_CARD)
             }
 
-            override fun onPickGridArtwork() {
-                pendingArtworkTarget = LibraryArtworkTarget.GRID
-                artworkPickerLauncher?.launch(arrayOf("image/*"))
+            override fun onPickIconArtwork() {
+                pickLibraryArtwork(LibraryArtworkTarget.ICON_ART)
             }
 
-            override fun onRemoveGridArtwork() {
-                clearLibraryArtwork(LibraryArtworkTarget.GRID)
+            override fun onRemoveIconArtwork() {
+                clearLibraryArtwork(LibraryArtworkTarget.ICON_ART)
             }
 
-            override fun onPickCarouselArtwork() {
-                pendingArtworkTarget = LibraryArtworkTarget.CAROUSEL
-                artworkPickerLauncher?.launch(arrayOf("image/*"))
-            }
-
-            override fun onRemoveCarouselArtwork() {
-                clearLibraryArtwork(LibraryArtworkTarget.CAROUSEL)
-            }
-
-            override fun onPickListArtwork() {
-                pendingArtworkTarget = LibraryArtworkTarget.LIST
-                artworkPickerLauncher?.launch(arrayOf("image/*"))
-            }
-
-            override fun onRemoveListArtwork() {
-                clearLibraryArtwork(LibraryArtworkTarget.LIST)
-            }
-
-            override fun onOpenArtworkSource() {
+            override fun onOpenArtworkSource(gameName: String) {
                 runCatching {
                     context.startActivity(
                         Intent(
                             Intent.ACTION_VIEW,
-                            Uri.parse("https://www.steamgriddb.com/"),
+                            String.format("https://www.steamgriddb.com/search/grids?term=%s", Uri.encode(gameName)).toUri()
                         ),
                     )
                 }
@@ -356,7 +325,7 @@ class ShortcutSettingsComposeDialog private constructor(
     private fun loadInitialData() {
         val container = shortcut.container
 
-        state.name.value = shortcut.name
+        state.name.value = shortcut.getExtra("custom_name", shortcut.name).ifBlank { shortcut.name }
         state.launchExePath.value = resolveInitialLaunchExePath()
         state.launchExeDisplayPath.value = resolveLaunchExeDisplayPath(state.launchExePath.value)
         syncLibraryArtworkState()
@@ -994,6 +963,7 @@ class ShortcutSettingsComposeDialog private constructor(
 
         if (nameChanged) {
             shortcut.putExtra("custom_name", name)
+            shouldRefreshLibraryOnSave = true
         }
 
         if (true) {
@@ -1582,48 +1552,47 @@ class ShortcutSettingsComposeDialog private constructor(
             target = LibraryArtworkTarget.GAME_CARD,
         )
         syncLibraryArtworkSlotState(
-            target = LibraryArtworkTarget.GRID,
-        )
-        syncLibraryArtworkSlotState(
-            target = LibraryArtworkTarget.CAROUSEL,
-        )
-        syncLibraryArtworkSlotState(
-            target = LibraryArtworkTarget.LIST,
+            target = LibraryArtworkTarget.ICON_ART,
         )
     }
 
     private fun syncLibraryArtworkSlotState(
         target: LibraryArtworkTarget,
     ) {
-        val file =
-            getLibraryArtworkExtraKey(target)
-                ?.let { shortcut.getExtra(it) }
-                ?.takeIf { it.isNotBlank() }
-                ?.let(::File)
-                ?.takeIf { it.isFile() }
+        val hasArtwork =
+            when (target) {
+                LibraryArtworkTarget.ICON_ART -> LibraryShortcutArtwork.findIconArtworkPath(shortcut) != null
+                LibraryArtworkTarget.GAME_CARD ->
+                    getLibraryArtworkExtraKey(target)
+                        ?.let { shortcut.getExtra(it) }
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let(::File)
+                        ?.isFile() == true
+            }
 
         when (target) {
             LibraryArtworkTarget.GAME_CARD -> {
-                state.gameCardArtworkSelected.value = file != null
+                state.gameCardArtworkSelected.value = hasArtwork
                 state.gameCardArtworkSummary.value = ""
             }
-            LibraryArtworkTarget.GRID -> {
-                state.gridArtworkSelected.value = file != null
-                state.gridArtworkSummary.value = ""
-            }
-            LibraryArtworkTarget.CAROUSEL -> {
-                state.carouselArtworkSelected.value = file != null
-                state.carouselArtworkSummary.value = ""
-            }
-            LibraryArtworkTarget.LIST -> {
-                state.listArtworkSelected.value = file != null
-                state.listArtworkSummary.value = ""
+            LibraryArtworkTarget.ICON_ART -> {
+                state.iconArtworkSelected.value = hasArtwork
+                state.iconArtworkSummary.value = ""
             }
         }
     }
 
-    private fun saveSelectedArtwork(uri: Uri) =
-        saveSelectedLibraryArtwork(uri, pendingArtworkTarget)
+    private fun pickLibraryArtwork(target: LibraryArtworkTarget) {
+        DirectoryPickerDialog.showFile(
+            activity = activity,
+            title = context.getString(R.string.shortcuts_library_artwork_set),
+            allowedExtensions = ARTWORK_EXTENSIONS,
+            dimAmount = 0.5f,
+            preserveBackdropBlur = true,
+        ) { path ->
+            saveSelectedLibraryArtwork(Uri.fromFile(File(path)), target)
+        }
+    }
 
     private fun saveSelectedLibraryArtwork(
         uri: Uri,
@@ -1649,34 +1618,45 @@ class ShortcutSettingsComposeDialog private constructor(
         }
 
         shortcut.putExtra(extraKey, outputFile.absolutePath)
+        clearLibraryArtworkSlots(getLibraryArtworkSlots(target).filter { it.extraKey != extraKey })
         shortcut.saveData()
         shouldRefreshLibraryOnSave = true
         syncLibraryArtworkState()
+        // Artwork lands on disk at pick time, so refresh now instead of at confirm.
+        emitLibraryRefreshIfNeeded()
     }
 
     private fun clearLibraryArtwork(target: LibraryArtworkTarget) {
-        val extraKey = getLibraryArtworkExtraKey(target) ?: return
-        LibraryShortcutArtwork.deleteManagedArtwork(context, shortcut.getExtra(extraKey))
-        shortcut.putExtra(extraKey, null)
+        clearLibraryArtworkSlots(getLibraryArtworkSlots(target))
         shortcut.saveData()
         shouldRefreshLibraryOnSave = true
         syncLibraryArtworkState()
+        // Artwork lands on disk at pick time, so refresh now instead of at confirm.
+        emitLibraryRefreshIfNeeded()
     }
 
-    private fun getLibraryArtworkExtraKey(target: LibraryArtworkTarget): String? =
-        when (target) {
-            LibraryArtworkTarget.GAME_CARD -> LibraryShortcutArtwork.LibraryArtworkSlot.GAME_CARD.extraKey
-            LibraryArtworkTarget.GRID -> LibraryShortcutArtwork.LibraryArtworkSlot.GRID.extraKey
-            LibraryArtworkTarget.CAROUSEL -> LibraryShortcutArtwork.LibraryArtworkSlot.CAROUSEL.extraKey
-            LibraryArtworkTarget.LIST -> LibraryShortcutArtwork.LibraryArtworkSlot.LIST.extraKey
+    private fun clearLibraryArtworkSlots(slots: List<LibraryShortcutArtwork.LibraryArtworkSlot>) {
+        slots.forEach { slot ->
+            LibraryShortcutArtwork.deleteManagedArtwork(context, shortcut.getExtra(slot.extraKey))
+            shortcut.putExtra(slot.extraKey, null)
         }
+    }
+
+    private fun getLibraryArtworkExtraKey(target: LibraryArtworkTarget): String? = getLibraryArtworkSlot(target)?.extraKey
 
     private fun getLibraryArtworkSlot(target: LibraryArtworkTarget): LibraryShortcutArtwork.LibraryArtworkSlot? =
+        getLibraryArtworkSlots(target).firstOrNull()
+
+    // Icon art writes GRID; the trailing slots only exist to clear images saved before the merge.
+    private fun getLibraryArtworkSlots(target: LibraryArtworkTarget): List<LibraryShortcutArtwork.LibraryArtworkSlot> =
         when (target) {
-            LibraryArtworkTarget.GAME_CARD -> LibraryShortcutArtwork.LibraryArtworkSlot.GAME_CARD
-            LibraryArtworkTarget.GRID -> LibraryShortcutArtwork.LibraryArtworkSlot.GRID
-            LibraryArtworkTarget.CAROUSEL -> LibraryShortcutArtwork.LibraryArtworkSlot.CAROUSEL
-            LibraryArtworkTarget.LIST -> LibraryShortcutArtwork.LibraryArtworkSlot.LIST
+            LibraryArtworkTarget.GAME_CARD -> listOf(LibraryShortcutArtwork.LibraryArtworkSlot.GAME_CARD)
+            LibraryArtworkTarget.ICON_ART ->
+                listOf(
+                    LibraryShortcutArtwork.LibraryArtworkSlot.GRID,
+                    LibraryShortcutArtwork.LibraryArtworkSlot.CAROUSEL,
+                    LibraryShortcutArtwork.LibraryArtworkSlot.LIST,
+                )
         }
 
     private fun emitLibraryRefreshIfNeeded() {

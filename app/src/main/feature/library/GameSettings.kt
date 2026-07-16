@@ -359,12 +359,8 @@ class GameSettingsStateHolder {
     val customHeight = mutableStateOf("")
     val gameCardArtworkSelected = mutableStateOf(false)
     val gameCardArtworkSummary = mutableStateOf("")
-    val gridArtworkSelected = mutableStateOf(false)
-    val gridArtworkSummary = mutableStateOf("")
-    val carouselArtworkSelected = mutableStateOf(false)
-    val carouselArtworkSummary = mutableStateOf("")
-    val listArtworkSelected = mutableStateOf(false)
-    val listArtworkSummary = mutableStateOf("")
+    val iconArtworkSelected = mutableStateOf(false)
+    val iconArtworkSummary = mutableStateOf("")
     val refreshRateEntries = mutableStateOf<List<String>>(emptyList())
     val selectedRefreshRate = mutableIntStateOf(0)
     val fpsLimit = mutableIntStateOf(0)
@@ -548,13 +544,9 @@ interface GameSettingsCallbacks {
 
     fun onPickGameCardArtwork() {}
     fun onRemoveGameCardArtwork() {}
-    fun onPickGridArtwork() {}
-    fun onRemoveGridArtwork() {}
-    fun onPickCarouselArtwork() {}
-    fun onRemoveCarouselArtwork() {}
-    fun onPickListArtwork() {}
-    fun onRemoveListArtwork() {}
-    fun onOpenArtworkSource() {}
+    fun onPickIconArtwork() {}
+    fun onRemoveIconArtwork() {}
+    fun onOpenArtworkSource(gameName: String) {}
     fun onRemoveEnvVar(index: Int)
     fun onUpdateWinComponent(isDirectX: Boolean, index: Int, newValue: Int)
     fun onSelectExe() {}
@@ -1232,8 +1224,8 @@ private fun GeneralSection(
                         .clip(RoundedCornerShape(10.dp))
                         .background(AccentBlue.copy(alpha = 0.08f))
                         .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
-                        .paneNavItem(cornerRadius = 10.dp, onActivate = { callbacks.onOpenArtworkSource() }, highlightColor = NavHighlight)
-                        .clickable { callbacks.onOpenArtworkSource() }
+                        .paneNavItem(cornerRadius = 10.dp, onActivate = { callbacks.onOpenArtworkSource(state.name.value) }, highlightColor = NavHighlight)
+                        .clickable { callbacks.onOpenArtworkSource(state.name.value) }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1259,43 +1251,20 @@ private fun GeneralSection(
             Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                 Box(Modifier.weight(1f)) {
                     ArtworkPickerRow(
-                        title = stringResource(R.string.shortcuts_library_artwork_game_card_title),
+                        title = stringResource(R.string.shortcuts_library_artwork_icon_title),
+                        summary = state.iconArtworkSummary.value,
+                        selected = state.iconArtworkSelected.value,
+                        onPick = callbacks::onPickIconArtwork,
+                        onRemove = callbacks::onRemoveIconArtwork
+                    )
+                }
+                Box(Modifier.weight(1f)) {
+                    ArtworkPickerRow(
+                        title = stringResource(R.string.shortcuts_library_artwork_hero_title),
                         summary = state.gameCardArtworkSummary.value,
                         selected = state.gameCardArtworkSelected.value,
                         onPick = callbacks::onPickGameCardArtwork,
                         onRemove = callbacks::onRemoveGameCardArtwork
-                    )
-                }
-                Box(Modifier.weight(1f)) {
-                    ArtworkPickerRow(
-                        title = stringResource(R.string.shortcuts_library_artwork_grid_title),
-                        summary = state.gridArtworkSummary.value,
-                        selected = state.gridArtworkSelected.value,
-                        onPick = callbacks::onPickGridArtwork,
-                        onRemove = callbacks::onRemoveGridArtwork
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(SettingItemGap))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
-                Box(Modifier.weight(1f)) {
-                    ArtworkPickerRow(
-                        title = stringResource(R.string.shortcuts_library_artwork_carousel_title),
-                        summary = state.carouselArtworkSummary.value,
-                        selected = state.carouselArtworkSelected.value,
-                        onPick = callbacks::onPickCarouselArtwork,
-                        onRemove = callbacks::onRemoveCarouselArtwork
-                    )
-                }
-                Box(Modifier.weight(1f)) {
-                    ArtworkPickerRow(
-                        title = stringResource(R.string.shortcuts_library_artwork_list_title),
-                        summary = state.listArtworkSummary.value,
-                        selected = state.listArtworkSelected.value,
-                        onPick = callbacks::onPickListArtwork,
-                        onRemove = callbacks::onRemoveListArtwork
                     )
                 }
             }

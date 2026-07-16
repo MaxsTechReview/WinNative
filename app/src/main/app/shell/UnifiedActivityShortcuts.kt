@@ -330,12 +330,10 @@ internal fun UnifiedActivity.customArtworkOverrideSlots(
     gogGame: GOGGame?,
     epicGame: EpicGame?,
     hasDefaultCustomArt: Boolean,
-    hasGridCustomArt: Boolean,
-    hasCarouselCustomArt: Boolean,
-    hasListCustomArt: Boolean,
+    hasIconCustomArt: Boolean,
     hasHeroCustomArt: Boolean,
 ): Set<String> {
-    val overridesPrimary = hasDefaultCustomArt || hasGridCustomArt || hasCarouselCustomArt || hasListCustomArt
+    val overridesPrimary = hasDefaultCustomArt || hasIconCustomArt
     if (!overridesPrimary && !hasHeroCustomArt) return emptySet()
 
     return when {
@@ -362,9 +360,11 @@ internal fun UnifiedActivity.customArtworkOverrideSlots(
 
         app.id >= 0 -> {
             buildSet {
-                if (hasDefaultCustomArt || hasGridCustomArt) add("capsule")
-                if (hasDefaultCustomArt || hasCarouselCustomArt) add("library_capsule")
-                if (hasDefaultCustomArt || hasListCustomArt) add("small_capsule")
+                if (overridesPrimary) {
+                    add("capsule")
+                    add("library_capsule")
+                    add("small_capsule")
+                }
                 if (hasHeroCustomArt) add("hero")
             }
         }

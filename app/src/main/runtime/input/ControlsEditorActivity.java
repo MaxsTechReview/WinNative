@@ -2,7 +2,10 @@ package com.winlator.cmod.runtime.input;
 
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -18,15 +21,19 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.RadioGroup;
+import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 import androidx.activity.OnBackPressedCallback;
+import androidx.preference.PreferenceManager;
 import com.winlator.cmod.R;
+import com.winlator.cmod.runtime.input.controls.AccentTheme;
 import com.winlator.cmod.runtime.input.controls.Binding;
 import com.winlator.cmod.runtime.input.controls.ControlElement;
 import com.winlator.cmod.runtime.input.controls.ControlsProfile;
 import com.winlator.cmod.runtime.input.controls.InputControlsManager;
+import com.winlator.cmod.runtime.input.controls.VisualStyle;
 import com.winlator.cmod.runtime.input.ui.InputControlsView;
 import com.winlator.cmod.shared.android.AppUtils;
 import com.winlator.cmod.shared.ui.toast.WinToast;
@@ -54,6 +61,14 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
     inputControlsView.setInputControlsManager(new InputControlsManager(this));
     inputControlsView.setEditMode(true);
     inputControlsView.setOverlayOpacity(0.6f);
+    inputControlsView.setVisualStyle(
+        VisualStyle.fromPreference(
+            PreferenceManager.getDefaultSharedPreferences(this)
+                .getString("input_visual_style", null)));
+    inputControlsView.setAccentTheme(
+        AccentTheme.fromPreference(
+            PreferenceManager.getDefaultSharedPreferences(this)
+                .getString("input_accent_theme", null)));
 
     profile =
         InputControlsManager.loadProfile(
@@ -68,6 +83,8 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
     container.findViewById(R.id.BTRemoveElement).setOnClickListener(this);
     container.findViewById(R.id.BTElementSettings).setOnClickListener(this);
     container.findViewById(R.id.BTColorPicker).setOnClickListener(this);
+    container.findViewById(R.id.BTAccentTheme).setOnClickListener(this);
+    container.findViewById(R.id.BTVisualStyle).setOnClickListener(this);
 
     setupToolbarDragging();
 
@@ -109,7 +126,69 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
           showColorPicker(v);
         } else WinToast.show(this, R.string.input_controls_editor_no_element_selected);
         break;
+      case R.id.BTAccentTheme:
+        showAccentThemePicker(v);
+        break;
+      case R.id.BTVisualStyle:
+        showVisualStylePicker(v);
+        break;
     }
+  }
+
+  private void showVisualStylePicker(View anchorView) {
+    LinearLayout view = new LinearLayout(this);
+    view.setOrientation(LinearLayout.VERTICAL);
+    int padding = (int) UnitUtils.dpToPx(12);
+    view.setPadding(padding, padding, padding, padding);
+
+    TextView title = new TextView(this);
+    title.setText(R.string.input_controls_select_style);
+    title.setTextColor(getColor(R.color.settings_text_primary));
+    title.setTextSize(14);
+    title.setTypeface(null, Typeface.BOLD);
+    title.setPadding(0, 0, 0, (int) UnitUtils.dpToPx(8));
+    view.addView(title);
+
+    VisualStyle current = inputControlsView.getVisualStyle();
+    final PopupWindow[] popup = new PopupWindow[1];
+    String[] names = VisualStyle.displayNames();
+    VisualStyle[] styles = VisualStyle.values();
+    int rowPadding = (int) UnitUtils.dpToPx(6);
+    LinearLayout rows = new LinearLayout(this);
+    rows.setOrientation(LinearLayout.VERTICAL);
+    for (int i = 0; i < styles.length; i++) {
+      final VisualStyle style = styles[i];
+      boolean selected = style == current;
+      TextView label = new TextView(this);
+      label.setText(names[i]);
+      label.setTextSize(13);
+      label.setTextColor(getColor(selected ? R.color.settings_accent : R.color.settings_text_primary));
+      label.setTypeface(null, selected ? Typeface.BOLD : Typeface.NORMAL);
+      label.setPadding(rowPadding, rowPadding, rowPadding, rowPadding);
+      label.setOnClickListener(
+          v -> {
+            PreferenceManager.getDefaultSharedPreferences(this)
+                .edit()
+                .putString("input_visual_style", style.name())
+                .apply();
+            inputControlsView.setVisualStyle(style);
+            if (popup[0] != null) popup[0].dismiss();
+          });
+      rows.addView(label);
+    }
+
+    ScrollView scroller = new ScrollView(this);
+    scroller.setVerticalScrollBarEnabled(true);
+    scroller.addView(rows);
+    int maxListHeight =
+        (int) Math.min(UnitUtils.dpToPx(250), getResources().getDisplayMetrics().heightPixels * 0.5f);
+    view.addView(
+        scroller,
+        new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, maxListHeight));
+
+    popup[0] = AppUtils.showPopupWindow(anchorView, view, 220, 0);
+    popup[0].setFocusable(true);
+    popup[0].update();
   }
 
   private void showColorPicker(View anchorView) {
@@ -193,6 +272,79 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
               popupWindow.dismiss();
             });
   }
+
+  private void showAccentThemePicker(View anchorView) {
+    LinearLayout view = new LinearLayout(this);
+    view.setOrientation(LinearLayout.VERTICAL);
+    int padding = (int) UnitUtils.dpToPx(12);
+    view.setPadding(padding, padding, padding, padding);
+
+    TextView title = new TextView(this);
+    title.setText(R.string.input_controls_accent_theme);
+    title.setTextColor(getColor(R.color.settings_text_primary));
+    title.setTextSize(14);
+    title.setTypeface(null, Typeface.BOLD);
+    title.setPadding(0, 0, 0, (int) UnitUtils.dpToPx(8));
+    view.addView(title);
+
+    AccentTheme current = inputControlsView.getAccentTheme();
+    final PopupWindow[] popup = new PopupWindow[1];
+    String[] names = AccentTheme.displayNames();
+    AccentTheme[] themes = AccentTheme.values();
+    int swatchSize = (int) UnitUtils.dpToPx(14);
+    int rowPadding = (int) UnitUtils.dpToPx(6);
+    LinearLayout rows = new LinearLayout(this);
+    rows.setOrientation(LinearLayout.VERTICAL);
+    for (int i = 0; i < themes.length; i++) {
+      final AccentTheme theme = themes[i];
+      LinearLayout row = new LinearLayout(this);
+      row.setGravity(Gravity.CENTER_VERTICAL);
+      row.setPadding(rowPadding, rowPadding, rowPadding, rowPadding);
+
+      GradientDrawable dot = new GradientDrawable();
+      dot.setShape(GradientDrawable.OVAL);
+      dot.setColor(theme.accent);
+      View swatch = new View(this);
+      LinearLayout.LayoutParams swatchParams = new LinearLayout.LayoutParams(swatchSize, swatchSize);
+      swatchParams.rightMargin = (int) UnitUtils.dpToPx(10);
+      swatch.setLayoutParams(swatchParams);
+      swatch.setBackground(dot);
+      row.addView(swatch);
+
+      boolean selected = theme == current;
+      TextView label = new TextView(this);
+      label.setText(names[i]);
+      label.setTextSize(13);
+      label.setTextColor(getColor(selected ? R.color.settings_accent : R.color.settings_text_primary));
+      label.setTypeface(null, selected ? Typeface.BOLD : Typeface.NORMAL);
+      row.addView(label);
+
+      row.setOnClickListener(
+          v -> {
+            PreferenceManager.getDefaultSharedPreferences(this)
+                .edit()
+                .putString("input_accent_theme", theme.name())
+                .apply();
+            inputControlsView.setAccentTheme(theme);
+            if (popup[0] != null) popup[0].dismiss();
+          });
+      rows.addView(row);
+    }
+
+    ScrollView scroller = new ScrollView(this);
+    scroller.setVerticalScrollBarEnabled(true);
+    scroller.addView(rows);
+    int maxListHeight =
+        (int) Math.min(UnitUtils.dpToPx(250), getResources().getDisplayMetrics().heightPixels * 0.5f);
+    view.addView(
+        scroller,
+        new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, maxListHeight));
+
+    popup[0] = AppUtils.showPopupWindow(anchorView, view, 220, 0);
+    popup[0].setFocusable(true);
+    popup[0].update();
+  }
+
 private void showControlElementSettings(View anchorView) {
   final ControlElement element = inputControlsView.getSelectedElement();
   View view = LayoutInflater.from(this).inflate(R.layout.control_element_settings, null);

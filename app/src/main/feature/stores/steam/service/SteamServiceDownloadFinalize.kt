@@ -491,6 +491,7 @@ internal suspend fun SteamService.Companion.completeAppDownload(
                             mainAppInfo.copy(
                                 isDownloaded = true,
                                 dlcDepots = updatedMainDlcDepots,
+                                installPath = appDirPath,
                             ),
                         )
                         Timber.i(
@@ -502,6 +503,7 @@ internal suspend fun SteamService.Companion.completeAppDownload(
                                 mainAppId,
                                 isDownloaded = true,
                                 dlcDepots = selectedDlcAppIds.distinct().sorted(),
+                                installPath = appDirPath,
                             ),
                         )
                         Timber.i(

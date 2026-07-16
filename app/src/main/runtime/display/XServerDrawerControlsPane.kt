@@ -230,13 +230,13 @@ internal fun InputControlsPaneContent(
                     }
                 }
 
-                if (state.inputControlsLabelThemeNames.isNotEmpty()) {
+                if (state.inputControlsAccentThemeNames.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
-                        PaneSectionLabel(stringResource(R.string.input_controls_select_label_theme))
+                        PaneSectionLabel(stringResource(R.string.input_controls_accent_theme))
                         InputControlsSimpleDropdown(
-                            options = state.inputControlsLabelThemeNames,
-                            selectedIndex = state.inputControlsSelectedLabelThemeIndex,
-                            onSelected = listener::onInputControlsLabelThemeSelected,
+                            options = state.inputControlsAccentThemeNames,
+                            selectedIndex = state.inputControlsSelectedAccentThemeIndex,
+                            onSelected = listener::onInputControlsAccentThemeSelected,
                         )
                     }
                 }
@@ -253,7 +253,7 @@ internal fun InputControlsPaneContent(
                         valueText = "${(state.inputControlsOverlayOpacity * 100).toInt()}%",
                         value = state.inputControlsOverlayOpacity,
                         valueRange = 0.1f..1.0f,
-                        steps = 8,
+                        steps = 17,
                         onValueChange = listener::onInputControlsOverlayOpacityChanged,
                     )
                     Spacer(Modifier.height(4.dp))
