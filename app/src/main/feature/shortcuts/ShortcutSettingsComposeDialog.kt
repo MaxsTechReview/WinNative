@@ -243,16 +243,18 @@ class ShortcutSettingsComposeDialog private constructor(
                 CoroutineScope(Dispatchers.IO).launch {
                     val artworkInfo = SteamArtworkScraper().getGameArtwork(gameName)
                     if (artworkInfo != null) {
-                        pendingArtworkTarget = LibraryArtworkTarget.GAME_CARD
-                        saveSelectedArtwork(artworkInfo.gameCardImageUri)
-                        pendingArtworkTarget = LibraryArtworkTarget.LIST
-                        saveSelectedArtwork(artworkInfo.gameListImageUri)
-                        pendingArtworkTarget = LibraryArtworkTarget.CAROUSEL
-                        saveSelectedArtwork(artworkInfo.gameCarouselImageUri)
-                        pendingArtworkTarget = LibraryArtworkTarget.GRID
-                        saveSelectedArtwork(artworkInfo.gameGridImageUri)
+                        clearLibraryArtworkSlots(getLibraryArtworkSlots(LibraryArtworkTarget.ICON_ART))
+                        clearLibraryArtworkSlots(getLibraryArtworkSlots(LibraryArtworkTarget.GAME_CARD))
+
+                        saveScrapedLibraryArtwork(artworkInfo.gameCardImageUri, LibraryShortcutArtwork.LibraryArtworkSlot.GAME_CARD)
+                        saveScrapedLibraryArtwork(artworkInfo.gameListImageUri, LibraryShortcutArtwork.LibraryArtworkSlot.LIST)
+                        saveScrapedLibraryArtwork(artworkInfo.gameCarouselImageUri, LibraryShortcutArtwork.LibraryArtworkSlot.CAROUSEL)
+                        saveScrapedLibraryArtwork(artworkInfo.gameGridImageUri, LibraryShortcutArtwork.LibraryArtworkSlot.GRID)
                         withContext(Dispatchers.Main) {
                             Toast.makeText(context, context.getString(R.string.common_ui_done), Toast.LENGTH_LONG).show()
+                            shouldRefreshLibraryOnSave = true
+                            syncLibraryArtworkState()
+                            emitLibraryRefreshIfNeeded()
                         }
                     } else {
                         withContext(Dispatchers.Main) {
@@ -349,7 +351,6 @@ class ShortcutSettingsComposeDialog private constructor(
             }
         }
     }
-
 
     private fun loadInitialData() {
         val container = shortcut.container
@@ -1621,6 +1622,25 @@ class ShortcutSettingsComposeDialog private constructor(
         ) { path ->
             saveSelectedLibraryArtwork(Uri.fromFile(File(path)), target)
         }
+    }
+
+    private fun saveScrapedLibraryArtwork(uri: Uri, target: LibraryShortcutArtwork.LibraryArtworkSlot) {
+        val bitmap = ImageUtils.getBitmapFromUri(context, uri, 1024)
+        if (bitmap == null) {
+            WinToast.show(context, R.string.shortcuts_library_artwork_failed, Toast.LENGTH_SHORT)
+            return
+        }
+        val previousPath = shortcut.getExtra(target.extraKey)
+        val outputFile = LibraryShortcutArtwork.buildManagedViewArtworkFile(context, shortcut, target)
+        if (!FileUtils.saveBitmapToFile(bitmap, outputFile)) {
+            WinToast.show(context, R.string.shortcuts_library_artwork_failed, Toast.LENGTH_SHORT)
+            return
+        }
+        if (previousPath.isNotBlank() && previousPath != outputFile.absolutePath) {
+            LibraryShortcutArtwork.deleteManagedArtwork(context, previousPath)
+        }
+        shortcut.putExtra(target.extraKey, outputFile.absolutePath)
+        shortcut.saveData()
     }
 
     private fun saveSelectedLibraryArtwork(
