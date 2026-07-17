@@ -6,7 +6,6 @@ import com.winlator.cmod.runtime.display.connector.XOutputStream;
 import com.winlator.cmod.runtime.display.xserver.events.Event;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.concurrent.locks.LockSupport;
 
 public class XClient implements XResourceManager.OnResourceLifecycleListener {
   public final XServer xServer;
@@ -20,7 +19,6 @@ public class XClient implements XResourceManager.OnResourceLifecycleListener {
   private final XOutputStream outputStream;
   private final ArrayMap<Window, EventListener> eventListeners = new ArrayMap<>();
   private final ArrayList<XResource> resources = new ArrayList<>();
-  private long nextFrameTimeNanos = 0;
 
   public XClient(XServer xServer, XInputStream inputStream, XOutputStream outputStream) {
 
@@ -154,36 +152,5 @@ public class XClient implements XResourceManager.OnResourceLifecycleListener {
 
   public boolean isValidResourceId(int id) {
     return xServer.resourceIDs.isInInterval(id, resourceIDBase);
-  }
-
-  public void enforceAbsoluteFramerate() {
-    com.winlator.cmod.runtime.display.renderer.VulkanRenderer renderer = xServer.getRenderer();
-    if (renderer == null) return;
-
-    int targetFps = renderer.getFpsLimit();
-    if (targetFps <= 0) {
-      nextFrameTimeNanos = 0;
-      return;
-    }
-
-    long targetFrameTime = 1_000_000_000L / targetFps;
-    long now = System.nanoTime();
-
-    // HARD RESYNC: If we are more than 100ms late, reset the clock heartbeat.
-    // This prevents "speed-up" stutters after loading screens.
-    if (nextFrameTimeNanos == 0 || now > nextFrameTimeNanos + 100_000_000L) {
-      nextFrameTimeNanos = now + targetFrameTime;
-    }
-
-    // Park instead of busy-spinning through the final frame window to reduce sustained heat.
-    long remaining = nextFrameTimeNanos - now;
-    while (remaining > 0) {
-      LockSupport.parkNanos(remaining);
-      if (Thread.interrupted()) break;
-      remaining = nextFrameTimeNanos - System.nanoTime();
-    }
-
-    // Advance to the next heartbeat
-    nextFrameTimeNanos += targetFrameTime;
   }
 }

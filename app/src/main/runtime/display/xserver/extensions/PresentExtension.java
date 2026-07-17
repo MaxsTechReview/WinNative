@@ -26,6 +26,10 @@ import com.winlator.cmod.runtime.display.xserver.errors.XRequestError;
 import com.winlator.cmod.runtime.display.xserver.events.PresentCompleteNotify;
 import com.winlator.cmod.runtime.display.xserver.events.PresentIdleNotify;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.locks.LockSupport;
 
 public class PresentExtension
     implements Extension,
@@ -51,6 +55,13 @@ public class PresentExtension
   private final SparseArray<PendingScanout> pendingScanouts = new SparseArray<>();
   private SyncExtension syncExtension;
   private boolean lifecycleListenersRegistered = false;
+  private XServer xServer;
+
+  private static final long FIRE_EARLY_NS = 700_000L;
+  private final ConcurrentHashMap<Integer, WindowTiming> windowTimings = new ConcurrentHashMap<>();
+  private final PriorityBlockingQueue<PendingIdle> idleQueue =
+      new PriorityBlockingQueue<>(16, (a, b) -> Long.compare(a.fireNs, b.fireNs));
+  private volatile Thread pacerThread;
 
   private abstract static class ClientOpcodes {
     private static final byte QUERY_VERSION = 0;
@@ -80,6 +91,26 @@ public class PresentExtension
     short yOff;
     int waitFence;
     int idleFence;
+  }
+
+  private static class WindowTiming {
+    long nextIdleNs;
+  }
+
+  private static class PendingIdle {
+    final Window window;
+    final Pixmap pixmap;
+    final int serial;
+    final int idleFence;
+    final long fireNs;
+
+    PendingIdle(Window window, Pixmap pixmap, int serial, int idleFence, long fireNs) {
+      this.window = window;
+      this.pixmap = pixmap;
+      this.serial = serial;
+      this.idleFence = idleFence;
+      this.fireNs = fireNs;
+    }
   }
 
   @Override
@@ -133,6 +164,72 @@ public class PresentExtension
               new PresentIdleNotify(event.id, window, pixmap, serial, idleFence));
         }
       }
+    }
+  }
+
+  private int targetFps(XServer xs) {
+    com.winlator.cmod.runtime.display.renderer.VulkanRenderer renderer =
+        xs != null ? xs.getRenderer() : null;
+    return renderer != null ? renderer.getFpsLimit() : 0;
+  }
+
+  private void scheduleIdleNotify(
+      Window window, Pixmap pixmap, int serial, int idleFence, int targetFps) {
+    if (targetFps <= 0) {
+      sendIdleNotify(window, pixmap, serial, idleFence);
+      return;
+    }
+    long frameNs = 1_000_000_000L / targetFps;
+    long now = System.nanoTime();
+    WindowTiming wt = windowTimings.computeIfAbsent(window.id, k -> new WindowTiming());
+    synchronized (wt) {
+      if (wt.nextIdleNs <= now - frameNs) {
+        wt.nextIdleNs = now + frameNs;
+      } else {
+        wt.nextIdleNs += frameNs;
+      }
+      idleQueue.offer(new PendingIdle(window, pixmap, serial, idleFence, wt.nextIdleNs));
+    }
+    startPacer();
+  }
+
+  private void startPacer() {
+    if (pacerThread != null) return;
+    synchronized (this) {
+      if (pacerThread != null) return;
+      Thread t = new Thread(this::runPacer, "PresentPacer");
+      t.setDaemon(true);
+      t.setPriority(Thread.MAX_PRIORITY);
+      pacerThread = t;
+      t.start();
+    }
+  }
+
+  private void runPacer() {
+    while (!Thread.interrupted()) {
+      try {
+        PendingIdle p = idleQueue.take();
+        long remaining = p.fireNs - FIRE_EARLY_NS - System.nanoTime();
+        while (remaining > 0) {
+          LockSupport.parkNanos(remaining);
+          if (Thread.interrupted()) return;
+          remaining = p.fireNs - FIRE_EARLY_NS - System.nanoTime();
+        }
+        sendIdleNotify(p.window, p.pixmap, p.serial, p.idleFence);
+      } catch (InterruptedException e) {
+        return;
+      }
+    }
+  }
+
+  private void drainAndFire(Window window, Pixmap pixmap) {
+    if (window != null) windowTimings.remove(window.id);
+    ArrayList<PendingIdle> hit = new ArrayList<>();
+    for (PendingIdle p : idleQueue) {
+      if ((window != null && p.window == window) || (pixmap != null && p.pixmap == pixmap)) hit.add(p);
+    }
+    for (PendingIdle p : hit) {
+      if (idleQueue.remove(p)) sendIdleNotify(p.window, p.pixmap, p.serial, p.idleFence);
     }
   }
 
@@ -193,13 +290,15 @@ public class PresentExtension
 
     long ust = System.nanoTime() / 1000;
     long msc = ust / FAKE_INTERVAL;
+    boolean isLargeFrame = pixmap.drawable.width > client.xServer.screenInfo.width / 2;
+    int targetFps = targetFps(client.xServer);
 
     synchronized (content.renderLock) {
       Mode mode;
       content.setPresentedSourceSize(
           pixmap.drawable.getPresentedSourceWidth(), pixmap.drawable.getPresentedSourceHeight());
       if (canDirectScanout(content, pixmap.drawable, p.xOff, p.yOff)) {
-        releasePendingScanout(window);
+        releasePendingScanout(window, true);
         content.setScanoutSource(pixmap.drawable, p.xOff, p.yOff);
         PendingScanout pendingScanout = new PendingScanout();
         pendingScanout.window = window;
@@ -209,11 +308,12 @@ public class PresentExtension
         pendingScanouts.put(window.id, pendingScanout);
         mode = Mode.FLIP;
       } else {
-        releasePendingScanout(window);
+        releasePendingScanout(window, true);
         copyPresentedRegion(content, pixmap.drawable, p.xOff, p.yOff);
         // TODO(perf): gate on a Vulkan release fence — we mark idle on CPU return, before
         // the GPU has actually sampled the pixmap.
-        sendIdleNotify(window, pixmap, p.serial, p.idleFence);
+        if (isLargeFrame) scheduleIdleNotify(window, pixmap, p.serial, p.idleFence, targetFps);
+        else sendIdleNotify(window, pixmap, p.serial, p.idleFence);
         mode = Mode.COPY;
       }
       sendCompleteNotify(window, p.serial, Kind.PIXMAP, mode, ust, msc);
@@ -221,10 +321,10 @@ public class PresentExtension
           window, com.winlator.cmod.runtime.display.xserver.WindowManager.FrameSource.PRESENT, p.serial);
     }
 
-    return pixmap.drawable.width > client.xServer.screenInfo.width / 2;
+    return isLargeFrame;
   }
 
-  private void releasePendingScanout(Window window) {
+  private void releasePendingScanout(Window window, boolean paced) {
     PendingScanout pendingScanout = pendingScanouts.get(window.id);
     if (pendingScanout == null) return;
 
@@ -237,18 +337,27 @@ public class PresentExtension
         }
       }
     }
-    sendIdleNotify(
-        pendingScanout.window,
-        pendingScanout.pixmap,
-        pendingScanout.serial,
-        pendingScanout.idleFence);
+    if (paced) {
+      scheduleIdleNotify(
+          pendingScanout.window,
+          pendingScanout.pixmap,
+          pendingScanout.serial,
+          pendingScanout.idleFence,
+          targetFps(xServer));
+    } else {
+      sendIdleNotify(
+          pendingScanout.window,
+          pendingScanout.pixmap,
+          pendingScanout.serial,
+          pendingScanout.idleFence);
+    }
   }
 
   private void releasePendingScanoutsForPixmap(Pixmap pixmap) {
     for (int i = pendingScanouts.size() - 1; i >= 0; i--) {
       PendingScanout pendingScanout = pendingScanouts.valueAt(i);
       if (pendingScanout.pixmap == pixmap) {
-        releasePendingScanout(pendingScanout.window);
+        releasePendingScanout(pendingScanout.window, false);
       }
     }
   }
@@ -265,6 +374,7 @@ public class PresentExtension
     if (lifecycleListenersRegistered) return;
     synchronized (this) {
       if (lifecycleListenersRegistered) return;
+      this.xServer = xServer;
       xServer.pixmapManager.addOnResourceLifecycleListener(this);
       xServer.windowManager.addOnWindowModificationListener(this);
       lifecycleListenersRegistered = true;
@@ -275,12 +385,14 @@ public class PresentExtension
   public void onFreeResource(XResource resource) {
     if (resource instanceof Pixmap) {
       releasePendingScanoutsForPixmap((Pixmap) resource);
+      drainAndFire(null, (Pixmap) resource);
     }
   }
 
   @Override
   public void onDestroyWindow(Window window) {
-    releasePendingScanout(window);
+    releasePendingScanout(window, false);
+    drainAndFire(window, null);
     removeEventsForWindow(window);
   }
 
@@ -368,18 +480,13 @@ public class PresentExtension
         // submit instead of blocking here.
         PresentPixmapParams p = parsePresentPixmap(client, inputStream);
 
-        boolean isLargeFrame;
         try (XLock lock =
             client.xServer.lock(XServer.Lockable.WINDOW_MANAGER, XServer.Lockable.PIXMAP_MANAGER)) {
-          isLargeFrame = presentPixmap(client, p, outputStream);
+          presentPixmap(client, p, outputStream);
         }
 
         if (client.xServer.getRenderer() != null)
           client.xServer.getRenderer().requestRenderCoalesced();
-
-        if (isLargeFrame) {
-          client.enforceAbsoluteFramerate();
-        }
         break;
       }
       case ClientOpcodes.SELECT_INPUT:

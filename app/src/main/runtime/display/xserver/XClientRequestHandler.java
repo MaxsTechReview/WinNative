@@ -429,14 +429,10 @@ public class XClientRequestHandler implements RequestHandler {
           }
           break;
         case ClientOpcodes.PUT_IMAGE:
-          boolean isLargeImage = false;
           try (XLock lock =
               client.xServer.lock(
                   XServer.Lockable.DRAWABLE_MANAGER, XServer.Lockable.GRAPHIC_CONTEXT_MANAGER)) {
-            isLargeImage = DrawRequests.putImage(client, inputStream, outputStream);
-          }
-          if (isLargeImage) {
-            client.enforceAbsoluteFramerate();
+            DrawRequests.putImage(client, inputStream, outputStream);
           }
           break;
         case ClientOpcodes.GET_IMAGE:

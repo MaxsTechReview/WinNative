@@ -3024,10 +3024,11 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetScene)(JNIEnv* env, jclass clazz, jlong h
     // here needs to touch swapchain-tied resources.
 }
 
-// FPS pacing is enforced on the X dispatch thread (XClient.enforceAbsoluteFramerate) and by
-// the swapchain present mode + Choreographer-coalesced render requests. The compositor used
-// to run its own sleep+busy-spin here too, which duplicated the pacing and burned CPU; this
-// entry point is kept as a no-op for Java-side ABI compatibility.
+// FPS pacing is enforced by delaying PresentIdleNotify (buffer-release back-pressure) on the
+// Present extension's pacer thread, plus the swapchain present mode + Choreographer-coalesced
+// render requests. The compositor used to run its own sleep+busy-spin here too, which
+// duplicated the pacing and burned CPU; this entry point is kept as a no-op for Java-side
+// ABI compatibility.
 JNIEXPORT void JNICALL JNI_FN(nativeSetFpsLimit)(JNIEnv* env, jclass clazz, jlong handle, jint fps) {
     (void)env; (void)clazz; (void)handle; (void)fps;
 }
