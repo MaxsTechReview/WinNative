@@ -160,9 +160,7 @@ public class XClient implements XResourceManager.OnResourceLifecycleListener {
     com.winlator.cmod.runtime.display.renderer.VulkanRenderer renderer = xServer.getRenderer();
     if (renderer == null) return;
 
-    // Presentation is unlocked, so with no user cap hold the panel rate instead of letting the guest free-run.
     int targetFps = renderer.getFpsLimit();
-    if (targetFps <= 0) targetFps = Math.round(xServer.getDisplayRefreshHz());
     if (targetFps <= 0) {
       nextFrameTimeNanos = 0;
       return;
