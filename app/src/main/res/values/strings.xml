@@ -159,6 +159,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">Scrape Artwork</string>
+    <string name="library_games_scraping_artwork">Scraping</string>
     <string name="library_games_shortcut_created">Shortcut created</string>
     <string name="library_games_failed_to_create_shortcut">Failed to create shortcut: %s</string>
     <string name="library_games_install_path">Install Path</string>

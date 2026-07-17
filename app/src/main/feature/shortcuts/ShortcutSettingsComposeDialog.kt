@@ -24,6 +24,10 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CoroutineScope
 import com.winlator.cmod.BuildConfig
 import com.winlator.cmod.R
 import com.winlator.cmod.app.PluviaApp
@@ -78,6 +82,7 @@ import com.winlator.cmod.runtime.input.controls.GestureProfileManager
 import com.winlator.cmod.runtime.input.controls.InputControlsManager
 import com.winlator.cmod.runtime.audio.midi.MidiManager
 import com.winlator.cmod.runtime.display.winhandler.WinHandler
+import com.winlator.cmod.feature.artwork.SteamArtworkScraper
 import java.io.File
 import java.lang.reflect.Field
 import java.util.Arrays
@@ -230,6 +235,30 @@ class ShortcutSettingsComposeDialog private constructor(
                             shortcut.name
                         )
                     )
+                }
+            }
+
+            override fun onScrapeGameArtwork(gameName: String) {
+                Toast.makeText(context, context.getString(R.string.library_games_scraping_artwork), Toast.LENGTH_LONG).show()
+                CoroutineScope(Dispatchers.IO).launch {
+                    val artworkInfo = SteamArtworkScraper().getGameArtwork(gameName)
+                    if (artworkInfo != null) {
+                        pendingArtworkTarget = LibraryArtworkTarget.GAME_CARD
+                        saveSelectedArtwork(artworkInfo.gameCardImageUri)
+                        pendingArtworkTarget = LibraryArtworkTarget.LIST
+                        saveSelectedArtwork(artworkInfo.gameListImageUri)
+                        pendingArtworkTarget = LibraryArtworkTarget.CAROUSEL
+                        saveSelectedArtwork(artworkInfo.gameCarouselImageUri)
+                        pendingArtworkTarget = LibraryArtworkTarget.GRID
+                        saveSelectedArtwork(artworkInfo.gameGridImageUri)
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, context.getString(R.string.common_ui_done), Toast.LENGTH_LONG).show()
+                        }
+                    } else {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, context.getString(R.string.common_ui_failed), Toast.LENGTH_LONG).show()
+                        }
+                    }
                 }
             }
 
