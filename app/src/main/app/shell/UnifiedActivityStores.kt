@@ -322,6 +322,8 @@ internal fun UnifiedActivity.GameCapsule(
     isControllerActive: Boolean = false,
     customArtworkPath: String? = null,
     customIconPath: String? = null,
+    customListPath: String? = null,
+    customHeroPath: String? = null,
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
     useLibraryCapsule: Boolean = false,
@@ -345,6 +347,7 @@ internal fun UnifiedActivity.GameCapsule(
             launchSteamGame(context, containerManager, app)
         }
     }
+    var artworkToBeUsed = customArtworkPath
     val clickInteraction = remember { MutableInteractionSource() }
     val isPressed by clickInteraction.collectIsPressedAsState()
     val isFocused = isControllerActive && isFocusedOverride
@@ -378,7 +381,7 @@ internal fun UnifiedActivity.GameCapsule(
     @Composable
     fun ArtContent(artModifier: Modifier) {
         val customArtworkFile =
-            customArtworkPath
+            artworkToBeUsed
                 ?.let { java.io.File(it) }
 
         if (customArtworkFile != null) {
@@ -448,6 +451,9 @@ internal fun UnifiedActivity.GameCapsule(
 
     if (listMode) {
         // Horizontal row card with hero background
+        customListPath?.let {
+            artworkToBeUsed = customListPath
+        }
         val heroRef = if (!isCustom && gogGame == null && !isEpic) StoreArtworkCache.heroRef(app, null, null) else null
         val heroModel =
             remember(app.id, heroRef, artworkCacheRefreshKey) {
@@ -489,6 +495,26 @@ internal fun UnifiedActivity.GameCapsule(
                             .graphicsLayer { alpha = 0.25f },
                     contentScale = ContentScale.Crop,
                 )
+            } else {
+                customHeroPath?.let {
+                    val heroFile = java.io.File(customHeroPath)
+                    if (heroFile.isFile) {
+                        AsyncImage(
+                            model =
+                                ImageRequest
+                                    .Builder(context)
+                                    .data(heroFile)
+                                    .crossfade(300)
+                                    .build(),
+                            contentDescription = null,
+                            modifier =
+                                Modifier
+                                    .matchParentSize()
+                                    .graphicsLayer { alpha = 0.25f },
+                            contentScale = ContentScale.Crop,
+                        )
+                    }
+                }
             }
 
             // Foreground content

@@ -246,16 +246,21 @@ class ShortcutSettingsComposeDialog private constructor(
                         clearLibraryArtworkSlots(getLibraryArtworkSlots(LibraryArtworkTarget.ICON_ART))
                         clearLibraryArtworkSlots(getLibraryArtworkSlots(LibraryArtworkTarget.GAME_CARD))
 
-                        saveScrapedLibraryArtwork(artworkInfo.gameCardImageUri, LibraryShortcutArtwork.LibraryArtworkSlot.GAME_CARD)
-                        saveScrapedLibraryArtwork(artworkInfo.gameListImageUri, LibraryShortcutArtwork.LibraryArtworkSlot.LIST)
-                        saveScrapedLibraryArtwork(artworkInfo.gameCarouselImageUri, LibraryShortcutArtwork.LibraryArtworkSlot.CAROUSEL)
-                        saveScrapedLibraryArtwork(artworkInfo.gameGridImageUri, LibraryShortcutArtwork.LibraryArtworkSlot.GRID)
+                        saveScrapedLibraryArtwork(artworkInfo.gameCardImageFile.toUri(), LibraryShortcutArtwork.LibraryArtworkSlot.GAME_CARD)
+                        saveScrapedLibraryArtwork(artworkInfo.gameListImageFile.toUri(), LibraryShortcutArtwork.LibraryArtworkSlot.LIST)
+                        saveScrapedLibraryArtwork(artworkInfo.gameCarouselImageFile.toUri(), LibraryShortcutArtwork.LibraryArtworkSlot.CAROUSEL)
+                        saveScrapedLibraryArtwork(artworkInfo.gameGridImageFile.toUri(), LibraryShortcutArtwork.LibraryArtworkSlot.GRID)
+
                         withContext(Dispatchers.Main) {
                             Toast.makeText(context, context.getString(R.string.common_ui_done), Toast.LENGTH_LONG).show()
                             shouldRefreshLibraryOnSave = true
                             syncLibraryArtworkState()
                             emitLibraryRefreshIfNeeded()
                         }
+                        artworkInfo.gameCardImageFile.delete()
+                        artworkInfo.gameListImageFile.delete()
+                        artworkInfo.gameCarouselImageFile.delete()
+                        artworkInfo.gameGridImageFile.delete()
                     } else {
                         withContext(Dispatchers.Main) {
                             Toast.makeText(context, context.getString(R.string.common_ui_failed), Toast.LENGTH_LONG).show()

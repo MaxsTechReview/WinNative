@@ -21,7 +21,8 @@ class SteamArtworkScraper() : ArtworkScraper() {
     private suspend fun downloadGameAssets(gameId: Int): GameArtworkInfo? =
         withContext(Dispatchers.IO) {
             try {
-                val storagePath = String.format("%s/WinNative/Artwork/%s", Environment.getExternalStorageDirectory().toString(), gameId)
+                Environment.getDownloadCacheDirectory()
+                val storagePath = String.format("%s/WinNative/%s", Environment.getExternalStorageDirectory().toString(), gameId)
                 val request = Request.Builder()
                     .url(String.format("https://www.steamgriddb.com/api/public/game/%s", gameId.toString()))
                     .header("User-Agent", "WinNative/1.0")
@@ -61,9 +62,9 @@ class SteamArtworkScraper() : ArtworkScraper() {
                         val gameListUrl = String.format("%s/%s/%s", steamArtworkUrl, steamGameId, gameListFilename)
                         val gameGridUrl = String.format("%s/%s/%s", steamArtworkUrl, steamGameId, gameGridFilename)
 
-                        val cardFile = File(String.format("/%s/%s", storagePath, gameCardFilename))
-                        val gridFile = File(String.format("/%s/%s", storagePath, gameGridFilename))
-                        val listFile = File(String.format("/%s/%s", storagePath, gameListFilename))
+                        val cardFile = File(String.format("%s_%s", storagePath, gameCardFilename))
+                        val gridFile = File(String.format("%s_%s", storagePath, gameGridFilename))
+                        val listFile = File(String.format("%s_%s", storagePath, gameListFilename))
 
                         val cardDownload = Downloader.downloadFile(gameCardUrl, cardFile, null)
                         val gridDownload = Downloader.downloadFile(gameListUrl, listFile, null)
@@ -74,10 +75,10 @@ class SteamArtworkScraper() : ArtworkScraper() {
                                 gameId,
                                 gameName,
                                 "steam",
-                                cardFile.toUri(),
-                                gridFile.toUri(),
-                                gridFile.toUri(),
-                                listFile.toUri()
+                                cardFile,
+                                gridFile,
+                                gridFile,
+                                listFile
                             )
                         }
                         null

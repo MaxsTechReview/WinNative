@@ -1,15 +1,15 @@
 package com.winlator.cmod.feature.artwork
 
-import android.net.Uri
+import java.io.File
 
 data class GameArtworkInfo(
     val gameId: Int,
     val gameName: String,
     val gameStore: String,
-    val gameCardImageUri: Uri,
-    val gameGridImageUri: Uri,
-    val gameCarouselImageUri: Uri,
-    val gameListImageUri: Uri
+    val gameCardImageFile: File,
+    val gameGridImageFile: File,
+    val gameCarouselImageFile: File,
+    val gameListImageFile: File
 )
 
 
