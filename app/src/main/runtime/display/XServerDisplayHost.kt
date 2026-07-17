@@ -66,8 +66,8 @@ const val XSERVER_DRAWER_OPEN_TRIGGER_DP = 32
 const val XSERVER_DRAWER_OPEN_HORIZONTAL_RATIO = 2f
 
 private val DrawerMinWidth = 295.dp
-private val DrawerMaxWidth = 600.dp
-private const val DrawerWidthFraction = 0.35f
+private val DrawerMaxWidth = 960.dp
+private const val DrawerHeightFactor = 0.76f
 private val DrawerStartPadding = 6.dp
 private val DrawerVerticalPadding = 6.dp
 private const val DrawerSettleAnimationMs = 200
@@ -121,8 +121,9 @@ private fun XServerDisplayHost(
     val animationScope = rememberCoroutineScope()
     val density = LocalDensity.current
     val viewConfiguration = LocalViewConfiguration.current
+    val configuration = LocalConfiguration.current
     val drawerWidth =
-        (LocalConfiguration.current.screenWidthDp * DrawerWidthFraction).dp
+        (minOf(configuration.screenWidthDp, configuration.screenHeightDp) * DrawerHeightFactor).dp
             .coerceIn(DrawerMinWidth, DrawerMaxWidth)
     val closedFallbackPx = with(density) { -(drawerWidth + DrawerStartPadding).toPx() }
     var drawerOffsetPx by remember { mutableFloatStateOf(closedFallbackPx) }
