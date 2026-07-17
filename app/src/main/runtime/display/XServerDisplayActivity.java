@@ -684,8 +684,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (isFinishing() || isDestroyed()) return;
 
             RefreshRateUtils.applyPreferredRefreshRate(this, getRefreshRateOverride(), runtimeFpsLimit);
-            // Read the live mode back rather than the requested rate; the mode change lands asynchronously and can be refused.
-            if (xServer != null) xServer.setDisplayRefreshHz(RefreshRateUtils.getActiveRefreshRate(this));
         };
 
         if (Looper.myLooper() == Looper.getMainLooper()) {
@@ -732,11 +730,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private void handleDisplayCapabilitiesChanged() {
         if (isFinishing() || isDestroyed()) return;
-
-        // Keep the pacer's refresh rate current across seamless mode switches that don't cross the limit.
-        if (xServer != null) {
-            xServer.setDisplayRefreshHz(RefreshRateUtils.getActiveRefreshRate(this));
-        }
 
         int maxRate = RefreshRateUtils.getMaxSupportedRefreshRate(this);
         boolean maxChanged = maxRate != lastKnownMaxRefreshRate;
