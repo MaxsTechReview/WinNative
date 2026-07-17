@@ -1296,6 +1296,7 @@ public abstract class WineUtils {
       "FontCache3.0.0.0:3",
       "HTTP:3",
       "LanmanServer:3",
+      "MountMgr:2",
       "MSIServer:3",
       "NDIS:2",
       "nsiproxy:3",
@@ -1315,7 +1316,7 @@ public abstract class WineUtils {
       "wuauserv:3"
     };
     final List<String> controllerCriticalServices =
-        Arrays.asList("winebus", "winehid", "PlugPlay", "RpcSs");
+        Arrays.asList("winebus", "winehid", "MountMgr", "PlugPlay", "RpcSs");
     File systemRegFile = new File(container.getRootDir(), ".wine/system.reg");
     byte selection = 0;
     try {
@@ -1338,9 +1339,14 @@ public abstract class WineUtils {
         } else if (selection == 2) {
           value = 4;
         }
+        if (name.equalsIgnoreCase("NDIS")) {
+          name = "Ndis";
+          value = selection == 2 ? 4 : 2;
+        }
         registryEditor.setDwordValue(
             "System\\CurrentControlSet\\Services\\" + name, "Start", value);
         registryEditor.setDwordValue("System\\ControlSet001\\Services\\" + name, "Start", value);
+        registryEditor.setDwordValue("System\\ControlSet002\\Services\\" + name, "Start", value);
       }
       registryEditor.close();
     } finally {
