@@ -38,6 +38,10 @@ jobs:
             artifactName: apk-pubg
             gradleTask: assemblePubgDebug
             apkPath: app/build/outputs/apk/pubg/debug/pubg.apk
+          - name: Antunu
+            artifactName: apk-antunu
+            gradleTask: assembleAntunuDebug
+            apkPath: app/build/outputs/apk/antunu/debug/antunu.apk
 
     steps:
     - name: Clone repository
@@ -63,10 +67,20 @@ jobs:
         path: |
           app/.cxx
           app/build/intermediates/cxx
-        key: ndk-${{ matrix.flavor.name }}-${{ hashFiles('app/src/main/cpp/**', 'app/build.gradle', 'app/src/main/cpp/CMakeLists.txt') }}
+        key: ndk-${{ hashFiles('app/src/main/cpp/**', 'app/build.gradle', 'app/src/main/cpp/CMakeLists.txt') }}
         restore-keys: |
-          ndk-${{ matrix.flavor.name }}-
           ndk-
+
+    # Cargo target dir + registry sit outside the NDK cache paths; a cold Rust build dominates job time.
+    - name: Cache Rust Steam client
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          app/src/main/cpp/wn-steam-client/rust/target
+        key: cargo-${{ hashFiles('app/src/main/cpp/wn-steam-client/rust/Cargo.lock') }}
+        restore-keys: cargo-
 
     - name: Set up JDK 17
       uses: actions/setup-java@v5
@@ -82,6 +96,8 @@ jobs:
       with:
         validate-wrappers: true
         cache-cleanup: 'on-success'
+        # PRs restore the Gradle cache read-only; only main pushes write it.
+        cache-read-only: ${{ github.event_name == 'pull_request' }}
 
     - name: Decode keystore and build
       timeout-minutes: 15
@@ -144,6 +160,8 @@ jobs:
         path: artifacts/${{ matrix.flavor.artifactName }}/*.apk
         retention-days: 7
         if-no-files-found: error
+        # APK contents are already compressed; deflating ~560MB again wastes CPU.
+        compression-level: 0
 
   cleanup-caches:
     needs: build
@@ -158,7 +176,8 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh cache list --repo "$GITHUB_REPOSITORY" --json id,key,createdAt --limit 100 |
+        # Dedupe only main-scope caches so a newer PR-scoped twin can't get main's copy deleted.
+        gh cache list --repo "$GITHUB_REPOSITORY" --ref refs/heads/main --json id,key,createdAt --limit 100 |
           jq -r '
             group_by(.key | sub("-[a-f0-9]{20,}$"; ""))
             | .[]

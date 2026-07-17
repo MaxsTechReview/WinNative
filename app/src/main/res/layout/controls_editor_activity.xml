@@ -65,5 +65,15 @@
             android:id="@+id/BTColorPicker"
             style="@style/ToolButton.Dark"
             android:src="@drawable/pickercolorcontrol"  />
+
+        <ImageButton
+            android:id="@+id/BTAccentTheme"
+            style="@style/ToolButton.Dark"
+            android:src="@drawable/pickerthemecontrol"  />
+
+        <ImageButton
+            android:id="@+id/BTVisualStyle"
+            style="@style/ToolButton.Dark"
+            android:src="@drawable/icon_style"  />
     </LinearLayout>
 </FrameLayout>

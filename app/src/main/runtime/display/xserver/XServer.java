@@ -50,7 +50,7 @@ public class XServer {
   public final CursorLocker cursorLocker;
   private SHMSegmentManager shmSegmentManager;
   private VulkanRenderer renderer;
-  private final FramePaceClock framePaceClock = new FramePaceClock();
+  private volatile float displayRefreshHz = 0f;
   private WinHandler winHandler;
   private final EnumMap<Lockable, ReentrantLock> locks = new EnumMap<>(Lockable.class);
   private boolean relativeMouseMovement = false;
@@ -117,8 +117,13 @@ public class XServer {
     return renderer;
   }
 
-  public FramePaceClock getFramePaceClock() {
-    return framePaceClock;
+  /** Live panel rate in Hz; the frame pacer's fallback cap when no user limit is set. */
+  public float getDisplayRefreshHz() {
+    return displayRefreshHz;
+  }
+
+  public void setDisplayRefreshHz(float hz) {
+    displayRefreshHz = hz > 0f ? hz : 0f;
   }
 
   public GrabManager getGrabManager() {

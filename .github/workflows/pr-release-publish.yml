@@ -8,7 +8,8 @@ on:
       - completed
 
 concurrency:
-  group: pr-release-${{ github.event.workflow_run.id }}
+  # Serialize publishes of the same PR branch; per-run-id groups let them race each other.
+  group: pr-release-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: false
 
 jobs:
@@ -84,9 +85,11 @@ jobs:
             echo "standard=WinNative-Debug-Standard-${label}.apk"
             echo "ludashi=WinNative-Debug-Ludashi-${label}.apk"
             echo "pubg=WinNative-Debug-Pubg-${label}.apk"
+            echo "antunu=WinNative-Debug-Antunu-${label}.apk"
             echo "release_standard=WinNative-Debug-Standard-${release_label}.apk"
             echo "release_ludashi=WinNative-Debug-Ludashi-${release_label}.apk"
             echo "release_pubg=WinNative-Debug-Pubg-${release_label}.apk"
+            echo "release_antunu=WinNative-Debug-Antunu-${release_label}.apk"
           } >> "$GITHUB_OUTPUT"
 
       - name: Download PR build artifacts
@@ -95,9 +98,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p artifacts
-          gh run download "$RUN_ID" --repo "$SOURCE_REPO" --name apk-standard --dir artifacts/standard
-          gh run download "$RUN_ID" --repo "$SOURCE_REPO" --name apk-ludashi --dir artifacts/ludashi
-          gh run download "$RUN_ID" --repo "$SOURCE_REPO" --name apk-pubg --dir artifacts/pubg
+          # Download all flavors in parallel; the sequential form left the runner's network idle per transfer.
+          pids=()
+          for flavor in standard ludashi pubg antunu; do
+            gh run download "$RUN_ID" --repo "$SOURCE_REPO" --name "apk-$flavor" --dir "artifacts/$flavor" &
+            pids+=($!)
+          done
+          for pid in "${pids[@]}"; do
+            wait "$pid"
+          done
 
       - name: Build release notes from PR metadata
         if: ${{ steps.scope.outputs.allowed == 'true' }}
@@ -127,6 +136,7 @@ jobs:
           {
             printf '# PR #%s\n\n' "$PR_NUMBER"
             printf 'Title: %s\n\n' "$safe_title"
+            printf 'Author: @%s\n\n' "$pr_author"
             printf 'Source PR: %s\n' "$pr_url"
             printf 'Source branch: %s\n' "$head_ref"
             printf 'Source commit: `%s`\n' "$HEAD_SHA"
@@ -141,6 +151,7 @@ jobs:
             printf -- '%s\n' "- ${{ steps.apk.outputs.release_standard }}"
             printf -- '%s\n' "- ${{ steps.apk.outputs.release_ludashi }}"
             printf -- '%s\n' "- ${{ steps.apk.outputs.release_pubg }}"
+            printf -- '%s\n' "- ${{ steps.apk.outputs.release_antunu }}"
             printf '\nBuilt from source commit `%s`.\n' "$short_sha"
           } > release-notes.md
 
@@ -158,9 +169,20 @@ jobs:
           discord_marker='<!-- discord-posted -->'
           discord_posted=false
 
-          if gh release view "$tag" --repo "$TARGET_REPO" >/dev/null 2>&1; then
+          # A transient API error must not be read as "release doesn't exist" — that ends in
+          # a create over an existing tag (HTTP 422).
+          if view_out=$(gh api "repos/$TARGET_REPO/releases/tags/$tag" 2>&1); then
+            release_exists=true
+          elif printf '%s' "$view_out" | grep -qi 'Not Found'; then
+            release_exists=false
+          else
+            printf '%s\n' "$view_out"
+            exit 1
+          fi
+
+          if [ "$release_exists" = true ]; then
             created=false
-            existing_body=$(gh release view "$tag" --repo "$TARGET_REPO" --json body --jq '.body // ""')
+            existing_body=$(printf '%s' "$view_out" | jq -r '.body // ""')
             if printf '%s' "$existing_body" | grep -Fq "$discord_marker"; then
               discord_posted=true
               if ! grep -Fq "$discord_marker" release-notes.md; then
@@ -174,26 +196,38 @@ jobs:
               --prerelease
           else
             created=true
-            gh release create "$tag" \
+            if ! gh release create "$tag" \
               --repo "$TARGET_REPO" \
               --title "$title" \
               --notes-file release-notes.md \
-              --prerelease
+              --prerelease; then
+              # Another publish run created it between our check and the create — update instead.
+              created=false
+              gh release edit "$tag" \
+                --repo "$TARGET_REPO" \
+                --title "$title" \
+                --notes-file release-notes.md \
+                --prerelease
+            fi
           fi
 
           standard_path="artifacts/standard/${{ steps.apk.outputs.standard }}"
           ludashi_path="artifacts/ludashi/${{ steps.apk.outputs.ludashi }}"
           pubg_path="artifacts/pubg/${{ steps.apk.outputs.pubg }}"
+          antunu_path="artifacts/antunu/${{ steps.apk.outputs.antunu }}"
           release_standard_path="release-assets/${{ steps.apk.outputs.release_standard }}"
           release_ludashi_path="release-assets/${{ steps.apk.outputs.release_ludashi }}"
           release_pubg_path="release-assets/${{ steps.apk.outputs.release_pubg }}"
+          release_antunu_path="release-assets/${{ steps.apk.outputs.release_antunu }}"
           test -f "$standard_path"
           test -f "$ludashi_path"
           test -f "$pubg_path"
+          test -f "$antunu_path"
           mkdir -p release-assets
           cp "$standard_path" "$release_standard_path"
           cp "$ludashi_path" "$release_ludashi_path"
           cp "$pubg_path" "$release_pubg_path"
+          cp "$antunu_path" "$release_antunu_path"
 
           release_json=$(gh api "repos/$TARGET_REPO/releases/tags/$tag")
           existing_apk_assets=$(
@@ -231,6 +265,7 @@ jobs:
           upload_asset "$release_standard_path"
           upload_asset "$release_ludashi_path"
           upload_asset "$release_pubg_path"
+          upload_asset "$release_antunu_path"
 
           release_url=$(gh release view "$tag" --repo "$TARGET_REPO" --json url --jq '.url')
           {

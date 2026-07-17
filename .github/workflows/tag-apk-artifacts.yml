@@ -31,6 +31,10 @@ jobs:
             variant: Pubg
             gradleTask: assemblePubgDebug
             apkPath: app/build/outputs/apk/pubg/debug/pubg.apk
+          - name: Antunu
+            variant: Antunu
+            gradleTask: assembleAntunuDebug
+            apkPath: app/build/outputs/apk/antunu/debug/antunu.apk
 
     steps:
       - name: Clone repository
@@ -56,11 +60,20 @@ jobs:
           path: |
             app/.cxx
             app/build/intermediates/cxx
-          key: tag-ndk-${{ matrix.flavor.name }}-${{ hashFiles('app/src/main/cpp/**', 'app/build.gradle', 'app/src/main/cpp/CMakeLists.txt') }}
+          key: tag-ndk-${{ hashFiles('app/src/main/cpp/**', 'app/build.gradle', 'app/src/main/cpp/CMakeLists.txt') }}
           restore-keys: |
-            tag-ndk-${{ matrix.flavor.name }}-
             tag-ndk-
             ndk-
+
+      - name: Cache Rust Steam client
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            app/src/main/cpp/wn-steam-client/rust/target
+          key: cargo-${{ hashFiles('app/src/main/cpp/wn-steam-client/rust/Cargo.lock') }}
+          restore-keys: cargo-
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -124,3 +137,4 @@ jobs:
           path: artifacts/apk/*.apk
           retention-days: 30
           if-no-files-found: error
+          compression-level: 0

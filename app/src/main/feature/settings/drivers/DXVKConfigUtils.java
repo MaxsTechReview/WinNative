@@ -19,19 +19,8 @@ public final class DXVKConfigUtils {
     }
 
     public static void setEnvVars(Context context, KeyValueSet config, EnvVars envVars) {
-        setEnvVars(context, config, envVars, 0);
-    }
-
-    public static void setEnvVars(Context context, KeyValueSet config, EnvVars envVars, int refreshRateOverride) {
-        String content = "";
-
-        if (refreshRateOverride > 0) {
-            String rateStr = String.valueOf(refreshRateOverride);
-            content += "dxgi.syncInterval = 0; ";
-            content += "dxgi.maxFrameRate = " + rateStr + "; ";
-            content += "d3d9.maxFrameRate = " + rateStr;
-            envVars.put("DXVK_FRAME_RATE", rateStr);
-        }
+        // Read once at guest start, so the gate comes off unconditionally or the pacer can never rise above the panel rate mid-session.
+        String content = "dxgi.syncInterval = 0; d3d9.presentInterval = 0";
 
         String async = config.get("async");
         if (!async.isEmpty() && !async.equals("0")) {

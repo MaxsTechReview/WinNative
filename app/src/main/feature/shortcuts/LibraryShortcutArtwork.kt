@@ -20,6 +20,16 @@ object LibraryShortcutArtwork {
         LIST("customLibraryListArtPath", "list"),
     }
 
+    // GRID holds the shared image; the others are read only so pre-merge images survive.
+    private val ICON_ART_SLOTS =
+        listOf(LibraryArtworkSlot.GRID, LibraryArtworkSlot.CAROUSEL, LibraryArtworkSlot.LIST)
+
+    @JvmStatic
+    fun findIconArtworkPath(shortcut: Shortcut): String? =
+        ICON_ART_SLOTS
+            .map { shortcut.getExtra(it.extraKey) }
+            .firstOrNull { it.isNotBlank() && File(it).isFile }
+
     @JvmStatic
     fun ensureShortcutUuid(shortcut: Shortcut): String {
         if (shortcut.getExtra("uuid").isEmpty()) {

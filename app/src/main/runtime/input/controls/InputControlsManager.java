@@ -25,12 +25,14 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 public class InputControlsManager {
-  private static final int ASSET_PROFILE_SYNC_REVISION = 6;
+  private static final int ASSET_PROFILE_SYNC_REVISION = 8;
   public static final int LAST_BUILTIN_PROFILE_ID = 8;
   public static final int VIRTUAL_GAMEPAD_BUILTIN_ID = 3;
   public static final int GAMEHUB_LAYOUT_BUILTIN_ID = 7;
-  public static final int LEGACY_PS_PROFILE_ID = 4;
-  public static final int LEGACY_XBOX_PROFILE_ID = 5;
+  // Retired bundled layout ids whose installed copies are removed on sync.
+  private static final int[] RETIRED_PROFILE_IDS = {4, 5};
+  // Bundled layouts replaced in this revision: reinstall pristine copies once.
+  private static final int[] REFRESHED_PROFILE_IDS = {8};
 
   private final Context context;
   private ArrayList<ControlsProfile> profiles;
@@ -39,11 +41,6 @@ public class InputControlsManager {
 
   public static boolean isBuiltinProfile(ControlsProfile profile) {
     return profile != null && profile.id <= LAST_BUILTIN_PROFILE_ID;
-  }
-
-  public static boolean isLegacyLabelOnlyProfile(ControlsProfile profile) {
-    if (profile == null) return false;
-    return profile.id == LEGACY_PS_PROFILE_ID || profile.id == LEGACY_XBOX_PROFILE_ID;
   }
 
   public InputControlsManager(Context context) {
@@ -123,6 +120,14 @@ public class InputControlsManager {
         .putInt("inputcontrols_app_version", newVersion)
         .putInt("inputcontrols_asset_sync_revision", ASSET_PROFILE_SYNC_REVISION)
         .apply();
+
+    for (int id : RETIRED_PROFILE_IDS) {
+      ControlsProfile.getProfileFile(context, id).delete();
+      getBackupFile(context, id).delete();
+    }
+    for (int id : REFRESHED_PROFILE_IDS) {
+      ControlsProfile.getProfileFile(context, id).delete();
+    }
 
     try {
       AssetManager assetManager = context.getAssets();
