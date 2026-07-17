@@ -849,7 +849,6 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 data.put("fexcoreVersion", fexcoreVersion)
                 data.put("fexcorePreset", fexcorePreset)
                 data.put("desktopTheme", desktopTheme)
-                data.put("swapRB", if (state.selectedSurfaceEffect.intValue == 1) "1" else "0")
                 data.put("wineVersion", selectedWineStr)
                 data.put("midiSoundFont", midiSoundFont)
                 data.put("lc_all", state.lcAll.value)
@@ -860,6 +859,12 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
 
                 ContainerCreation.createContainerAsync(manager, contentsManager, data) { newContainer ->
                     if (newContainer != null) {
+                        // Container.loadData() ignores unknown top-level keys, so extras must be set post-creation.
+                        newContainer.putExtra(
+                            "swapRB",
+                            if (state.selectedSurfaceEffect.intValue == 1) "1" else "0"
+                        )
+                        newContainer.saveData()
                         saveMouseWarpOverride(newContainer)
                     } else {
                         WinToast.show(context, R.string.setup_wizard_unable_to_install_system_files)

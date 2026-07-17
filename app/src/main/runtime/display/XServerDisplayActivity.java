@@ -7013,9 +7013,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         renderer.setPresentMode(VulkanRenderer.parsePresentMode(
                 graphicsDriverConfig != null ? graphicsDriverConfig.get("compositorPresentMode") : null));
 
-        boolean swapRB = shortcut != null ? shortcut.getExtra("swapRB", "0").equals("1")
-                         : (container != null && container.getExtra("swapRB", "0").equals("1"));
-        renderer.setSwapRB(swapRB);
+        String containerSwapRB = container != null ? container.getExtra("swapRB", "0") : "0";
+        renderer.setSwapRB("1".equals(getShortcutSetting("swapRB", containerSwapRB)));
 
         if (shortcut != null || (bootExePath != null && !bootExePath.isEmpty())) {
             renderer.setUnviewableWMClasses("explorer.exe");
