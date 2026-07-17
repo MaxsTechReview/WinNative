@@ -627,12 +627,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private int getRefreshRateOverride() {
         int perGameRate = getPerGameRefreshRateOverride();
-        return perGameRate > 0 ? perGameRate : getGlobalRefreshRateOverride();
+        if (perGameRate > 0) return perGameRate;
+        int containerRate = getContainerRefreshRateOverride();
+        return containerRate > 0 ? containerRate : getGlobalRefreshRateOverride();
     }
 
     private int getPerGameRefreshRateOverride() {
         if (shortcut == null) return 0;
         return parsePositiveInt(shortcut.getExtra("refreshRate", ""));
+    }
+
+    private int getContainerRefreshRateOverride() {
+        if (container == null) return 0;
+        return parsePositiveInt(container.getExtra("refreshRate", ""));
     }
 
     private int getGlobalRefreshRateOverride() {

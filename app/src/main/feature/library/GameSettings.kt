@@ -1283,15 +1283,13 @@ private fun GeneralSection(
                     onSelected = { state.selectedScreenSize.intValue = it }
                 )
             }
-            if (!isContainer) {
-                Box(Modifier.weight(1f)) {
-                    SettingDropdown(
-                        label = stringResource(R.string.settings_general_refresh_rate),
-                        entries = state.refreshRateEntries.value,
-                        selectedIndex = state.selectedRefreshRate.intValue,
-                        onSelected = { state.selectedRefreshRate.intValue = it }
-                    )
-                }
+            Box(Modifier.weight(1f)) {
+                SettingDropdown(
+                    label = stringResource(R.string.settings_general_refresh_rate),
+                    entries = state.refreshRateEntries.value,
+                    selectedIndex = state.selectedRefreshRate.intValue,
+                    onSelected = { state.selectedRefreshRate.intValue = it }
+                )
             }
         }
 

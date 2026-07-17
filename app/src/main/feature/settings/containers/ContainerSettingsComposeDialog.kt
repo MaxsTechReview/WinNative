@@ -44,9 +44,11 @@ import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.runtime.content.ContentsManager
 import com.winlator.cmod.feature.settings.DXVKConfigUtils
 import com.winlator.cmod.feature.settings.GraphicsDriverConfigUtils
+import com.winlator.cmod.feature.settings.OtherSettingsFragment
 import com.winlator.cmod.feature.settings.WineD3DConfigUtils
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.android.DirectoryPickerDialog
+import com.winlator.cmod.shared.android.RefreshRateUtils
 import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.io.AssetPaths
 import com.winlator.cmod.runtime.wine.EnvVars
@@ -507,6 +509,20 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         state.screenSizeEntries.value = screenSizeArr
         selectScreenSize(c?.getScreenSize() ?: Container.DEFAULT_SCREEN_SIZE)
 
+        try {
+            val refreshEntries = OtherSettingsFragment.buildRefreshRateEntries(activity)
+            state.refreshRateEntries.value = refreshEntries
+            val savedRate = c?.getExtra("refreshRate", "0")
+            if (savedRate.isNullOrEmpty() || savedRate == "0") {
+                state.selectedRefreshRate.intValue = 0
+            } else {
+                val idx = refreshEntries.indexOfFirst { it == "$savedRate Hz" }
+                state.selectedRefreshRate.intValue = if (idx >= 0) idx else 0
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading refresh rate entries", e)
+        }
+
         val graphicsDriverArr = context.resources.getStringArray(R.array.graphics_driver_entries).toList()
         state.graphicsDriverEntries.value = graphicsDriverArr
         selectByIdentifier(
@@ -793,6 +809,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             c.setDXWrapper(dxwrapper)
             c.setDXWrapperConfig(dxwrapperConfig)
             c.putExtra("swapRB", if (state.selectedSurfaceEffect.intValue == 1) "1" else "0")
+            c.putExtra("refreshRate", getRefreshRateFromState())
             c.setAudioDriver(audioDriver)
             c.setEmulator(emulator)
             c.setEmulator64(emulator64)
@@ -860,6 +877,11 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
 
                 ContainerCreation.createContainerAsync(manager, contentsManager, data) { newContainer ->
                     if (newContainer != null) {
+                        // Container.loadData() ignores unknown top-level keys, so extras must be set post-creation.
+                        getRefreshRateFromState()?.let {
+                            newContainer.putExtra("refreshRate", it)
+                            newContainer.saveData()
+                        }
                         saveMouseWarpOverride(newContainer)
                     } else {
                         WinToast.show(context, R.string.setup_wizard_unable_to_install_system_files)
@@ -1389,6 +1411,15 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 state.customHeight.value = parts[1]
             }
         }
+    }
+
+    /** Selected rate, or null for "Default" — stored as key absence so it falls through to the phone's auto rate. */
+    private fun getRefreshRateFromState(): String? {
+        val entries = state.refreshRateEntries.value
+        val idx = state.selectedRefreshRate.intValue
+        if (idx !in entries.indices) return null
+        val rate = RefreshRateUtils.parseRefreshRateLabel(entries[idx])
+        return if (rate > 0) rate.toString() else null
     }
 
     private fun getScreenSizeFromState(): String {
