@@ -66,8 +66,8 @@ const val XSERVER_DRAWER_OPEN_TRIGGER_DP = 32
 const val XSERVER_DRAWER_OPEN_HORIZONTAL_RATIO = 2f
 
 private val DrawerMinWidth = 295.dp
-private val DrawerMaxWidth = 460.dp
-private const val DrawerWidthFraction = 0.30f
+private val DrawerMaxWidth = 600.dp
+private const val DrawerWidthFraction = 0.35f
 private val DrawerStartPadding = 6.dp
 private val DrawerVerticalPadding = 6.dp
 private const val DrawerSettleAnimationMs = 200
