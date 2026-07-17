@@ -1240,6 +1240,7 @@
     <string name="input_controls_editor_radial_menu">Радіальне меню</string>
     <string name="input_controls_editor_radial_menu_options">Параметри радіального меню</string>
     <string name="input_controls_tap_to_click">Торкання для кліку</string>
+    <string name="input_controls_reverse_binding_order">Зворотний порядок призначень</string>
     <string name="num_controllers">Кількість контролерів</string>
     <string name="session_drawer_controls_section">Керування</string>
     <string name="session_drawer_header_subtitle">Швидкий доступ до керування, накладень та інструментів сесії</string>

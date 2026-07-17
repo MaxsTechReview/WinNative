@@ -1241,6 +1241,7 @@
     <string name="setup_wizard_creating_container">กำลังสร้าง…</string>
 
     <string name="input_controls_tap_to_click">แตะเพื่อคลิก</string>
+    <string name="input_controls_reverse_binding_order">สลับลำดับการผูกปุ่ม</string>
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">การอนุญาต</string>
     <string name="steam_login_sign_in_to_your_account">ลงชื่อเข้าใช้บัญชีของคุณ</string>

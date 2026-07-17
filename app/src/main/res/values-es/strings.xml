@@ -1234,6 +1234,7 @@ Ruta instalada:
     <string name="input_controls_editor_radial_menu">Menú radial</string>
     <string name="input_controls_editor_radial_menu_options">Opciones del menú radial</string>
     <string name="input_controls_tap_to_click">Toca para hacer clic</string>
+    <string name="input_controls_reverse_binding_order">Invertir orden de asignaciones</string>
     <string name="num_controllers">Número de mandos</string>
     <string name="session_drawer_controls_section">Controles</string>
     <string name="session_drawer_header_subtitle">Acceso rápido a controles, superposiciones y herramientas de sesión</string>

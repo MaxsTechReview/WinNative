@@ -1234,6 +1234,7 @@ Installierter Pfad:
     <string name="input_controls_editor_radial_menu">Radialmenü</string>
     <string name="input_controls_editor_radial_menu_options">Radialmenü-Optionen</string>
     <string name="input_controls_tap_to_click">Tippen zum Klicken</string>
+    <string name="input_controls_reverse_binding_order">Bindungen in umgekehrter Reihenfolge</string>
     <string name="num_controllers">Anzahl der Controller</string>
     <string name="session_drawer_controls_section">Steuerung</string>
     <string name="session_drawer_header_subtitle">Schnellzugriff auf Steuerung, Overlays und Sitzungswerkzeuge</string>

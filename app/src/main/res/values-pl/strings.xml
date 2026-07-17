@@ -1240,6 +1240,7 @@ Zainstalowana ścieżka:
     <string name="input_controls_editor_radial_menu">Menu radialne</string>
     <string name="input_controls_editor_radial_menu_options">Opcje menu radialnego</string>
     <string name="input_controls_tap_to_click">Dotknij, aby kliknąć</string>
+    <string name="input_controls_reverse_binding_order">Odwróć kolejność przypisań</string>
     <string name="num_controllers">Liczba kontrolerów</string>
     <string name="session_drawer_controls_section">Sterowanie</string>
     <string name="session_drawer_header_subtitle">Szybki dostęp do sterowania, nakładek i narzędzi sesji</string>

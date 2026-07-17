@@ -1234,6 +1234,7 @@ Installeret sti:
     <string name="input_controls_editor_radial_menu">Radialmenu</string>
     <string name="input_controls_editor_radial_menu_options">Radialmenupunkter</string>
     <string name="input_controls_tap_to_click">Tryk for at klikke</string>
+    <string name="input_controls_reverse_binding_order">Omvendt rækkefølge for bindinger</string>
     <string name="num_controllers">Antal controllere</string>
     <string name="session_drawer_controls_section">Kontroller</string>
     <string name="session_drawer_header_subtitle">Hurtig adgang til kontroller, overlays og sessionsværktøjer</string>

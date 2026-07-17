@@ -1234,6 +1234,7 @@ Cale instalata:
     <string name="input_controls_editor_radial_menu">Meniu radial</string>
     <string name="input_controls_editor_radial_menu_options">Opțiuni meniu radial</string>
     <string name="input_controls_tap_to_click">Atingere pentru clic</string>
+    <string name="input_controls_reverse_binding_order">Inversează ordinea asocierilor</string>
     <string name="num_controllers">Număr de controlere</string>
     <string name="session_drawer_controls_section">Controale</string>
     <string name="session_drawer_header_subtitle">Acces rapid la controale, suprapuneri și instrumente de sesiune</string>

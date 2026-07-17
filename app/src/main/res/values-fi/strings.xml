@@ -1241,6 +1241,7 @@ Asennuspolku:
     <string name="setup_wizard_creating_container">Luodaan…</string>
 
     <string name="input_controls_tap_to_click">Napauta klikataksesi</string>
+    <string name="input_controls_reverse_binding_order">Käänteinen sidontajärjestys</string>
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">Valtuutus</string>
     <string name="steam_login_sign_in_to_your_account">Kirjaudu tilillesi</string>

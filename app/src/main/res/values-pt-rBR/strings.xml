@@ -1234,6 +1234,7 @@ Caminho instalado:
     <string name="input_controls_editor_radial_menu">Menu Radial</string>
     <string name="input_controls_editor_radial_menu_options">Opções do Menu Radial</string>
     <string name="input_controls_tap_to_click">Toque para Clicar</string>
+    <string name="input_controls_reverse_binding_order">Inverter ordem das associações</string>
     <string name="num_controllers">Número de Controles</string>
     <string name="session_drawer_controls_section">Controles</string>
     <string name="session_drawer_header_subtitle">Acesso rápido a controles, sobreposições e ferramentas de sessão</string>

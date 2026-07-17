@@ -1234,6 +1234,7 @@
     <string name="input_controls_editor_radial_menu">径向菜单</string>
     <string name="input_controls_editor_radial_menu_options">径向菜单选项</string>
     <string name="input_controls_tap_to_click">轻触点击</string>
+    <string name="input_controls_reverse_binding_order">反向绑定顺序</string>
     <string name="num_controllers">手柄数量</string>
     <string name="session_drawer_controls_section">控制</string>
     <string name="session_drawer_header_subtitle">快速访问控制、悬浮层和会话工具</string>

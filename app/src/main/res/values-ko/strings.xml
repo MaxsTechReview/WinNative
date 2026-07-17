@@ -1235,6 +1235,7 @@
     <string name="input_controls_editor_radial_menu">방사형 메뉴</string>
     <string name="input_controls_editor_radial_menu_options">방사형 메뉴 옵션</string>
     <string name="input_controls_tap_to_click">탭하여 클릭</string>
+    <string name="input_controls_reverse_binding_order">바인딩 순서 반대로</string>
     <string name="num_controllers">컨트롤러 수</string>
     <string name="session_drawer_controls_section">컨트롤</string>
     <string name="session_drawer_header_subtitle">컨트롤, 오버레이 및 세션 도구 빠른 접근</string>

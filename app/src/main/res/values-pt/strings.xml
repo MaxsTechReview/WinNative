@@ -1241,6 +1241,7 @@ Caminho instalado:
     <string name="setup_wizard_creating_container">A criar…</string>
 
     <string name="input_controls_tap_to_click">Tocar para Clicar</string>
+    <string name="input_controls_reverse_binding_order">Inverter ordem das associações</string>
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">Autorização</string>
     <string name="steam_login_sign_in_to_your_account">Inicie sessão na sua conta</string>

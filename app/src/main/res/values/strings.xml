@@ -1244,6 +1244,7 @@ Installed path:
     <string name="setup_wizard_creating_container">Creating\u2026</string>
 
     <string name="input_controls_tap_to_click">Tap to Click</string>
+    <string name="input_controls_reverse_binding_order">Reverse order bindings</string>
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">Authorization</string>
     <string name="steam_login_sign_in_to_your_account">Sign in to your account</string>

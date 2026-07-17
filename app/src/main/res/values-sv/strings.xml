@@ -1241,6 +1241,7 @@ Installerad sökväg:
     <string name="setup_wizard_creating_container">Skapar…</string>
 
     <string name="input_controls_tap_to_click">Tryck för att klicka</string>
+    <string name="input_controls_reverse_binding_order">Omvänd ordning för bindningar</string>
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">Auktorisering</string>
     <string name="steam_login_sign_in_to_your_account">Logga in på ditt konto</string>

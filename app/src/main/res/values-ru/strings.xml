@@ -1020,6 +1020,7 @@
     <string name="setup_wizard_create_container">Создать контейнер</string>
     <string name="setup_wizard_creating_container">Создание\u2026</string>
     <string name="input_controls_tap_to_click">Касание для клика</string>
+    <string name="input_controls_reverse_binding_order">Обратный порядок привязок</string>
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">Авторизация</string>
     <string name="steam_login_sign_in_to_your_account">Войдите в свою учетную запись</string>

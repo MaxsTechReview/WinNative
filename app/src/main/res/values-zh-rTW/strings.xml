@@ -1234,6 +1234,7 @@
     <string name="input_controls_editor_radial_menu">放射狀選單</string>
     <string name="input_controls_editor_radial_menu_options">放射狀選單選項</string>
     <string name="input_controls_tap_to_click">點觸即按</string>
+    <string name="input_controls_reverse_binding_order">反向綁定顺序</string>
     <string name="num_controllers">控制器數量</string>
     <string name="session_drawer_controls_section">控制</string>
     <string name="session_drawer_header_subtitle">快速存取控制、覆蓋層及工作階段工具</string>

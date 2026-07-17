@@ -3747,10 +3747,22 @@ return boundingBox;
         && (binding == Binding.GAMEPAD_BUTTON_L3 || binding == Binding.GAMEPAD_BUTTON_R3);
   }
 
-  private void dispatchButtonBinding(Binding primary, Binding secondary, boolean pressed) {
-    inputControlsView.handleInputEvent(primary, pressed);
-    if (secondary != Binding.NONE && secondary != primary) {
-      inputControlsView.handleInputEvent(secondary, pressed);
+  private void dispatchButtonBinding(boolean pressed) {
+    // Fire every configured binding slot, in slot order, skipping NONE and duplicates.
+    Binding[] ordered = new Binding[bindings.length];
+    int count = 0;
+    for (int i = 0; i < bindings.length; i++) {
+      Binding binding = bindings[i];
+      if (binding == Binding.NONE) continue;
+      boolean dup = false;
+      for (int k = 0; k < count; k++) if (ordered[k] == binding) { dup = true; break; }
+      if (!dup) ordered[count++] = binding;
+    }
+    // Press keeps slot order; release reverses when the toggle is on (combo release order).
+    if (!pressed && inputControlsView.isReverseBindingOrder()) {
+      for (int i = count - 1; i >= 0; i--) inputControlsView.handleInputEvent(ordered[i], false);
+    } else {
+      for (int i = 0; i < count; i++) inputControlsView.handleInputEvent(ordered[i], pressed);
     }
   }
 
@@ -3771,7 +3783,7 @@ return boundingBox;
       if (type == Type.BUTTON) {
         if (isKeepButtonPressedAfterMinTime()) touchTime = System.currentTimeMillis();
         if (!toggleSwitch || !selected) {
-          dispatchButtonBinding(getBindingAt(0), getBindingAt(1), true);
+          dispatchButtonBinding(true);
         }
         inputControlsView.invalidate();
         return true;
@@ -4026,21 +4038,19 @@ return boundingBox;
     if (pointerId != currentPointerId) return false;
 
     if (type == Type.BUTTON) {
-      final Binding binding = getBindingAt(0);
-      final Binding bindingSecondary = getBindingAt(1);
       if (isKeepButtonPressedAfterMinTime() && touchTime != null) {
         long held = System.currentTimeMillis() - (long) touchTime;
         long delay = Math.max(0L, BUTTON_MIN_TIME_TO_KEEP_PRESSED - held);
         inputControlsView.postDelayed(
             () -> {
-              dispatchButtonBinding(binding, bindingSecondary, false);
+              dispatchButtonBinding(false);
               inputControlsView.invalidate();
             },
             delay);
         touchTime = null;
       } else {
         if (!toggleSwitch || selected) {
-          dispatchButtonBinding(binding, bindingSecondary, false);
+          dispatchButtonBinding(false);
         }
         if (toggleSwitch) selected = !selected;
       }
