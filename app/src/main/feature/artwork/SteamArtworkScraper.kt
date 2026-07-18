@@ -16,79 +16,7 @@ import com.winlator.cmod.runtime.content.Downloader
 class SteamArtworkScraper() : ArtworkScraper() {
 
     private val client = OkHttpClient()
-    private val steamArtworkUrl = "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/"
-
-    private suspend fun downloadGameAssets(gameId: Int): GameArtworkInfo? =
-        withContext(Dispatchers.IO) {
-            try {
-                Environment.getDownloadCacheDirectory()
-                val storagePath = String.format("%s/WinNative/%s", Environment.getExternalStorageDirectory().toString(), gameId)
-                val request = Request.Builder()
-                    .url(String.format("https://www.steamgriddb.com/api/public/game/%s", gameId.toString()))
-                    .header("User-Agent", "WinNative/1.0")
-                    .header("Accept", "application/json, text/plain, */*")
-                    .header("Accept-Language", "en-US,en;q=0.9")
-                    .header("Connection", "keep-alive")
-                    .header("Referer", "https://www.steamgriddb.com/game/")
-                    .header("Sec-Fetch-Dest", "empty")
-                    .header("Sec-Fetch-Mode", "cors")
-                    .header("Sec-Fetch-Site", "same-origin")
-                    .header("TE", "trailers")
-                    .build()
-
-                client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) throw IOException("Unexpected code $response")
-                    val json = JSONObject(response.body.string())
-                    if (!json.getBoolean("success"))
-                        throw IOException("Status not successful $response")
-                    val data = json.optJSONObject("data")
-                    val steam = data?.optJSONObject("platforms")?.optJSONObject("steam")
-                    val steamGameId = steam?.getString("id")
-                    val metadata = steam?.optJSONObject("metadata")
-                    val gameName = json.optJSONObject("data")?.optJSONObject("game")?.getString("name") ?: ""
-
-                    metadata?.let {
-                        val gameListFilename = metadata.optJSONObject("header_image_full")?.getString("english")
-                        var gameCardFilename = metadata.optJSONObject("library_hero_full")?.optJSONObject("image2x")?.getString("english")
-                        if (gameCardFilename == null) {
-                            gameCardFilename = metadata.optJSONObject("library_hero_full")?.optJSONObject("image")?.getString("english")
-                        }
-                        var gameGridFilename = metadata.optJSONObject("library_capsule_full")?.optJSONObject("image2x")?.getString("english")
-                        if (gameGridFilename == null) {
-                            gameGridFilename = metadata.optJSONObject("library_capsule_full")?.optJSONObject("image")?.getString("english")
-                        }
-
-                        val gameCardUrl = String.format("%s/%s/%s", steamArtworkUrl, steamGameId, gameCardFilename)
-                        val gameListUrl = String.format("%s/%s/%s", steamArtworkUrl, steamGameId, gameListFilename)
-                        val gameGridUrl = String.format("%s/%s/%s", steamArtworkUrl, steamGameId, gameGridFilename)
-
-                        val cardFile = File(String.format("%s_%s", storagePath, gameCardFilename))
-                        val gridFile = File(String.format("%s_%s", storagePath, gameGridFilename))
-                        val listFile = File(String.format("%s_%s", storagePath, gameListFilename))
-
-                        val cardDownload = Downloader.downloadFile(gameCardUrl, cardFile, null)
-                        val gridDownload = Downloader.downloadFile(gameListUrl, listFile, null)
-                        val listDownload = Downloader.downloadFile(gameGridUrl, gridFile, null)
-
-                        if (gridDownload && listDownload && cardDownload) {
-                            return@withContext GameArtworkInfo(
-                                gameId,
-                                gameName,
-                                "steam",
-                                cardFile,
-                                gridFile,
-                                gridFile,
-                                listFile
-                            )
-                        }
-                        null
-                    }
-                }
-            } catch (e: Exception) {
-                null
-            }
-        }
-
+    private val baseSteamArtworkUrl = "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps"
     private suspend fun getGameId(gameName: String): Int? =
         withContext(Dispatchers.IO) {
             try {
@@ -135,16 +63,68 @@ class SteamArtworkScraper() : ArtworkScraper() {
                 null
             }
         }
-
-    override suspend fun getGameArtwork(gameName: String): GameArtworkInfo? =
+    private suspend fun downloadGameAssets(gameName: String): MutableMap<String, File> =
         withContext(Dispatchers.IO) {
+            val results = mutableMapOf<String, File>()
             try {
                 val gameId = getGameId(gameName)
-                gameId?.let {
-                    return@withContext downloadGameAssets(gameId)
+                val storagePath = String.format("%s/WinNative/%s", Environment.getExternalStorageDirectory().toString(), gameId)
+                val request = Request.Builder()
+                    .url(String.format("https://www.steamgriddb.com/api/public/game/%s", gameId.toString()))
+                    .header("User-Agent", "WinNative/1.0")
+                    .header("Accept", "application/json, text/plain, */*")
+                    .header("Accept-Language", "en-US,en;q=0.9")
+                    .header("Connection", "keep-alive")
+                    .header("Referer", "https://www.steamgriddb.com/game/")
+                    .header("Sec-Fetch-Dest", "empty")
+                    .header("Sec-Fetch-Mode", "cors")
+                    .header("Sec-Fetch-Site", "same-origin")
+                    .header("TE", "trailers")
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) throw IOException("Unexpected code $response")
+                    val json = JSONObject(response.body.string())
+                    if (!json.getBoolean("success"))
+                        throw IOException("Status not successful $response")
+                    val data = json.optJSONObject("data")
+                    val steam = data?.optJSONObject("platforms")?.optJSONObject("steam")
+                    val steamGameId = steam?.getString("id")
+                    val metadata = steam?.optJSONObject("metadata")
+                    metadata?.let {
+                        val steamArtworkUrl =
+                            String.format("%s/%s", baseSteamArtworkUrl, steamGameId)
+                        val assets = mapOf(
+                            "hero" to "library_hero_full",
+                            "grid" to "library_capsule_full",
+                            "carousel" to "header_image_full",
+                            "list" to "header_image_full"
+                        )
+                        assets.forEach { (key, value) ->
+                            var filename: String? = null
+                            runCatching {
+                                filename = metadata.optJSONObject(value)?.getString("english")
+                            }.onFailure {
+                                filename = metadata.optJSONObject(value)?.optJSONObject("image")
+                                    ?.getString("english")
+                            }
+                            if (filename == null) return@forEach
+                            val fileUrl = String.format("%s/%s", steamArtworkUrl, filename)
+                            val fileHandle =
+                                File(String.format("%s_%s", storagePath, filename.replace("/", "")))
+                            if (Downloader.downloadFile(fileUrl, fileHandle, null))
+                                results[key] = fileHandle
+                        }
+                    }
+                    return@withContext results
                 }
             } catch (e: Exception) {
-                null
+                return@withContext results
             }
+        }
+
+    override suspend fun getGameArtwork(gameName: String): MutableMap<String, File> =
+        withContext(Dispatchers.IO) {
+            return@withContext downloadGameAssets(gameName)
         }
     }

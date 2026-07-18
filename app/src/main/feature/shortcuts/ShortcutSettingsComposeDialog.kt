@@ -242,25 +242,22 @@ class ShortcutSettingsComposeDialog private constructor(
                 Toast.makeText(context, context.getString(R.string.library_games_scraping_artwork), Toast.LENGTH_LONG).show()
                 CoroutineScope(Dispatchers.IO).launch {
                     val artworkInfo = SteamArtworkScraper().getGameArtwork(gameName)
-                    if (artworkInfo != null) {
+                    if (!artworkInfo.isEmpty()) {
                         clearLibraryArtworkSlots(getLibraryArtworkSlots(LibraryArtworkTarget.ICON_ART))
                         clearLibraryArtworkSlots(getLibraryArtworkSlots(LibraryArtworkTarget.GAME_CARD))
-
-                        saveScrapedLibraryArtwork(artworkInfo.gameCardImageFile.toUri(), LibraryShortcutArtwork.LibraryArtworkSlot.GAME_CARD)
-                        saveScrapedLibraryArtwork(artworkInfo.gameListImageFile.toUri(), LibraryShortcutArtwork.LibraryArtworkSlot.LIST)
-                        saveScrapedLibraryArtwork(artworkInfo.gameCarouselImageFile.toUri(), LibraryShortcutArtwork.LibraryArtworkSlot.CAROUSEL)
-                        saveScrapedLibraryArtwork(artworkInfo.gameGridImageFile.toUri(), LibraryShortcutArtwork.LibraryArtworkSlot.GRID)
-
+                        artworkInfo.forEach { (slotSuffix, file) ->
+                            val librarySlot = LibraryShortcutArtwork.LibraryArtworkSlot.entries.find {it.fileSuffix == slotSuffix}
+                            if (librarySlot == null)
+                                return@forEach
+                            saveScrapedLibraryArtwork(file.toUri(), librarySlot)
+                            file.delete()
+                        }
                         withContext(Dispatchers.Main) {
                             Toast.makeText(context, context.getString(R.string.common_ui_done), Toast.LENGTH_LONG).show()
                             shouldRefreshLibraryOnSave = true
                             syncLibraryArtworkState()
                             emitLibraryRefreshIfNeeded()
                         }
-                        artworkInfo.gameCardImageFile.delete()
-                        artworkInfo.gameListImageFile.delete()
-                        artworkInfo.gameCarouselImageFile.delete()
-                        artworkInfo.gameGridImageFile.delete()
                     } else {
                         withContext(Dispatchers.Main) {
                             Toast.makeText(context, context.getString(R.string.common_ui_failed), Toast.LENGTH_LONG).show()
