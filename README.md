@@ -22,7 +22,7 @@ Designed for enthusiasts and power users, WinNative delivers the full Winlator e
 2. **Variants:**
    - `Ludashi`: Forces both Max GPU and CPU clocks on some devices. (Performance Mode trigger).
    - `Vanilla`: Standard package name for side-loading with other forks.
-   -  `Antutu`: Forces Max GPU clocks on most devices. (antunu benchmark spoof)
+   -  `Antutu`: Forces Max GPU clocks on most devices. (antutu benchmark spoof)
    -  `Pubg`: Standard pubg package name which allows some Game Booster advanced Features.
 3. **Setup:** Launch the app, allow the ImageFS to install, and start adding your games manually or sync your library. 
 

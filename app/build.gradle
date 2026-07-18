@@ -167,7 +167,7 @@ android {
             dimension "branding"
             applicationId "com.tencent.ig"
         }
-        antunu {
+        antutu {
             dimension "branding"
             applicationId "com.antutu.ABenchMark"
         }

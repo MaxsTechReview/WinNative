@@ -345,7 +345,10 @@
     <string name="input_controls_editor_shape">Forma</string>
     <string name="input_controls_editor_type">Tipo</string>
     <string name="input_controls_editor_binding">Asignación</string>
+    <string name="binding_primary">Asignación principal</string>
     <string name="binding_secondary">Asignación secundaria</string>
+    <string name="binding_third">Asignación terciaria</string>
+    <string name="binding_fourth">Asignación cuaternaria</string>
     <string name="input_controls_editor_binding_up">Asignación arriba</string>
     <string name="input_controls_editor_binding_right">Asignación derecha</string>
     <string name="input_controls_editor_binding_down">Asignación abajo</string>
@@ -1241,6 +1244,7 @@ Ruta instalada:
     <string name="setup_wizard_creating_container">Creando…</string>
 
     <string name="input_controls_tap_to_click">Toca para hacer clic</string>
+    <string name="input_controls_reverse_binding_order">Invertir orden de asignaciones</string>
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">Autorización</string>
     <string name="steam_login_sign_in_to_your_account">Inicia sesión en tu cuenta</string>

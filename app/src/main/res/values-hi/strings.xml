@@ -323,7 +323,10 @@
     <string name="input_controls_editor_shape">आकार</string>
     <string name="input_controls_editor_type">प्रकार</string>
     <string name="input_controls_editor_binding">बाइंडिंग</string>
+    <string name="binding_primary">प्राथमिक बाइंडिंग</string>
     <string name="binding_secondary">द्वितीयक बाइंडिंग</string>
+    <string name="binding_third">तृतीयक बाइंडिंग</string>
+    <string name="binding_fourth">चतुर्थक बाइंडिंग</string>
     <string name="input_controls_editor_binding_up">ऊपर बाइंडिंग</string>
     <string name="input_controls_editor_binding_right">दाएँ बाइंडिंग</string>
     <string name="input_controls_editor_binding_down">नीचे बाइंडिंग</string>
@@ -1060,6 +1063,7 @@
     <string name="setup_wizard_create_container">कंटेनर बनाएँ</string>
     <string name="setup_wizard_creating_container">बनाया जा रहा है\u2026</string>
     <string name="input_controls_tap_to_click">टैप करके क्लिक करें</string>
+    <string name="input_controls_reverse_binding_order">बाइंडिंग क्रम उलटें</string>
     <string name="steam_login_auth_webview_title">प्राधिकरण</string>
     <string name="steam_login_sign_in_to_your_account">अपने खाते में साइन इन करें</string>
     <string name="steam_login_username">उपयोगकर्ता नाम</string>

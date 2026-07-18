@@ -553,7 +553,17 @@ private void showControlElementSettings(View anchorView) {
     if (type == ControlElement.Type.BUTTON || type == ControlElement.Type.RADIAL_MENU) {
       int count = element.getBindingCount();
       for (int i = 0; i < count; i++) {
-        String title = (type == ControlElement.Type.RADIAL_MENU) ? "Binding " + (i + 1) : (i == 0 ? getString(R.string.input_controls_editor_binding) : getString(R.string.binding_secondary));
+        String title;
+        if (type == ControlElement.Type.RADIAL_MENU) {
+          title = "Binding " + (i + 1);
+        } else {
+          switch (i) {
+            case 0: title = getString(R.string.binding_primary); break;
+            case 1: title = getString(R.string.binding_secondary); break;
+            case 2: title = getString(R.string.binding_third); break;
+            default: title = getString(R.string.binding_fourth); break;
+          }
+        }
         loadBindingSpinner(element, container, i, title);
       }
     } else if (type == ControlElement.Type.D_PAD

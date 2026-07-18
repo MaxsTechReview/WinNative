@@ -345,7 +345,10 @@
     <string name="input_controls_editor_shape">Form</string>
     <string name="input_controls_editor_type">Typ</string>
     <string name="input_controls_editor_binding">Bindning</string>
+    <string name="binding_primary">Primär bindning</string>
     <string name="binding_secondary">Sekundär bindning</string>
+    <string name="binding_third">Tertiär bindning</string>
+    <string name="binding_fourth">Kvartär bindning</string>
     <string name="input_controls_editor_binding_up">Bindning upp</string>
     <string name="input_controls_editor_binding_right">Bindning höger</string>
     <string name="input_controls_editor_binding_down">Bindning ner</string>
@@ -1241,6 +1244,7 @@ Installerad sökväg:
     <string name="setup_wizard_creating_container">Skapar…</string>
 
     <string name="input_controls_tap_to_click">Tryck för att klicka</string>
+    <string name="input_controls_reverse_binding_order">Omvänd ordning för bindningar</string>
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">Auktorisering</string>
     <string name="steam_login_sign_in_to_your_account">Logga in på ditt konto</string>

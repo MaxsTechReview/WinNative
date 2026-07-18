@@ -182,6 +182,16 @@ public class InputControlsView extends View {
     return overlayOpacity;
   }
 
+  private boolean reverseBindingOrder = false;
+
+  public boolean isReverseBindingOrder() {
+    return reverseBindingOrder;
+  }
+
+  public void setReverseBindingOrder(boolean reverseBindingOrder) {
+    this.reverseBindingOrder = reverseBindingOrder;
+  }
+
   public VisualStyle getVisualStyle() {
     return visualStyle;
   }

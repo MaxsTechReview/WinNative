@@ -345,7 +345,10 @@
     <string name="input_controls_editor_shape">Forma</string>
     <string name="input_controls_editor_type">Tipo</string>
     <string name="input_controls_editor_binding">Associação</string>
+    <string name="binding_primary">Associação primária</string>
     <string name="binding_secondary">Associação secundária</string>
+    <string name="binding_third">Associação terciária</string>
+    <string name="binding_fourth">Associação quaternária</string>
     <string name="input_controls_editor_binding_up">Associação para cima</string>
     <string name="input_controls_editor_binding_right">Associação para a direita</string>
     <string name="input_controls_editor_binding_down">Associação para baixo</string>
@@ -1241,6 +1244,7 @@ Caminho instalado:
     <string name="setup_wizard_creating_container">A criar…</string>
 
     <string name="input_controls_tap_to_click">Tocar para Clicar</string>
+    <string name="input_controls_reverse_binding_order">Inverter ordem das associações</string>
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">Autorização</string>
     <string name="steam_login_sign_in_to_your_account">Inicie sessão na sua conta</string>

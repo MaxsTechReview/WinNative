@@ -237,8 +237,6 @@ class PluviaApp : Application() {
                 }.onFailure { Log.e("PluviaApp", "DownloadCoordinator startup failed", it) }
 
                 com.winlator.cmod.runtime.system.LogManager
-                    .rotateLogsOnAppStart(this@PluviaApp)
-                com.winlator.cmod.runtime.system.LogManager
                     .startAppLogging(this@PluviaApp)
 
                 if (steamLogsEnabled) {

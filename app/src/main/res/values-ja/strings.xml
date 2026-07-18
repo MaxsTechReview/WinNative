@@ -345,7 +345,10 @@
     <string name="input_controls_editor_shape">形状</string>
     <string name="input_controls_editor_type">種類</string>
     <string name="input_controls_editor_binding">バインド</string>
+    <string name="binding_primary">プライマリバインド</string>
     <string name="binding_secondary">セカンダリバインド</string>
+    <string name="binding_third">サードバインド</string>
+    <string name="binding_fourth">フォースバインド</string>
     <string name="input_controls_editor_binding_up">上バインド</string>
     <string name="input_controls_editor_binding_right">右バインド</string>
     <string name="input_controls_editor_binding_down">下バインド</string>
@@ -1241,6 +1244,7 @@
     <string name="setup_wizard_creating_container">作成中…</string>
 
     <string name="input_controls_tap_to_click">タップでクリック</string>
+    <string name="input_controls_reverse_binding_order">バインドの順序を逆にする</string>
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">認証</string>
     <string name="steam_login_sign_in_to_your_account">アカウントにサインイン</string>

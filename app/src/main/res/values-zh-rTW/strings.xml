@@ -1070,7 +1070,10 @@
     <!-- Missing translations -->
     <string name="common_ui_graphics">圖形</string>
     <string name="steam_section_title">Steam</string>
+    <string name="binding_primary">主要綁定</string>
     <string name="binding_secondary">次要綁定</string>
+    <string name="binding_third">第三綁定</string>
+    <string name="binding_fourth">第四綁定</string>
     <string name="input_controls_editor_tap_to_switch">點按切換</string>
     <string name="input_controls_editor_download_profile">下載設定檔</string>
     <string name="container_config_emulator_section">模擬器</string>
@@ -1234,6 +1237,7 @@
     <string name="input_controls_editor_radial_menu">放射狀選單</string>
     <string name="input_controls_editor_radial_menu_options">放射狀選單選項</string>
     <string name="input_controls_tap_to_click">點觸即按</string>
+    <string name="input_controls_reverse_binding_order">反向綁定顺序</string>
     <string name="num_controllers">控制器數量</string>
     <string name="session_drawer_controls_section">控制</string>
     <string name="session_drawer_header_subtitle">快速存取控制、覆蓋層及工作階段工具</string>

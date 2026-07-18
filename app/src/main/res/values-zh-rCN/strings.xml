@@ -1070,7 +1070,10 @@
     <!-- Missing translations -->
     <string name="common_ui_graphics">图形</string>
     <string name="steam_section_title">Steam</string>
+    <string name="binding_primary">主要绑定</string>
     <string name="binding_secondary">次要绑定</string>
+    <string name="binding_third">第三绑定</string>
+    <string name="binding_fourth">第四绑定</string>
     <string name="input_controls_editor_tap_to_switch">点按切换</string>
     <string name="input_controls_editor_download_profile">下载配置文件</string>
     <string name="container_config_emulator_section">模拟器</string>
@@ -1234,6 +1237,7 @@
     <string name="input_controls_editor_radial_menu">径向菜单</string>
     <string name="input_controls_editor_radial_menu_options">径向菜单选项</string>
     <string name="input_controls_tap_to_click">轻触点击</string>
+    <string name="input_controls_reverse_binding_order">反向绑定顺序</string>
     <string name="num_controllers">手柄数量</string>
     <string name="session_drawer_controls_section">控制</string>
     <string name="session_drawer_header_subtitle">快速访问控制、悬浮层和会话工具</string>

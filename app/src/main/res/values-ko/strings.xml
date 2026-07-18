@@ -1070,7 +1070,10 @@
     <!-- Missing translations -->
     <string name="common_ui_graphics">그래픽</string>
     <string name="steam_section_title">Steam</string>
+    <string name="binding_primary">기본 바인딩</string>
     <string name="binding_secondary">보조 바인딩</string>
+    <string name="binding_third">세 번째 바인딩</string>
+    <string name="binding_fourth">네 번째 바인딩</string>
     <string name="input_controls_editor_tap_to_switch">탭하여 전환</string>
     <string name="input_controls_editor_download_profile">프로필 다운로드</string>
     <string name="container_config_emulator_section">에뮬레이터</string>
@@ -1235,6 +1238,7 @@
     <string name="input_controls_editor_radial_menu">방사형 메뉴</string>
     <string name="input_controls_editor_radial_menu_options">방사형 메뉴 옵션</string>
     <string name="input_controls_tap_to_click">탭하여 클릭</string>
+    <string name="input_controls_reverse_binding_order">바인딩 순서 반대로</string>
     <string name="num_controllers">컨트롤러 수</string>
     <string name="session_drawer_controls_section">컨트롤</string>
     <string name="session_drawer_header_subtitle">컨트롤, 오버레이 및 세션 도구 빠른 접근</string>

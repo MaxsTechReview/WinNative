@@ -641,6 +641,7 @@ data class XServerDrawerState(
     val inputControlsTouchscreenHaptics: Boolean = false,
     val inputControlsGamepadVibration: Boolean = true,
     val inputControlsGcmRumbleMode: String = "disabled",
+    val inputControlsReverseBindingOrder: Boolean = false,
     val cursorSpeed: Float = 1.0f,
     // External display / cast "Output" pane.
     val outputSwapActive: Boolean = false,
@@ -1072,6 +1073,8 @@ interface XServerDrawerActionListener {
 
     fun onInputControlsGcmRumbleModeChanged(mode: String)
 
+    fun onInputControlsReverseBindingOrderChanged(enabled: Boolean)
+
     fun onInputControlsEditClick()
 
     fun onScreenTouchModeChanged(mode: Int)
@@ -1172,6 +1175,7 @@ fun buildXServerDrawerState(
     inputControlsTouchscreenHaptics: Boolean = false,
     inputControlsGamepadVibration: Boolean = true,
     inputControlsGcmRumbleMode: String = "disabled",
+    inputControlsReverseBindingOrder: Boolean = false,
     cursorSpeed: Float = 1.0f,
     fullscreenEnabled: Boolean = false,
     maxRefreshRate: Int = 60,
@@ -1370,6 +1374,7 @@ fun buildXServerDrawerState(
         inputControlsTouchscreenHaptics = inputControlsTouchscreenHaptics,
         inputControlsGamepadVibration = inputControlsGamepadVibration,
         inputControlsGcmRumbleMode = inputControlsGcmRumbleMode,
+        inputControlsReverseBindingOrder = inputControlsReverseBindingOrder,
         cursorSpeed = cursorSpeed,
         mouseEnabled = !mouseDisabled,
         relativeMouseEnabled = relativeMouseEnabled,
