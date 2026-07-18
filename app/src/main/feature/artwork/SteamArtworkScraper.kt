@@ -97,7 +97,7 @@ class SteamArtworkScraper() : ArtworkScraper() {
                         val assets = mapOf(
                             "hero" to "library_hero_full",
                             "grid" to "library_capsule_full",
-                            "carousel" to "header_image_full",
+                            "carousel" to "library_capsule_full",
                             "list" to "header_image_full"
                         )
                         assets.forEach { (key, value) ->
