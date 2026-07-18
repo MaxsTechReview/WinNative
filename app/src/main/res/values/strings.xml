@@ -1023,6 +1023,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_general_select_wallpaper">Select wallpaper</string>
     <string name="settings_general_title">General</string>
     <string name="settings_general_enable_file_provider">Enable File Provider</string>
+    <string name="settings_general_enable_auto_scraping">Enable Auto Scraping</string>
     <string name="settings_general_take_effect_next_startup">This option will take effect at the next startup.</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Reinstall Imagefs</string>
@@ -1046,6 +1047,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_general_xinput_toggle_summary">Turns off XInput handling when you want exclusive mouse and keyboard control.</string>
     <string name="settings_external_display_output_summary">Move the game to a connected external display instead of mirroring this screen. Glasses always use their own display.</string>
     <string name="settings_general_file_provider_summary">Expose WinNative files to Android document pickers and file managers.</string>
+    <string name="settings_general_auto_scraping_summary">This setting allows WinNative to automatically pull custom game artwork.</string>
     <string name="settings_general_open_browser_summary">Open supported web links in the Android browser instead of inside Wine.</string>
     <string name="settings_general_clipboard_summary">Allow copy and paste between Android and Wine sessions.</string>
     <string name="settings_general_imagefs_summary">Restore bundled system files without removing your existing containers.</string>
