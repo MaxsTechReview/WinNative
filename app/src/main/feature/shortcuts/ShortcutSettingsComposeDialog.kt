@@ -239,7 +239,7 @@ class ShortcutSettingsComposeDialog private constructor(
             }
 
             override fun onScrapeGameArtwork(gameName: String) {
-                Toast.makeText(context, context.getString(R.string.library_games_scraping_artwork), Toast.LENGTH_LONG).show()
+                WinToast.show(context,R.string.library_games_scraping_artwork, Toast.LENGTH_LONG)
                 CoroutineScope(Dispatchers.IO).launch {
                     val artworkInfo = SteamArtworkScraper().getGameArtwork(gameName)
                     if (!artworkInfo.isEmpty()) {
@@ -253,14 +253,14 @@ class ShortcutSettingsComposeDialog private constructor(
                             file.delete()
                         }
                         withContext(Dispatchers.Main) {
-                            Toast.makeText(context, context.getString(R.string.common_ui_done), Toast.LENGTH_LONG).show()
+                            WinToast.show(context, R.string.common_ui_done, Toast.LENGTH_LONG)
                             shouldRefreshLibraryOnSave = true
                             syncLibraryArtworkState()
                             emitLibraryRefreshIfNeeded()
                         }
                     } else {
                         withContext(Dispatchers.Main) {
-                            Toast.makeText(context, context.getString(R.string.common_ui_failed), Toast.LENGTH_LONG).show()
+                            WinToast.show(context, R.string.common_ui_failed, Toast.LENGTH_LONG)
                         }
                     }
                 }
