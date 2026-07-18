@@ -345,7 +345,10 @@
     <string name="input_controls_editor_shape">形状</string>
     <string name="input_controls_editor_type">種類</string>
     <string name="input_controls_editor_binding">バインド</string>
+    <string name="binding_primary">プライマリバインド</string>
     <string name="binding_secondary">セカンダリバインド</string>
+    <string name="binding_third">サードバインド</string>
+    <string name="binding_fourth">フォースバインド</string>
     <string name="input_controls_editor_binding_up">上バインド</string>
     <string name="input_controls_editor_binding_right">右バインド</string>
     <string name="input_controls_editor_binding_down">下バインド</string>

@@ -1076,7 +1076,10 @@ Zainstalowana ścieżka:
     <!-- Missing translations -->
     <string name="common_ui_graphics">Grafika</string>
     <string name="steam_section_title">Steam</string>
+    <string name="binding_primary">Pierwsze przypisanie</string>
     <string name="binding_secondary">Drugie przypisanie</string>
+    <string name="binding_third">Trzecie przypisanie</string>
+    <string name="binding_fourth">Czwarte przypisanie</string>
     <string name="input_controls_editor_tap_to_switch">Dotknij, aby przełączyć</string>
     <string name="input_controls_editor_download_profile">Pobierz profil</string>
     <string name="container_config_emulator_section">Emulator</string>

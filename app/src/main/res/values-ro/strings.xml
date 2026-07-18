@@ -1070,7 +1070,10 @@ Cale instalata:
     <!-- Missing translations -->
     <string name="common_ui_graphics">Grafică</string>
     <string name="steam_section_title">Steam</string>
+    <string name="binding_primary">Asociere primară</string>
     <string name="binding_secondary">Asociere secundară</string>
+    <string name="binding_third">Asociere terțiară</string>
+    <string name="binding_fourth">Asociere cuaternară</string>
     <string name="input_controls_editor_tap_to_switch">Atinge pentru a schimba</string>
     <string name="input_controls_editor_download_profile">Descarcă profilul</string>
     <string name="container_config_emulator_section">Emulator</string>

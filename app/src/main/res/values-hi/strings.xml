@@ -323,7 +323,10 @@
     <string name="input_controls_editor_shape">आकार</string>
     <string name="input_controls_editor_type">प्रकार</string>
     <string name="input_controls_editor_binding">बाइंडिंग</string>
+    <string name="binding_primary">प्राथमिक बाइंडिंग</string>
     <string name="binding_secondary">द्वितीयक बाइंडिंग</string>
+    <string name="binding_third">तृतीयक बाइंडिंग</string>
+    <string name="binding_fourth">चतुर्थक बाइंडिंग</string>
     <string name="input_controls_editor_binding_up">ऊपर बाइंडिंग</string>
     <string name="input_controls_editor_binding_right">दाएँ बाइंडिंग</string>
     <string name="input_controls_editor_binding_down">नीचे बाइंडिंग</string>

@@ -1070,7 +1070,10 @@ Ruta instalada:
     <!-- Missing translations -->
     <string name="common_ui_graphics">Gráficos</string>
     <string name="steam_section_title">Steam</string>
+    <string name="binding_primary">Asignación principal</string>
     <string name="binding_secondary">Asignación secundaria</string>
+    <string name="binding_third">Asignación terciaria</string>
+    <string name="binding_fourth">Asignación cuaternaria</string>
     <string name="input_controls_editor_tap_to_switch">Toca para cambiar</string>
     <string name="input_controls_editor_download_profile">Descargar perfil</string>
     <string name="container_config_emulator_section">Emulador</string>

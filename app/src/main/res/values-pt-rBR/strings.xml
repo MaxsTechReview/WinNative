@@ -1070,7 +1070,10 @@ Caminho instalado:
     <!-- Missing translations -->
     <string name="common_ui_graphics">Gráficos</string>
     <string name="steam_section_title">Steam</string>
+    <string name="binding_primary">Vinculação primária</string>
     <string name="binding_secondary">Vinculação secundária</string>
+    <string name="binding_third">Vinculação terciária</string>
+    <string name="binding_fourth">Vinculação quaternária</string>
     <string name="input_controls_editor_tap_to_switch">Toque para alternar</string>
     <string name="input_controls_editor_download_profile">Baixar perfil</string>
     <string name="container_config_emulator_section">Emulador</string>

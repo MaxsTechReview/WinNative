@@ -1070,7 +1070,10 @@ Installeret sti:
     <!-- Missing translations -->
     <string name="common_ui_graphics">Grafik</string>
     <string name="steam_section_title">Steam</string>
+    <string name="binding_primary">Primær binding</string>
     <string name="binding_secondary">Sekundær binding</string>
+    <string name="binding_third">Tertiær binding</string>
+    <string name="binding_fourth">Kvartær binding</string>
     <string name="input_controls_editor_tap_to_switch">Tryk for at skifte</string>
     <string name="input_controls_editor_download_profile">Download profil</string>
     <string name="container_config_emulator_section">Emulator</string>

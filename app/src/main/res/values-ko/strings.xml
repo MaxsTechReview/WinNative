@@ -1070,7 +1070,10 @@
     <!-- Missing translations -->
     <string name="common_ui_graphics">그래픽</string>
     <string name="steam_section_title">Steam</string>
+    <string name="binding_primary">기본 바인딩</string>
     <string name="binding_secondary">보조 바인딩</string>
+    <string name="binding_third">세 번째 바인딩</string>
+    <string name="binding_fourth">네 번째 바인딩</string>
     <string name="input_controls_editor_tap_to_switch">탭하여 전환</string>
     <string name="input_controls_editor_download_profile">프로필 다운로드</string>
     <string name="container_config_emulator_section">에뮬레이터</string>

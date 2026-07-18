@@ -345,7 +345,10 @@
     <string name="input_controls_editor_shape">รูปทรง</string>
     <string name="input_controls_editor_type">ประเภท</string>
     <string name="input_controls_editor_binding">การผูกปุ่ม</string>
+    <string name="binding_primary">การผูกปุ่มหลัก</string>
     <string name="binding_secondary">การผูกปุ่มรอง</string>
+    <string name="binding_third">การผูกปุ่มที่สาม</string>
+    <string name="binding_fourth">การผูกปุ่มที่สี่</string>
     <string name="input_controls_editor_binding_up">การผูกปุ่มขึ้น</string>
     <string name="input_controls_editor_binding_right">การผูกปุ่มขวา</string>
     <string name="input_controls_editor_binding_down">การผูกปุ่มลง</string>

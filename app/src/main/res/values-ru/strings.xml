@@ -335,7 +335,10 @@
     <string name="input_controls_editor_shape">Форма</string>
     <string name="input_controls_editor_type">Тип</string>
     <string name="input_controls_editor_binding">Привязка</string>
+    <string name="binding_primary">Первичная привязка</string>
     <string name="binding_secondary">Вторичная привязка</string>
+    <string name="binding_third">Третичная привязка</string>
+    <string name="binding_fourth">Четвертичная привязка</string>
     <string name="input_controls_editor_binding_up">Привязка вверх</string>
     <string name="input_controls_editor_binding_right">Привязка вправо</string>
     <string name="input_controls_editor_binding_down">Привязка вниз</string>

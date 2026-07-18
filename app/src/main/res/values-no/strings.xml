@@ -345,7 +345,10 @@
     <string name="input_controls_editor_shape">Form</string>
     <string name="input_controls_editor_type">Type</string>
     <string name="input_controls_editor_binding">Tilordning</string>
+    <string name="binding_primary">Primær tilordning</string>
     <string name="binding_secondary">Sekundær tilordning</string>
+    <string name="binding_third">Tertiær tilordning</string>
+    <string name="binding_fourth">Kvartær tilordning</string>
     <string name="input_controls_editor_binding_up">Tilordning opp</string>
     <string name="input_controls_editor_binding_right">Tilordning høyre</string>
     <string name="input_controls_editor_binding_down">Tilordning ned</string>

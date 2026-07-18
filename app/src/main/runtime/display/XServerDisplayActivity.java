@@ -980,6 +980,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         isDarkMode = preferences.getBoolean("dark_mode", false);
         isTapToClickEnabled = true;
+        // Force the touchscreen-controls overlay on at each session start (profile default stays none).
+        preferences.edit().putBoolean("show_touchscreen_controls_enabled", true).apply();
         boolean isOpenWithAndroidBrowser = preferences.getBoolean("open_with_android_browser", false);
         boolean isShareAndroidClipboard = preferences.getBoolean("share_android_clipboard", false);
 

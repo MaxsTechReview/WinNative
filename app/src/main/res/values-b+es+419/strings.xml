@@ -345,7 +345,10 @@
     <string name="input_controls_editor_shape">Forma</string>
     <string name="input_controls_editor_type">Tipo</string>
     <string name="input_controls_editor_binding">Asignación</string>
+    <string name="binding_primary">Asignación principal</string>
     <string name="binding_secondary">Asignación secundaria</string>
+    <string name="binding_third">Asignación terciaria</string>
+    <string name="binding_fourth">Asignación cuaternaria</string>
     <string name="input_controls_editor_binding_up">Asignación arriba</string>
     <string name="input_controls_editor_binding_right">Asignación derecha</string>
     <string name="input_controls_editor_binding_down">Asignación abajo</string>
