@@ -1070,7 +1070,10 @@ Percorso installato:
     <!-- Missing translations -->
     <string name="common_ui_graphics">Grafica</string>
     <string name="steam_section_title">Steam</string>
+    <string name="binding_primary">Associazione primaria</string>
     <string name="binding_secondary">Associazione secondaria</string>
+    <string name="binding_third">Associazione terziaria</string>
+    <string name="binding_fourth">Associazione quaternaria</string>
     <string name="input_controls_editor_tap_to_switch">Tocca per cambiare</string>
     <string name="input_controls_editor_download_profile">Scarica profilo</string>
     <string name="container_config_emulator_section">Emulatore</string>
@@ -1234,6 +1237,7 @@ Percorso installato:
     <string name="input_controls_editor_radial_menu">Menu radiale</string>
     <string name="input_controls_editor_radial_menu_options">Opzioni menu radiale</string>
     <string name="input_controls_tap_to_click">Tocca per fare clic</string>
+    <string name="input_controls_reverse_binding_order">Inverti ordine associazioni</string>
     <string name="num_controllers">Numero di controller</string>
     <string name="session_drawer_controls_section">Controlli</string>
     <string name="session_drawer_header_subtitle">Accesso rapido a controlli, overlay e strumenti di sessione</string>

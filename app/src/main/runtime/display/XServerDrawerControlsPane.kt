@@ -347,6 +347,12 @@ internal fun InputControlsPaneContent(
                         )
                     }
                 }
+
+                NavBooleanRow(
+                    title = stringResource(R.string.input_controls_reverse_binding_order),
+                    checked = state.inputControlsReverseBindingOrder,
+                    onCheckedChange = listener::onInputControlsReverseBindingOrderChanged,
+                )
             }
         }
     }

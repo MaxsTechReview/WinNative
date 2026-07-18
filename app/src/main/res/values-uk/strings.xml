@@ -1076,7 +1076,10 @@
     <!-- Missing translations -->
     <string name="common_ui_graphics">Графіка</string>
     <string name="steam_section_title">Steam</string>
+    <string name="binding_primary">Первинне призначення</string>
     <string name="binding_secondary">Вторинне призначення</string>
+    <string name="binding_third">Третинне призначення</string>
+    <string name="binding_fourth">Четвертинне призначення</string>
     <string name="input_controls_editor_tap_to_switch">Торкніться, щоб перемкнути</string>
     <string name="input_controls_editor_download_profile">Завантажити профіль</string>
     <string name="container_config_emulator_section">Емулятор</string>
@@ -1240,6 +1243,7 @@
     <string name="input_controls_editor_radial_menu">Радіальне меню</string>
     <string name="input_controls_editor_radial_menu_options">Параметри радіального меню</string>
     <string name="input_controls_tap_to_click">Торкання для кліку</string>
+    <string name="input_controls_reverse_binding_order">Зворотний порядок призначень</string>
     <string name="num_controllers">Кількість контролерів</string>
     <string name="session_drawer_controls_section">Керування</string>
     <string name="session_drawer_header_subtitle">Швидкий доступ до керування, накладень та інструментів сесії</string>

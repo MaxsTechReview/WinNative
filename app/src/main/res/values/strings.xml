@@ -346,7 +346,10 @@
     <string name="input_controls_editor_shape">Shape</string>
     <string name="input_controls_editor_type">Type</string>
     <string name="input_controls_editor_binding">Binding</string>
+    <string name="binding_primary">Primary binding</string>
     <string name="binding_secondary">Secondary binding</string>
+    <string name="binding_third">Third binding</string>
+    <string name="binding_fourth">Fourth binding</string>
     <string name="input_controls_editor_binding_up">Binding Up</string>
     <string name="input_controls_editor_binding_right">Binding Right</string>
     <string name="input_controls_editor_binding_down">Binding Down</string>
@@ -1244,6 +1247,7 @@ Installed path:
     <string name="setup_wizard_creating_container">Creating\u2026</string>
 
     <string name="input_controls_tap_to_click">Tap to Click</string>
+    <string name="input_controls_reverse_binding_order">Reverse order bindings</string>
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">Authorization</string>
     <string name="steam_login_sign_in_to_your_account">Sign in to your account</string>

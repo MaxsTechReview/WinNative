@@ -345,7 +345,10 @@
     <string name="input_controls_editor_shape">Muoto</string>
     <string name="input_controls_editor_type">Tyyppi</string>
     <string name="input_controls_editor_binding">Sidonta</string>
+    <string name="binding_primary">Ensisijainen sidonta</string>
     <string name="binding_secondary">Toissijainen sidonta</string>
+    <string name="binding_third">Kolmas sidonta</string>
+    <string name="binding_fourth">Neljäs sidonta</string>
     <string name="input_controls_editor_binding_up">Sidonta ylös</string>
     <string name="input_controls_editor_binding_right">Sidonta oikealle</string>
     <string name="input_controls_editor_binding_down">Sidonta alas</string>
@@ -1241,6 +1244,7 @@ Asennuspolku:
     <string name="setup_wizard_creating_container">Luodaan…</string>
 
     <string name="input_controls_tap_to_click">Napauta klikataksesi</string>
+    <string name="input_controls_reverse_binding_order">Käänteinen sidontajärjestys</string>
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">Valtuutus</string>
     <string name="steam_login_sign_in_to_your_account">Kirjaudu tilillesi</string>

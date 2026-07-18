@@ -335,7 +335,10 @@
     <string name="input_controls_editor_shape">Форма</string>
     <string name="input_controls_editor_type">Тип</string>
     <string name="input_controls_editor_binding">Привязка</string>
+    <string name="binding_primary">Первичная привязка</string>
     <string name="binding_secondary">Вторичная привязка</string>
+    <string name="binding_third">Третичная привязка</string>
+    <string name="binding_fourth">Четвертичная привязка</string>
     <string name="input_controls_editor_binding_up">Привязка вверх</string>
     <string name="input_controls_editor_binding_right">Привязка вправо</string>
     <string name="input_controls_editor_binding_down">Привязка вниз</string>
@@ -1020,6 +1023,7 @@
     <string name="setup_wizard_create_container">Создать контейнер</string>
     <string name="setup_wizard_creating_container">Создание\u2026</string>
     <string name="input_controls_tap_to_click">Касание для клика</string>
+    <string name="input_controls_reverse_binding_order">Обратный порядок привязок</string>
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">Авторизация</string>
     <string name="steam_login_sign_in_to_your_account">Войдите в свою учетную запись</string>

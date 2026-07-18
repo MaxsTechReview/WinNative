@@ -1070,7 +1070,10 @@ Installeret sti:
     <!-- Missing translations -->
     <string name="common_ui_graphics">Grafik</string>
     <string name="steam_section_title">Steam</string>
+    <string name="binding_primary">Primær binding</string>
     <string name="binding_secondary">Sekundær binding</string>
+    <string name="binding_third">Tertiær binding</string>
+    <string name="binding_fourth">Kvartær binding</string>
     <string name="input_controls_editor_tap_to_switch">Tryk for at skifte</string>
     <string name="input_controls_editor_download_profile">Download profil</string>
     <string name="container_config_emulator_section">Emulator</string>
@@ -1234,6 +1237,7 @@ Installeret sti:
     <string name="input_controls_editor_radial_menu">Radialmenu</string>
     <string name="input_controls_editor_radial_menu_options">Radialmenupunkter</string>
     <string name="input_controls_tap_to_click">Tryk for at klikke</string>
+    <string name="input_controls_reverse_binding_order">Omvendt rækkefølge for bindinger</string>
     <string name="num_controllers">Antal controllere</string>
     <string name="session_drawer_controls_section">Kontroller</string>
     <string name="session_drawer_header_subtitle">Hurtig adgang til kontroller, overlays og sessionsværktøjer</string>

@@ -1070,7 +1070,10 @@ Cale instalata:
     <!-- Missing translations -->
     <string name="common_ui_graphics">Grafică</string>
     <string name="steam_section_title">Steam</string>
+    <string name="binding_primary">Asociere primară</string>
     <string name="binding_secondary">Asociere secundară</string>
+    <string name="binding_third">Asociere terțiară</string>
+    <string name="binding_fourth">Asociere cuaternară</string>
     <string name="input_controls_editor_tap_to_switch">Atinge pentru a schimba</string>
     <string name="input_controls_editor_download_profile">Descarcă profilul</string>
     <string name="container_config_emulator_section">Emulator</string>
@@ -1234,6 +1237,7 @@ Cale instalata:
     <string name="input_controls_editor_radial_menu">Meniu radial</string>
     <string name="input_controls_editor_radial_menu_options">Opțiuni meniu radial</string>
     <string name="input_controls_tap_to_click">Atingere pentru clic</string>
+    <string name="input_controls_reverse_binding_order">Inversează ordinea asocierilor</string>
     <string name="num_controllers">Număr de controlere</string>
     <string name="session_drawer_controls_section">Controale</string>
     <string name="session_drawer_header_subtitle">Acces rapid la controale, suprapuneri și instrumente de sesiune</string>

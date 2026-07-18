@@ -345,7 +345,10 @@
     <string name="input_controls_editor_shape">Şekil</string>
     <string name="input_controls_editor_type">Tür</string>
     <string name="input_controls_editor_binding">Bağlama</string>
+    <string name="binding_primary">Birincil bağlama</string>
     <string name="binding_secondary">İkincil bağlama</string>
+    <string name="binding_third">Üçüncül bağlama</string>
+    <string name="binding_fourth">Dördüncül bağlama</string>
     <string name="input_controls_editor_binding_up">Bağlama Yukarı</string>
     <string name="input_controls_editor_binding_right">Bağlama Sağ</string>
     <string name="input_controls_editor_binding_down">Bağlama Aşağı</string>
@@ -1241,6 +1244,7 @@ Yüklü konum:
     <string name="setup_wizard_creating_container">Oluşturuluyor…</string>
 
     <string name="input_controls_tap_to_click">Tıklamak İçin Dokun</string>
+    <string name="input_controls_reverse_binding_order">Bağlama sırasını tersine çevir</string>
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">Yetkilendirme</string>
     <string name="steam_login_sign_in_to_your_account">Hesabınızda oturum açın</string>

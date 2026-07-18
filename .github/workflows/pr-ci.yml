@@ -38,10 +38,10 @@ jobs:
             artifactName: apk-pubg
             gradleTask: assemblePubgDebug
             apkPath: app/build/outputs/apk/pubg/debug/pubg.apk
-          - name: Antunu
-            artifactName: apk-antunu
-            gradleTask: assembleAntunuDebug
-            apkPath: app/build/outputs/apk/antunu/debug/antunu.apk
+          - name: Antutu
+            artifactName: apk-antutu
+            gradleTask: assembleAntutuDebug
+            apkPath: app/build/outputs/apk/antutu/debug/antutu.apk
 
     steps:
     - name: Clone repository

@@ -345,7 +345,10 @@
     <string name="input_controls_editor_shape">Form</string>
     <string name="input_controls_editor_type">Type</string>
     <string name="input_controls_editor_binding">Tilordning</string>
+    <string name="binding_primary">Primær tilordning</string>
     <string name="binding_secondary">Sekundær tilordning</string>
+    <string name="binding_third">Tertiær tilordning</string>
+    <string name="binding_fourth">Kvartær tilordning</string>
     <string name="input_controls_editor_binding_up">Tilordning opp</string>
     <string name="input_controls_editor_binding_right">Tilordning høyre</string>
     <string name="input_controls_editor_binding_down">Tilordning ned</string>
@@ -1241,6 +1244,7 @@ Installert bane:
     <string name="setup_wizard_creating_container">Oppretter…</string>
 
     <string name="input_controls_tap_to_click">Trykk for å klikke</string>
+    <string name="input_controls_reverse_binding_order">Omvendt rekkefølge for bindinger</string>
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">Autorisasjon</string>
     <string name="steam_login_sign_in_to_your_account">Logg inn på kontoen din</string>
