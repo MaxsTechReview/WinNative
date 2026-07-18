@@ -65,7 +65,9 @@ const val XSERVER_DRAWER_OPEN_TRIGGER_DP = 32
 // Open only on a clearly rightward swipe: dx must exceed this * |dy| (~27deg of horizontal).
 const val XSERVER_DRAWER_OPEN_HORIZONTAL_RATIO = 2f
 
-private val DrawerWidth = 300.dp
+private val DrawerMinWidth = 295.dp
+private val DrawerMaxWidth = 960.dp
+private const val DrawerHeightFactor = 0.76f
 private val DrawerStartPadding = 6.dp
 private val DrawerVerticalPadding = 6.dp
 private const val DrawerSettleAnimationMs = 200
@@ -119,7 +121,11 @@ private fun XServerDisplayHost(
     val animationScope = rememberCoroutineScope()
     val density = LocalDensity.current
     val viewConfiguration = LocalViewConfiguration.current
-    val closedFallbackPx = with(density) { -(DrawerWidth + DrawerStartPadding).toPx() }
+    val configuration = LocalConfiguration.current
+    val drawerWidth =
+        (minOf(configuration.screenWidthDp, configuration.screenHeightDp) * DrawerHeightFactor).dp
+            .coerceIn(DrawerMinWidth, DrawerMaxWidth)
+    val closedFallbackPx = with(density) { -(drawerWidth + DrawerStartPadding).toPx() }
     var drawerOffsetPx by remember { mutableFloatStateOf(closedFallbackPx) }
     var drawerWidthPx by remember { mutableFloatStateOf(0f) }
     val drawerClosedOffset =
@@ -297,7 +303,7 @@ private fun XServerDisplayHost(
                 } else {
                     1f
                 }
-            val scaledDrawerWidth = DrawerWidth * evenScale
+            val scaledDrawerWidth = drawerWidth * evenScale
 
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                 AndroidView(
