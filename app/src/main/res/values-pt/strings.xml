@@ -745,6 +745,18 @@ Por ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_hud_element_graph">Gráfico</string>
     <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">HUD estilo Mango</string>
+    <string name="session_drawer_hud_mango_settings">Definições do HUD Mango</string>
+    <string name="mango_hud_element_gpu_load">Carga da GPU</string>
+    <string name="mango_hud_element_gpu_temp">Temp. da GPU</string>
+    <string name="mango_hud_element_cpu_load">Carga da CPU</string>
+    <string name="mango_hud_element_cpu_temp">Temp. da CPU</string>
+    <string name="mango_hud_element_ram">RAM</string>
+    <string name="mango_hud_element_battery">Bateria</string>
+    <string name="mango_hud_element_lows" formatted="false">Mínimos de 1%</string>
+    <string name="mango_hud_element_graph">Gráfico de frametime</string>
+    <string name="mango_hud_element_engine">Motor</string>
+    <string name="mango_hud_element_vram">VRAM</string>
     <string name="hud_position_menu_title">Mover HUD para</string>
     <string name="hud_position_top_left">Superior Esquerdo</string>
     <string name="hud_position_top_center">Superior Centro</string>

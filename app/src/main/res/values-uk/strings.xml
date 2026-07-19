@@ -596,6 +596,18 @@
     <string name="session_drawer_hud_element_battery">Бат.</string>
     <string name="session_drawer_hud_element_graph">Графік</string>
     <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">HUD у стилі Mango</string>
+    <string name="session_drawer_hud_mango_settings">Налаштування Mango HUD</string>
+    <string name="mango_hud_element_gpu_load">Навантаження GPU</string>
+    <string name="mango_hud_element_gpu_temp">Темп. GPU</string>
+    <string name="mango_hud_element_cpu_load">Навантаження CPU</string>
+    <string name="mango_hud_element_cpu_temp">Темп. CPU</string>
+    <string name="mango_hud_element_ram">ОЗП</string>
+    <string name="mango_hud_element_battery">Батарея</string>
+    <string name="mango_hud_element_lows" formatted="false">1% мінімуми</string>
+    <string name="mango_hud_element_graph">Графік фреймтайму</string>
+    <string name="mango_hud_element_engine">Рушій</string>
+    <string name="mango_hud_element_vram">VRAM</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Ви хочете завершити цей процес?</string>

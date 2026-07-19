@@ -745,6 +745,18 @@ E.g. <b>META</b> için <i>META tuşu</i>, \n
     <string name="session_drawer_hud_element_temp">B.SIC</string>
     <string name="session_drawer_hud_element_graph">Grafik</string>
     <string name="session_drawer_hud_element_cpu_temp">C.SIC</string>
+    <string name="session_drawer_hud_mango_style">Mango Tarzı HUD</string>
+    <string name="session_drawer_hud_mango_settings">Mango HUD Ayarları</string>
+    <string name="mango_hud_element_gpu_load">GPU Yükü</string>
+    <string name="mango_hud_element_gpu_temp">GPU Sıcaklığı</string>
+    <string name="mango_hud_element_cpu_load">CPU Yükü</string>
+    <string name="mango_hud_element_cpu_temp">CPU Sıcaklığı</string>
+    <string name="mango_hud_element_ram">RAM</string>
+    <string name="mango_hud_element_battery">Pil</string>
+    <string name="mango_hud_element_lows" formatted="false">%1 Düşükler</string>
+    <string name="mango_hud_element_graph">Frametime Grafiği</string>
+    <string name="mango_hud_element_engine">Motor</string>
+    <string name="mango_hud_element_vram">VRAM</string>
     <string name="hud_position_menu_title">HUD\'u şuraya taşı</string>
     <string name="hud_position_top_left">Sol Üst</string>
     <string name="hud_position_top_center">Üst Orta</string>

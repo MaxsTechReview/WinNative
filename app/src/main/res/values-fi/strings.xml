@@ -745,6 +745,18 @@ E.g. <b>META</b> for <i>META-näppäin</i>, \n
     <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_hud_element_graph">Kaavio</string>
     <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">Mango-tyylinen HUD</string>
+    <string name="session_drawer_hud_mango_settings">Mango-HUDin asetukset</string>
+    <string name="mango_hud_element_gpu_load">GPU-kuorma</string>
+    <string name="mango_hud_element_gpu_temp">GPU-lämpötila</string>
+    <string name="mango_hud_element_cpu_load">CPU-kuorma</string>
+    <string name="mango_hud_element_cpu_temp">CPU-lämpötila</string>
+    <string name="mango_hud_element_ram">RAM</string>
+    <string name="mango_hud_element_battery">Akku</string>
+    <string name="mango_hud_element_lows" formatted="false">1 %:n minimit</string>
+    <string name="mango_hud_element_graph">Frametime-kaavio</string>
+    <string name="mango_hud_element_engine">Moottori</string>
+    <string name="mango_hud_element_vram">VRAM</string>
     <string name="hud_position_menu_title">Siirrä HUD kohtaan</string>
     <string name="hud_position_top_left">Ylävasen</string>
     <string name="hud_position_top_center">Yläkeskusta</string>

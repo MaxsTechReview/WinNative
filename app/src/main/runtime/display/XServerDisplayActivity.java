@@ -136,6 +136,7 @@ import com.winlator.cmod.runtime.audio.midi.MidiManager;
 import com.winlator.cmod.runtime.display.renderer.VulkanRenderer;
 import com.winlator.cmod.runtime.display.ui.FrameRating;
 import com.winlator.cmod.runtime.display.ui.MagnifierView;
+import com.winlator.cmod.runtime.display.ui.MangoHudView;
 import com.winlator.cmod.runtime.display.ui.XServerSurfaceView;
 import com.winlator.cmod.shared.android.FixedFontScaleAppCompatActivity;
 import com.winlator.cmod.runtime.input.ui.InputControlsView;
@@ -271,6 +272,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private int currentGestureProfileId = 0;
     private ImageFs imageFs;
     private FrameRating frameRating = null;
+    private MangoHudView mangoHud = null;
     private boolean effectiveShowFPS = false;
     // Phone gauge HUD (Compose host) shown with touch controls disabled while a physical controller + external display are active.
     private boolean controllerHudMode = false;
@@ -1617,6 +1619,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             public void onFramePresented(Window window, WindowManager.FrameSource source, int serial) {
                 if (shouldRecordFpsFrame(window, source)) {
                     frameRating.recordGameFrame(source == WindowManager.FrameSource.PRESENT, serial);
+                    if (mangoHud != null) mangoHud.recordGameFrame(source == WindowManager.FrameSource.PRESENT);
                 }
             }
 
@@ -4025,7 +4028,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 gestureProfileNames,
                 gestureSelectedIndex,
                 preferences.getFloat("right_stick_sensitivity", 1.0f),
-                preferences.getFloat("screen_touch_rs_sensitivity", 1.25f)
+                preferences.getFloat("screen_touch_rs_sensitivity", 1.25f),
+                preferences.getBoolean(MangoHudView.PREF_ENABLED, false),
+                MangoHudView.elementsFromPrefs(preferences),
+                MangoHudView.alphaFromPrefs(preferences),
+                MangoHudView.bgAlphaFromPrefs(preferences)
         );
 
         // Always-present "Output" tab (live controls while swapped, otherwise a Cast entry point).
@@ -4133,6 +4140,41 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         frametimeNumericMode = enabled;
                         preferences.edit().putBoolean(FrameRating.PREF_HUD_FRAMETIME_NUMERIC, enabled).apply();
                         if (frameRating != null) frameRating.setFrametimeNumericMode(enabled);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onMangoHudChanged(boolean enabled) {
+                        preferences.edit().putBoolean(MangoHudView.PREF_ENABLED, enabled).apply();
+                        if (enabled && mangoHud == null && xServerDisplayFrame != null) {
+                            mangoHud = new MangoHudView(XServerDisplayActivity.this);
+                            xServerDisplayFrame.addView(mangoHud);
+                        }
+                        if (mangoHud != null) {
+                            mangoHud.setEngineName(mangoEngineLabel());
+                            mangoHud.setHudVisible(enabled);
+                        }
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onMangoHudElementToggled(int index, boolean enabled) {
+                        MangoHudView.saveElement(preferences, index, enabled);
+                        if (mangoHud != null) mangoHud.setElementEnabled(index, enabled);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onMangoHudAlphaChanged(float alpha) {
+                        MangoHudView.saveAlpha(preferences, alpha);
+                        if (mangoHud != null) mangoHud.setTextAlphaValue(alpha);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onMangoHudBackgroundAlphaChanged(float alpha) {
+                        MangoHudView.saveBgAlpha(preferences, alpha);
+                        if (mangoHud != null) mangoHud.setBackgroundAlphaValue(alpha);
                         renderDrawerMenu();
                     }
 
@@ -7077,6 +7119,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         updateHUDRenderMode();
         rootView.addView(frameRating);
         if (perfController != null) perfController.attachToFrameRating(frameRating);
+
+        if (preferences.getBoolean(MangoHudView.PREF_ENABLED, false)) {
+            mangoHud = new MangoHudView(this);
+            mangoHud.setEngineName(mangoEngineLabel());
+            rootView.addView(mangoHud);
+        }
 
         setupControllerHudDetection();
 
@@ -11029,14 +11077,26 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         runOnUiThread(() -> {
             frameRating.setRenderer(lastRendererName);
             frameRating.setGpuName(lastGpuName);
+            if (mangoHud != null) mangoHud.setEngineName(mangoEngineLabel());
             updateHUDRenderMode();
         });
+    }
+
+    /** Engine label for the Mango HUD: renderer name plus the DXVK version when running DXVK. */
+    private String mangoEngineLabel() {
+        String name = lastRendererName != null ? lastRendererName : "Vulkan";
+        if (name.toLowerCase().contains("dxvk") && dxwrapperConfig != null) {
+            String version = dxwrapperConfig.get("version");
+            if (version != null && !version.isEmpty()) return "DXVK " + version;
+        }
+        return name;
     }
 
     private boolean shouldRecordFpsFrame(Window window, WindowManager.FrameSource source) {
         // Perf recording is driven solely by the record-to-file toggle, independent of HUD/controller.
         boolean recording = perfController != null && perfController.isActive();
-        if ((!effectiveShowFPS && !controllerHudMode && !recording) || frameRating == null || window == null) return false;
+        boolean mangoVisible = mangoHud != null && mangoHud.getVisibility() == View.VISIBLE;
+        if ((!effectiveShowFPS && !controllerHudMode && !recording && !mangoVisible) || frameRating == null || window == null) return false;
         if (source == WindowManager.FrameSource.UNKNOWN) return false;
         if (frameRatingWindowId == window.id) return true;
         if (isRelatedToFrameRatingWindow(window)) return true;

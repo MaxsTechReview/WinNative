@@ -592,6 +592,18 @@ Z. B. <b>META</b> für <i>Meta-Taste</i>, \n
     <string name="session_drawer_hud_element_battery">Akku</string>
     <string name="session_drawer_hud_element_graph">Graph</string>
     <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">HUD im Mango-Stil</string>
+    <string name="session_drawer_hud_mango_settings">Mango-HUD-Einstellungen</string>
+    <string name="mango_hud_element_gpu_load">GPU-Last</string>
+    <string name="mango_hud_element_gpu_temp">GPU-Temp.</string>
+    <string name="mango_hud_element_cpu_load">CPU-Last</string>
+    <string name="mango_hud_element_cpu_temp">CPU-Temp.</string>
+    <string name="mango_hud_element_ram">RAM</string>
+    <string name="mango_hud_element_battery">Akku</string>
+    <string name="mango_hud_element_lows" formatted="false">1%-Lows</string>
+    <string name="mango_hud_element_graph">Frametime-Graph</string>
+    <string name="mango_hud_element_engine">Engine</string>
+    <string name="mango_hud_element_vram">VRAM</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Möchtest du diesen Prozess beenden?</string>

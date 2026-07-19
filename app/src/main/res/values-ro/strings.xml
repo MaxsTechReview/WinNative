@@ -592,6 +592,18 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="session_drawer_hud_element_battery">Bat.</string>
     <string name="session_drawer_hud_element_graph">Grafic</string>
     <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">HUD stil Mango</string>
+    <string name="session_drawer_hud_mango_settings">Setări HUD Mango</string>
+    <string name="mango_hud_element_gpu_load">Sarcină GPU</string>
+    <string name="mango_hud_element_gpu_temp">Temp. GPU</string>
+    <string name="mango_hud_element_cpu_load">Sarcină CPU</string>
+    <string name="mango_hud_element_cpu_temp">Temp. CPU</string>
+    <string name="mango_hud_element_ram">RAM</string>
+    <string name="mango_hud_element_battery">Baterie</string>
+    <string name="mango_hud_element_lows" formatted="false">Minime 1%</string>
+    <string name="mango_hud_element_graph">Grafic frametime</string>
+    <string name="mango_hud_element_engine">Motor</string>
+    <string name="mango_hud_element_vram">VRAM</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Doresti sa opresti acest proces?</string>

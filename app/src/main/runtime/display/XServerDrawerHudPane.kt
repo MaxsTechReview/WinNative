@@ -278,6 +278,56 @@ internal fun HUDPaneContent(
                 )
             }
 
+            // Mango-style HUD toggle + settings gear, shown like the limiter whether the HUD is on or off.
+            var mangoSettingsOpen by remember { mutableStateOf(false) }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    Modifier.weight(1f).paneNavItem(
+                        cornerRadius = (14f * paneScale).dp,
+                        onActivate = { listener.onMangoHudChanged(!state.mangoHudEnabled) },
+                    ),
+                ) {
+                    DrawerBooleanRow(
+                        title = stringResource(R.string.session_drawer_hud_mango_style),
+                        checked = state.mangoHudEnabled,
+                        onCheckedChange = listener::onMangoHudChanged,
+                    )
+                }
+                val gearShape = RoundedCornerShape((12f * paneScale).dp)
+                Box(
+                    modifier =
+                        Modifier
+                            .size((44f * paneScale).dp)
+                            .clip(gearShape)
+                            .background(PaneInnerResting)
+                            .border(1.dp, RestingCardBorder, gearShape)
+                            .paneNavItem(cornerRadius = (12f * paneScale).dp, onActivate = { mangoSettingsOpen = true })
+                            .clickable { mangoSettingsOpen = true },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Settings,
+                        contentDescription = stringResource(R.string.common_ui_settings),
+                        tint = DrawerTextPrimary,
+                        modifier = Modifier.size((20f * paneScale).dp),
+                    )
+                }
+            }
+            if (mangoSettingsOpen) {
+                MangoHudSettingsDialog(
+                    elements = state.mangoHudElements,
+                    hudAlpha = state.mangoHudAlpha,
+                    bgAlpha = state.mangoHudBgAlpha,
+                    onToggle = listener::onMangoHudElementToggled,
+                    onAlphaChanged = listener::onMangoHudAlphaChanged,
+                    onBgAlphaChanged = listener::onMangoHudBackgroundAlphaChanged,
+                    onDismiss = { mangoSettingsOpen = false },
+                )
+            }
+
             if (active) {
                 NavSliderRow(
                     label = stringResource(R.string.session_drawer_hud_alpha),
@@ -468,6 +518,79 @@ internal fun HUDMetricInputDialog(
             )
         }
       }
+    }
+}
+
+@Composable
+internal fun MangoHudSettingsDialog(
+    elements: BooleanArray,
+    hudAlpha: Float,
+    bgAlpha: Float,
+    onToggle: (Int, Boolean) -> Unit,
+    onAlphaChanged: (Float) -> Unit,
+    onBgAlphaChanged: (Float) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    // Chip index order matches MangoHudView element indices.
+    val labels =
+        listOf(
+            stringResource(R.string.mango_hud_element_gpu_load),
+            stringResource(R.string.mango_hud_element_gpu_temp),
+            stringResource(R.string.mango_hud_element_cpu_load),
+            stringResource(R.string.mango_hud_element_cpu_temp),
+            stringResource(R.string.mango_hud_element_ram),
+            stringResource(R.string.mango_hud_element_battery),
+            stringResource(R.string.mango_hud_element_lows),
+            stringResource(R.string.mango_hud_element_graph),
+            stringResource(R.string.mango_hud_element_engine),
+            stringResource(R.string.mango_hud_element_vram),
+        )
+    WinNativeDialogShell(
+        onDismiss = onDismiss,
+        title = stringResource(R.string.session_drawer_hud_mango_settings),
+        iconImage = Icons.Outlined.Settings,
+        maxWidth = 380.dp,
+    ) {
+        ChipFlow {
+            labels.forEachIndexed { index, label ->
+                HUDToggleChip(
+                    label = label,
+                    checked = elements[index],
+                    onClick = { onToggle(index, !elements[index]) },
+                )
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        DrawerSliderRow(
+            label = stringResource(R.string.session_drawer_hud_alpha),
+            valueText = "${(hudAlpha * 100).toInt()}%",
+            value = hudAlpha,
+            valueRange = 0.1f..1f,
+            steps = 17,
+            onValueChange = { onAlphaChanged(it.snapToStep(0.05f, 0.1f, 1f)) },
+        )
+        Spacer(Modifier.height(10.dp))
+        DrawerSliderRow(
+            label = stringResource(R.string.session_drawer_hud_background),
+            valueText = "${(bgAlpha * 100).toInt()}%",
+            value = bgAlpha,
+            valueRange = 0f..1f,
+            steps = 19,
+            onValueChange = { onBgAlphaChanged(it.snapToStep(0.05f, 0f, 1f)) },
+        )
+        Spacer(Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
+        ) {
+            DialogFocusButton(
+                label = stringResource(R.string.common_ui_close),
+                textColor = DrawerTextPrimary,
+                backgroundColor = PaneInnerResting,
+                borderColor = RestingCardBorder,
+                onClick = onDismiss,
+            )
+        }
     }
 }
 

@@ -617,6 +617,18 @@
     <string name="session_drawer_hud_element_battery">Батарея</string>
     <string name="session_drawer_hud_element_graph">График</string>
     <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">HUD в стиле Mango</string>
+    <string name="session_drawer_hud_mango_settings">Настройки Mango HUD</string>
+    <string name="mango_hud_element_gpu_load">Нагрузка GPU</string>
+    <string name="mango_hud_element_gpu_temp">Темп. GPU</string>
+    <string name="mango_hud_element_cpu_load">Нагрузка CPU</string>
+    <string name="mango_hud_element_cpu_temp">Темп. CPU</string>
+    <string name="mango_hud_element_ram">ОЗУ</string>
+    <string name="mango_hud_element_battery">Батарея</string>
+    <string name="mango_hud_element_lows" formatted="false">1% минимумы</string>
+    <string name="mango_hud_element_graph">График фреймтайма</string>
+    <string name="mango_hud_element_engine">Движок</string>
+    <string name="mango_hud_element_vram">VRAM</string>
     <string name="hud_position_menu_title">Переместить HUD</string>
     <string name="hud_position_top_left">Вверху слева</string>
     <string name="hud_position_top_center">Вверху по центру</string>

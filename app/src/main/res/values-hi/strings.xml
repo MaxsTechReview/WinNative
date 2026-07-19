@@ -665,6 +665,18 @@
     <string name="session_drawer_hud_element_battery">BAT</string>
     <string name="session_drawer_hud_element_graph">ग्राफ़</string>
     <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">Mango स्टाइल HUD</string>
+    <string name="session_drawer_hud_mango_settings">Mango HUD सेटिंग्स</string>
+    <string name="mango_hud_element_gpu_load">GPU लोड</string>
+    <string name="mango_hud_element_gpu_temp">GPU तापमान</string>
+    <string name="mango_hud_element_cpu_load">CPU लोड</string>
+    <string name="mango_hud_element_cpu_temp">CPU तापमान</string>
+    <string name="mango_hud_element_ram">RAM</string>
+    <string name="mango_hud_element_battery">बैटरी</string>
+    <string name="mango_hud_element_lows" formatted="false">1% लो</string>
+    <string name="mango_hud_element_graph">फ्रेमटाइम ग्राफ़</string>
+    <string name="mango_hud_element_engine">इंजन</string>
+    <string name="mango_hud_element_vram">VRAM</string>
     <string name="hud_position_menu_title">HUD को यहाँ ले जाएँ</string>
     <string name="hud_position_top_left">ऊपर बाएँ</string>
     <string name="hud_position_top_center">ऊपर केंद्र</string>

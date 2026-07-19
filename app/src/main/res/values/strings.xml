@@ -746,6 +746,18 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_hud_element_graph">Graph</string>
     <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">Mango Style HUD</string>
+    <string name="session_drawer_hud_mango_settings">Mango HUD Settings</string>
+    <string name="mango_hud_element_gpu_load">GPU Load</string>
+    <string name="mango_hud_element_gpu_temp">GPU Temp</string>
+    <string name="mango_hud_element_cpu_load">CPU Load</string>
+    <string name="mango_hud_element_cpu_temp">CPU Temp</string>
+    <string name="mango_hud_element_ram">RAM</string>
+    <string name="mango_hud_element_battery">Battery</string>
+    <string name="mango_hud_element_lows" formatted="false">1% Lows</string>
+    <string name="mango_hud_element_graph">Frametime Graph</string>
+    <string name="mango_hud_element_engine">Engine</string>
+    <string name="mango_hud_element_vram">VRAM</string>
     <string name="hud_position_menu_title">Move HUD to</string>
     <string name="hud_position_top_left">Top Left</string>
     <string name="hud_position_top_center">Top Center</string>

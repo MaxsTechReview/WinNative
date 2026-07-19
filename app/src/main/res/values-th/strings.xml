@@ -745,6 +745,18 @@
     <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_hud_element_graph">กราฟ</string>
     <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">HUD สไตล์ Mango</string>
+    <string name="session_drawer_hud_mango_settings">การตั้งค่า Mango HUD</string>
+    <string name="mango_hud_element_gpu_load">โหลด GPU</string>
+    <string name="mango_hud_element_gpu_temp">อุณหภูมิ GPU</string>
+    <string name="mango_hud_element_cpu_load">โหลด CPU</string>
+    <string name="mango_hud_element_cpu_temp">อุณหภูมิ CPU</string>
+    <string name="mango_hud_element_ram">RAM</string>
+    <string name="mango_hud_element_battery">แบตเตอรี่</string>
+    <string name="mango_hud_element_lows" formatted="false">ค่าต่ำสุด 1%</string>
+    <string name="mango_hud_element_graph">กราฟเฟรมไทม์</string>
+    <string name="mango_hud_element_engine">เอนจิน</string>
+    <string name="mango_hud_element_vram">VRAM</string>
     <string name="hud_position_menu_title">ย้าย HUD ไปที่</string>
     <string name="hud_position_top_left">บนซ้าย</string>
     <string name="hud_position_top_center">บนกลาง</string>

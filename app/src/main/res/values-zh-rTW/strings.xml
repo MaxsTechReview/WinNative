@@ -592,6 +592,18 @@
     <string name="session_drawer_hud_element_battery">電量</string>
     <string name="session_drawer_hud_element_graph">圖表</string>
     <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">Mango 風格 HUD</string>
+    <string name="session_drawer_hud_mango_settings">Mango HUD 設定</string>
+    <string name="mango_hud_element_gpu_load">GPU 負載</string>
+    <string name="mango_hud_element_gpu_temp">GPU 溫度</string>
+    <string name="mango_hud_element_cpu_load">CPU 負載</string>
+    <string name="mango_hud_element_cpu_temp">CPU 溫度</string>
+    <string name="mango_hud_element_ram">記憶體</string>
+    <string name="mango_hud_element_battery">電池</string>
+    <string name="mango_hud_element_lows" formatted="false">1% 最低幀</string>
+    <string name="mango_hud_element_graph">幀生成時間圖表</string>
+    <string name="mango_hud_element_engine">引擎</string>
+    <string name="mango_hud_element_vram">VRAM</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">您要結束此程序嗎？</string>
