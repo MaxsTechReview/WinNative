@@ -347,7 +347,7 @@ internal fun UnifiedActivity.GameCapsule(
             launchSteamGame(context, containerManager, app)
         }
     }
-    var artworkToBeUsed = customArtworkPath
+    val artworkToBeUsed = if (listMode) (customListPath ?: customArtworkPath) else customArtworkPath
     val clickInteraction = remember { MutableInteractionSource() }
     val isPressed by clickInteraction.collectIsPressedAsState()
     val isFocused = isControllerActive && isFocusedOverride
@@ -451,9 +451,6 @@ internal fun UnifiedActivity.GameCapsule(
 
     if (listMode) {
         // Horizontal row card with hero background
-        customListPath?.let {
-            artworkToBeUsed = customListPath
-        }
         val heroRef = if (!isCustom && gogGame == null && !isEpic) StoreArtworkCache.heroRef(app, null, null) else null
         val heroModel =
             remember(app.id, heroRef, artworkCacheRefreshKey) {

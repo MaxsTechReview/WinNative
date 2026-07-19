@@ -5,7 +5,7 @@ import java.io.IOException
 import org.json.JSONObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import android.os.Environment
+import android.content.Context
 import androidx.core.net.toUri
 import okhttp3.Request
 import okhttp3.OkHttpClient
@@ -13,7 +13,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import com.winlator.cmod.runtime.content.Downloader
 
-class SteamArtworkScraper() : ArtworkScraper() {
+class SteamArtworkScraper(private val context: Context) : ArtworkScraper() {
 
     private val client = OkHttpClient()
     private val baseSteamArtworkUrl = "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps"
@@ -54,7 +54,7 @@ class SteamArtworkScraper() : ArtworkScraper() {
                     val json = JSONObject(response.body.string())
                     if (!json.getBoolean("success"))
                         throw IOException("Unexpected code $response")
-                    val gameId = json.optJSONObject("data")?.optJSONArray("games")?.getJSONObject(0)?.optJSONObject("game")?.getInt("id")
+                    val gameId = json.optJSONObject("data")?.optJSONArray("games")?.optJSONObject(0)?.optJSONObject("game")?.getInt("id")
                     gameId?.let {
                         return@withContext gameId
                     }
@@ -68,7 +68,8 @@ class SteamArtworkScraper() : ArtworkScraper() {
             val results = mutableMapOf<String, File>()
             try {
                 val gameId = getGameId(gameName)
-                val storagePath = String.format("%s/WinNative/%s", Environment.getExternalStorageDirectory().toString(), gameId)
+                val storageDir = File(context.cacheDir, "artwork_scrape").apply { if (!exists()) mkdirs() }
+                val storagePath = File(storageDir, gameId.toString()).absolutePath
                 val request = Request.Builder()
                     .url(String.format("https://www.steamgriddb.com/api/public/game/%s", gameId.toString()))
                     .header("User-Agent", "WinNative/1.0")

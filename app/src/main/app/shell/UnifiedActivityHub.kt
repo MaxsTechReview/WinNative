@@ -1907,8 +1907,8 @@ internal fun UnifiedActivity.LibraryCarousel(
     var epicByPseudoId by remember { mutableStateOf<Map<Int, EpicGame>>(emptyMap()) }
     var stableGogByPseudoId by remember { mutableStateOf<Map<Int, GOGGame>>(emptyMap()) }
     var stableEpicByPseudoId by remember { mutableStateOf<Map<Int, EpicGame>>(emptyMap()) }
-    var customListArtwokPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
-    var customHeroArtwokPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
+    var customListArtworkPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
+    var customHeroArtworkPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
     var customArtworkPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
     var customIconArtworkPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
     var customIconPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
@@ -2086,8 +2086,8 @@ internal fun UnifiedActivity.LibraryCarousel(
         customArtworkPathByAppId = artworkPaths
         customIconArtworkPathByAppId = iconArtworkPaths
         customIconPathByAppId = customIconPaths
-        customHeroArtwokPathByAppId = customHeroPath
-        customListArtwokPathByAppId = customListPath
+        customHeroArtworkPathByAppId = customHeroPath
+        customListArtworkPathByAppId = customListPath
         if (appsSnapshot.isNotEmpty()) {
             stableCustomArtworkPathByAppId = artworkPaths
             stableCustomIconArtworkPathByAppId = iconArtworkPaths
@@ -2136,9 +2136,9 @@ internal fun UnifiedActivity.LibraryCarousel(
     val visibleCustomIconPathByAppId =
         if (keepPreviousLibraryVisible) stableCustomIconPathByAppId else customIconPathByAppId
     val visibleCustomListPathByAppId =
-        if (keepPreviousLibraryVisible) stableCustomListPathByAppId else customListArtwokPathByAppId
+        if (keepPreviousLibraryVisible) stableCustomListPathByAppId else customListArtworkPathByAppId
     val visibleCustomHeroPathByAppId =
-        if (keepPreviousLibraryVisible) stableCustomHeroPathByAppId else customHeroArtwokPathByAppId
+        if (keepPreviousLibraryVisible) stableCustomHeroPathByAppId else customHeroArtworkPathByAppId
 
     val displayedApps =
         remember(visibleInstalledApps, searchQuery) {

@@ -241,7 +241,7 @@ class ShortcutSettingsComposeDialog private constructor(
             override fun onScrapeGameArtwork(gameName: String) {
                 WinToast.show(context,R.string.library_games_scraping_artwork, Toast.LENGTH_LONG)
                 CoroutineScope(Dispatchers.IO).launch {
-                    val artworkInfo = SteamArtworkScraper().getGameArtwork(gameName)
+                    val artworkInfo = SteamArtworkScraper(context).getGameArtwork(gameName)
                     if (!artworkInfo.isEmpty()) {
                         clearLibraryArtworkSlots(getLibraryArtworkSlots(LibraryArtworkTarget.ICON_ART))
                         clearLibraryArtworkSlots(getLibraryArtworkSlots(LibraryArtworkTarget.GAME_CARD))

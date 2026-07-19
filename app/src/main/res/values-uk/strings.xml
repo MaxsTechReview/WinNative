@@ -161,6 +161,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">Завантажити зображення</string>
+    <string name="library_games_scraping_artwork">Завантаження</string>
     <string name="library_games_shortcut_created">Ярлик створено</string>
     <string name="library_games_failed_to_create_shortcut">Не вдалося створити ярлик: %s</string>
     <string name="library_games_install_path">Шлях встановлення</string>
@@ -740,6 +742,7 @@
     <string name="settings_general_select_wallpaper">Вибрати шпалери</string>
     <string name="settings_general_title">Загальні</string>
     <string name="settings_general_enable_file_provider">Увімкнути файловий провайдер</string>
+    <string name="settings_general_enable_auto_scraping">Увімкнути автоматичне завантаження зображень</string>
     <string name="settings_general_take_effect_next_startup">Ця опція набуде чинності при наступному запуску.</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Перевстановити Imagefs</string>
@@ -763,6 +766,7 @@
     <string name="settings_general_xinput_toggle_summary">Вимикає обробку XInput, коли потрібне ексклюзивне керування мишею та клавіатурою.</string>
     <string name="settings_external_display_output_summary">Переносить гру на під\'єднаний зовнішній дисплей замість дублювання цього екрана. Окуляри завжди використовують власний дисплей.</string>
     <string name="settings_general_file_provider_summary">Надати доступ до файлів WinNative для засобів вибору документів та файлових менеджерів Android.</string>
+    <string name="settings_general_auto_scraping_summary">Цей параметр дозволяє WinNative автоматично завантажувати зображення користувацьких ігор.</string>
     <string name="settings_general_open_browser_summary">Відкривати підтримувані веб-посилання у браузері Android замість Wine.</string>
     <string name="settings_general_clipboard_summary">Дозволити копіювання та вставку між Android та сесіями Wine.</string>
     <string name="settings_general_imagefs_summary">Відновити системні файли з пакета без видалення існуючих контейнерів.</string>
@@ -1377,6 +1381,7 @@
     <string name="steam_friends_section_online">У мережі (%1$d)</string>
     <string name="steam_friends_section_offline">Не в мережі (%1$d)</string>
     <string name="steam_friends_none_loaded">Друзів ще не завантажено.</string>
+    <string name="steam_friends_chat_off">Чат вимкнено. Знову ввімкніть Службу чату, щоб бачити друзів.</string>
     <string name="steam_friends_self_you">Ви</string>
     <string name="steam_friends_in_game">У грі</string>
     <string name="steam_friends_join">Приєднатися</string>
@@ -1402,6 +1407,8 @@
     <string name="steam_join_the_game">гру</string>
     <string name="steam_friends_settings">Settings</string>
     <string name="steam_chat_settings_title">Chat Settings</string>
+    <string name="steam_chat_setting_service">Служба чату</string>
+    <string name="steam_chat_setting_service_desc">Увійдіть, щоб бачити друзів і спілкуватися в чаті; вимкніть, щоб перейти в офлайн</string>
     <string name="steam_chat_setting_notifications">Chat Notifications</string>
     <string name="steam_chat_setting_notifications_desc">Show a notification when you receive a message</string>
     <string name="steam_chat_setting_heads">Chat Heads</string>

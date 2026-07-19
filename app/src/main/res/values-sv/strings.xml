@@ -158,6 +158,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">Hämta grafik</string>
+    <string name="library_games_scraping_artwork">Hämtar</string>
     <string name="library_games_shortcut_created">Genväg skapad</string>
     <string name="library_games_failed_to_create_shortcut">Det gick inte att skapa genväg: %s</string>
     <string name="library_games_install_path">Installationssökväg</string>
@@ -1020,6 +1022,7 @@ T.ex. <b>META</b> för <i>META-tangent</i>, \n
     <string name="settings_general_select_wallpaper">Välj bakgrundsbild</string>
     <string name="settings_general_title">Allmänt</string>
     <string name="settings_general_enable_file_provider">Aktivera filleverantör</string>
+    <string name="settings_general_enable_auto_scraping">Aktivera automatisk hämtning</string>
     <string name="settings_general_take_effect_next_startup">Det här alternativet börjar gälla vid nästa start.</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Installera om Imagefs</string>
@@ -1043,6 +1046,7 @@ T.ex. <b>META</b> för <i>META-tangent</i>, \n
     <string name="settings_general_xinput_toggle_summary">Stänger av XInput-hantering när du vill ha exklusiv mus- och tangentbordskontroll.</string>
     <string name="settings_external_display_output_summary">Flytta spelet till en ansluten extern skärm i stället för att spegla den här skärmen. Glasögon använder alltid sin egen skärm.</string>
     <string name="settings_general_file_provider_summary">Exponera WinNative-filer för Androids dokumentväljare och filhanterare.</string>
+    <string name="settings_general_auto_scraping_summary">Den här inställningen låter WinNative automatiskt hämta grafik för anpassade spel.</string>
     <string name="settings_general_open_browser_summary">Öppna webblänkar som stöds i Android-webbläsaren i stället för i Wine.</string>
     <string name="settings_general_clipboard_summary">Tillåt kopiera och klistra in mellan Android- och Wine-sessioner.</string>
     <string name="settings_general_imagefs_summary">Återställ medföljande systemfiler utan att ta bort dina befintliga containrar.</string>
@@ -1115,6 +1119,8 @@ T.ex. <b>META</b> för <i>META-tangent</i>, \n
     <string name="settings_other_language_title">Språk</string>
     <string name="settings_other_language_summary">Välj visningsspråk</string>
     <string name="settings_other_language_system_default">Systemstandard</string>
+    <string name="settings_other_game_language_title">Spelspråk</string>
+    <string name="settings_other_game_language_summary">Föredraget språk för Steam/Epic/GOG-nedladdningar</string>
 
     <string name="settings_other_section_integration">Integration</string>
     <string name="settings_other_setup_wizard_title">Installationsguide</string>
@@ -1502,6 +1508,7 @@ Installerad sökväg:
     <string name="steam_friends_section_online">Online (%1$d)</string>
     <string name="steam_friends_section_offline">Offline (%1$d)</string>
     <string name="steam_friends_none_loaded">Inga vänner har laddats ännu.</string>
+    <string name="steam_friends_chat_off">Chatten är avstängd. Slå på chattjänsten igen för att se dina vänner.</string>
     <string name="steam_friends_self_you">Du</string>
     <string name="steam_friends_in_game">I spel</string>
     <string name="steam_friends_join">Anslut</string>
@@ -1527,6 +1534,8 @@ Installerad sökväg:
     <string name="steam_join_the_game">spelet</string>
     <string name="steam_friends_settings">Inställningar</string>
     <string name="steam_chat_settings_title">Chattinställningar</string>
+    <string name="steam_chat_setting_service">Chattjänst</string>
+    <string name="steam_chat_setting_service_desc">Logga in för att se vänner och chatta; stäng av för att visas offline</string>
     <string name="steam_chat_setting_notifications">Chattaviseringar</string>
     <string name="steam_chat_setting_notifications_desc">Visa en avisering när du får ett meddelande</string>
     <string name="steam_chat_setting_heads">Chatthuvuden</string>

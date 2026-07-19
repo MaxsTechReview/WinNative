@@ -158,6 +158,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">Görselleri Getir</string>
+    <string name="library_games_scraping_artwork">Getiriliyor</string>
     <string name="library_games_shortcut_created">Kısayol oluşturuldu</string>
     <string name="library_games_failed_to_create_shortcut">Kısayol oluşturulamadı: %s</string>
     <string name="library_games_install_path">Yükleme Yolu</string>
@@ -1020,6 +1022,7 @@ E.g. <b>META</b> için <i>META tuşu</i>, \n
     <string name="settings_general_select_wallpaper">Duvar kağıdı seç</string>
     <string name="settings_general_title">Genel</string>
     <string name="settings_general_enable_file_provider">Dosya Sağlayıcısını Etkinleştir</string>
+    <string name="settings_general_enable_auto_scraping">Otomatik Görsel Getirmeyi Etkinleştir</string>
     <string name="settings_general_take_effect_next_startup">Bu seçenek bir sonraki başlatmada etkin olacaktır.</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Imagefs\'i Yeniden Kur</string>
@@ -1043,6 +1046,7 @@ E.g. <b>META</b> için <i>META tuşu</i>, \n
     <string name="settings_general_xinput_toggle_summary">Özel fare ve klavye denetimi istediğinizde XInput işlemeyi kapatır.</string>
     <string name="settings_external_display_output_summary">Bu ekranı yansıtmak yerine oyunu bağlı bir harici ekrana taşıyın. Gözlükler her zaman kendi ekranlarını kullanır.</string>
     <string name="settings_general_file_provider_summary">WinNative dosyalarını Android belge seçicilerine ve dosya yöneticilerine açar.</string>
+    <string name="settings_general_auto_scraping_summary">Bu ayar, WinNative\'in özel oyun görsellerini otomatik olarak getirmesine olanak tanır.</string>
     <string name="settings_general_open_browser_summary">Desteklenen web bağlantılarını Wine yerine Android tarayıcısında açar.</string>
     <string name="settings_general_clipboard_summary">Android ile Wine oturumları arasında kopyalama ve yapıştırmaya izin verir.</string>
     <string name="settings_general_imagefs_summary">Mevcut kapsayıcılarınızı kaldırmadan paket sistem dosyalarını geri yükler.</string>
@@ -1115,6 +1119,8 @@ E.g. <b>META</b> için <i>META tuşu</i>, \n
     <string name="settings_other_language_title">Dil</string>
     <string name="settings_other_language_summary">Görüntüleme dilini seçin</string>
     <string name="settings_other_language_system_default">Sistem varsayılanı</string>
+    <string name="settings_other_game_language_title">Oyun Dili</string>
+    <string name="settings_other_game_language_summary">Steam/Epic/GOG indirmeleri için tercih edilen dil</string>
 
     <string name="settings_other_section_integration">Entegrasyon</string>
     <string name="settings_other_setup_wizard_title">Kurulum Sihirbazı</string>
@@ -1502,6 +1508,7 @@ Yüklü konum:
     <string name="steam_friends_section_online">Çevrimiçi (%1$d)</string>
     <string name="steam_friends_section_offline">Çevrimdışı (%1$d)</string>
     <string name="steam_friends_none_loaded">Henüz arkadaş yüklenmedi.</string>
+    <string name="steam_friends_chat_off">Sohbet kapalı. Arkadaşlarınızı görmek için Sohbet Servisini yeniden açın.</string>
     <string name="steam_friends_self_you">Sen</string>
     <string name="steam_friends_in_game">Oyunda</string>
     <string name="steam_friends_join">Katıl</string>
@@ -1527,6 +1534,8 @@ Yüklü konum:
     <string name="steam_join_the_game">oyun</string>
     <string name="steam_friends_settings">Ayarlar</string>
     <string name="steam_chat_settings_title">Sohbet Ayarları</string>
+    <string name="steam_chat_setting_service">Sohbet Servisi</string>
+    <string name="steam_chat_setting_service_desc">Arkadaşlarınızı görmek ve sohbet etmek için giriş yapın; çevrimdışı olmak için kapatın</string>
     <string name="steam_chat_setting_notifications">Sohbet Bildirimleri</string>
     <string name="steam_chat_setting_notifications_desc">Bir mesaj aldığınızda bildirim göster</string>
     <string name="steam_chat_setting_heads">Sohbet Balonları</string>

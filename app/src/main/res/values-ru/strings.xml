@@ -160,6 +160,8 @@
         <item quantity="other">%d файла</item>
     </plurals>
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">Загрузить обложки</string>
+    <string name="library_games_scraping_artwork">Загрузка</string>
     <string name="library_games_shortcut_created">Ярлык создан.</string>
     <string name="library_games_failed_to_create_shortcut">Не удалось создать ярлык: %s</string>
     <string name="library_games_install_path">Путь установки</string>
@@ -805,6 +807,7 @@
     <string name="settings_general_select_wallpaper">Выбрать обои</string>
     <string name="settings_general_title">Общие</string>
     <string name="settings_general_enable_file_provider">Включить поставщика файлов</string>
+    <string name="settings_general_enable_auto_scraping">Включить автозагрузку обложек</string>
     <string name="settings_general_take_effect_next_startup">Эта опция вступит в силу при следующем запуске.</string>
     <string name="settings_general_imagefs">ImageFS</string>
     <string name="settings_general_reinstall_imagefs">Переустановить ImageFS</string>
@@ -828,6 +831,7 @@
     <string name="settings_general_xinput_toggle_summary">Отключает обработку XInput, если вам требуется единоличное управление мышью и клавиатурой.</string>
     <string name="settings_external_display_output_summary">Переносит игру на подключённый внешний дисплей вместо зеркалирования этого экрана. Очки всегда используют собственный дисплей.</string>
     <string name="settings_general_file_provider_summary">Предоставляйте файлы WinNative средствам выбора документов и файловым менеджерам Android.</string>
+    <string name="settings_general_auto_scraping_summary">Этот параметр позволяет WinNative автоматически загружать обложки пользовательских игр.</string>
     <string name="settings_general_open_browser_summary">Открывайте поддерживаемые веб-ссылки в браузере Android, а не внутри Wine.</string>
     <string name="settings_general_clipboard_summary">Разрешить копирование и вставку между сеансами Android и Wine.</string>
     <string name="settings_general_imagefs_summary">Восстановите связанные системные файлы, не удаляя существующие контейнеры.</string>
@@ -1277,6 +1281,7 @@
     <string name="steam_friends_section_online">В сети (%1$d)</string>
     <string name="steam_friends_section_offline">Не в сети (%1$d)</string>
     <string name="steam_friends_none_loaded">Друзья ещё не загружены.</string>
+    <string name="steam_friends_chat_off">Чат выключен. Снова включите Службу чата, чтобы видеть друзей.</string>
     <string name="steam_friends_self_you">Вы</string>
     <string name="steam_friends_in_game">В игре</string>
     <string name="steam_friends_join">Войти</string>
@@ -1302,6 +1307,8 @@
     <string name="steam_join_the_game">игру</string>
     <string name="steam_friends_settings">Settings</string>
     <string name="steam_chat_settings_title">Chat Settings</string>
+    <string name="steam_chat_setting_service">Служба чата</string>
+    <string name="steam_chat_setting_service_desc">Войдите, чтобы видеть друзей и общаться в чате; выключите, чтобы перейти в офлайн</string>
     <string name="steam_chat_setting_notifications">Chat Notifications</string>
     <string name="steam_chat_setting_notifications_desc">Show a notification when you receive a message</string>
     <string name="steam_chat_setting_heads">Chat Heads</string>

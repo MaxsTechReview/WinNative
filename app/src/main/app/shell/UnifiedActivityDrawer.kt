@@ -1088,7 +1088,7 @@ internal suspend fun scrapeCustomGameArtwork(
     shortcutFile: java.io.File
 ) {
     val shortcut = Shortcut(container, shortcutFile)
-    val artworkInfo = SteamArtworkScraper().getGameArtwork(gameName)
+    val artworkInfo = SteamArtworkScraper(context).getGameArtwork(gameName)
     withContext(Dispatchers.Main) {
         com.winlator.cmod.shared.ui.toast.WinToast.show(context, R.string.library_games_scraping_artwork, android.widget.Toast.LENGTH_LONG)
     }
@@ -1173,17 +1173,17 @@ internal fun UnifiedActivity.addCustomGame(
     content.append("custom_exe=$exePath\n")
     content.append("custom_game_folder=$gameFolderPath\n")
     content.append("uuid=$shortcutUuid\n")
-    if (preferences.getBoolean("enable_auto_scraping", false)) {
-        CoroutineScope(Dispatchers.IO).launch {
-            scrapeCustomGameArtwork(context, name, shortcutUuid, container, shortcutFile)
-        }
-    } else
-        extractedArtworkPath?.let { content.append("customCoverArtPath=$it\n") }
+    extractedArtworkPath?.let { content.append("customCoverArtPath=$it\n") }
     content.append("container_id=${container.id}\n")
     content.append("use_container_defaults=1\n")
     com.winlator.cmod.shared.io.FileUtils
         .writeString(shortcutFile, content.toString())
     container.saveData()
+    if (preferences.getBoolean("enable_auto_scraping", false)) {
+        CoroutineScope(Dispatchers.IO).launch {
+            scrapeCustomGameArtwork(context, name, shortcutUuid, container, shortcutFile)
+        }
+    }
 }
 
 @Composable

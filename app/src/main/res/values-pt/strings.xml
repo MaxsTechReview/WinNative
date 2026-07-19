@@ -158,6 +158,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">Obter arte</string>
+    <string name="library_games_scraping_artwork">A obter…</string>
     <string name="library_games_shortcut_created">Atalho criado</string>
     <string name="library_games_failed_to_create_shortcut">Falha ao criar atalho: %s</string>
     <string name="library_games_install_path">Caminho de Instalação</string>
@@ -1020,6 +1022,7 @@ Por ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="settings_general_select_wallpaper">Selecionar papel de parede</string>
     <string name="settings_general_title">Geral</string>
     <string name="settings_general_enable_file_provider">Ativar fornecedor de ficheiros</string>
+    <string name="settings_general_enable_auto_scraping">Ativar obtenção automática de arte</string>
     <string name="settings_general_take_effect_next_startup">Esta opção terá efeito no próximo arranque.</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Reinstalar Imagefs</string>
@@ -1043,6 +1046,7 @@ Por ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="settings_general_xinput_toggle_summary">Desliga o processamento de XInput quando queres controlo exclusivo do rato e do teclado.</string>
     <string name="settings_external_display_output_summary">Move o jogo para um ecrã externo ligado em vez de espelhar este ecrã. Os óculos usam sempre o seu próprio ecrã.</string>
     <string name="settings_general_file_provider_summary">Expõe os ficheiros do WinNative aos seletores de documentos e gestores de ficheiros do Android.</string>
+    <string name="settings_general_auto_scraping_summary">Permite que o WinNative obtenha automaticamente a arte de jogos personalizados.</string>
     <string name="settings_general_open_browser_summary">Abrir as ligações web suportadas no navegador do Android em vez de dentro do Wine.</string>
     <string name="settings_general_clipboard_summary">Permitir copiar e colar entre o Android e as sessões do Wine.</string>
     <string name="settings_general_imagefs_summary">Restaurar os ficheiros de sistema incluídos sem remover os seus contentores existentes.</string>
@@ -1115,6 +1119,8 @@ Por ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="settings_other_language_title">Idioma</string>
     <string name="settings_other_language_summary">Escolha o idioma de apresentação</string>
     <string name="settings_other_language_system_default">Predefinição do sistema</string>
+    <string name="settings_other_game_language_title">Idioma do jogo</string>
+    <string name="settings_other_game_language_summary">Idioma preferido para transferências da Steam/Epic/GOG</string>
 
     <string name="settings_other_section_integration">Integração</string>
     <string name="settings_other_setup_wizard_title">Assistente de Configuração</string>
@@ -1502,6 +1508,7 @@ Caminho instalado:
     <string name="steam_friends_section_online">Online (%1$d)</string>
     <string name="steam_friends_section_offline">Offline (%1$d)</string>
     <string name="steam_friends_none_loaded">Ainda não foram carregados amigos.</string>
+    <string name="steam_friends_chat_off">A conversa está desativada. Reative o Serviço de conversa para ver os seus amigos.</string>
     <string name="steam_friends_self_you">Tu</string>
     <string name="steam_friends_in_game">Em jogo</string>
     <string name="steam_friends_join">Juntar-se</string>
@@ -1527,6 +1534,8 @@ Caminho instalado:
     <string name="steam_join_the_game">o jogo</string>
     <string name="steam_friends_settings">Definições</string>
     <string name="steam_chat_settings_title">Definições de conversa</string>
+    <string name="steam_chat_setting_service">Serviço de conversa</string>
+    <string name="steam_chat_setting_service_desc">Inicie sessão para ver amigos e conversar; desative para ficar offline</string>
     <string name="steam_chat_setting_notifications">Notificações de conversa</string>
     <string name="steam_chat_setting_notifications_desc">Mostrar uma notificação quando recebe uma mensagem</string>
     <string name="steam_chat_setting_heads">Balões de conversa</string>

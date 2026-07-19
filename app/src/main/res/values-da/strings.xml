@@ -157,6 +157,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">Hent grafik</string>
+    <string name="library_games_scraping_artwork">Henter</string>
     <string name="library_games_shortcut_created">Genvej oprettet</string>
     <string name="library_games_failed_to_create_shortcut">Kunne ikke oprette genvej: %s</string>
     <string name="library_games_install_path">Installationssti</string>
@@ -734,6 +736,7 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_general_select_wallpaper">Vælg baggrundsbillede</string>
     <string name="settings_general_title">Generelt</string>
     <string name="settings_general_enable_file_provider">Aktiver filudbyder</string>
+    <string name="settings_general_enable_auto_scraping">Aktiver automatisk hentning</string>
     <string name="settings_general_take_effect_next_startup">Denne indstilling træder i kraft ved næste opstart.</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Geninstaller Imagefs</string>
@@ -757,6 +760,7 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_general_xinput_toggle_summary">Slår XInput-håndtering fra når du ønsker eksklusiv mus- og tastaturkontrol.</string>
     <string name="settings_external_display_output_summary">Flyt spillet til en tilsluttet ekstern skærm i stedet for at spejle denne skærm. Briller bruger altid deres egen skærm.</string>
     <string name="settings_general_file_provider_summary">Gør WinNative-filer tilgængelige for Android-dokumentvælgere og filhåndtering.</string>
+    <string name="settings_general_auto_scraping_summary">Denne indstilling giver WinNative mulighed for automatisk at hente grafik til brugerdefinerede spil.</string>
     <string name="settings_general_open_browser_summary">Åbn understøttede weblinks i Android-browseren i stedet for inde i Wine.</string>
     <string name="settings_general_clipboard_summary">Tillad kopiering og indsættelse mellem Android og Wine-sessioner.</string>
     <string name="settings_general_imagefs_summary">Gendan medfølgende systemfiler uden at fjerne dine eksisterende containere.</string>
@@ -1371,6 +1375,7 @@ Installeret sti:
     <string name="steam_friends_section_online">Online (%1$d)</string>
     <string name="steam_friends_section_offline">Offline (%1$d)</string>
     <string name="steam_friends_none_loaded">Ingen venner indlæst endnu.</string>
+    <string name="steam_friends_chat_off">Chat er slået fra. Slå chattjenesten til igen for at se dine venner.</string>
     <string name="steam_friends_self_you">Dig</string>
     <string name="steam_friends_in_game">I spil</string>
     <string name="steam_friends_join">Deltag</string>
@@ -1396,6 +1401,8 @@ Installeret sti:
     <string name="steam_join_the_game">spillet</string>
     <string name="steam_friends_settings">Settings</string>
     <string name="steam_chat_settings_title">Chat Settings</string>
+    <string name="steam_chat_setting_service">Chattjeneste</string>
+    <string name="steam_chat_setting_service_desc">Log ind for at se venner og chatte; slå fra for at fremstå offline</string>
     <string name="steam_chat_setting_notifications">Chat Notifications</string>
     <string name="steam_chat_setting_notifications_desc">Show a notification when you receive a message</string>
     <string name="steam_chat_setting_heads">Chat Heads</string>

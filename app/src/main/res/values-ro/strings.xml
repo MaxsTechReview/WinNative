@@ -157,6 +157,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">Obține ilustrații</string>
+    <string name="library_games_scraping_artwork">Se obțin…</string>
     <string name="library_games_shortcut_created">Comanda rapida creata</string>
     <string name="library_games_failed_to_create_shortcut">Nu s-a putut crea comanda rapida: %s</string>
     <string name="library_games_install_path">Cale de instalare</string>
@@ -734,6 +736,7 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="settings_general_select_wallpaper">Selectează fundalul</string>
     <string name="settings_general_title">General</string>
     <string name="settings_general_enable_file_provider">Activeaza furnizorul de fisiere</string>
+    <string name="settings_general_enable_auto_scraping">Activează obținerea automată</string>
     <string name="settings_general_take_effect_next_startup">Aceasta optiune va avea efect la urmatoarea pornire.</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Reinstaleaza Imagefs</string>
@@ -757,6 +760,7 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="settings_general_xinput_toggle_summary">Opreste gestionarea XInput cand doresti control exclusiv cu mouse-ul si tastatura.</string>
     <string name="settings_external_display_output_summary">Mută jocul pe un afișaj extern conectat în loc să oglindească acest ecran. Ochelarii folosesc întotdeauna propriul afișaj.</string>
     <string name="settings_general_file_provider_summary">Expune fisierele WinNative catre selectoarele de documente si managerii de fisiere Android.</string>
+    <string name="settings_general_auto_scraping_summary">Această setare permite WinNative să obțină automat ilustrațiile jocurilor personalizate.</string>
     <string name="settings_general_open_browser_summary">Deschide link-urile web compatibile in browserul Android in loc de Wine.</string>
     <string name="settings_general_clipboard_summary">Permite copierea si lipirea intre Android si sesiunile Wine.</string>
     <string name="settings_general_imagefs_summary">Restaureaza fisierele de sistem incluse fara a elimina containerele existente.</string>
@@ -1371,6 +1375,7 @@ Cale instalata:
     <string name="steam_friends_section_online">Online (%1$d)</string>
     <string name="steam_friends_section_offline">Offline (%1$d)</string>
     <string name="steam_friends_none_loaded">Niciun prieten încărcat încă.</string>
+    <string name="steam_friends_chat_off">Chatul este dezactivat. Reactivează Serviciul de chat pentru a-ți vedea prietenii.</string>
     <string name="steam_friends_self_you">Tu</string>
     <string name="steam_friends_in_game">În joc</string>
     <string name="steam_friends_join">Alătură-te</string>
@@ -1396,6 +1401,8 @@ Cale instalata:
     <string name="steam_join_the_game">jocul</string>
     <string name="steam_friends_settings">Settings</string>
     <string name="steam_chat_settings_title">Chat Settings</string>
+    <string name="steam_chat_setting_service">Serviciu de chat</string>
+    <string name="steam_chat_setting_service_desc">Conectează-te pentru a-ți vedea prietenii și a discuta; dezactivează pentru a apărea offline</string>
     <string name="steam_chat_setting_notifications">Chat Notifications</string>
     <string name="steam_chat_setting_notifications_desc">Show a notification when you receive a message</string>
     <string name="steam_chat_setting_heads">Chat Heads</string>

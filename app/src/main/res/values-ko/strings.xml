@@ -157,6 +157,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">아트워크 가져오기</string>
+    <string name="library_games_scraping_artwork">가져오는 중</string>
     <string name="library_games_shortcut_created">바로가기가 생성되었습니다</string>
     <string name="library_games_failed_to_create_shortcut">바로가기 생성 실패: %s</string>
     <string name="library_games_install_path">설치 경로</string>
@@ -734,6 +736,7 @@
     <string name="settings_general_select_wallpaper">배경화면 선택</string>
     <string name="settings_general_title">일반</string>
     <string name="settings_general_enable_file_provider">파일 제공자 활성화</string>
+    <string name="settings_general_enable_auto_scraping">자동 아트워크 가져오기 활성화</string>
     <string name="settings_general_take_effect_next_startup">이 옵션은 다음 시작 시 적용됩니다.</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Imagefs 재설치</string>
@@ -757,6 +760,7 @@
     <string name="settings_general_xinput_toggle_summary">마우스와 키보드만 사용하려는 경우 XInput 처리를 끕니다.</string>
     <string name="settings_external_display_output_summary">이 화면을 미러링하는 대신 연결된 외부 디스플레이로 게임을 옮깁니다. 안경은 항상 자체 디스플레이를 사용합니다.</string>
     <string name="settings_general_file_provider_summary">Android 문서 선택기 및 파일 관리자에 WinNative 파일을 노출합니다.</string>
+    <string name="settings_general_auto_scraping_summary">WinNative가 사용자 지정 게임 아트워크를 자동으로 가져올 수 있도록 합니다.</string>
     <string name="settings_general_open_browser_summary">지원되는 웹 링크를 Wine 내부 대신 Android 브라우저에서 엽니다.</string>
     <string name="settings_general_clipboard_summary">Android와 Wine 세션 간에 복사 및 붙여넣기를 허용합니다.</string>
     <string name="settings_general_imagefs_summary">기존 컨테이너를 제거하지 않고 번들된 시스템 파일을 복원합니다.</string>
@@ -1372,6 +1376,7 @@
     <string name="steam_friends_section_online">온라인 (%1$d)</string>
     <string name="steam_friends_section_offline">오프라인 (%1$d)</string>
     <string name="steam_friends_none_loaded">아직 불러온 친구가 없습니다.</string>
+    <string name="steam_friends_chat_off">채팅이 꺼져 있습니다. 친구를 보려면 채팅 서비스를 다시 켜세요.</string>
     <string name="steam_friends_self_you">나</string>
     <string name="steam_friends_in_game">게임 중</string>
     <string name="steam_friends_join">참가</string>
@@ -1397,6 +1402,8 @@
     <string name="steam_join_the_game">게임</string>
     <string name="steam_friends_settings">Settings</string>
     <string name="steam_chat_settings_title">Chat Settings</string>
+    <string name="steam_chat_setting_service">채팅 서비스</string>
+    <string name="steam_chat_setting_service_desc">로그인하여 친구와 채팅하세요. 끄면 오프라인으로 전환됩니다.</string>
     <string name="steam_chat_setting_notifications">Chat Notifications</string>
     <string name="steam_chat_setting_notifications_desc">Show a notification when you receive a message</string>
     <string name="steam_chat_setting_heads">Chat Heads</string>

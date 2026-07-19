@@ -161,6 +161,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">Pobierz grafiki</string>
+    <string name="library_games_scraping_artwork">Pobieranie</string>
     <string name="library_games_shortcut_created">Skrót utworzony</string>
     <string name="library_games_failed_to_create_shortcut">Nie udało się utworzyć skrótu: %s</string>
     <string name="library_games_install_path">Ścieżka instalacji</string>
@@ -740,6 +742,7 @@ Np. <b>META</b> dla <i>klawisza META</i>, \n
     <string name="settings_general_select_wallpaper">Wybierz tapetę</string>
     <string name="settings_general_title">Ogólne</string>
     <string name="settings_general_enable_file_provider">Włącz dostawcę plików</string>
+    <string name="settings_general_enable_auto_scraping">Włącz automatyczne pobieranie grafik</string>
     <string name="settings_general_take_effect_next_startup">Ta opcja zacznie działać po ponownym uruchomieniu.</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Reinstaluj Imagefs</string>
@@ -763,6 +766,7 @@ Np. <b>META</b> dla <i>klawisza META</i>, \n
     <string name="settings_general_xinput_toggle_summary">Wyłącza obsługę XInput, gdy chcesz wyłącznej kontroli myszy i klawiatury.</string>
     <string name="settings_external_display_output_summary">Przenosi grę na podłączony zewnętrzny wyświetlacz zamiast powielać ten ekran. Okulary zawsze korzystają z własnego wyświetlacza.</string>
     <string name="settings_general_file_provider_summary">Udostępnij pliki WinNative selektorom dokumentów i menedżerom plików Androida.</string>
+    <string name="settings_general_auto_scraping_summary">To ustawienie pozwala WinNative automatycznie pobierać grafiki własnych gier.</string>
     <string name="settings_general_open_browser_summary">Otwieraj obsługiwane linki w przeglądarce Androida zamiast w Wine.</string>
     <string name="settings_general_clipboard_summary">Umożliw kopiowanie i wklejanie między Androidem a sesjami Wine.</string>
     <string name="settings_general_imagefs_summary">Przywróć dołączone pliki systemowe bez usuwania istniejących kontenerów.</string>
@@ -1377,6 +1381,7 @@ Zainstalowana ścieżka:
     <string name="steam_friends_section_online">Online (%1$d)</string>
     <string name="steam_friends_section_offline">Offline (%1$d)</string>
     <string name="steam_friends_none_loaded">Nie wczytano jeszcze znajomych.</string>
+    <string name="steam_friends_chat_off">Czat jest wyłączony. Włącz ponownie Usługę czatu, aby zobaczyć znajomych.</string>
     <string name="steam_friends_self_you">Ty</string>
     <string name="steam_friends_in_game">W grze</string>
     <string name="steam_friends_join">Dołącz</string>
@@ -1402,6 +1407,8 @@ Zainstalowana ścieżka:
     <string name="steam_join_the_game">grę</string>
     <string name="steam_friends_settings">Settings</string>
     <string name="steam_chat_settings_title">Chat Settings</string>
+    <string name="steam_chat_setting_service">Usługa czatu</string>
+    <string name="steam_chat_setting_service_desc">Zaloguj się, aby widzieć znajomych i czatować; wyłącz, aby przejść w tryb offline</string>
     <string name="steam_chat_setting_notifications">Chat Notifications</string>
     <string name="steam_chat_setting_notifications_desc">Show a notification when you receive a message</string>
     <string name="steam_chat_setting_heads">Chat Heads</string>

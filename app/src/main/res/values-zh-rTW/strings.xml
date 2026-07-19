@@ -157,6 +157,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">擷取美術圖</string>
+    <string name="library_games_scraping_artwork">擷取中</string>
     <string name="library_games_shortcut_created">捷徑已建立</string>
     <string name="library_games_failed_to_create_shortcut">無法建立捷徑：%s</string>
     <string name="library_games_install_path">安裝路徑</string>
@@ -734,6 +736,7 @@
     <string name="settings_general_select_wallpaper">選取桌布</string>
     <string name="settings_general_title">一般</string>
     <string name="settings_general_enable_file_provider">啟用檔案提供者</string>
+    <string name="settings_general_enable_auto_scraping">啟用自動擷取</string>
     <string name="settings_general_take_effect_next_startup">此選項將在下次啟動時生效。</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">重新安裝 Imagefs</string>
@@ -757,6 +760,7 @@
     <string name="settings_general_xinput_toggle_summary">當您想要獨佔滑鼠和鍵盤控制時，關閉 XInput 處理。</string>
     <string name="settings_external_display_output_summary">將遊戲移至已連接的外部顯示器，而非鏡像此螢幕。眼鏡一律使用自己的顯示器。</string>
     <string name="settings_general_file_provider_summary">將 WinNative 檔案公開給 Android 文件選取器和檔案管理員。</string>
+    <string name="settings_general_auto_scraping_summary">讓 WinNative 自動擷取自訂遊戲美術圖。</string>
     <string name="settings_general_open_browser_summary">在 Android 瀏覽器中開啟支援的網頁連結，而非在 Wine 內開啟。</string>
     <string name="settings_general_clipboard_summary">允許在 Android 和 Wine 工作階段之間複製和貼上。</string>
     <string name="settings_general_imagefs_summary">還原捆綁的系統檔案，而不移除您現有的容器。</string>
@@ -1371,6 +1375,7 @@
     <string name="steam_friends_section_online">在線 (%1$d)</string>
     <string name="steam_friends_section_offline">離線 (%1$d)</string>
     <string name="steam_friends_none_loaded">尚未載入好友。</string>
+    <string name="steam_friends_chat_off">聊天已關閉。重新開啟聊天服務以查看好友。</string>
     <string name="steam_friends_self_you">你</string>
     <string name="steam_friends_in_game">遊戲中</string>
     <string name="steam_friends_join">加入</string>
@@ -1396,6 +1401,8 @@
     <string name="steam_join_the_game">遊戲</string>
     <string name="steam_friends_settings">Settings</string>
     <string name="steam_chat_settings_title">Chat Settings</string>
+    <string name="steam_chat_setting_service">聊天服務</string>
+    <string name="steam_chat_setting_service_desc">登入以使用好友和聊天；關閉則顯示為離線。</string>
     <string name="steam_chat_setting_notifications">Chat Notifications</string>
     <string name="steam_chat_setting_notifications_desc">Show a notification when you receive a message</string>
     <string name="steam_chat_setting_heads">Chat Heads</string>

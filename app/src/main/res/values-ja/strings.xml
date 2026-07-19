@@ -158,6 +158,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">アートワークを取得</string>
+    <string name="library_games_scraping_artwork">取得中</string>
     <string name="library_games_shortcut_created">ショートカットを作成しました</string>
     <string name="library_games_failed_to_create_shortcut">ショートカットの作成に失敗しました: %s</string>
     <string name="library_games_install_path">インストールパス</string>
@@ -1020,6 +1022,7 @@
     <string name="settings_general_select_wallpaper">壁紙を選択</string>
     <string name="settings_general_title">一般</string>
     <string name="settings_general_enable_file_provider">ファイルプロバイダーを有効にする</string>
+    <string name="settings_general_enable_auto_scraping">アートワークの自動取得を有効にする</string>
     <string name="settings_general_take_effect_next_startup">このオプションは次回起動時に有効になります。</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Imagefs を再インストール</string>
@@ -1043,6 +1046,7 @@
     <string name="settings_general_xinput_toggle_summary">マウスとキーボードを排他的に制御したいときに XInput 処理をオフにします。</string>
     <string name="settings_external_display_output_summary">この画面をミラーリングする代わりに、接続された外部ディスプレイにゲームを移動します。グラスは常に独自のディスプレイを使用します。</string>
     <string name="settings_general_file_provider_summary">WinNative のファイルを Android のドキュメントピッカーやファイルマネージャーに公開します。</string>
+    <string name="settings_general_auto_scraping_summary">WinNative がカスタムゲームのアートワークを自動的に取得できるようにします。</string>
     <string name="settings_general_open_browser_summary">対応する Web リンクを Wine 内ではなく Android のブラウザで開きます。</string>
     <string name="settings_general_clipboard_summary">Android と Wine セッション間でのコピー＆ペーストを許可します。</string>
     <string name="settings_general_imagefs_summary">既存のコンテナを削除せずに、同梱のシステムファイルを復元します。</string>
@@ -1115,6 +1119,8 @@
     <string name="settings_other_language_title">言語</string>
     <string name="settings_other_language_summary">表示言語を選択します</string>
     <string name="settings_other_language_system_default">システムの既定</string>
+    <string name="settings_other_game_language_title">ゲームの言語</string>
+    <string name="settings_other_game_language_summary">Steam/Epic/GOG のダウンロードで優先する言語</string>
 
     <string name="settings_other_section_integration">連携</string>
     <string name="settings_other_setup_wizard_title">セットアップウィザード</string>
@@ -1502,6 +1508,7 @@
     <string name="steam_friends_section_online">オンライン (%1$d)</string>
     <string name="steam_friends_section_offline">オフライン (%1$d)</string>
     <string name="steam_friends_none_loaded">フレンドはまだ読み込まれていません。</string>
+    <string name="steam_friends_chat_off">チャットはオフです。フレンドを表示するにはチャットサービスをオンに戻してください。</string>
     <string name="steam_friends_self_you">自分</string>
     <string name="steam_friends_in_game">ゲーム中</string>
     <string name="steam_friends_join">参加</string>
@@ -1527,6 +1534,8 @@
     <string name="steam_join_the_game">ゲーム</string>
     <string name="steam_friends_settings">設定</string>
     <string name="steam_chat_settings_title">チャット設定</string>
+    <string name="steam_chat_setting_service">チャットサービス</string>
+    <string name="steam_chat_setting_service_desc">サインインしてフレンドとチャットします。オフにするとオフラインになります。</string>
     <string name="steam_chat_setting_notifications">チャット通知</string>
     <string name="steam_chat_setting_notifications_desc">メッセージを受信したときに通知を表示します</string>
     <string name="steam_chat_setting_heads">チャットヘッド</string>
