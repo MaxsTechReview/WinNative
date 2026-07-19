@@ -1305,6 +1305,22 @@ public class FrameRating extends LinearLayout implements Runnable {
   }
 
   private int calculateGPULoad() throws Exception {
+    File gpubusy = new File("/sys/class/kgsl/kgsl-3d0/gpubusy");
+    if (gpubusy.exists() && gpubusy.canRead()) {
+      try (BufferedReader reader = new BufferedReader(new FileReader(gpubusy))) {
+        String line = reader.readLine();
+        if (line != null) {
+          String[] parts = line.trim().split("\\s+");
+          if (parts.length >= 2) {
+            long busy = Long.parseLong(parts[0]);
+            long total = Long.parseLong(parts[1]);
+            if (total > 0) return (int) ((100 * busy) / total);
+          }
+        }
+      } catch (Exception ignored) {
+      }
+    }
+
     File[] gpuFiles = {
       new File("/sys/class/kgsl/kgsl-3d0/gpu_busy_percentage"),
       new File("/sys/class/kgsl/kgsl-3d0/devfreq/gpu_load"),
@@ -1342,21 +1358,6 @@ public class FrameRating extends LinearLayout implements Runnable {
       }
     }
 
-    File gpubusy = new File("/sys/class/kgsl/kgsl-3d0/gpubusy");
-    if (gpubusy.exists() && gpubusy.canRead()) {
-      try (BufferedReader reader = new BufferedReader(new FileReader(gpubusy))) {
-        String line = reader.readLine();
-        if (line != null) {
-          String[] parts = line.trim().split("\\s+");
-          if (parts.length >= 2) {
-            long busy = Long.parseLong(parts[0]);
-            long total = Long.parseLong(parts[1]);
-            return total != 0 ? (int) ((100 * busy) / total) : 0;
-          }
-        }
-      } catch (Exception ignored) {
-      }
-    }
     throw new Exception("Failed to read GPU usage.");
   }
 
