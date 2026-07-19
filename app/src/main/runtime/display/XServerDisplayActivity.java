@@ -7123,7 +7123,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (preferences.getBoolean(MangoHudView.PREF_ENABLED, false)) {
             mangoHud = new MangoHudView(this);
             mangoHud.setEngineName(mangoEngineLabel());
-            rootView.addView(mangoHud);
+            // Deferred: adding while the frame is detached puts this view inside the frame's later
+            // attach walk, which FrameRating's onAttachedToWindow bringToFront() reorders mid-walk —
+            // the child that slides into the already-visited slot never gets attached. post() runs
+            // after that walk completes, so the add always lands on an attached parent.
+            rootView.post(() -> {
+                if (mangoHud != null && mangoHud.getParent() == null) rootView.addView(mangoHud);
+            });
         }
 
         setupControllerHudDetection();

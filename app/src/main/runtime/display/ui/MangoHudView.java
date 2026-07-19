@@ -71,6 +71,7 @@ public class MangoHudView extends View {
   private static final float[] SCALE_STEPS = {0.75f, 1.0f, 1.25f, 1.5f};
   private static final float BASE_TEXT_DP = 14f;
   private static final long TICK_MS = 500L;
+  private static final long HIDDEN_TICK_MS = 2000L;
   private static final long FALLBACK_SUPPRESSION_NS = 2000000000L;
   private static final long FPS_WINDOW_NS = 1000000000L;
   private static final long IDLE_TIMEOUT_NS = 1500000000L;
@@ -134,11 +135,6 @@ public class MangoHudView extends View {
   // ── stats thread state ──
   private volatile HandlerThread statsThread;
   private volatile Handler statsHandler;
-  private volatile boolean statsHealPending;
-  private final Runnable statsHealRunnable = () -> {
-    statsHealPending = false;
-    syncStatsState();
-  };
   private final float[] lowsScratch = new float[LOWS_CAPACITY];
   private CPUStatus.AppCpuSample prevCpuSample;
   private boolean cpuWarmedUp;
@@ -148,13 +144,18 @@ public class MangoHudView extends View {
   private String[] gpuTempPaths;
   private String vramPath;
   private boolean vramPathSearched;
+  // Self-reposting like FrameRating's stats loop: alive for the view's whole
+  // attached life, independent of frame events, so a session where frames never
+  // reach the HUD still shows live system stats. Near-free while hidden (one
+  // visibility read per 2s, no stat work).
   private final Runnable tickRunnable = new Runnable() {
     @Override
     public void run() {
       Handler handler = statsHandler;
       if (handler == null) return;
-      tick();
-      handler.postDelayed(this, TICK_MS);
+      boolean visible = getVisibility() == VISIBLE;
+      if (visible) tick();
+      handler.postDelayed(this, visible ? TICK_MS : HIDDEN_TICK_MS);
     }
   };
 
@@ -166,7 +167,7 @@ public class MangoHudView extends View {
 
     int mask = preferences.getInt(PREF_ELEMENTS, DEFAULT_ELEMENTS_MASK);
     for (int i = 0; i < ELEMENT_COUNT; i++) elements[i] = (mask & (1 << i)) != 0;
-    this.scaleIndex = clampScaleIndex(preferences.getInt(PREF_SCALE_INDEX, 1));
+    this.scaleIndex = clampScaleIndex(preferences.getInt(PREF_SCALE_INDEX, 0));
     this.textAlpha = preferences.getFloat(PREF_ALPHA, DEFAULT_ALPHA);
     this.bgAlpha = preferences.getFloat(PREF_BG_ALPHA, DEFAULT_BG_ALPHA);
 
@@ -272,23 +273,14 @@ public class MangoHudView extends View {
       }
       setVisibility(VISIBLE);
       bringToFront();
+      // Populate immediately instead of waiting out a hidden-interval delay.
+      Handler handler = statsHandler;
+      if (handler != null) {
+        handler.removeCallbacks(tickRunnable);
+        handler.post(tickRunnable);
+      }
     } else {
       setVisibility(GONE);
-    }
-  }
-
-  @Override
-  public void setVisibility(int visibility) {
-    super.setVisibility(visibility);
-    syncStatsState();
-  }
-
-  /** Stats thread mirrors (attached && visible); always invoked on the UI thread. */
-  private void syncStatsState() {
-    if (isAttachedToWindow() && getVisibility() == VISIBLE) {
-      startStats();
-    } else {
-      stopStats();
     }
   }
 
@@ -329,13 +321,6 @@ public class MangoHudView extends View {
       stampsNano[index] = nowNano;
     }
 
-    // Self-heal: frames flowing while the stats thread is down means a missed
-    // lifecycle transition — resync on the UI thread.
-    if (statsThread == null && !statsHealPending) {
-      statsHealPending = true;
-      post(statsHealRunnable);
-    }
-
     if (elements[EL_GRAPH]) {
       long time = SystemClock.elapsedRealtime();
       if (time - lastGraphInvalidate >= GRAPH_REDRAW_MS) {
@@ -372,7 +357,9 @@ public class MangoHudView extends View {
     statsHandler = null;
     statsThread = null;
     if (handler != null) handler.removeCallbacksAndMessages(null);
-    if (thread != null) thread.quitSafely();
+    if (thread != null) {
+      thread.quitSafely();
+    }
     prevCpuSample = null;
     cpuWarmedUp = false;
   }
@@ -1015,6 +1002,7 @@ public class MangoHudView extends View {
   @Override
   protected void onAttachedToWindow() {
     super.onAttachedToWindow();
+    setElevation(1000.0f);
     if (preferences.getBoolean(PREF_HAS_POSITION, false)) {
       post(() -> {
         setX(preferences.getFloat(PREF_POS_X, getX()));
@@ -1022,7 +1010,9 @@ public class MangoHudView extends View {
         clampToParentBounds();
       });
     }
-    syncStatsState();
+    // Attached ⇒ loop running, no visibility condition — a view that renders is
+    // always attached, so the HUD can never be on screen with a dead loop.
+    startStats();
   }
 
   @Override

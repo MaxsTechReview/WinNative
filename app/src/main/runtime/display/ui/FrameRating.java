@@ -358,7 +358,10 @@ public class FrameRating extends LinearLayout implements Runnable {
   @Override
   protected void onAttachedToWindow() {
     super.onAttachedToWindow();
-    bringToFront();
+    // Deferred: bringToFront() reorders the parent's child array; called inside the parent's
+    // attach walk it makes the walker skip the sibling that shifts into this view's old slot,
+    // leaving that sibling permanently unattached. Z-order is held by the elevation either way.
+    post(this::bringToFront);
     setElevation(1000.0f);
     restorePersistedPosition();
     installParentLayoutListener();
