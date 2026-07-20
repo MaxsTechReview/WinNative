@@ -324,6 +324,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private int taskAffinityMask = 0;
     private int taskAffinityMaskWoW64 = 0;
     private final HashSet<Integer> guestAffinityCheckedPids = new HashSet<>();
+    private boolean serviceAffinityPinned = false;
+    private static final String[] SERVICE_AFFINITY_PROCESSES = {
+        "services.exe", "rpcss.exe", "svchost.exe", "winedevice.exe",
+        "plugplay.exe", "explorer.exe", "conhost.exe", "steamwebhelper.exe"
+    };
     private int frameRatingWindowId = -1;
     private android.net.wifi.WifiManager.MulticastLock multicastLock;
     private final float[] xform = XForm.getInstance();
@@ -1604,6 +1609,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             @Override
             public void onMapWindow(Window window) {
                 assignTaskAffinity(window);
+                pinServiceAffinity();
                 if ((effectiveShowFPS || controllerHudMode) && frameRating != null) {
                     syncFrameRatingWithExistingWindows();
                 }
@@ -10949,6 +10955,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             int processAffinity = window.isWoW64() ? taskAffinityMaskWoW64 : taskAffinityMask;
             if (processAffinity != 0) winHandler.setProcessAffinity(className, processAffinity);
         }
+    }
+
+    // Background service processes have no windows and never pass through
+    // assignTaskAffinity, leaving them free to wake the prime cores. Once the
+    // session is up (first mapped window), pin them to the 32-bit apps list.
+    private void pinServiceAffinity() {
+        if (serviceAffinityPinned || taskAffinityMaskWoW64 == 0 || winHandler == null) return;
+        serviceAffinityPinned = true;
+        for (String name : SERVICE_AFFINITY_PROCESSES) {
+            winHandler.setProcessAffinity(name, taskAffinityMaskWoW64);
+        }
+        Log.d("XServerDisplayActivity", "Pinned service processes to 0x"
+                + Integer.toHexString(taskAffinityMaskWoW64));
     }
 
     // _NET_WM_WOW64 can be absent on 32-bit guest windows, so when the two masks
