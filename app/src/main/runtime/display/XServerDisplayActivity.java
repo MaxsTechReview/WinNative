@@ -4033,7 +4033,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 MangoHudView.elementsFromPrefs(preferences),
                 MangoHudView.alphaFromPrefs(preferences),
                 MangoHudView.bgAlphaFromPrefs(preferences),
-                MangoHudView.scaleFromPrefs(preferences)
+                MangoHudView.scaleFromPrefs(preferences),
+                MangoHudView.lockedFromPrefs(preferences)
         );
 
         // Always-present "Output" tab (live controls while swapped, otherwise a Cast entry point).
@@ -4179,6 +4180,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onMangoHudBackgroundAlphaChanged(float alpha) {
                         MangoHudView.saveBgAlpha(preferences, alpha);
                         if (mangoHud != null) mangoHud.setBackgroundAlphaValue(alpha);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onMangoHudLockChanged(boolean locked) {
+                        MangoHudView.saveLocked(preferences, locked);
+                        if (mangoHud != null) mangoHud.setLockedValue(locked);
                         renderDrawerMenu();
                     }
 

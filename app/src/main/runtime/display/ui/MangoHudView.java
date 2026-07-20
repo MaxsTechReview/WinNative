@@ -40,6 +40,7 @@ public class MangoHudView extends View {
   private static final String PREF_POS_Y = "mango_hud_position_y";
   private static final String PREF_HAS_POSITION = "mango_hud_has_position";
   private static final String PREF_SCALE = "mango_hud_scale";
+  private static final String PREF_LOCKED = "mango_hud_locked";
   private static final String PREF_ALPHA = "mango_hud_alpha";
   private static final String PREF_BG_ALPHA = "mango_hud_bg_alpha";
   private static final float DEFAULT_ALPHA = 1.0f;
@@ -166,6 +167,7 @@ public class MangoHudView extends View {
   private String wineText = "";
   private final boolean[] elements = new boolean[ELEMENT_COUNT];
   private float scaleFactor = DEFAULT_SCALE;
+  private boolean locked;
   private float textAlpha = DEFAULT_ALPHA;
   private float bgAlpha = DEFAULT_BG_ALPHA;
   private int panelW = 1, panelH = 1;
@@ -236,6 +238,7 @@ public class MangoHudView extends View {
     int mask = preferences.getInt(PREF_ELEMENTS, DEFAULT_ELEMENTS_MASK);
     for (int i = 0; i < ELEMENT_COUNT; i++) elements[i] = (mask & (1 << i)) != 0;
     this.scaleFactor = clampScale(preferences.getFloat(PREF_SCALE, DEFAULT_SCALE));
+    this.locked = preferences.getBoolean(PREF_LOCKED, false);
     this.textAlpha = preferences.getFloat(PREF_ALPHA, DEFAULT_ALPHA);
     this.bgAlpha = preferences.getFloat(PREF_BG_ALPHA, DEFAULT_BG_ALPHA);
 
@@ -1333,14 +1336,26 @@ public class MangoHudView extends View {
   private float lastTapX, lastTapY;
   private long downTime, lastTapTime;
   private boolean dragging;
+  private static final long LOCK_HOLD_MS = 3500L;
+  private final Runnable lockRunnable = new Runnable() {
+    @Override
+    public void run() {
+      locked = true;
+      activePointerId = -1;
+      saveLocked(preferences, true);
+      performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+    }
+  };
   private static final float TAP_SLOP = 20f;
   private static final float DOUBLE_TAP_SLOP = 48f;
   private static final long TAP_MS = 300L;
 
   @Override
   public boolean onTouchEvent(MotionEvent event) {
+    if (locked) return false;
     if (event.getPointerCount() > 1) {
       activePointerId = -1;
+      removeCallbacks(lockRunnable);
       return false;
     }
     switch (event.getActionMasked()) {
@@ -1353,6 +1368,7 @@ public class MangoHudView extends View {
         downTime = SystemClock.elapsedRealtime();
         dragging = false;
         bringToFront();
+        postDelayed(lockRunnable, LOCK_HOLD_MS);
         return true;
       case MotionEvent.ACTION_MOVE:
         if (activePointerId != -1) {
@@ -1361,6 +1377,7 @@ public class MangoHudView extends View {
             dragging = true;
           }
           if (dragging) {
+            removeCallbacks(lockRunnable);
             setX(event.getRawX() + touchOffsetX);
             setY(event.getRawY() + touchOffsetY);
             clampToParentBounds();
@@ -1370,6 +1387,7 @@ public class MangoHudView extends View {
         break;
       case MotionEvent.ACTION_UP:
       case MotionEvent.ACTION_CANCEL:
+        removeCallbacks(lockRunnable);
         if (activePointerId != -1) {
           long now = SystemClock.elapsedRealtime();
           if (dragging) {
@@ -1424,6 +1442,23 @@ public class MangoHudView extends View {
     return Math.max(SCALE_MIN, Math.min(scale, SCALE_MAX));
   }
 
+  public static boolean lockedFromPrefs(SharedPreferences preferences) {
+    return preferences.getBoolean(PREF_LOCKED, false);
+  }
+
+  public static void saveLocked(SharedPreferences preferences, boolean locked) {
+    preferences.edit().putBoolean(PREF_LOCKED, locked).apply();
+  }
+
+  /** Locked: touches fall through to the controls underneath; unlock from HUD settings. */
+  public void setLockedValue(boolean value) {
+    this.locked = value;
+    if (value) {
+      removeCallbacks(lockRunnable);
+      activePointerId = -1;
+    }
+  }
+
   public static float scaleFromPrefs(SharedPreferences preferences) {
     return preferences.getFloat(PREF_SCALE, DEFAULT_SCALE);
   }
@@ -1474,6 +1509,7 @@ public class MangoHudView extends View {
 
   @Override
   protected void onDetachedFromWindow() {
+    removeCallbacks(lockRunnable);
     stopStats();
     super.onDetachedFromWindow();
   }

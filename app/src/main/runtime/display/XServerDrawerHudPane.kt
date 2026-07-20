@@ -328,10 +328,12 @@ internal fun HUDPaneContent(
                     hudAlpha = state.mangoHudAlpha,
                     bgAlpha = state.mangoHudBgAlpha,
                     hudScale = state.mangoHudScale,
+                    locked = state.mangoHudLocked,
                     onToggle = listener::onMangoHudElementToggled,
                     onAlphaChanged = listener::onMangoHudAlphaChanged,
                     onBgAlphaChanged = listener::onMangoHudBackgroundAlphaChanged,
                     onScaleChanged = listener::onMangoHudScaleChanged,
+                    onLockChanged = listener::onMangoHudLockChanged,
                     onDismiss = { mangoSettingsOpen = false },
                 )
             }
@@ -535,10 +537,12 @@ internal fun MangoHudSettingsDialog(
     hudAlpha: Float,
     bgAlpha: Float,
     hudScale: Float,
+    locked: Boolean,
     onToggle: (Int, Boolean) -> Unit,
     onAlphaChanged: (Float) -> Unit,
     onBgAlphaChanged: (Float) -> Unit,
     onScaleChanged: (Float) -> Unit,
+    onLockChanged: (Boolean) -> Unit,
     onDismiss: () -> Unit,
 ) {
     // Chip label position matches MangoHudView element indices.
@@ -649,6 +653,19 @@ internal fun MangoHudSettingsDialog(
                         modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().sharedPaneNavItem(
+                                onActivate = { onLockChanged(!locked) },
+                            ),
+                        ) {
+                            DrawerBooleanRow(
+                                title = stringResource(R.string.mango_hud_lock),
+                                subtitle = stringResource(R.string.mango_hud_lock_subtitle),
+                                checked = locked,
+                                onCheckedChange = onLockChanged,
+                            )
+                        }
+
                         groups.forEach { (labelRes, indices) ->
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 PaneSectionLabel(stringResource(labelRes))
