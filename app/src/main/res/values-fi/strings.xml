@@ -1601,4 +1601,39 @@ Asennuspolku:
     <string name="file_manager_create_folder_failed">Kansion luonti epäonnistui</string>
 
     <string name="settings_content_refresh">Päivitä</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">Käytä ReShade-tehostetta (.fx) DXVK/VKD3D-peleissä (Vulkan) sisäänrakennetun vkBasalt-kerroksen kautta. Sijoita jokainen tehoste omaan kansioonsa polkuun Android/data/&lt;package&gt;/files/ReShade/. Reaaliaikainen parametrien säätö ja pelinsisäinen kytkin tulevat live-reload-kerroksen päivityksen myötä.</string>
+    <string name="reshade_catalog_title">ReShade-tehosteet</string>
+    <string name="reshade_catalog_search">Hae tehosteita…</string>
+    <string name="reshade_catalog_installed">Asennettu (%1$d)</string>
+    <string name="reshade_catalog_available">Saatavilla (%1$d)</string>
+    <string name="reshade_catalog_downloading">Ladataan</string>
+    <string name="reshade_catalog_installing">Asennetaan</string>
+    <string name="reshade_catalog_offline_cache">Offline — näytetään välimuistiin tallennettu luettelo. Muodosta yhteys ladataksesi uusia tehosteita.</string>
+    <string name="reshade_catalog_offline_none">Offline — näytetään vain asennetut tehosteet. Muodosta yhteys selataksesi luetteloa.</string>
+    <string name="reshade_catalog_needs_connection">Muodosta internetyhteys ladataksesi tehosteita.</string>
+    <string name="reshade_catalog_download_failed">Kohteen %1$s lataaminen epäonnistui.</string>
+    <string name="reshade_catalog_empty_query">Mikään tehoste ei vastaa hakua \"%1$s\".</string>
+    <string name="reshade_catalog_empty">Ei tehosteita saatavilla. Muodosta internetyhteys selataksesi luetteloa.</string>
+    <string name="reshade_catalog_done">Valmis</string>
+    <string name="reshade_catalog_delete_cd">Poista %1$s</string>
+    <string name="reshade_catalog_delete_title">Poistetaanko %1$s?</string>
+    <string name="reshade_catalog_delete_body">Tämä poistaa tehosteen tallennustilasta ja kaikista kokoonpanoista, jotka käyttävät sitä. Voit ladata sen myöhemmin uudelleen.</string>
+    <string name="reshade_catalog_delete_confirm">Poista</string>
+    <string name="reshade_catalog_delete_cancel">Peruuta</string>
+    <string name="reshade_catalog_delete_failed">Kohteen %1$s poistaminen epäonnistui.</string>
+    <string name="reshade_params_title">TEHOSTEEN PARAMETRIT</string>
+    <string name="reshade_params_reset">Nollaa</string>
+    <string name="reshade_loadout_empty">Ei vielä tehosteita. Lisää yksi tai useampi tehoste luodaksesi kokoonpanon.</string>
+    <string name="reshade_loadout_add">Lisää tehoste</string>
+    <string name="reshade_loadout_full">Kokoonpano täynnä — poista tehoste lisätäksesi toisen.</string>
+    <string name="reshade_effect_active">aktiivinen</string>
+    <string name="reshade_mode_solo">Solo</string>
+    <string name="reshade_mode_stack">Pino</string>
+    <string name="reshade_mode_solo_hint">Yksi tehoste aktiivisena kerrallaan (A/B-vertailu, vaihda pelin aikana).</string>
+    <string name="reshade_mode_stack_hint">Kerrosta mikä tahansa tehosteiden osajoukko, käytetään järjestyksessä.</string>
+    <string name="reshade_drawer_enable">Ota ReShade käyttöön</string>
+    <string name="reshade_drawer_empty">Tässä kokoonpanossa ei ole ReShade-tehosteita. Lisää tehosteita tämän pelin asetuksissa (tai säiliön asetuksissa) vaihtaaksesi ja säätääksesi niitä täällä.</string>
+    <string name="reshade_drawer_no_params">Tällä tehosteella ei ole säädettäviä parametreja.</string>
 </resources>

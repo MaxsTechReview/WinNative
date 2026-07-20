@@ -1,0 +1,26 @@
+# Meson cross-compilation file for building vkBasalt as an Android arm64-v8a
+# Vulkan layer with the NDK toolchain (matches the shipped libvkbasalt.so:
+# NDK r27c, API 24). Used by .github/workflows/build-vkbasalt.yml.
+#
+# The token __NDK_BIN__ is replaced by the workflow with the absolute path to
+# the NDK LLVM toolchain bin dir, e.g.
+#   $ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin
+# (kept as a placeholder because the path embeds the NDK version + host tag,
+# which we only know at CI time).
+#
+# Vulkan headers (vulkan.h + vk_layer.h) are supplied via -I on the meson
+# command line (-Dc_args/-Dcpp_args) from a pinned KhronosGroup/Vulkan-Headers
+# checkout, since vk_layer.h is not part of the NDK sysroot.
+
+[binaries]
+c       = '__NDK_BIN__/aarch64-linux-android24-clang'
+cpp     = '__NDK_BIN__/aarch64-linux-android24-clang++'
+ar      = '__NDK_BIN__/llvm-ar'
+strip   = '__NDK_BIN__/llvm-strip'
+ranlib  = '__NDK_BIN__/llvm-ranlib'
+
+[host_machine]
+system     = 'android'
+cpu_family = 'aarch64'
+cpu        = 'aarch64'
+endian     = 'little'

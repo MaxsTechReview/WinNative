@@ -1602,5 +1602,40 @@ Chemin installé :
     <string name="steam_chat_setting_stay_running">Exécuter en arrière-plan</string>
     <string name="steam_chat_setting_stay_running_desc">Garder le chat actif après avoir quitté WinNative</string>
     <string name="settings_content_refresh">Actualiser</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">Appliquez un effet ReShade (.fx) aux jeux DXVK/VKD3D (Vulkan) via la couche vkBasalt intégrée. Placez chaque effet dans son propre dossier sous Android/data/&lt;package&gt;/files/ReShade/. Le réglage des paramètres en direct et le bouton en jeu arriveront avec la mise à jour de la couche à rechargement à chaud.</string>
+    <string name="reshade_catalog_title">Effets ReShade</string>
+    <string name="reshade_catalog_search">Rechercher des effets…</string>
+    <string name="reshade_catalog_installed">Installés (%1$d)</string>
+    <string name="reshade_catalog_available">Disponibles (%1$d)</string>
+    <string name="reshade_catalog_downloading">Téléchargement</string>
+    <string name="reshade_catalog_installing">Installation</string>
+    <string name="reshade_catalog_offline_cache">Hors ligne — liste en cache affichée. Connectez-vous pour télécharger de nouveaux effets.</string>
+    <string name="reshade_catalog_offline_none">Hors ligne — seuls les effets installés sont affichés. Connectez-vous pour parcourir le catalogue.</string>
+    <string name="reshade_catalog_needs_connection">Connectez-vous à Internet pour télécharger des effets.</string>
+    <string name="reshade_catalog_download_failed">Échec du téléchargement de %1$s.</string>
+    <string name="reshade_catalog_empty_query">Aucun effet ne correspond à \"%1$s\".</string>
+    <string name="reshade_catalog_empty">Aucun effet disponible. Connectez-vous à Internet pour parcourir le catalogue.</string>
+    <string name="reshade_catalog_done">Terminé</string>
+    <string name="reshade_catalog_delete_cd">Supprimer %1$s</string>
+    <string name="reshade_catalog_delete_title">Supprimer %1$s ?</string>
+    <string name="reshade_catalog_delete_body">Cela supprime l\'effet du stockage et de toute configuration qui l\'utilise. Vous pourrez le télécharger à nouveau plus tard.</string>
+    <string name="reshade_catalog_delete_confirm">Supprimer</string>
+    <string name="reshade_catalog_delete_cancel">Annuler</string>
+    <string name="reshade_catalog_delete_failed">Impossible de supprimer %1$s.</string>
+    <string name="reshade_params_title">PARAMÈTRES DE L\'EFFET</string>
+    <string name="reshade_params_reset">Réinitialiser</string>
+    <string name="reshade_loadout_empty">Aucun effet pour l\'instant. Ajoutez un ou plusieurs effets pour créer une configuration.</string>
+    <string name="reshade_loadout_add">Ajouter un effet</string>
+    <string name="reshade_loadout_full">Configuration pleine — supprimez un effet pour en ajouter un autre.</string>
+    <string name="reshade_effect_active">actif</string>
+    <string name="reshade_mode_solo">Solo</string>
+    <string name="reshade_mode_stack">Pile</string>
+    <string name="reshade_mode_solo_hint">Un seul effet actif à la fois (comparaison A/B, changez en direct dans le jeu).</string>
+    <string name="reshade_mode_stack_hint">Superposez n\'importe quel sous-ensemble d\'effets, appliqués dans l\'ordre.</string>
+    <string name="reshade_drawer_enable">Activer ReShade</string>
+    <string name="reshade_drawer_empty">Aucun effet ReShade dans cette configuration. Ajoutez des effets dans les paramètres de ce jeu (ou du conteneur) pour les changer et les régler ici.</string>
+    <string name="reshade_drawer_no_params">Cet effet n\'expose aucun paramètre réglable.</string>
 </resources>
 

@@ -1601,4 +1601,39 @@ Installerad sökväg:
     <string name="file_manager_create_folder_failed">Det gick inte att skapa mappen</string>
 
     <string name="settings_content_refresh">Uppdatera</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">Använd en ReShade-effekt (.fx) på DXVK/VKD3D-spel (Vulkan) via det inbyggda vkBasalt-lagret. Lägg varje effekt i sin egen mapp under Android/data/&lt;package&gt;/files/ReShade/. Justering av parametrar i realtid och växeln i spelet kommer med uppdateringen av live-reload-lagret.</string>
+    <string name="reshade_catalog_title">ReShade-effekter</string>
+    <string name="reshade_catalog_search">Sök effekter…</string>
+    <string name="reshade_catalog_installed">Installerade (%1$d)</string>
+    <string name="reshade_catalog_available">Tillgängliga (%1$d)</string>
+    <string name="reshade_catalog_downloading">Laddar ner</string>
+    <string name="reshade_catalog_installing">Installerar</string>
+    <string name="reshade_catalog_offline_cache">Offline — visar en cachad lista. Anslut för att ladda ner nya effekter.</string>
+    <string name="reshade_catalog_offline_none">Offline — visar endast installerade effekter. Anslut för att bläddra i katalogen.</string>
+    <string name="reshade_catalog_needs_connection">Anslut till internet för att ladda ner effekter.</string>
+    <string name="reshade_catalog_download_failed">Det gick inte att ladda ner %1$s.</string>
+    <string name="reshade_catalog_empty_query">Inga effekter matchar \"%1$s\".</string>
+    <string name="reshade_catalog_empty">Inga effekter tillgängliga. Anslut till internet för att bläddra i katalogen.</string>
+    <string name="reshade_catalog_done">Klar</string>
+    <string name="reshade_catalog_delete_cd">Ta bort %1$s</string>
+    <string name="reshade_catalog_delete_title">Ta bort %1$s?</string>
+    <string name="reshade_catalog_delete_body">Detta tar bort effekten från lagringen och från alla uppsättningar som använder den. Du kan ladda ner den igen senare.</string>
+    <string name="reshade_catalog_delete_confirm">Ta bort</string>
+    <string name="reshade_catalog_delete_cancel">Avbryt</string>
+    <string name="reshade_catalog_delete_failed">Det gick inte att ta bort %1$s.</string>
+    <string name="reshade_params_title">EFFEKTPARAMETRAR</string>
+    <string name="reshade_params_reset">Återställ</string>
+    <string name="reshade_loadout_empty">Inga effekter ännu. Lägg till en eller flera effekter för att skapa en uppsättning.</string>
+    <string name="reshade_loadout_add">Lägg till effekt</string>
+    <string name="reshade_loadout_full">Uppsättningen är full — ta bort en effekt för att lägga till en annan.</string>
+    <string name="reshade_effect_active">aktiv</string>
+    <string name="reshade_mode_solo">Solo</string>
+    <string name="reshade_mode_stack">Stapel</string>
+    <string name="reshade_mode_solo_hint">En effekt aktiv i taget (A/B-jämförelse, växla live i spelet).</string>
+    <string name="reshade_mode_stack_hint">Lägg valfri delmängd av effekter i lager, tillämpade i ordning.</string>
+    <string name="reshade_drawer_enable">Aktivera ReShade</string>
+    <string name="reshade_drawer_empty">Inga ReShade-effekter i den här uppsättningen. Lägg till effekter i det här spelets inställningar (eller containerns) för att växla och justera dem här.</string>
+    <string name="reshade_drawer_no_params">Den här effekten har inga justerbara parametrar.</string>
 </resources>

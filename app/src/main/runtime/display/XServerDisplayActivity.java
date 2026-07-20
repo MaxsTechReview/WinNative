@@ -83,6 +83,8 @@ import com.winlator.cmod.shared.android.AppUtils;
 import com.winlator.cmod.shared.android.AppTerminationHelper;
 import com.winlator.cmod.shared.ui.toast.WinToast;
 import com.winlator.cmod.runtime.wine.EnvVars;
+import com.winlator.cmod.runtime.reshade.ReshadeConfigWriter;
+import com.winlator.cmod.runtime.reshade.ReshadeManager;
 import com.winlator.cmod.runtime.wine.LocaleEnv;
 import com.winlator.cmod.shared.io.FileUtils;
 import com.winlator.cmod.runtime.system.CPUStatus;
@@ -204,6 +206,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private static final String STEAM_ROOT_PATH = "C:\\Program Files (x86)\\Steam";
     private static final String STEAM_EXE_PATH = STEAM_ROOT_PATH + "\\steam.exe";
     private static final String D8VK_ASSET_PATH = "dxwrapper/d8vk-1.0.tzst";
+    // Bump whenever assets/graphics_driver/extra_libs.tzst is repacked, so EXISTING containers
+    // re-extract it (e.g. to pick up the patched libvkbasalt.so). Marker: usr/lib/.extra_libs_version.
+    private static final int EXTRA_LIBS_VERSION = 1;
     private static final String STEAM_USER_REGISTRY_BACKUP_FILE = "steam_registry_backup.reg";
     private static final String STEAM_SYSTEM_REGISTRY_BACKUP_FILE = "steam_system_registry_backup.reg";
     private static final String STEAM_CLIENT_STORE_RELATIVE_PATH = ".shared/steam-client-store";
@@ -457,6 +462,29 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean pixelateEnabled = false;
     private int pixelateBlock = 6;
     private int colorBlind = 0;
+    // ReShade in-game live state. reshadeSessionAvailable is true only when applyReshadeEnv armed the
+    // layer at launch (Vulkan wrapper + a non-empty loadout) — the RESHADE drawer tab and the live conf
+    // rewrites gate on it. reshadeLive is the ordered working loadout the drawer edits: every effect was
+    // compiled into the vkBasalt chain at launch, so toggling an effect's `enabled` flips its live gate
+    // (solo switch / stack layer) with NO recompile. reshadeMasterEnabled = whole-chain passthrough.
+    private boolean reshadeSessionAvailable = false;
+    private boolean reshadeMasterEnabled = true;
+    private String reshadeMode = com.winlator.cmod.runtime.reshade.ReshadeLoadout.MODE_SOLO;
+    private final java.util.ArrayList<ReshadeLiveEffect> reshadeLive = new java.util.ArrayList<>();
+
+    // One effect in the in-game working loadout: its name, whether it presents, its reflected uniform
+    // defs, and the live value map (ReshadeManager.seedValues key scheme — "<uniform>" or "<uniform>_<c>"
+    // for COLOR). Edited by the drawer callbacks, serialized into the merged conf + persisted.
+    private static class ReshadeLiveEffect {
+        final String name;
+        boolean enabled;
+        final java.util.List<ReshadeManager.ReshadeParam> defs;
+        final java.util.LinkedHashMap<String, Float> values;
+        ReshadeLiveEffect(String name, boolean enabled, java.util.List<ReshadeManager.ReshadeParam> defs,
+                          java.util.LinkedHashMap<String, Float> values) {
+            this.name = name; this.enabled = enabled; this.defs = defs; this.values = values;
+        }
+    }
     private boolean gyroscopeCardExpanded = false;
     private XServerDrawerStateHolder drawerStateHolder;
     private XServerDrawerActionListener drawerActionListener;
@@ -674,6 +702,160 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private String getShortcutSetting(String key, String containerValue) {
         return shortcut != null ? shortcut.getSettingExtra(key, containerValue) : containerValue;
+    }
+
+    // Resolved reshade config for a launch/relaunch: the loadout (ordered effects + enabled flags), the
+    // mode, the per-effect params + their nesting discriminator, the legacy effect (for flat-param
+    // migration), and the persisted master (whole-chain) switch.
+    private static class ResolvedReshade {
+        java.util.List<com.winlator.cmod.runtime.reshade.ReshadeLoadout.Entry> loadout;
+        String mode;
+        String paramsJson;   // nested {"<effect>":{uniform:value}} when nested==true, else flat legacy
+        boolean nested;      // whether a reshadeLoadout array was the source (params are nested)
+        String legacyEffect; // for flat-params migration
+        boolean masterEnabled = true;
+    }
+
+    // A shortcut OWNS the reshade config (read from it) when it holds its own settings (does NOT follow
+    // container defaults) AND carries a reshade extra (the loadout array or the legacy single effect);
+    // until then the container's config is authoritative. Blends WinNative's use_container_defaults guard
+    // with unit ownership so the loadout + its params stay coherent (never mixing shortcut mode with
+    // container effects).
+    private boolean reshadeShortcutOwns() {
+        if (shortcut == null || shortcut.usesContainerDefaults()) return false;
+        return !shortcut.getExtra(ReshadeConfigWriter.EXTRA_LOADOUT, "").isEmpty()
+                || !shortcut.getExtra(ReshadeConfigWriter.EXTRA_EFFECT, "").isEmpty();
+    }
+
+    // ReShade selection resolution. Reads the whole reshade config (loadout + mode + params + master) as
+    // a unit from the shortcut when it owns reshade, else the container. Resolving as a unit migrates
+    // legacy single-effect saves transparently (ReshadeLoadout.parse) and keeps the loadout coherent.
+    private ResolvedReshade resolveReshade() {
+        ResolvedReshade r = new ResolvedReshade();
+        r.mode = com.winlator.cmod.runtime.reshade.ReshadeLoadout.MODE_SOLO;
+        r.legacyEffect = "None";
+        if (container == null) {
+            r.loadout = new java.util.ArrayList<>();
+            r.nested = false;
+            return r;
+        }
+        String loadoutJson, mode, paramsJson, legacyEffect;
+        if (reshadeShortcutOwns()) {
+            loadoutJson  = emptyToNull(shortcut.getExtra(ReshadeConfigWriter.EXTRA_LOADOUT, null));
+            mode         = shortcut.getExtra(ReshadeConfigWriter.EXTRA_MODE, "solo");
+            paramsJson   = emptyToNull(shortcut.getExtra(ReshadeConfigWriter.EXTRA_PARAMS, null));
+            legacyEffect = shortcut.getExtra(ReshadeConfigWriter.EXTRA_EFFECT, "None");
+            r.masterEnabled = !"0".equals(shortcut.getExtra(ReshadeConfigWriter.EXTRA_MASTER, "1"));
+        } else {
+            loadoutJson  = emptyToNull(container.getExtra(ReshadeConfigWriter.EXTRA_LOADOUT, null));
+            mode         = container.getExtra(ReshadeConfigWriter.EXTRA_MODE, "solo");
+            paramsJson   = emptyToNull(container.getExtra(ReshadeConfigWriter.EXTRA_PARAMS, null));
+            legacyEffect = container.getExtra(ReshadeConfigWriter.EXTRA_EFFECT, "None");
+            r.masterEnabled = !"0".equals(container.getExtra(ReshadeConfigWriter.EXTRA_MASTER, "1"));
+        }
+        r.nested = loadoutJson != null && !loadoutJson.isEmpty();
+        r.loadout = com.winlator.cmod.runtime.reshade.ReshadeLoadout.parse(loadoutJson, legacyEffect);
+        r.mode = com.winlator.cmod.runtime.reshade.ReshadeLoadout.normalizeMode(mode);
+        r.paramsJson = paramsJson;
+        r.legacyEffect = legacyEffect;
+        // Solo safety: never light up two effects at once in solo mode.
+        com.winlator.cmod.runtime.reshade.ReshadeLoadout.enforceSolo(r.loadout, r.mode);
+        return r;
+    }
+
+    private static String emptyToNull(String s) { return (s == null || s.isEmpty()) ? null : s; }
+
+    // Resolve the per-game/container ReShade loadout and hand it to ReshadeConfigWriter, which stages
+    // EVERY effect's files, writes the merged vkBasalt.conf (chain + per-effect enable gates), and sets
+    // the enabling env when applicable. Fully self-contained + swallowed: a ReShade failure must never
+    // break a launch.
+    private void applyReshadeEnv(EnvVars envVars) {
+        try {
+            if (container == null || imageFs == null) return;
+            ResolvedReshade rr = resolveReshade();
+            boolean vulkanWrapper = ReshadeConfigWriter.supportedFor(this.dxwrapper);
+            boolean applied = ReshadeConfigWriter.applyLoadout(this, imageFs, rr.loadout, rr.paramsJson,
+                    rr.nested, rr.legacyEffect, rr.masterEnabled, vulkanWrapper, envVars);
+            reshadeSessionAvailable = applied;
+            reshadeMasterEnabled = rr.masterEnabled;
+            reshadeMode = rr.mode;
+            if (applied) seedReshadeLive(rr);
+        } catch (Exception e) {
+            Log.e("XServerDisplayActivity", "ReShade env injection failed (ignored)", e);
+        }
+    }
+
+    // Build the in-game working model from the resolved launch config (only effects actually present in
+    // the drop-in folder are tunable). Runs on the launch path when the layer was armed.
+    private void seedReshadeLive(ResolvedReshade rr) {
+        reshadeLive.clear();
+        for (com.winlator.cmod.runtime.reshade.ReshadeLoadout.Entry entry : rr.loadout) {
+            ReshadeManager.ReshadeEffect effect = ReshadeManager.findEffect(this, entry.name);
+            if (effect == null) continue;
+            org.json.JSONObject saved = com.winlator.cmod.runtime.reshade.ReshadeLoadout.paramsForEffect(
+                    rr.paramsJson, effect.name, rr.nested, rr.legacyEffect);
+            java.util.LinkedHashMap<String, Float> values = new java.util.LinkedHashMap<>();
+            for (ReshadeManager.ReshadeParam p : effect.params) ReshadeManager.seedValues(p, saved, values);
+            reshadeLive.add(new ReshadeLiveEffect(effect.name, entry.enabled, effect.params, values));
+        }
+    }
+
+    // Immutable snapshot of the working loadout for the drawer state (withReshadeState).
+    private java.util.ArrayList<ReshadeLoadoutItem> buildReshadeItems() {
+        java.util.ArrayList<ReshadeLoadoutItem> items = new java.util.ArrayList<>();
+        for (ReshadeLiveEffect e : reshadeLive) {
+            items.add(new ReshadeLoadoutItem(e.name, e.enabled, e.defs, new java.util.LinkedHashMap<>(e.values)));
+        }
+        return items;
+    }
+
+    // Persist the current working loadout (per-effect enabled + values + mode + master) to the launch
+    // source, then rewrite the merged conf (mtime bump -> the patched libvkbasalt hot-reloads the enable
+    // gates + values WITHOUT a recompile). The loadout membership is fixed at launch, so live edits only
+    // flip enable flags / tune uniforms — restage=false. Writes to the shortcut when it holds its own
+    // settings, else the container (the same entity resolveReshade reads next launch). Mid-session we
+    // must NOT flip use_container_defaults, so a defaults-following shortcut persists to the container.
+    // Fully swallowed.
+    private void applyReshadeLive() {
+        try {
+            if (imageFs == null) return;
+            java.util.ArrayList<com.winlator.cmod.runtime.reshade.ReshadeLoadout.Entry> entries = new java.util.ArrayList<>();
+            org.json.JSONObject nestedParams = new org.json.JSONObject();
+            for (ReshadeLiveEffect e : reshadeLive) {
+                entries.add(new com.winlator.cmod.runtime.reshade.ReshadeLoadout.Entry(e.name, e.enabled));
+                if (!e.values.isEmpty()) {
+                    org.json.JSONObject eff = new org.json.JSONObject();
+                    for (java.util.Map.Entry<String, Float> v : e.values.entrySet()) eff.put(v.getKey(), v.getValue().doubleValue());
+                    nestedParams.put(e.name, eff);
+                }
+            }
+            String loadoutJson = com.winlator.cmod.runtime.reshade.ReshadeLoadout.serialize(entries);
+            String paramsJson = nestedParams.length() == 0 ? null : nestedParams.toString();
+            String firstEffect = entries.isEmpty() ? null : entries.get(0).name; // legacy coherence
+
+            if (shortcut != null && !shortcut.usesContainerDefaults()) {
+                shortcut.putExtra(ReshadeConfigWriter.EXTRA_LOADOUT, entries.isEmpty() ? null : loadoutJson);
+                shortcut.putExtra(ReshadeConfigWriter.EXTRA_MODE, reshadeMode);
+                shortcut.putExtra(ReshadeConfigWriter.EXTRA_PARAMS, paramsJson);
+                shortcut.putExtra(ReshadeConfigWriter.EXTRA_EFFECT, firstEffect);
+                shortcut.putExtra(ReshadeConfigWriter.EXTRA_MASTER, reshadeMasterEnabled ? null : "0");
+                shortcut.saveData();
+            } else if (container != null) {
+                container.putExtra(ReshadeConfigWriter.EXTRA_LOADOUT, entries.isEmpty() ? null : loadoutJson);
+                container.putExtra(ReshadeConfigWriter.EXTRA_MODE, reshadeMode);
+                container.putExtra(ReshadeConfigWriter.EXTRA_PARAMS, paramsJson);
+                container.putExtra(ReshadeConfigWriter.EXTRA_EFFECT, firstEffect);
+                container.putExtra(ReshadeConfigWriter.EXTRA_MASTER, reshadeMasterEnabled ? "1" : "0");
+                container.saveData();
+            }
+
+            // masterEnabled -> enableOnLaunch: the drawer master switch off writes enableOnLaunch=False
+            // (whole-chain passthrough); per-effect flags ride each <ei>_enabled gate.
+            ReshadeConfigWriter.writeMergedConfig(this, imageFs, entries, paramsJson, paramsJson != null,
+                    firstEffect, reshadeMasterEnabled, false);
+        } catch (Exception e) {
+            Log.e("XServerDisplayActivity", "applyReshadeLive failed (ignored)", e);
+        }
     }
 
     private boolean getBooleanSessionOption(String key, boolean defaultValue) {
@@ -4084,6 +4266,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
         }
 
+        // ReShade tab — present only when the layer was armed at launch (Vulkan wrapper + loadout).
+        if (reshadeSessionAvailable) {
+            state = XServerDrawerMenuKt.withReshadeState(
+                    state,
+                    reshadeMasterEnabled,
+                    reshadeMode,
+                    buildReshadeItems(),
+                    getString(R.string.reshade_section_title));
+        }
+
         if (drawerActionListener == null) {
             drawerActionListener = new XServerDrawerActionListener() {
                     @Override
@@ -4591,6 +4783,60 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         colorBlind = 0;
                         saveScreenEffectsSettings();
                         applyScreenEffects();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onReshadeMasterEnabledChanged(boolean enabled) {
+                        // Whole-chain passthrough on/off. The compiled loadout is untouched; only
+                        // enableOnLaunch flips (live via the conf mtime watch).
+                        reshadeMasterEnabled = enabled;
+                        applyReshadeLive();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onReshadeEffectEnabledChanged(int index, boolean enabled) {
+                        if (index < 0 || index >= reshadeLive.size()) return;
+                        if (com.winlator.cmod.runtime.reshade.ReshadeLoadout.MODE_SOLO.equals(reshadeMode) && enabled) {
+                            // Solo: activating one bypasses the rest (live switch — no recompile).
+                            for (int i = 0; i < reshadeLive.size(); i++) reshadeLive.get(i).enabled = (i == index);
+                        } else {
+                            reshadeLive.get(index).enabled = enabled;
+                        }
+                        applyReshadeLive();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onReshadeModeChanged(String mode) {
+                        reshadeMode = com.winlator.cmod.runtime.reshade.ReshadeLoadout.normalizeMode(mode);
+                        if (com.winlator.cmod.runtime.reshade.ReshadeLoadout.MODE_SOLO.equals(reshadeMode)) {
+                            // Collapse to a single active effect (keep the first enabled one).
+                            boolean seen = false;
+                            for (ReshadeLiveEffect e : reshadeLive) {
+                                if (e.enabled && !seen) seen = true; else e.enabled = false;
+                            }
+                        }
+                        applyReshadeLive();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onReshadeParamChanged(int index, String key, float value) {
+                        if (index < 0 || index >= reshadeLive.size()) return;
+                        reshadeLive.get(index).values.put(key, value);
+                        applyReshadeLive();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onReshadeReset(int index) {
+                        if (index < 0 || index >= reshadeLive.size()) return;
+                        ReshadeLiveEffect e = reshadeLive.get(index);
+                        e.values.clear();
+                        for (ReshadeManager.ReshadeParam p : e.defs) ReshadeManager.seedValues(p, null, e.values);
+                        applyReshadeLive();
                         renderDrawerMenu();
                     }
 
@@ -6488,6 +6734,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     "' effective='" + effectiveCustomEnvVars + "'");
             envVars.putAll(effectiveCustomEnvVars);
 
+            // ReShade (vkBasalt) — apply the per-game/container selected drop-in effect via the
+            // already-bundled vkBasalt implicit layer. No-op unless an effect is selected AND the DX
+            // wrapper is Vulkan-backed (DXVK/VKD3D). Runs after custom env: if the user already set
+            // ENABLE_VKBASALT themselves, ReshadeConfigWriter detects it and backs off (user wins).
+            // Never throws into the launch path.
+            applyReshadeEnv(envVars);
+
             // Steam-style launch options: KEY=VALUE tokens before %command% become env vars.
             String launchOptsForEnv = shortcut != null
                     ? getShortcutSetting("execArgs", container.getExecArgs())
@@ -7748,7 +8001,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             Log.d("XServerDisplayActivity", "First time container boot, re-extracting libs");
             TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/wrapper" + ".tzst", rootDir);
             TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "layers" + ".tzst", rootDir);
-            TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/extra_libs" + ".tzst", rootDir);
+            // extra_libs.tzst handled by the version-aware block below (covers first boot too).
             if (wineInfo != null && wineInfo.isArm64EC() && !GPUInformation.getRenderer(null, null).contains("Mali")) {
                 try {
                     TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/zink_dlls.tzst", new File(rootDir, ImageFs.WINEPREFIX + "/drive_c/windows"));
@@ -7756,6 +8009,26 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     Log.w("XServerDisplayActivity", "zink_dlls.tzst not found or extraction failed", e);
                 }
             }
+        }
+
+        // Version-aware extract of extra_libs.tzst so EXISTING containers pick up an updated bundled
+        // layer (the patched libvkbasalt.so) without a full imagefs reinstall. The tzst holds only
+        // usr/lib/*.so + usr/share/vulkan/* (no home/drive_c), so game saves are untouched.
+        try {
+            File extraLibsMarker = new File(rootDir, "usr/lib/.extra_libs_version");
+            int installedExtraLibsVer = -1;
+            if (extraLibsMarker.exists()) {
+                try { installedExtraLibsVer = Integer.parseInt(FileUtils.readString(extraLibsMarker).trim()); }
+                catch (Exception ignored) {}
+            }
+            if (installedExtraLibsVer != EXTRA_LIBS_VERSION) {
+                Log.i("XServerDisplayActivity", "extra_libs outdated (installed=" + installedExtraLibsVer
+                        + " bundled=" + EXTRA_LIBS_VERSION + ") — re-extracting");
+                TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/extra_libs.tzst", rootDir);
+                FileUtils.writeString(extraLibsMarker, String.valueOf(EXTRA_LIBS_VERSION));
+            }
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity", "extra_libs version check failed", e);
         }
 
         // FFmpeg 8 libs for Wine's winedmo media path (arm64ec native Wine only; these

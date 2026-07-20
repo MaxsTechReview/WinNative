@@ -1601,4 +1601,39 @@
     <string name="file_manager_create_folder_failed">สร้างโฟลเดอร์ล้มเหลว</string>
 
     <string name="settings_content_refresh">รีเฟรช</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">ใช้เอฟเฟกต์ ReShade (.fx) กับเกม DXVK/VKD3D (Vulkan) ผ่านเลเยอร์ vkBasalt ที่มาพร้อมในตัว วางเอฟเฟกต์แต่ละรายการไว้ในโฟลเดอร์ของตัวเองภายใต้ Android/data/&lt;package&gt;/files/ReShade/ การปรับพารามิเตอร์แบบเรียลไทม์และสวิตช์ในเกมจะมาพร้อมกับการอัปเดตเลเยอร์แบบโหลดซ้ำทันที</string>
+    <string name="reshade_catalog_title">เอฟเฟกต์ ReShade</string>
+    <string name="reshade_catalog_search">ค้นหาเอฟเฟกต์…</string>
+    <string name="reshade_catalog_installed">ติดตั้งแล้ว (%1$d)</string>
+    <string name="reshade_catalog_available">พร้อมใช้งาน (%1$d)</string>
+    <string name="reshade_catalog_downloading">กำลังดาวน์โหลด</string>
+    <string name="reshade_catalog_installing">กำลังติดตั้ง</string>
+    <string name="reshade_catalog_offline_cache">ออฟไลน์ — กำลังแสดงรายการที่แคชไว้ เชื่อมต่อเพื่อดาวน์โหลดเอฟเฟกต์ใหม่</string>
+    <string name="reshade_catalog_offline_none">ออฟไลน์ — กำลังแสดงเฉพาะเอฟเฟกต์ที่ติดตั้งไว้ เชื่อมต่อเพื่อเรียกดูแคตตาล็อก</string>
+    <string name="reshade_catalog_needs_connection">เชื่อมต่ออินเทอร์เน็ตเพื่อดาวน์โหลดเอฟเฟกต์</string>
+    <string name="reshade_catalog_download_failed">ดาวน์โหลด %1$s ไม่สำเร็จ</string>
+    <string name="reshade_catalog_empty_query">ไม่มีเอฟเฟกต์ที่ตรงกับ \"%1$s\"</string>
+    <string name="reshade_catalog_empty">ไม่มีเอฟเฟกต์ที่พร้อมใช้งาน เชื่อมต่ออินเทอร์เน็ตเพื่อเรียกดูแคตตาล็อก</string>
+    <string name="reshade_catalog_done">เสร็จสิ้น</string>
+    <string name="reshade_catalog_delete_cd">ลบ %1$s</string>
+    <string name="reshade_catalog_delete_title">ลบ %1$s หรือไม่?</string>
+    <string name="reshade_catalog_delete_body">การดำเนินการนี้จะลบเอฟเฟกต์ออกจากที่จัดเก็บและจากชุดใดก็ตามที่ใช้เอฟเฟกต์นี้ คุณสามารถดาวน์โหลดได้อีกครั้งในภายหลัง</string>
+    <string name="reshade_catalog_delete_confirm">ลบ</string>
+    <string name="reshade_catalog_delete_cancel">ยกเลิก</string>
+    <string name="reshade_catalog_delete_failed">ไม่สามารถลบ %1$s ได้</string>
+    <string name="reshade_params_title">พารามิเตอร์เอฟเฟกต์</string>
+    <string name="reshade_params_reset">รีเซ็ต</string>
+    <string name="reshade_loadout_empty">ยังไม่มีเอฟเฟกต์ เพิ่มเอฟเฟกต์อย่างน้อยหนึ่งรายการเพื่อสร้างชุด</string>
+    <string name="reshade_loadout_add">เพิ่มเอฟเฟกต์</string>
+    <string name="reshade_loadout_full">ชุดเต็มแล้ว — ลบเอฟเฟกต์หนึ่งรายการเพื่อเพิ่มรายการอื่น</string>
+    <string name="reshade_effect_active">ใช้งานอยู่</string>
+    <string name="reshade_mode_solo">เดี่ยว</string>
+    <string name="reshade_mode_stack">ซ้อน</string>
+    <string name="reshade_mode_solo_hint">ใช้งานได้ครั้งละหนึ่งเอฟเฟกต์ (เปรียบเทียบ A/B สลับแบบสดในเกม)</string>
+    <string name="reshade_mode_stack_hint">ซ้อนเอฟเฟกต์ชุดย่อยใดก็ได้ โดยใช้ตามลำดับ</string>
+    <string name="reshade_drawer_enable">เปิดใช้ ReShade</string>
+    <string name="reshade_drawer_empty">ไม่มีเอฟเฟกต์ ReShade ในชุดนี้ เพิ่มเอฟเฟกต์ในการตั้งค่าของเกมนี้ (หรือของคอนเทนเนอร์) เพื่อสลับและปรับแต่งที่นี่</string>
+    <string name="reshade_drawer_no_params">เอฟเฟกต์นี้ไม่มีพารามิเตอร์ที่ปรับได้</string>
 </resources>

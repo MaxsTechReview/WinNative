@@ -1603,5 +1603,40 @@
     <string name="steam_chat_setting_stay_running">백그라운드에서 실행</string>
     <string name="steam_chat_setting_stay_running_desc">WinNative를 종료한 후에도 채팅 유지</string>
     <string name="settings_content_refresh">새로고침</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">내장된 vkBasalt 레이어를 통해 DXVK/VKD3D(Vulkan) 게임에 ReShade 효과(.fx)를 적용합니다. 각 효과를 Android/data/&lt;package&gt;/files/ReShade/ 아래의 자체 폴더에 넣으세요. 실시간 매개변수 조정 및 게임 내 토글은 라이브 리로드 레이어 업데이트와 함께 제공됩니다.</string>
+    <string name="reshade_catalog_title">ReShade 효과</string>
+    <string name="reshade_catalog_search">효과 검색…</string>
+    <string name="reshade_catalog_installed">설치됨 (%1$d)</string>
+    <string name="reshade_catalog_available">사용 가능 (%1$d)</string>
+    <string name="reshade_catalog_downloading">다운로드 중</string>
+    <string name="reshade_catalog_installing">설치 중</string>
+    <string name="reshade_catalog_offline_cache">오프라인 — 캐시된 목록을 표시합니다. 새 효과를 다운로드하려면 연결하세요.</string>
+    <string name="reshade_catalog_offline_none">오프라인 — 설치된 효과만 표시합니다. 카탈로그를 찾아보려면 연결하세요.</string>
+    <string name="reshade_catalog_needs_connection">효과를 다운로드하려면 인터넷에 연결하세요.</string>
+    <string name="reshade_catalog_download_failed">%1$s 다운로드에 실패했습니다.</string>
+    <string name="reshade_catalog_empty_query">\"%1$s\"와(과) 일치하는 효과가 없습니다.</string>
+    <string name="reshade_catalog_empty">사용 가능한 효과가 없습니다. 카탈로그를 찾아보려면 인터넷에 연결하세요.</string>
+    <string name="reshade_catalog_done">완료</string>
+    <string name="reshade_catalog_delete_cd">%1$s 삭제</string>
+    <string name="reshade_catalog_delete_title">%1$s을(를) 삭제하시겠습니까?</string>
+    <string name="reshade_catalog_delete_body">저장소와 이 효과를 사용하는 모든 로드아웃에서 효과가 제거됩니다. 나중에 다시 다운로드할 수 있습니다.</string>
+    <string name="reshade_catalog_delete_confirm">삭제</string>
+    <string name="reshade_catalog_delete_cancel">취소</string>
+    <string name="reshade_catalog_delete_failed">%1$s을(를) 삭제할 수 없습니다.</string>
+    <string name="reshade_params_title">효과 매개변수</string>
+    <string name="reshade_params_reset">초기화</string>
+    <string name="reshade_loadout_empty">아직 효과가 없습니다. 로드아웃을 만들려면 하나 이상의 효과를 추가하세요.</string>
+    <string name="reshade_loadout_add">효과 추가</string>
+    <string name="reshade_loadout_full">로드아웃이 가득 찼습니다 — 다른 효과를 추가하려면 효과 하나를 제거하세요.</string>
+    <string name="reshade_effect_active">활성</string>
+    <string name="reshade_mode_solo">솔로</string>
+    <string name="reshade_mode_stack">스택</string>
+    <string name="reshade_mode_solo_hint">한 번에 하나의 효과만 활성화(A/B 비교, 게임 중 실시간 전환).</string>
+    <string name="reshade_mode_stack_hint">효과의 하위 집합을 겹쳐서 순서대로 적용합니다.</string>
+    <string name="reshade_drawer_enable">ReShade 사용</string>
+    <string name="reshade_drawer_empty">이 로드아웃에 ReShade 효과가 없습니다. 여기에서 전환하고 조정하려면 이 게임의 설정(또는 컨테이너 설정)에서 효과를 추가하세요.</string>
+    <string name="reshade_drawer_no_params">이 효과에는 조정 가능한 매개변수가 없습니다.</string>
 </resources>
 

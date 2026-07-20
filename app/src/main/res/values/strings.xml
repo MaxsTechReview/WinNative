@@ -477,6 +477,44 @@
     <string name="container_wine_opengl">OpenGL</string>
     <string name="container_surface_effect">Surface Effect</string>
 
+    <!-- ReShade drop-in effects (vkBasalt) -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">Apply a ReShade (.fx) effect to DXVK/VKD3D (Vulkan) games via the bundled vkBasalt layer. Drop each effect into its own folder under Android/data/&lt;package&gt;/files/ReShade/. Live parameter tuning and the in-game toggle arrive with the live-reload layer update.</string>
+    <string name="reshade_catalog_title">ReShade effects</string>
+    <string name="reshade_catalog_search">Search effects…</string>
+    <string name="reshade_catalog_installed">Installed (%1$d)</string>
+    <string name="reshade_catalog_available">Available (%1$d)</string>
+    <string name="reshade_catalog_downloading">Downloading</string>
+    <string name="reshade_catalog_installing">Installing</string>
+    <string name="reshade_catalog_offline_cache">Offline — showing a cached list. Connect to download new effects.</string>
+    <string name="reshade_catalog_offline_none">Offline — showing installed effects only. Connect to browse the catalog.</string>
+    <string name="reshade_catalog_needs_connection">Connect to the internet to download effects.</string>
+    <string name="reshade_catalog_download_failed">Failed to download %1$s.</string>
+    <string name="reshade_catalog_empty_query">No effects match \"%1$s\".</string>
+    <string name="reshade_catalog_empty">No effects available. Connect to the internet to browse the catalog.</string>
+    <string name="reshade_catalog_done">Done</string>
+    <string name="reshade_catalog_delete_cd">Delete %1$s</string>
+    <string name="reshade_catalog_delete_title">Delete %1$s?</string>
+    <string name="reshade_catalog_delete_body">This removes the effect from storage and from any loadout using it. You can download it again later.</string>
+    <string name="reshade_catalog_delete_confirm">Delete</string>
+    <string name="reshade_catalog_delete_cancel">Cancel</string>
+    <string name="reshade_catalog_delete_failed">Couldn\'t delete %1$s.</string>
+    <string name="reshade_params_title">EFFECT PARAMETERS</string>
+    <string name="reshade_params_reset">Reset</string>
+    <!-- Multi-effect ReShade loadout (pre-launch editor) -->
+    <string name="reshade_loadout_empty">No effects yet. Add one or more effects to build a loadout.</string>
+    <string name="reshade_loadout_add">Add effect</string>
+    <string name="reshade_loadout_full">Loadout full — remove an effect to add another.</string>
+    <string name="reshade_effect_active">active</string>
+    <string name="reshade_mode_solo">Solo</string>
+    <string name="reshade_mode_stack">Stack</string>
+    <string name="reshade_mode_solo_hint">One effect active at a time (A/B compare, switch live in-game).</string>
+    <string name="reshade_mode_stack_hint">Layer any subset of effects, applied in order.</string>
+    <!-- In-game ReShade drawer pane (live control) -->
+    <string name="reshade_drawer_enable">Enable ReShade</string>
+    <string name="reshade_drawer_empty">No ReShade effects in this loadout. Add effects in this game\'s settings (or the container\'s) to switch and tune them here.</string>
+    <string name="reshade_drawer_no_params">This effect exposes no adjustable parameters.</string>
+
     <!-- Container > Box64 -->
     <string name="container_box64_title">Box64</string>
     <string name="container_box64_wowbox64_title">Box64 / Wowbox64</string>

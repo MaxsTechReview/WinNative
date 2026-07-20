@@ -1602,5 +1602,40 @@
     <string name="steam_chat_setting_stay_running">在后台运行</string>
     <string name="steam_chat_setting_stay_running_desc">退出 WinNative 后保持聊天运行</string>
     <string name="settings_content_refresh">刷新</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">通过内置的 vkBasalt 层将 ReShade 效果（.fx）应用于 DXVK/VKD3D（Vulkan）游戏。将每个效果放入 Android/data/&lt;package&gt;/files/ReShade/ 下各自的文件夹中。实时参数调整和游戏内开关将随实时重载层更新一起提供。</string>
+    <string name="reshade_catalog_title">ReShade 效果</string>
+    <string name="reshade_catalog_search">搜索效果…</string>
+    <string name="reshade_catalog_installed">已安装 (%1$d)</string>
+    <string name="reshade_catalog_available">可用 (%1$d)</string>
+    <string name="reshade_catalog_downloading">正在下载</string>
+    <string name="reshade_catalog_installing">正在安装</string>
+    <string name="reshade_catalog_offline_cache">离线 — 显示缓存列表。连接以下载新效果。</string>
+    <string name="reshade_catalog_offline_none">离线 — 仅显示已安装的效果。连接以浏览目录。</string>
+    <string name="reshade_catalog_needs_connection">连接到互联网以下载效果。</string>
+    <string name="reshade_catalog_download_failed">下载 %1$s 失败。</string>
+    <string name="reshade_catalog_empty_query">没有与 \"%1$s\" 匹配的效果。</string>
+    <string name="reshade_catalog_empty">没有可用的效果。连接到互联网以浏览目录。</string>
+    <string name="reshade_catalog_done">完成</string>
+    <string name="reshade_catalog_delete_cd">删除 %1$s</string>
+    <string name="reshade_catalog_delete_title">删除 %1$s？</string>
+    <string name="reshade_catalog_delete_body">这将从存储中以及使用该效果的所有配置中移除该效果。你可以稍后重新下载。</string>
+    <string name="reshade_catalog_delete_confirm">删除</string>
+    <string name="reshade_catalog_delete_cancel">取消</string>
+    <string name="reshade_catalog_delete_failed">无法删除 %1$s。</string>
+    <string name="reshade_params_title">效果参数</string>
+    <string name="reshade_params_reset">重置</string>
+    <string name="reshade_loadout_empty">还没有效果。添加一个或多个效果以创建配置。</string>
+    <string name="reshade_loadout_add">添加效果</string>
+    <string name="reshade_loadout_full">配置已满 — 移除一个效果才能再添加。</string>
+    <string name="reshade_effect_active">已启用</string>
+    <string name="reshade_mode_solo">单独</string>
+    <string name="reshade_mode_stack">叠加</string>
+    <string name="reshade_mode_solo_hint">一次仅激活一个效果（A/B 对比，可在游戏中实时切换）。</string>
+    <string name="reshade_mode_stack_hint">叠加任意效果子集，按顺序应用。</string>
+    <string name="reshade_drawer_enable">启用 ReShade</string>
+    <string name="reshade_drawer_empty">此配置中没有 ReShade 效果。在此游戏（或容器）的设置中添加效果，即可在此切换和调整。</string>
+    <string name="reshade_drawer_no_params">此效果没有可调整的参数。</string>
 </resources>
 

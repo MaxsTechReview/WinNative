@@ -1601,4 +1601,39 @@ Yüklü konum:
     <string name="file_manager_create_folder_failed">Klasör oluşturma başarısız oldu</string>
 
     <string name="settings_content_refresh">Yenile</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">Yerleşik vkBasalt katmanı aracılığıyla DXVK/VKD3D (Vulkan) oyunlarına bir ReShade efekti (.fx) uygulayın. Her efekti Android/data/&lt;package&gt;/files/ReShade/ altında kendi klasörüne yerleştirin. Canlı parametre ayarı ve oyun içi anahtar, canlı yeniden yükleme katmanı güncellemesiyle gelecek.</string>
+    <string name="reshade_catalog_title">ReShade efektleri</string>
+    <string name="reshade_catalog_search">Efekt ara…</string>
+    <string name="reshade_catalog_installed">Yüklü (%1$d)</string>
+    <string name="reshade_catalog_available">Kullanılabilir (%1$d)</string>
+    <string name="reshade_catalog_downloading">İndiriliyor</string>
+    <string name="reshade_catalog_installing">Yükleniyor</string>
+    <string name="reshade_catalog_offline_cache">Çevrimdışı — önbelleğe alınmış bir liste gösteriliyor. Yeni efektler indirmek için bağlanın.</string>
+    <string name="reshade_catalog_offline_none">Çevrimdışı — yalnızca yüklü efektler gösteriliyor. Kataloğa göz atmak için bağlanın.</string>
+    <string name="reshade_catalog_needs_connection">Efekt indirmek için internete bağlanın.</string>
+    <string name="reshade_catalog_download_failed">%1$s indirilemedi.</string>
+    <string name="reshade_catalog_empty_query">\"%1$s\" ile eşleşen efekt yok.</string>
+    <string name="reshade_catalog_empty">Kullanılabilir efekt yok. Kataloğa göz atmak için internete bağlanın.</string>
+    <string name="reshade_catalog_done">Bitti</string>
+    <string name="reshade_catalog_delete_cd">%1$s sil</string>
+    <string name="reshade_catalog_delete_title">%1$s silinsin mi?</string>
+    <string name="reshade_catalog_delete_body">Bu, efekti depolamadan ve onu kullanan tüm setlerden kaldırır. Daha sonra tekrar indirebilirsiniz.</string>
+    <string name="reshade_catalog_delete_confirm">Sil</string>
+    <string name="reshade_catalog_delete_cancel">İptal</string>
+    <string name="reshade_catalog_delete_failed">%1$s silinemedi.</string>
+    <string name="reshade_params_title">EFEKT PARAMETRELERİ</string>
+    <string name="reshade_params_reset">Sıfırla</string>
+    <string name="reshade_loadout_empty">Henüz efekt yok. Bir set oluşturmak için bir veya daha fazla efekt ekleyin.</string>
+    <string name="reshade_loadout_add">Efekt ekle</string>
+    <string name="reshade_loadout_full">Set dolu — başka bir efekt eklemek için birini kaldırın.</string>
+    <string name="reshade_effect_active">etkin</string>
+    <string name="reshade_mode_solo">Solo</string>
+    <string name="reshade_mode_stack">Yığın</string>
+    <string name="reshade_mode_solo_hint">Aynı anda tek efekt etkin (A/B karşılaştırması, oyun içinde canlı geçiş yapın).</string>
+    <string name="reshade_mode_stack_hint">Herhangi bir efekt alt kümesini katmanlayın, sırayla uygulanır.</string>
+    <string name="reshade_drawer_enable">ReShade\'i etkinleştir</string>
+    <string name="reshade_drawer_empty">Bu sette ReShade efekti yok. Burada değiştirmek ve ayarlamak için bu oyunun (veya kapsayıcının) ayarlarına efekt ekleyin.</string>
+    <string name="reshade_drawer_no_params">Bu efektin ayarlanabilir parametresi yok.</string>
 </resources>

@@ -508,6 +508,31 @@ class ShortcutSettingsComposeDialog private constructor(
                 ?.coerceIn(0, 100)
                 ?: 100
 
+        // ReShade drop-in LOADOUT (per-game). Scan the effect pool + (re)load the ordered multi-effect
+        // model, resolving each field as a shortcut override else the container value (getShortcutSetting),
+        // migrating a legacy single reshadeEffect/flat reshadeParams transparently (ReshadeLoadout.parse).
+        val reshadeEffects = com.winlator.cmod.runtime.reshade.ReshadeManager.scanEffects(context)
+        state.reshadeEffects.value = reshadeEffects
+        state.reshadeLoadout.init(
+            reshadeEffects,
+            getShortcutSetting(
+                com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_LOADOUT,
+                container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_LOADOUT, "")
+            ).ifEmpty { null },
+            getShortcutSetting(
+                com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_MODE,
+                container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_MODE, "solo")
+            ),
+            getShortcutSetting(
+                com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_PARAMS,
+                container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_PARAMS, "")
+            ).ifEmpty { null },
+            getShortcutSetting(
+                com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_EFFECT,
+                container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_EFFECT, "None")
+            ),
+        )
+
         // Graphics driver (basic entries - will be updated after contents sync)
         val graphicsDriverArr =
             context.resources.getStringArray(R.array.graphics_driver_entries).toList()
@@ -1252,6 +1277,37 @@ class ShortcutSettingsComposeDialog private constructor(
                 shortcut.putExtra("sgsrEnabled", null)
                 shortcut.putExtra("sgsrUpscaleMode", null)
                 shortcut.putExtra("sgsrSharpness", null)
+            }
+
+            // ReShade LOADOUT (per-game). Route through saveOverride so it participates in the
+            // container-defaults flag: a bare putExtra left hasContainerOverride false, so a shortcut whose
+            // only change was ReShade got use_container_defaults=1 and getSettingExtra shadowed its own
+            // reshade extras with the container value on read. Persist the array + mode + nested params +
+            // the legacy first-effect (coherence); an empty loadout clears the override (inherit / off).
+            run {
+                val loadoutJson = state.reshadeLoadout.loadoutJsonOrNull() ?: ""
+                hasContainerOverride = hasContainerOverride or saveOverride(
+                    com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_LOADOUT,
+                    loadoutJson,
+                    container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_LOADOUT, "")
+                )
+                hasContainerOverride = hasContainerOverride or saveOverride(
+                    com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_MODE,
+                    if (loadoutJson.isEmpty()) "" else state.reshadeLoadout.mode,
+                    // Default "solo" (how launch resolves an unset mode) so an inheriting/legacy shortcut
+                    // whose loadout matches the container doesn't gain a spurious reshadeMode override.
+                    if (loadoutJson.isEmpty()) "" else container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_MODE, "solo")
+                )
+                hasContainerOverride = hasContainerOverride or saveOverride(
+                    com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_PARAMS,
+                    if (loadoutJson.isEmpty()) "" else (state.reshadeLoadout.paramsJsonOrNull() ?: ""),
+                    container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_PARAMS, "")
+                )
+                hasContainerOverride = hasContainerOverride or saveOverride(
+                    com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_EFFECT,
+                    if (loadoutJson.isEmpty()) "" else state.reshadeLoadout.firstEffectName(),
+                    container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_EFFECT, "")
+                )
             }
 
             // Desktop Theme — stored as compound "THEME,TYPE,COLOR" string
