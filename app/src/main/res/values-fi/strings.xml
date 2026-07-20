@@ -767,6 +767,8 @@ E.g. <b>META</b> for <i>META-näppäin</i>, \n
     <string name="mango_hud_element_duration">Istunnon kesto</string>
     <string name="mango_hud_element_clock">Kello</string>
     <string name="mango_hud_element_throttle">Kuristustila</string>
+    <string name="mango_hud_group_memory">Muisti</string>
+    <string name="mango_hud_group_system">Järjestelmä</string>
     <string name="hud_position_menu_title">Siirrä HUD kohtaan</string>
     <string name="hud_position_top_left">Ylävasen</string>
     <string name="hud_position_top_center">Yläkeskusta</string>

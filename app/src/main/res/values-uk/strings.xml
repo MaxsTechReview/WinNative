@@ -618,6 +618,8 @@
     <string name="mango_hud_element_duration">Час сесії</string>
     <string name="mango_hud_element_clock">Годинник</string>
     <string name="mango_hud_element_throttle">Тротлінг</string>
+    <string name="mango_hud_group_memory">Пам\'ять</string>
+    <string name="mango_hud_group_system">Система</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Ви хочете завершити цей процес?</string>

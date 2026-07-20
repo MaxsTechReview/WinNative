@@ -767,6 +767,8 @@
     <string name="mango_hud_element_duration">セッション時間</string>
     <string name="mango_hud_element_clock">時計</string>
     <string name="mango_hud_element_throttle">サーマル状態</string>
+    <string name="mango_hud_group_memory">メモリ</string>
+    <string name="mango_hud_group_system">システム</string>
     <string name="hud_position_menu_title">HUD の移動先</string>
     <string name="hud_position_top_left">左上</string>
     <string name="hud_position_top_center">上中央</string>

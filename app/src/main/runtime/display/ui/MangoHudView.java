@@ -35,8 +35,6 @@ import java.util.Locale;
  */
 public class MangoHudView extends View {
   public static final String PREF_ENABLED = "mango_hud_enabled";
-  // v2: element list grew and battery joined the defaults; fresh key so every
-  // install starts from the new default set.
   private static final String PREF_ELEMENTS = "mango_hud_elements2";
   private static final String PREF_POS_X = "mango_hud_position_x";
   private static final String PREF_POS_Y = "mango_hud_position_y";
@@ -69,8 +67,8 @@ public class MangoHudView extends View {
   public static final int EL_CLOCK = 18;
   public static final int EL_THROTTLE = 19;
   public static final int ELEMENT_COUNT = 20;
-  // Original ten elements on; every round-8 addition is opt-in.
-  private static final int DEFAULT_ELEMENTS_MASK = 0x3FF;
+  // Original ten elements plus both clock cells on; the rest opt-in.
+  private static final int DEFAULT_ELEMENTS_MASK = 0xFFF;
 
   // Overlay color palette; accents run through vivid() for brighter, more
   // saturated labels on small phone screens.

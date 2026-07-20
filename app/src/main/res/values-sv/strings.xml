@@ -767,6 +767,8 @@ T.ex. <b>META</b> för <i>META-tangent</i>, \n
     <string name="mango_hud_element_duration">Sessionstid</string>
     <string name="mango_hud_element_clock">Klocka</string>
     <string name="mango_hud_element_throttle">Termisk status</string>
+    <string name="mango_hud_group_memory">Minne</string>
+    <string name="mango_hud_group_system">System</string>
     <string name="hud_position_menu_title">Flytta HUD till</string>
     <string name="hud_position_top_left">Uppe till vänster</string>
     <string name="hud_position_top_center">Uppe i mitten</string>

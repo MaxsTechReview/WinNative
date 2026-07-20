@@ -768,6 +768,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="mango_hud_element_duration">Session Time</string>
     <string name="mango_hud_element_clock">Clock</string>
     <string name="mango_hud_element_throttle">Throttle Status</string>
+    <string name="mango_hud_group_memory">Memory</string>
+    <string name="mango_hud_group_system">System</string>
     <string name="hud_position_menu_title">Move HUD to</string>
     <string name="hud_position_top_left">Top Left</string>
     <string name="hud_position_top_center">Top Center</string>

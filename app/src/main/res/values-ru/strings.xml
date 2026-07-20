@@ -639,6 +639,8 @@
     <string name="mango_hud_element_duration">Время сессии</string>
     <string name="mango_hud_element_clock">Часы</string>
     <string name="mango_hud_element_throttle">Троттлинг</string>
+    <string name="mango_hud_group_memory">Память</string>
+    <string name="mango_hud_group_system">Система</string>
     <string name="hud_position_menu_title">Переместить HUD</string>
     <string name="hud_position_top_left">Вверху слева</string>
     <string name="hud_position_top_center">Вверху по центру</string>

@@ -767,6 +767,8 @@
     <string name="mango_hud_element_duration">เวลาเซสชัน</string>
     <string name="mango_hud_element_clock">นาฬิกา</string>
     <string name="mango_hud_element_throttle">สถานะควบคุมความร้อน</string>
+    <string name="mango_hud_group_memory">หน่วยความจำ</string>
+    <string name="mango_hud_group_system">ระบบ</string>
     <string name="hud_position_menu_title">ย้าย HUD ไปที่</string>
     <string name="hud_position_top_left">บนซ้าย</string>
     <string name="hud_position_top_center">บนกลาง</string>

@@ -614,6 +614,8 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="mango_hud_element_duration">Timp sesiune</string>
     <string name="mango_hud_element_clock">Ceas</string>
     <string name="mango_hud_element_throttle">Stare termică</string>
+    <string name="mango_hud_group_memory">Memorie</string>
+    <string name="mango_hud_group_system">Sistem</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Doresti sa opresti acest proces?</string>

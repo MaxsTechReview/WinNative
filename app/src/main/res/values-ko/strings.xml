@@ -614,6 +614,8 @@
     <string name="mango_hud_element_duration">세션 시간</string>
     <string name="mango_hud_element_clock">시계</string>
     <string name="mango_hud_element_throttle">스로틀 상태</string>
+    <string name="mango_hud_group_memory">메모리</string>
+    <string name="mango_hud_group_system">시스템</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">이 프로세스를 종료하시겠습니까?</string>

@@ -767,6 +767,8 @@ Por ejemplo, <b>META</b> para la <i>tecla META</i>, \n
     <string name="mango_hud_element_duration">Tiempo de sesión</string>
     <string name="mango_hud_element_clock">Reloj</string>
     <string name="mango_hud_element_throttle">Estado térmico</string>
+    <string name="mango_hud_group_memory">Memoria</string>
+    <string name="mango_hud_group_system">Sistema</string>
     <string name="hud_position_menu_title">Mover HUD a</string>
     <string name="hud_position_top_left">Arriba a la izquierda</string>
     <string name="hud_position_top_center">Arriba al centro</string>

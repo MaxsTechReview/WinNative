@@ -687,6 +687,8 @@
     <string name="mango_hud_element_duration">सत्र समय</string>
     <string name="mango_hud_element_clock">घड़ी</string>
     <string name="mango_hud_element_throttle">थ्रॉटल स्थिति</string>
+    <string name="mango_hud_group_memory">मेमोरी</string>
+    <string name="mango_hud_group_system">सिस्टम</string>
     <string name="hud_position_menu_title">HUD को यहाँ ले जाएँ</string>
     <string name="hud_position_top_left">ऊपर बाएँ</string>
     <string name="hud_position_top_center">ऊपर केंद्र</string>

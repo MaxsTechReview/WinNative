@@ -614,6 +614,8 @@
     <string name="mango_hud_element_duration">会话时长</string>
     <string name="mango_hud_element_clock">时钟</string>
     <string name="mango_hud_element_throttle">温控状态</string>
+    <string name="mango_hud_group_memory">内存</string>
+    <string name="mango_hud_group_system">系统</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">您要结束此进程吗？</string>

@@ -767,6 +767,8 @@ E.g. <b>META</b> için <i>META tuşu</i>, \n
     <string name="mango_hud_element_duration">Oturum Süresi</string>
     <string name="mango_hud_element_clock">Saat</string>
     <string name="mango_hud_element_throttle">Kısıtlama Durumu</string>
+    <string name="mango_hud_group_memory">Bellek</string>
+    <string name="mango_hud_group_system">Sistem</string>
     <string name="hud_position_menu_title">HUD\'u şuraya taşı</string>
     <string name="hud_position_top_left">Sol Üst</string>
     <string name="hud_position_top_center">Üst Orta</string>
