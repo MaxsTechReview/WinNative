@@ -1087,42 +1087,41 @@ internal suspend fun scrapeCustomGameArtwork(
     container: Container,
     shortcutFile: java.io.File
 ) {
-    val shortcut = Shortcut(container, shortcutFile)
-    val artworkInfo = SteamArtworkScraper(context).getGameArtwork(gameName)
     withContext(Dispatchers.Main) {
         com.winlator.cmod.shared.ui.toast.WinToast.show(context, R.string.library_games_scraping_artwork, android.widget.Toast.LENGTH_LONG)
     }
-    if (!artworkInfo.isEmpty()) {
-        val dir = java.io.File(context.filesDir, "library_view_artwork")
-        if (!dir.exists()) dir.mkdirs()
-        artworkInfo.forEach { (slotSuffix, file) ->
-            if (!file.isFile) return@forEach
-            val bitmap = com.winlator.cmod.shared.android.ImageUtils.getBitmapFromUri(context, file.toUri(), 1024)
-            if (bitmap == null) {
-                file.delete()
-                return@forEach
+    val shortcut = Shortcut(container, shortcutFile)
+    val artworkInfo = SteamArtworkScraper(context).getGameArtwork(gameName)
+    val dir = java.io.File(context.filesDir, "library_view_artwork")
+    if (!dir.exists()) dir.mkdirs()
+    var saved = false
+    artworkInfo.forEach { (slotSuffix, file) ->
+        val librarySlot =
+            LibraryShortcutArtwork.LibraryArtworkSlot.entries.find { it.fileSuffix == slotSuffix }
+        val bitmap =
+            if (librarySlot != null && file.isFile) {
+                com.winlator.cmod.shared.android.ImageUtils.getBitmapFromUri(context, file.toUri(), 1024)
+            } else {
+                null
             }
-            val librarySlot = LibraryShortcutArtwork.LibraryArtworkSlot.entries.find {it.fileSuffix == slotSuffix}
-            if (librarySlot == null) {
-                file.delete()
-                return@forEach
-            }
+        if (librarySlot != null && bitmap != null) {
             val outputFile = java.io.File(dir, "${shortcutUuid}_${librarySlot.fileSuffix}.png")
-            if (!com.winlator.cmod.shared.io.FileUtils.saveBitmapToFile(bitmap, outputFile)) {
-                file.delete()
-                return@forEach
+            if (com.winlator.cmod.shared.io.FileUtils.saveBitmapToFile(bitmap, outputFile)) {
+                shortcut.putExtra(librarySlot.extraKey, outputFile.absolutePath)
+                saved = true
             }
-            shortcut.putExtra(librarySlot.extraKey, outputFile.toString())
-            file.delete()
         }
-        shortcut.saveData()
-        withContext(Dispatchers.Main) {
-            com.winlator.cmod.shared.ui.toast.WinToast.show(context, R.string.common_ui_done, android.widget.Toast.LENGTH_LONG)
+        file.delete()
+    }
+    if (saved) shortcut.saveData()
+    withContext(Dispatchers.Main) {
+        com.winlator.cmod.shared.ui.toast.WinToast.show(
+            context,
+            if (saved) R.string.common_ui_done else R.string.common_ui_failed,
+            android.widget.Toast.LENGTH_LONG,
+        )
+        if (saved) {
             com.winlator.cmod.app.PluviaApp.events.emit(com.winlator.cmod.feature.stores.steam.events.AndroidEvent.LibraryArtworkChanged)
-        }
-    } else {
-        withContext(Dispatchers.Main) {
-            com.winlator.cmod.shared.ui.toast.WinToast.show(context, R.string.common_ui_failed, android.widget.Toast.LENGTH_LONG)
         }
     }
 }

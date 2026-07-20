@@ -1909,6 +1909,7 @@ internal fun UnifiedActivity.LibraryCarousel(
     var stableEpicByPseudoId by remember { mutableStateOf<Map<Int, EpicGame>>(emptyMap()) }
     var customListArtworkPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
     var customHeroArtworkPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
+    var customCarouselArtworkPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
     var customArtworkPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
     var customIconArtworkPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
     var customIconPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
@@ -1916,6 +1917,7 @@ internal fun UnifiedActivity.LibraryCarousel(
     var stableCustomIconArtworkPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
     var stableCustomIconPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
     var stableCustomHeroPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
+    var stableCustomCarouselPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
     var stableCustomListPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
     var artworkCacheRefreshKey by remember { mutableIntStateOf(0) }
     var libraryLoaded by remember { mutableStateOf(false) }
@@ -2055,6 +2057,20 @@ internal fun UnifiedActivity.LibraryCarousel(
                 }
             }
 
+        val customCarouselPath =
+            withContext(Dispatchers.IO) {
+                buildMap<Int, String> {
+                    appsSnapshot.forEach { app ->
+                        if (app.id >= 0) return@forEach
+                        val shortcut = findShortcutForGame(shortcutsSnapshot, app, true, false, 0) ?: return@forEach
+                        val carouselPath = shortcut.getExtra("customLibraryCarouselArtPath")
+                        if (carouselPath.isNullOrBlank() || !java.io.File(carouselPath).isFile)
+                            return@forEach
+                        put(app.id, carouselPath)
+                    }
+                }
+            }
+
         val customListPath =
             withContext(Dispatchers.IO) {
                 buildMap<Int, String> {
@@ -2087,12 +2103,14 @@ internal fun UnifiedActivity.LibraryCarousel(
         customIconArtworkPathByAppId = iconArtworkPaths
         customIconPathByAppId = customIconPaths
         customHeroArtworkPathByAppId = customHeroPath
+        customCarouselArtworkPathByAppId = customCarouselPath
         customListArtworkPathByAppId = customListPath
         if (appsSnapshot.isNotEmpty()) {
             stableCustomArtworkPathByAppId = artworkPaths
             stableCustomIconArtworkPathByAppId = iconArtworkPaths
             stableCustomIconPathByAppId = customIconPaths
             stableCustomHeroPathByAppId = customHeroPath
+            stableCustomCarouselPathByAppId = customCarouselPath
             stableCustomListPathByAppId = customListPath
         }
     }
@@ -2139,6 +2157,8 @@ internal fun UnifiedActivity.LibraryCarousel(
         if (keepPreviousLibraryVisible) stableCustomListPathByAppId else customListArtworkPathByAppId
     val visibleCustomHeroPathByAppId =
         if (keepPreviousLibraryVisible) stableCustomHeroPathByAppId else customHeroArtworkPathByAppId
+    val visibleCustomCarouselPathByAppId =
+        if (keepPreviousLibraryVisible) stableCustomCarouselPathByAppId else customCarouselArtworkPathByAppId
 
     val displayedApps =
         remember(visibleInstalledApps, searchQuery) {
@@ -2509,6 +2529,7 @@ internal fun UnifiedActivity.LibraryCarousel(
                                     customArtworkPath = visibleCustomIconArtworkPathByAppId[app.id] ?: visibleCustomArtworkPathByAppId[app.id],
                                     customIconPath = visibleCustomIconPathByAppId[app.id],
                                     customListPath = visibleCustomListPathByAppId[app.id],
+                                    customCarouselPath = visibleCustomCarouselPathByAppId[app.id],
                                     customHeroPath = visibleCustomHeroPathByAppId[app.id],
                                     onClick = {
                                         detailGogGame = visibleGogByPseudoId[app.id]

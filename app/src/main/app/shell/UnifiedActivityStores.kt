@@ -323,6 +323,7 @@ internal fun UnifiedActivity.GameCapsule(
     customArtworkPath: String? = null,
     customIconPath: String? = null,
     customListPath: String? = null,
+    customCarouselPath: String? = null,
     customHeroPath: String? = null,
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
@@ -347,7 +348,13 @@ internal fun UnifiedActivity.GameCapsule(
             launchSteamGame(context, containerManager, app)
         }
     }
-    val artworkToBeUsed = if (listMode) (customListPath ?: customArtworkPath) else customArtworkPath
+    // Each view has its own shape, so prefer the slot scraped for it.
+    val artworkToBeUsed =
+        when {
+            listMode -> customListPath ?: customArtworkPath
+            useLibraryCapsule -> customCarouselPath ?: customArtworkPath
+            else -> customArtworkPath
+        }
     val clickInteraction = remember { MutableInteractionSource() }
     val isPressed by clickInteraction.collectIsPressedAsState()
     val isFocused = isControllerActive && isFocusedOverride
