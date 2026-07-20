@@ -133,7 +133,6 @@ public class FrameRating extends LinearLayout implements Runnable {
   private volatile long lastFrameNano;
   private long lastPrimaryFrameNano;
   private long lastGraphRedraw;
-  private long lastHudRedraw;
   private volatile String ramText;
   private final long[] frameTimesNano = new long[MAX_FRAME_SAMPLES];
   private int frameTimesStart;
@@ -160,11 +159,9 @@ public class FrameRating extends LinearLayout implements Runnable {
 
   // ── GPU load caching (prevents N/A flickering from transient sysfs failures)
   private int lastGoodGpuLoad = -1;
-  private long lastGoodGpuTime = 0;
-  private static final long GPU_CACHE_DURATION_MS = 5000;
   private static final long FALLBACK_SUPPRESSION_NS = 2000000000L;
   private static final long FPS_CALC_INTERVAL_NS = 1000000000L;
-  private static final long HUD_REFRESH_MS = 1000L;
+  private static final long HUD_REFRESH_MS = 500L;
   private static final long CPU_WARMUP_POLL_MS = 500L;
   private static final int MAX_FRAME_SAMPLES = 1024;
 
@@ -197,7 +194,6 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.lastGraphRedraw = 0L;
     this.lastFrameNano = 0L;
     this.lastPrimaryFrameNano = 0L;
-    this.lastHudRedraw = 0L;
     this.frameTimesStart = 0;
     this.frameTimesCount = 0;
     this.lastFPS = 0.0f;
@@ -228,7 +224,6 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.cpuFailCount = 0;
     this.battFailCount = 0;
     this.lastGoodGpuLoad = -1;
-    this.lastGoodGpuTime = 0;
     this.isStatsRunning = false;
     this.C_VALUE = Color.parseColor("#FFFFFF");
     this.C_CPU = Color.parseColor("#FF8200");
@@ -999,7 +994,6 @@ public class FrameRating extends LinearLayout implements Runnable {
   public synchronized void reset() {
     this.lastFrameNano = 0L;
     this.lastPrimaryFrameNano = 0L;
-    this.lastHudRedraw = 0L;
     this.frameTimesStart = 0;
     this.frameTimesCount = 0;
     this.lastFPS = 0.0f;
@@ -1200,36 +1194,21 @@ public class FrameRating extends LinearLayout implements Runnable {
       float ms = (nowNano - this.lastFrameNano) / 1000000.0f;
       this.lastFrameNano = nowNano;
 
-      long time = SystemClock.elapsedRealtime();
+      // Ring write only; window trimming, FPS math, and text refresh run on the 1s UI tick.
       appendFrameTimeLocked(nowNano);
-      trimFrameTimesLocked(nowNano - FPS_CALC_INTERVAL_NS);
-      updateRollingFpsLocked();
-      boolean shouldRedrawHud = false;
-      if (time - this.lastHudRedraw >= HUD_REFRESH_MS) shouldRedrawHud = true;
-
       if (ms > 0.0f && ms < 500.0f) {
         this.currentMs = ms;
       }
-      long frametimeRedrawInterval = this.frametimeNumericMode ? 500L : 50L;
-      if (this.enableGraph && ms > 0.0f && ms < 500.0f
-          && time - this.lastGraphRedraw >= frametimeRedrawInterval) {
-        if (!this.frametimeNumericMode && this.graphView != null) {
+      if (this.enableGraph && !this.frametimeNumericMode && this.graphView != null
+          && ms > 0.0f && ms < 500.0f) {
+        long time = SystemClock.elapsedRealtime();
+        if (time - this.lastGraphRedraw >= 50L) {
           this.graphView.addFrame(ms);
           this.graphView.postInvalidate();
-        } else if (this.frametimeNumericMode && this.tvFrametime != null) {
-          final float msSnapshot = ms;
-          this.tvFrametime.post(
-              () -> this.tvFrametime.setText(String.format(Locale.US, "%.1f ms", msSnapshot)));
+          this.lastGraphRedraw = time;
         }
-        this.lastGraphRedraw = time;
       }
-
-      if (!shouldRedrawHud && time - this.lastHudRedraw < HUD_REFRESH_MS) {
-        return;
-      }
-      this.lastHudRedraw = time;
     }
-    post(this);
   }
 
   public void recordGameFrame() {
@@ -1370,16 +1349,10 @@ public class FrameRating extends LinearLayout implements Runnable {
         int load = calculateGPULoad();
         this.gpuLoad = load;
         this.lastGoodGpuLoad = load;
-        this.lastGoodGpuTime = SystemClock.elapsedRealtime();
         this.gpuFailCount = 0;
       } catch (Exception e) {
-        // Use cached value if recent enough, otherwise show -1
-        long elapsed = SystemClock.elapsedRealtime() - this.lastGoodGpuTime;
-        if (this.lastGoodGpuLoad >= 0 && elapsed < GPU_CACHE_DURATION_MS) {
-          this.gpuLoad = this.lastGoodGpuLoad;
-        } else {
-          this.gpuLoad = -1;
-        }
+        // Hold the last good reading through transient sysfs failures, like the Mango HUD.
+        if (this.lastGoodGpuLoad >= 0) this.gpuLoad = this.lastGoodGpuLoad;
         this.gpuFailCount++;
       }
     }
@@ -1462,6 +1435,11 @@ public class FrameRating extends LinearLayout implements Runnable {
   public void run() {
     // Watchdog first so a stalled game drops to 0 on the mirrored HUD too: reset FPS if no frame arrived for > 1.5s, then publish.
     long nowNano = System.nanoTime();
+    synchronized (this) {
+      // Moved off the present path: maintain the 1s rolling window at display cadence.
+      trimFrameTimesLocked(nowNano - FPS_CALC_INTERVAL_NS);
+      updateRollingFpsLocked();
+    }
     if (this.lastFrameNano > 0 && nowNano - this.lastFrameNano > 1500000000L) {
       synchronized (this) {
         this.lastFPS = 0.0f;
