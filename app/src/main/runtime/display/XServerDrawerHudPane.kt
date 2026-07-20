@@ -281,9 +281,11 @@ internal fun HUDPaneContent(
             // Mango-style HUD toggle + settings gear, shown like the limiter whether the HUD is on or off.
             var mangoSettingsOpen by remember { mutableStateOf(false) }
             Row(
-                modifier = Modifier.height(IntrinsicSize.Min),
                 horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
-                verticalAlignment = Alignment.CenterVertically,
+                // Top-aligned so the gear's slot shares the toggle row's top edge:
+                // same nav row (right selects the gear, down skips past it) and the
+                // highlight hugs the gear itself like the Controls pane gear.
+                verticalAlignment = Alignment.Top,
             ) {
                 Box(
                     Modifier.weight(1f).paneNavItem(
@@ -298,35 +300,26 @@ internal fun HUDPaneContent(
                     )
                 }
                 val gearShape = RoundedCornerShape((12f * paneScale).dp)
-                // Full-height nav wrapper so this slot shares the toggle row's top edge:
-                // same nav row means right selects the gear and down skips past it.
                 Box(
                     modifier =
                         Modifier
-                            .fillMaxHeight()
+                            .size((44f * paneScale).dp)
+                            .clip(gearShape)
+                            .background(PaneInnerResting)
+                            .border(1.dp, RestingCardBorder, gearShape)
                             .paneNavItem(
                                 cornerRadius = (12f * paneScale).dp,
                                 onActivate = { mangoSettingsOpen = true },
-                            ),
+                            )
+                            .clickable { mangoSettingsOpen = true },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size((44f * paneScale).dp)
-                                .clip(gearShape)
-                                .background(PaneInnerResting)
-                                .border(1.dp, RestingCardBorder, gearShape)
-                                .clickable { mangoSettingsOpen = true },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Settings,
-                            contentDescription = stringResource(R.string.common_ui_settings),
-                            tint = DrawerTextPrimary,
-                            modifier = Modifier.size((20f * paneScale).dp),
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Outlined.Settings,
+                        contentDescription = stringResource(R.string.common_ui_settings),
+                        tint = DrawerTextPrimary,
+                        modifier = Modifier.size((20f * paneScale).dp),
+                    )
                 }
             }
             if (mangoSettingsOpen) {

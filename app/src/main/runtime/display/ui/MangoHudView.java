@@ -43,7 +43,7 @@ public class MangoHudView extends View {
   private static final String PREF_ALPHA = "mango_hud_alpha";
   private static final String PREF_BG_ALPHA = "mango_hud_bg_alpha";
   private static final float DEFAULT_ALPHA = 1.0f;
-  private static final float DEFAULT_BG_ALPHA = 0.5f;
+  private static final float DEFAULT_BG_ALPHA = 0.7f;
 
   // Element indices (bitmask in PREF_ELEMENTS).
   public static final int EL_GPU_LOAD = 0;
@@ -70,8 +70,7 @@ public class MangoHudView extends View {
   // Original ten elements plus both clock cells on; the rest opt-in.
   private static final int DEFAULT_ELEMENTS_MASK = 0xFFF;
 
-  // Overlay color palette; accents run through vivid() for brighter, more
-  // saturated labels on small phone screens.
+  // Overlay palette; accents pass through vivid() for punchier labels.
   private static final int C_BG = 0x00020202;
   private static final int C_TEXT = 0xFFFFFFFF;
   private static final int C_GPU = vivid(0xFF2E9762);
@@ -136,6 +135,7 @@ public class MangoHudView extends View {
   private final StringBuilder sbCpuTemp = new StringBuilder(8);
   private final StringBuilder sbVram = new StringBuilder(8);
   private final StringBuilder sbRam = new StringBuilder(8);
+  private final StringBuilder sbRamPct = new StringBuilder(8);
   private final StringBuilder sbBatPct = new StringBuilder(8);
   private final StringBuilder sbBatW = new StringBuilder(8);
   private final StringBuilder sbFps = new StringBuilder(8);
@@ -183,7 +183,7 @@ public class MangoHudView extends View {
   private CPUStatus.AppCpuSample prevCpuSample;
   private boolean cpuWarmedUp;
   private int slowTickParity;
-  private int gpuLoad = -1, gpuTemp = -1, cpuLoad = -1, cpuTemp = -1, batteryPct = -1;
+  private int gpuLoad = -1, gpuTemp = -1, cpuLoad = -1, cpuTemp = -1, batteryPct = -1, ramPct = -1;
   private float ramGib = -1f, vramGib = -1f, batteryWatts = -1f;
   private String[] gpuTempPaths;
   private String vramPath;
@@ -197,10 +197,7 @@ public class MangoHudView extends View {
   private final int[] coreMhz;
   private long prevRxBytes = -1, prevTxBytes = -1, prevNetMs;
   private final long sessionStartMs = SystemClock.elapsedRealtime();
-  // Self-reposting like FrameRating's stats loop: alive for the view's whole
-  // attached life, independent of frame events, so a session where frames never
-  // reach the HUD still shows live system stats. Near-free while hidden (one
-  // visibility read per 2s, no stat work).
+  // Self-reposting like FrameRating's loop: runs while attached, independent of frame events; near-free while hidden.
   private final Runnable tickRunnable = new Runnable() {
     @Override
     public void run() {
@@ -237,7 +234,13 @@ public class MangoHudView extends View {
     this.textAlpha = preferences.getFloat(PREF_ALPHA, DEFAULT_ALPHA);
     this.bgAlpha = preferences.getFloat(PREF_BG_ALPHA, DEFAULT_BG_ALPHA);
 
-    Typeface mono = Typeface.MONOSPACE;
+    // Stock mono by file: font packs and app themes can reroute the "monospace" alias for raw Paints.
+    Typeface mono;
+    try {
+      mono = Typeface.create(Typeface.createFromFile("/system/fonts/DroidSansMono.ttf"), Typeface.BOLD);
+    } catch (Exception e) {
+      mono = Typeface.create("monospace", Typeface.BOLD);
+    }
     bgPaint.setColor(C_BG);
     valuePaint.setTypeface(mono);
     valuePaint.setColor(C_TEXT);
@@ -514,6 +517,7 @@ public class MangoHudView extends View {
       formatInt(sbCpuTemp, cpuTemp);
       formatTenths(sbVram, vramGib);
       formatTenths(sbRam, ramGib);
+      formatInt(sbRamPct, ramPct);
       formatInt(sbBatPct, batteryPct);
       formatTenths(sbBatW, batteryWatts);
       formatInt(sbAvg, Math.round(avgFps));
@@ -679,23 +683,20 @@ public class MangoHudView extends View {
       ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
       ActivityManager am = (ActivityManager) getContext().getSystemService(Context.ACTIVITY_SERVICE);
       am.getMemoryInfo(mi);
-      ramGib = (mi.totalMem - mi.availMem) / 1073741824.0f;
+      long used = mi.totalMem - mi.availMem;
+      ramGib = used / 1073741824.0f;
+      ramPct = mi.totalMem > 0 ? (int) (100 * used / mi.totalMem) : -1;
     } catch (Exception e) {
       ramGib = -1f;
+      ramPct = -1;
     }
   }
 
-  /**
-   * GPU memory is shared on Android; best-effort "VRAM in use". Preferred source is the
-   * Adreno per-client allocation nodes (kgsl/proc/&lt;pid&gt;/gpumem_mapped, summed = GPU
-   * memory held by all clients); falls back to global allocator totals where exposed.
-   */
+  /** Best-effort GPU memory in use: per-pid kgsl sum, global counters, else own-process graphics stat. */
   private void readVram() {
     if (vramMode == -1) {
       vramMode = 3;
-      // Listing kgsl/proc is SELinux-denied on some ROMs, but opening
-      // kgsl/proc/<pid>/gpumem_mapped directly for our own pids still works —
-      // and summing those is exactly the game's GPU memory.
+      // Dir listing may be SELinux-denied while direct per-pid opens still work.
       if (readOwnPidsGpuMem() >= 0) {
         vramMode = 1;
       } else {
@@ -721,8 +722,7 @@ public class MangoHudView extends View {
       bytes = readLongFile(new File(vramPath));
     }
     if (bytes < 0) {
-      // Own-process graphics allocations (buffers, swapchains) — always available,
-      // narrower meaning than a global counter but never blank.
+      // Own-process graphics allocations — always readable, never blank.
       try {
         android.os.Debug.MemoryInfo mi = new android.os.Debug.MemoryInfo();
         android.os.Debug.getMemoryInfo(mi);
@@ -758,8 +758,7 @@ public class MangoHudView extends View {
   }
 
   private static long readLongFile(File f) {
-    // No exists()/canRead() pre-check: SELinux can deny stat/access on sysfs
-    // while the open itself succeeds (and vice versa) — just try.
+    // No pre-checks: SELinux can fail access() on sysfs while the open succeeds.
     try (BufferedReader reader = new BufferedReader(new FileReader(f))) {
       String line = reader.readLine();
       if (line != null) {
@@ -807,8 +806,7 @@ public class MangoHudView extends View {
           "/sys/class/kgsl/kgsl-3d0/gpu_clock",
           "/sys/class/kgsl/kgsl-3d0/clock_mhz",
           "/sys/kernel/gpu/gpu_clock",
-          // Listing /sys/class/devfreq is SELinux-denied on some ROMs, but direct
-          // opens can still work; known Adreno devfreq node names by SoC address.
+          // Devfreq listing may be SELinux-denied; try known Adreno node names directly.
           "/sys/class/devfreq/kgsl-3d0/cur_freq",
           "/sys/class/devfreq/3d00000.qcom,kgsl-3d0/cur_freq",
           "/sys/class/devfreq/2c00000.qcom,kgsl-3d0/cur_freq",
@@ -1087,7 +1085,7 @@ public class MangoHudView extends View {
     }
     if (elements[EL_RAM]) {
       rows++;
-      w = Math.max(w, labelColW + statCellW(3));
+      w = Math.max(w, labelColW + statCellW(3) + statCellW(1));
     }
     if (elements[EL_SWAP]) {
       rows++;
@@ -1107,8 +1105,7 @@ public class MangoHudView extends View {
       rows += 3;
       w = Math.max(w, labelColW + statCellW(3));
     }
-    // Secondary small-font rows. Only value-stable strings contribute to width
-    // (throttle text clips) so the panel never relayouts mid-session.
+    // Small rows: only value-stable strings contribute to width so the panel never relayouts mid-session.
     if (elements[EL_RES] && !resolutionText.isEmpty()) {
       smallRows++;
       w = Math.max(w, smallCharW * (resolutionText.length() + 8));
@@ -1173,7 +1170,8 @@ public class MangoHudView extends View {
       }
       if (elements[EL_RAM]) {
         float x = drawLabel(canvas, "RAM", C_RAM, y);
-        drawStatCell(canvas, sbRam, "GiB", x, y);
+        x = drawStatCell(canvas, sbRam, "GiB", x, y);
+        drawStatCell(canvas, sbRamPct, "%", x, y);
         y += rowH;
       }
       if (elements[EL_SWAP]) {
@@ -1423,8 +1421,7 @@ public class MangoHudView extends View {
         clampToParentBounds();
       });
     }
-    // Attached ⇒ loop running, no visibility condition — a view that renders is
-    // always attached, so the HUD can never be on screen with a dead loop.
+    // Attached ⇒ loop running: a rendered view is always attached, so the HUD can never sit on screen dead.
     startStats();
   }
 
