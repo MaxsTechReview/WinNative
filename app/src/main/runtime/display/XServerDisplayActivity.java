@@ -11084,6 +11084,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
         }
 
+        boolean windowChanged = bestWindow != null && frameRatingWindowId != bestWindow.id;
         if (bestWindow != null) {
             lastRendererName = bestRenderer;
             lastGpuName = bestGpu;
@@ -11097,7 +11098,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         runOnUiThread(() -> {
             frameRating.setRenderer(lastRendererName);
             frameRating.setGpuName(lastGpuName);
-            if (mangoHud != null) mangoHud.setEngineName(mangoEngineLabel());
+            if (mangoHud != null) {
+                mangoHud.setEngineName(mangoEngineLabel());
+                // New game window: drop loading/menu frames from the averages.
+                if (windowChanged) mangoHud.resetMetrics();
+            }
             updateHUDRenderMode();
         });
     }

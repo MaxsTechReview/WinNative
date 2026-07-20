@@ -110,7 +110,7 @@ public class MangoHudView extends View {
   private static final long IDLE_TIMEOUT_NS = 1500000000L;
   private static final long GRAPH_REDRAW_MS = 100L;
   private static final int STAMP_CAPACITY = 1024;
-  private static final int LOWS_CAPACITY = 10000;
+  private static final int LOWS_CAPACITY = 5000;
   private static final int GRAPH_SAMPLES = 200;
   private static final float GRAPH_CEIL_MS = 50f;
 
@@ -338,6 +338,14 @@ public class MangoHudView extends View {
       requestLayout();
       invalidate();
     });
+  }
+
+  /** Drop accumulated frametimes so loading screens and menus stay out of the averages. */
+  public void resetMetrics() {
+    synchronized (frameLock) {
+      lowsIndex = 0;
+      lowsCount = 0;
+    }
   }
 
   /** Static per-session rows: game resolution and wine/proton build. */
