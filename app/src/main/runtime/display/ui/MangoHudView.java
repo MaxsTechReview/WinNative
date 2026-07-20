@@ -1117,7 +1117,7 @@ public class MangoHudView extends View {
     }
     if (elements[EL_BATTERY]) {
       rows++;
-      w = Math.max(w, labelColW + statCellW(1) + statCellW(1) + statCellW(2));
+      w = Math.max(w, labelColW + statCellW(1) + statCellW(2) + statCellW(1));
     }
     rows++; // FPS row is the HUD core, always shown
     w = Math.max(w, labelColW + statCellW(3) + statCellW(2));
@@ -1208,8 +1208,9 @@ public class MangoHudView extends View {
       if (elements[EL_BATTERY]) {
         float x = drawLabel(canvas, "BAT", C_BAT, y);
         x = drawStatCell(canvas, sbBatPct, "%", x, y);
-        x = drawStatCell(canvas, sbBatW, "W", x, y);
-        drawStatCell(canvas, sbBatTemp, "°C", x, y);
+        // Temp sits in the same column as the GPU/CPU temps.
+        x = drawStatCell(canvas, sbBatTemp, "°C", x, y);
+        drawStatCell(canvas, sbBatW, "W", x, y);
         y += rowH;
       }
       {
