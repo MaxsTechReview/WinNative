@@ -138,6 +138,7 @@ public class MangoHudView extends View {
   private final StringBuilder sbRamPct = new StringBuilder(8);
   private final StringBuilder sbBatPct = new StringBuilder(8);
   private final StringBuilder sbBatW = new StringBuilder(8);
+  private final StringBuilder sbBatTemp = new StringBuilder(8);
   private final StringBuilder sbFps = new StringBuilder(8);
   private final StringBuilder sbMs = new StringBuilder(8);
   private final StringBuilder sbAvg = new StringBuilder(8);
@@ -183,7 +184,7 @@ public class MangoHudView extends View {
   private CPUStatus.AppCpuSample prevCpuSample;
   private boolean cpuWarmedUp;
   private int slowTickParity;
-  private int gpuLoad = -1, gpuTemp = -1, cpuLoad = -1, cpuTemp = -1, batteryPct = -1, ramPct = -1;
+  private int gpuLoad = -1, gpuTemp = -1, cpuLoad = -1, cpuTemp = -1, batteryPct = -1, ramPct = -1, batTempC = -1;
   private float ramGib = -1f, vramGib = -1f, batteryWatts = -1f;
   private String[] gpuTempPaths;
   private String vramPath;
@@ -519,6 +520,7 @@ public class MangoHudView extends View {
       formatTenths(sbRam, ramGib);
       formatInt(sbRamPct, ramPct);
       formatInt(sbBatPct, batteryPct);
+      formatInt(sbBatTemp, batTempC);
       formatTenths(sbBatW, batteryWatts);
       formatInt(sbAvg, Math.round(avgFps));
       formatInt(sbLow1, Math.round(low1Fps));
@@ -930,9 +932,12 @@ public class MangoHudView extends View {
       Intent intent = getContext().registerReceiver(null, batteryFilter);
       int mv = intent != null ? intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0) : 0;
       batteryWatts = mv > 0 && amps > 0f ? (mv / 1000.0f) * amps : -1f;
+      int tenths = intent != null ? intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) : 0;
+      batTempC = tenths > 0 ? tenths / 10 : -1;
     } catch (Exception e) {
       batteryPct = -1;
       batteryWatts = -1f;
+      batTempC = -1;
     }
   }
 
@@ -1097,7 +1102,7 @@ public class MangoHudView extends View {
     }
     if (elements[EL_BATTERY]) {
       rows++;
-      w = Math.max(w, labelColW + statCellW(1) + statCellW(1));
+      w = Math.max(w, labelColW + statCellW(1) + statCellW(1) + statCellW(2));
     }
     rows++; // FPS row is the HUD core, always shown
     w = Math.max(w, labelColW + statCellW(3) + statCellW(2));
@@ -1188,7 +1193,8 @@ public class MangoHudView extends View {
       if (elements[EL_BATTERY]) {
         float x = drawLabel(canvas, "BAT", C_BAT, y);
         x = drawStatCell(canvas, sbBatPct, "%", x, y);
-        drawStatCell(canvas, sbBatW, "W", x, y);
+        x = drawStatCell(canvas, sbBatW, "W", x, y);
+        drawStatCell(canvas, sbBatTemp, "°C", x, y);
         y += rowH;
       }
       {

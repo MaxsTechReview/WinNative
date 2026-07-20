@@ -112,6 +112,7 @@ public class FrameRating extends LinearLayout implements Runnable {
   private boolean enableRenderer;
   private volatile FrameObserver frameObserver;
   private int gpuFailCount;
+  private int statsParity;
   private volatile int gpuLoad;
 
   /** Raw per-present frame events on the render thread, fired regardless of HUD visibility so perf recording/leaderboard stats keep working when hidden. Must be cheap (atomic op + array write). */
@@ -298,7 +299,7 @@ public class FrameRating extends LinearLayout implements Runnable {
             if (isStatsRunning) {
               calculateStats();
               if (statsHandler != null) {
-                long next = (prevCpuSample != null && !cpuWarmedUp) ? CPU_WARMUP_POLL_MS : 1000L;
+                long next = (prevCpuSample != null && !cpuWarmedUp) ? CPU_WARMUP_POLL_MS : 500L;
                 statsHandler.postDelayed(this, next);
               }
             }
@@ -1344,6 +1345,8 @@ public class FrameRating extends LinearLayout implements Runnable {
   }
 
   private void calculateStats() {
+    // Loads sample every 500ms (matching the Mango HUD window); heavier reads alternate at 1s.
+    boolean slow = (this.statsParity++ & 1) == 0;
     if (this.enableGpu && this.canReadGpu) {
       try {
         int load = calculateGPULoad();
@@ -1381,14 +1384,14 @@ public class FrameRating extends LinearLayout implements Runnable {
         this.cpuFailCount++;
       }
     }
-    if (this.enableCpuTemp) {
+    if (slow && this.enableCpuTemp) {
       try {
         this.cpuSensorTemp = CPUStatus.getCpuTempC();
       } catch (Exception e) {
         this.cpuSensorTemp = -1;
       }
     }
-    if (this.enableRam) {
+    if (slow && this.enableRam) {
       try {
         ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
         ((ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE)).getMemoryInfo(mi);
@@ -1398,7 +1401,7 @@ public class FrameRating extends LinearLayout implements Runnable {
         this.ramText = "N/A";
       }
     }
-    if ((this.enableBatt || this.enableTemp) && this.canReadBatt) {
+    if (slow && (this.enableBatt || this.enableTemp) && this.canReadBatt) {
       try {
         float amps = getBatteryCurrentAmps();
         Intent intent =
