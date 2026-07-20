@@ -4032,7 +4032,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 preferences.getBoolean(MangoHudView.PREF_ENABLED, false),
                 MangoHudView.elementsFromPrefs(preferences),
                 MangoHudView.alphaFromPrefs(preferences),
-                MangoHudView.bgAlphaFromPrefs(preferences)
+                MangoHudView.bgAlphaFromPrefs(preferences),
+                MangoHudView.scaleFromPrefs(preferences)
         );
 
         // Always-present "Output" tab (live controls while swapped, otherwise a Cast entry point).
@@ -4179,6 +4180,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         MangoHudView.saveBgAlpha(preferences, alpha);
                         if (mangoHud != null) mangoHud.setBackgroundAlphaValue(alpha);
                         renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onMangoHudScaleChanged(float scale) {
+                        // No drawer rebuild: the slider owns its value while dragging.
+                        MangoHudView.saveScale(preferences, scale);
+                        if (mangoHud != null) mangoHud.setScaleValue(scale);
                     }
 
                     @Override

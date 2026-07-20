@@ -685,6 +685,7 @@ data class XServerDrawerState(
     val mangoHudElements: BooleanArray = BooleanArray(20) { it < 12 },
     val mangoHudAlpha: Float = 1.0f,
     val mangoHudBgAlpha: Float = 0.5f,
+    val mangoHudScale: Float = 0.735f,
 )
 
 class XServerDrawerStateHolder(
@@ -972,6 +973,8 @@ interface XServerDrawerActionListener {
 
     fun onMangoHudBackgroundAlphaChanged(alpha: Float)
 
+    fun onMangoHudScaleChanged(scale: Float)
+
     fun onHUDCardExpandedChanged(expanded: Boolean)
 
     fun onGyroscopeEnabledChanged(enabled: Boolean)
@@ -1207,6 +1210,7 @@ fun buildXServerDrawerState(
     mangoHudElements: BooleanArray = BooleanArray(20) { it < 12 },
     mangoHudAlpha: Float = 1.0f,
     mangoHudBgAlpha: Float = 0.5f,
+    mangoHudScale: Float = 0.735f,
 ): XServerDrawerState {
     val items =
         mutableListOf(
@@ -1407,6 +1411,7 @@ fun buildXServerDrawerState(
         mangoHudElements = mangoHudElements,
         mangoHudAlpha = mangoHudAlpha,
         mangoHudBgAlpha = mangoHudBgAlpha,
+        mangoHudScale = mangoHudScale,
     )
 }
 

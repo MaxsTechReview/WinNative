@@ -39,11 +39,13 @@ public class MangoHudView extends View {
   private static final String PREF_POS_X = "mango_hud_position_x";
   private static final String PREF_POS_Y = "mango_hud_position_y";
   private static final String PREF_HAS_POSITION = "mango_hud_has_position";
-  private static final String PREF_SCALE_INDEX = "mango_hud_scale_index";
+  private static final String PREF_SCALE = "mango_hud_scale";
   private static final String PREF_ALPHA = "mango_hud_alpha";
   private static final String PREF_BG_ALPHA = "mango_hud_bg_alpha";
   private static final float DEFAULT_ALPHA = 1.0f;
   private static final float DEFAULT_BG_ALPHA = 0.7f;
+  public static final float SCALE_MIN = 0.5f;
+  public static final float SCALE_MAX = 1.5f;
 
   // Element indices (bitmask in PREF_ELEMENTS).
   public static final int EL_GPU_LOAD = 0;
@@ -97,7 +99,9 @@ public class MangoHudView extends View {
     "throttle: critical", "throttle: emergency", "throttle: shutdown"
   };
 
-  private static final float[] SCALE_STEPS = {0.75f, 1.0f, 1.25f, 1.5f};
+  // Double-tap snap targets; the settings slider sets any value between MIN and MAX.
+  private static final float[] SCALE_STEPS = {0.735f, 0.98f, 1.225f, 1.47f};
+  public static final float DEFAULT_SCALE = 0.735f;
   private static final float BASE_TEXT_DP = 14f;
   private static final long TICK_MS = 500L;
   private static final long HIDDEN_TICK_MS = 2000L;
@@ -161,7 +165,7 @@ public class MangoHudView extends View {
   private String resolutionText = "";
   private String wineText = "";
   private final boolean[] elements = new boolean[ELEMENT_COUNT];
-  private int scaleIndex = 1;
+  private float scaleFactor = DEFAULT_SCALE;
   private float textAlpha = DEFAULT_ALPHA;
   private float bgAlpha = DEFAULT_BG_ALPHA;
   private int panelW = 1, panelH = 1;
@@ -231,7 +235,7 @@ public class MangoHudView extends View {
 
     int mask = preferences.getInt(PREF_ELEMENTS, DEFAULT_ELEMENTS_MASK);
     for (int i = 0; i < ELEMENT_COUNT; i++) elements[i] = (mask & (1 << i)) != 0;
-    this.scaleIndex = clampScaleIndex(preferences.getInt(PREF_SCALE_INDEX, 0));
+    this.scaleFactor = clampScale(preferences.getFloat(PREF_SCALE, DEFAULT_SCALE));
     this.textAlpha = preferences.getFloat(PREF_ALPHA, DEFAULT_ALPHA);
     this.bgAlpha = preferences.getFloat(PREF_BG_ALPHA, DEFAULT_BG_ALPHA);
 
@@ -1019,7 +1023,7 @@ public class MangoHudView extends View {
   // ── layout & drawing ─────────────────────────────────────────────
 
   private void applyScaleLocked() {
-    float scale = SCALE_STEPS[scaleIndex];
+    float scale = scaleFactor;
     textSize = BASE_TEXT_DP * density * scale;
     smallSize = textSize * 0.55f;
     valuePaint.setTextSize(textSize);
@@ -1388,10 +1392,11 @@ public class MangoHudView extends View {
     return false;
   }
 
+  /** Double-tap: snap up to the next preset (wrapping), persisting so the settings slider follows. */
   private void cycleScale() {
     synchronized (uiLock) {
-      scaleIndex = (scaleIndex + 1) % SCALE_STEPS.length;
-      preferences.edit().putInt(PREF_SCALE_INDEX, scaleIndex).apply();
+      scaleFactor = nextPresetAbove(scaleFactor);
+      preferences.edit().putFloat(PREF_SCALE, scaleFactor).apply();
       applyScaleLocked();
       computeLayoutLocked();
     }
@@ -1400,8 +1405,36 @@ public class MangoHudView extends View {
     post(this::clampToParentBounds);
   }
 
-  private static int clampScaleIndex(int index) {
-    return Math.max(0, Math.min(index, SCALE_STEPS.length - 1));
+  private static float nextPresetAbove(float current) {
+    for (float step : SCALE_STEPS) {
+      if (step > current + 0.01f) return step;
+    }
+    return SCALE_STEPS[0];
+  }
+
+  private static float clampScale(float scale) {
+    return Math.max(SCALE_MIN, Math.min(scale, SCALE_MAX));
+  }
+
+  public static float scaleFromPrefs(SharedPreferences preferences) {
+    return preferences.getFloat(PREF_SCALE, DEFAULT_SCALE);
+  }
+
+  public static void saveScale(SharedPreferences preferences, float scale) {
+    preferences.edit().putFloat(PREF_SCALE, scale).apply();
+  }
+
+  public void setScaleValue(float scale) {
+    synchronized (uiLock) {
+      scaleFactor = clampScale(scale);
+      applyScaleLocked();
+      computeLayoutLocked();
+    }
+    post(() -> {
+      requestLayout();
+      invalidate();
+      clampToParentBounds();
+    });
   }
 
   private void clampToParentBounds() {

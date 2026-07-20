@@ -327,9 +327,11 @@ internal fun HUDPaneContent(
                     elements = state.mangoHudElements,
                     hudAlpha = state.mangoHudAlpha,
                     bgAlpha = state.mangoHudBgAlpha,
+                    hudScale = state.mangoHudScale,
                     onToggle = listener::onMangoHudElementToggled,
                     onAlphaChanged = listener::onMangoHudAlphaChanged,
                     onBgAlphaChanged = listener::onMangoHudBackgroundAlphaChanged,
+                    onScaleChanged = listener::onMangoHudScaleChanged,
                     onDismiss = { mangoSettingsOpen = false },
                 )
             }
@@ -532,9 +534,11 @@ internal fun MangoHudSettingsDialog(
     elements: BooleanArray,
     hudAlpha: Float,
     bgAlpha: Float,
+    hudScale: Float,
     onToggle: (Int, Boolean) -> Unit,
     onAlphaChanged: (Float) -> Unit,
     onBgAlphaChanged: (Float) -> Unit,
+    onScaleChanged: (Float) -> Unit,
     onDismiss: () -> Unit,
 ) {
     // Chip label position matches MangoHudView element indices.
@@ -664,6 +668,28 @@ internal fun MangoHudSettingsDialog(
                             }
                         }
 
+                        // Local value drives the drag so a 1% move doesn't rebuild the whole drawer state.
+                        var scaleLocal by remember(hudScale) { mutableStateOf(hudScale) }
+                        Box(
+                            modifier = Modifier.fillMaxWidth().sharedPaneNavItem(
+                                onAdjust = { dir ->
+                                    scaleLocal = (scaleLocal + dir * 0.05f).coerceIn(0.5f, 1.5f)
+                                    onScaleChanged(scaleLocal)
+                                },
+                            ),
+                        ) {
+                            DrawerSliderRow(
+                                label = stringResource(R.string.session_drawer_hud_scale),
+                                valueText = "${Math.round(scaleLocal * 100)}%",
+                                value = scaleLocal,
+                                valueRange = 0.5f..1.5f,
+                                steps = 0,
+                                onValueChange = {
+                                    scaleLocal = Math.round(it * 100) / 100f
+                                    onScaleChanged(scaleLocal)
+                                },
+                            )
+                        }
                         Box(
                             modifier = Modifier.fillMaxWidth().sharedPaneNavItem(
                                 onAdjust = { dir ->
