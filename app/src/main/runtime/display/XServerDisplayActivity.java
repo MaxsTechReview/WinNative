@@ -327,7 +327,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean serviceAffinityPinned = false;
     private static final String[] SERVICE_AFFINITY_PROCESSES = {
         "services.exe", "rpcss.exe", "svchost.exe", "winedevice.exe",
-        "plugplay.exe", "explorer.exe", "conhost.exe", "steamwebhelper.exe"
+        "plugplay.exe", "conhost.exe"
+    };
+    private static final String[] SHELL_AFFINITY_PROCESSES = {
+        "explorer.exe", "steamwebhelper.exe"
     };
     private int frameRatingWindowId = -1;
     private android.net.wifi.WifiManager.MulticastLock multicastLock;
@@ -10959,15 +10962,27 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     // Background service processes have no windows and never pass through
     // assignTaskAffinity, leaving them free to wake the prime cores. Once the
-    // session is up (first mapped window), pin them to the 32-bit apps list.
+    // session is up (first mapped window), pin them to the efficiency cores
+    // (lower half, matching the upper-half-is-big assumption of the WoW64
+    // fallback list). Shell/UI processes stay on the 64-bit list instead —
+    // they need full speed in the scenarios where they matter.
     private void pinServiceAffinity() {
-        if (serviceAffinityPinned || taskAffinityMaskWoW64 == 0 || winHandler == null) return;
+        if (serviceAffinityPinned || winHandler == null) return;
         serviceAffinityPinned = true;
-        for (String name : SERVICE_AFFINITY_PROCESSES) {
-            winHandler.setProcessAffinity(name, taskAffinityMaskWoW64);
+        int littleMask =
+                ProcessHelper.getAffinityMask(0, Runtime.getRuntime().availableProcessors() / 2);
+        if (littleMask != 0) {
+            for (String name : SERVICE_AFFINITY_PROCESSES) {
+                winHandler.setProcessAffinity(name, littleMask);
+            }
         }
-        Log.d("XServerDisplayActivity", "Pinned service processes to 0x"
-                + Integer.toHexString(taskAffinityMaskWoW64));
+        if (taskAffinityMask != 0) {
+            for (String name : SHELL_AFFINITY_PROCESSES) {
+                winHandler.setProcessAffinity(name, taskAffinityMask);
+            }
+        }
+        Log.d("XServerDisplayActivity", "Pinned services to 0x" + Integer.toHexString(littleMask)
+                + ", shell to 0x" + Integer.toHexString(taskAffinityMask));
     }
 
     // _NET_WM_WOW64 can be absent on 32-bit guest windows, so when the two masks
