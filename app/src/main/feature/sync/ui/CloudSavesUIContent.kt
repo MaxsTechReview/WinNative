@@ -1,6 +1,7 @@
 package com.winlator.cmod.feature.sync.ui
 
 import android.app.Activity
+import android.os.Environment
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -10,6 +11,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -392,39 +394,112 @@ internal fun CloudSavesContent(
         }
 
         if (!steamManagedCloud) {
-            var customSavePath by remember(shortcut?.file?.absolutePath, historyRefreshKey) {
+            var showDeleteDialog by remember { mutableStateOf(false) };
+            var customGameSavePath by remember(shortcut?.file?.absolutePath, historyRefreshKey) {
                 mutableStateOf(shortcut?.let { GameSaveBackupManager.getCustomGameSaveWindowsPath(it) })
+            }
+            var customLocalGameSavePath by remember(shortcut?.file?.absolutePath, historyRefreshKey) {
+                mutableStateOf(shortcut?.let { GameSaveBackupManager.getCustomLocalGameSavePath(it) })
             }
             val customNoContainer = stringResource(R.string.cloud_saves_custom_no_container)
             val customPickerTitle = stringResource(R.string.cloud_saves_custom_picker_title)
             val customOutsideDriveC = stringResource(R.string.cloud_saves_custom_outside_drive_c)
             val customPathMapFailed = stringResource(R.string.cloud_saves_custom_path_map_failed)
             val gogManageNoBrowser = stringResource(R.string.cloud_saves_gog_manage_no_browser)
+
+            val deletionDialog: @Composable () -> Unit = {
+                if (showDeleteDialog && !customGameSavePath.isNullOrEmpty()) {
+                    Dialog(
+                        onDismissRequest = { showDeleteDialog = false },
+                        properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true),
+                    ) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .width(320.dp)
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(SurfaceDark)
+                                    .border(1.dp, Accent.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+                                    .padding(28.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = stringResource(R.string.common_ui_are_you_sure),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = TextPrimary,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                Text(
+                                    text = customGameSavePath.toString(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = TextPrimary
+                                )
+                                Spacer(Modifier.height(24.dp))
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                ) {
+                                    androidx.compose.material3.OutlinedButton(
+                                        onClick = { showDeleteDialog = false },
+                                        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, TextSecondary.copy(alpha = 0.5f)),
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.weight(1f),
+                                    ) {
+                                        Text(stringResource(R.string.common_ui_cancel), fontWeight = FontWeight.Medium)
+                                    }
+                                    androidx.compose.material3.Button(
+                                        onClick = {
+                                            showDeleteDialog = false
+                                            if (shortcut == null || customGameSavePath.isNullOrEmpty()) return@Button
+                                            val androidPath = WinePathUtils.windowsToAndroidFile(customGameSavePath.toString(), shortcut.container)
+                                            try {
+                                                org.apache.commons.io.FileUtils.deleteDirectory(androidPath)
+                                                notify(context.getString(R.string.common_ui_done), Toast.LENGTH_SHORT)
+                                            } catch (e: Exception) {
+                                                notify(
+                                                    String.format(context.getString(R.string.common_ui_error_with_message), e.message),
+                                                    Toast.LENGTH_LONG
+                                                )
+                                            }
+                                        },
+                                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.weight(1f),
+                                    ) {
+                                        Text(stringResource(R.string.common_ui_delete), color = Color.White, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             val firstAction: @Composable (Modifier) -> Unit = { mod ->
                 if (gameSource == GameSaveBackupManager.GameSource.CUSTOM) {
-                    val pickerLabel =
-                        if (customSavePath.isNullOrEmpty()) {
-                            stringResource(R.string.cloud_saves_custom_select_folder)
-                        } else {
-                            stringResource(R.string.cloud_saves_custom_folder_label)
-                        }
-                    val pickerHelper =
-                        if (customSavePath.isNullOrEmpty()) {
-                            stringResource(R.string.cloud_saves_custom_select_folder_summary)
-                        } else {
-                            customSavePath.orEmpty()
-                        }
+                    var gameSavePickerLabel = stringResource(R.string.cloud_saves_custom_folder_label)
+                    var gameSavePickerHelper = customGameSavePath.orEmpty()
+                    var localSavePickerLabel = stringResource(R.string.local_saves_custom_folder_label)
+                    var localSavePickerHelper = customLocalGameSavePath.orEmpty()
+                    if (customGameSavePath.isNullOrEmpty()){
+                        gameSavePickerLabel = stringResource(R.string.cloud_saves_custom_select_folder)
+                        gameSavePickerHelper = stringResource(R.string.cloud_saves_custom_select_folder_summary)
+                    }
+                    if (customLocalGameSavePath.isNullOrEmpty()) {
+                        localSavePickerLabel = stringResource(R.string.local_saves_custom_select_folder_label)
+                        localSavePickerHelper = stringResource(R.string.local_saves_custom_folder_summary)
+                    }
                     ActionWithHelper(
                         icon = Icons.Outlined.FolderOpen,
-                        label = pickerLabel,
-                        helper = pickerHelper,
+                        label = gameSavePickerLabel,
+                        helper = gameSavePickerHelper,
                         tint = CloudWarning,
                         modifier = mod,
                         enabled = !isWorking,
                         onClick = {
-                            val sc = shortcut
-                            val container = sc?.container
-                            if (sc == null || container == null) {
+                            val container = shortcut?.container
+                            if (shortcut == null || container == null) {
                                 notify(
                                     customNoContainer,
                                     Toast.LENGTH_SHORT,
@@ -455,10 +530,77 @@ internal fun CloudSavesContent(
                                     )
                                     return@show
                                 }
-                                GameSaveBackupManager.setCustomGameSavePath(sc, container, winPath)
-                                customSavePath = winPath
+                                GameSaveBackupManager.setCustomGameSavePath(shortcut, winPath)
+                                customGameSavePath = winPath
                                 notify(
                                     context.getString(R.string.cloud_saves_custom_folder_set, winPath),
+                                    Toast.LENGTH_SHORT,
+                                )
+                            }
+                        },
+                        onLongClick = {
+                            shortcut?.let {
+                                GameSaveBackupManager.clearCustomGameSavePath(shortcut)
+                                customGameSavePath = null
+                                notify(
+                                    context.getString(R.string.common_ui_reset),
+                                    Toast.LENGTH_SHORT,
+                                )
+                            }
+                        },
+                        onDoubleClick = {
+                            if (!customGameSavePath.isNullOrEmpty())
+                                showDeleteDialog = true;
+                        }
+                    )
+
+                    if (showDeleteDialog)
+                        deletionDialog()
+
+                    ActionWithHelper(
+                        icon = Icons.Outlined.FolderOpen,
+                        label = localSavePickerLabel,
+                        helper = localSavePickerHelper,
+                        tint = CloudWarning,
+                        modifier = mod,
+                        enabled = !isWorking,
+
+                        onClick = {
+                            if (customGameSavePath == null) {
+                                notify(
+                                    context.getString(R.string.local_saves_must_select_game_folder_first),
+                                    Toast.LENGTH_SHORT
+                                )
+                                return@ActionWithHelper
+                            }
+                            val container = shortcut?.container
+                            if (shortcut == null || container == null) {
+                                notify(
+                                    customNoContainer,
+                                    Toast.LENGTH_SHORT,
+                                )
+                                return@ActionWithHelper
+                            }
+                            DirectoryPickerDialog.show(
+                                activity,
+                                initialPath = Environment.getExternalStorageDirectory().absolutePath,
+                                title = customPickerTitle,
+                            ) { picked ->
+                                val directoryPicked = java.io.File(picked)
+                                GameSaveBackupManager.setCustomLocalGameSavePath(shortcut, directoryPicked.absolutePath)
+                                customLocalGameSavePath = directoryPicked.absolutePath
+                                notify(
+                                    context.getString(R.string.cloud_saves_custom_folder_set, picked),
+                                    Toast.LENGTH_SHORT,
+                                )
+                            }
+                        },
+                        onLongClick = {
+                            shortcut?.let {
+                                GameSaveBackupManager.clearCustomLocalGameSavePath(shortcut)
+                                customLocalGameSavePath = null
+                                notify(
+                                    context.getString(R.string.common_ui_reset),
                                     Toast.LENGTH_SHORT,
                                 )
                             }
@@ -1603,6 +1745,8 @@ private fun ActionWithHelper(
     enabled: Boolean = true,
     isEntry: Boolean = false,
     onClick: () -> Unit,
+    onLongClick:(() -> Unit)? = null,
+    onDoubleClick: (() -> Unit)? = null,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -1623,12 +1767,15 @@ private fun ActionWithHelper(
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
-                }.clip(RoundedCornerShape(8.dp))
-                .clickable(
+                }
+                .clip(RoundedCornerShape(8.dp))
+                .combinedClickable(
                     interactionSource = interactionSource,
                     indication = null,
                     enabled = enabled,
                     onClick = onClick,
+                    onLongClick = onLongClick,
+                    onDoubleClick = onDoubleClick
                 ),
         color = if (enabled) CloudPanelRaised else CloudPanel,
         shape = RoundedCornerShape(8.dp),

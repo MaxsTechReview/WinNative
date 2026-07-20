@@ -62,6 +62,7 @@ import com.winlator.cmod.app.shell.UnifiedActivity;
 import com.winlator.cmod.app.update.UpdateChecker;
 import com.winlator.cmod.feature.settings.DebugFragment;
 import com.winlator.cmod.feature.setup.SetupWizardActivity;
+import com.winlator.cmod.feature.sync.google.WinePathUtils;
 import com.winlator.cmod.runtime.container.Container;
 import com.winlator.cmod.runtime.container.ContainerManager;
 import com.winlator.cmod.runtime.container.Shortcut;
@@ -1691,6 +1692,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             GogLaunchCloudSync.syncBeforeLaunch(
                                     this, shortcut, isCloudSyncEnabledForShortcut(),
                                     this::showLaunchPreloader);
+                            if (isCustomShortcut()) {
+                                String winePath = shortcut.getExtra("customSaveWindowsPath");
+                                String localPath = shortcut.getExtra("customLocalSavePath");
+                                if (!localPath.isEmpty() && !winePath.isEmpty()) {
+                                    File wineDirectory = WinePathUtils.INSTANCE.windowsToAndroidFile(winePath, container);
+                                    File localDirectory = new File(localPath);
+                                    if (localDirectory.isDirectory()) {
+                                        FileUtils.syncDirectories(localDirectory, wineDirectory, false);
+                                    }
+                                }
+                            }
                         } catch (Throwable t) {
                             Log.w("XServerDisplayActivity",
                                     "Pre-launch cloud sync failed", t);
@@ -3023,6 +3035,18 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (!exitRequested.compareAndSet(false, true)) {
             Log.d("XServerDisplayActivity", "Exit already in progress; ignoring duplicate request");
             return;
+        }
+
+        if (isCustomShortcut() && shortcut != null) {
+            String winePath = shortcut.getExtra("customSaveWindowsPath");
+            String localPath = shortcut.getExtra("customLocalSavePath");
+            if (!localPath.isEmpty() && !winePath.isEmpty()) {
+                File wineDirectory = WinePathUtils.INSTANCE.windowsToAndroidFile(winePath, container);
+                File localDirectory = new File(localPath);
+                if (wineDirectory.isDirectory()) {
+                    FileUtils.syncDirectories(wineDirectory, localDirectory, true);
+                }
+            }
         }
 
         if (shortcutName != null && !shortcutName.isEmpty()) {

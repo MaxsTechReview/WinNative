@@ -58,6 +58,7 @@
     <string name="common_ui_reset">Reset</string>
     <string name="common_ui_close">Close</string>
     <string name="common_ui_confirm">Confirm</string>
+    <string name="common_ui_delete">Delete</string>
     <string name="common_ui_unnamed">Unnamed</string>
     <string name="common_ui_download">Download</string>
     <string name="common_ui_uninstall">Uninstall</string>
@@ -136,6 +137,7 @@
     <string name="common_ui_not_configured">Not configured</string>
     <string name="common_ui_reinstall">Reinstall</string>
     <string name="common_ui_exit_app_confirm">Exit WinNative?</string>
+    <string name="common_ui_are_you_sure">Are your sure?</string>
     <string name="common_ui_elements_count">%1$d elements</string>
     <string name="common_ui_disabled_placeholder">-- Disabled --</string>
     <string name="common_ui_enabled">Enabled</string>
@@ -1400,6 +1402,14 @@ Installed path:
     <string name="cloud_saves_custom_outside_drive_c">Selected folder must be inside the container\'s C: drive</string>
     <string name="cloud_saves_custom_path_map_failed">Could not map the selected folder to a Windows path.</string>
     <string name="cloud_saves_custom_folder_set">Save folder set to %1$s</string>
+
+    <!-- Local Saves > Custom save folder picker -->
+
+    <string name="local_saves_custom_folder_label">Local Folder</string>
+    <string name="local_saves_custom_select_folder_label">Select Local Folder</string>
+    <string name="local_saves_custom_folder_summary">Local folder where your game saves will copied to.</string>
+    <string name="local_saves_must_select_game_folder_first">A game save folder must be selected first.</string>
+
 
     <!-- Cloud Saves > Steam Cloud actions -->
     <string name="cloud_saves_steam_sync_label">Sync from Steam Cloud</string>
