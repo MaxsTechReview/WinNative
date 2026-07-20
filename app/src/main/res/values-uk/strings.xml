@@ -608,6 +608,16 @@
     <string name="mango_hud_element_graph">Графік фреймтайму</string>
     <string name="mango_hud_element_engine">Рушій</string>
     <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">Частота CPU</string>
+    <string name="mango_hud_element_gpu_clock">Частота GPU</string>
+    <string name="mango_hud_element_cores">По ядрах</string>
+    <string name="mango_hud_element_network">Мережа</string>
+    <string name="mango_hud_element_swap">Підкачка</string>
+    <string name="mango_hud_element_resolution">Роздільність</string>
+    <string name="mango_hud_element_wine">Версія Wine</string>
+    <string name="mango_hud_element_duration">Час сесії</string>
+    <string name="mango_hud_element_clock">Годинник</string>
+    <string name="mango_hud_element_throttle">Тротлінг</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Ви хочете завершити цей процес?</string>

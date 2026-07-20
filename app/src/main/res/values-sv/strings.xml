@@ -757,6 +757,16 @@ T.ex. <b>META</b> för <i>META-tangent</i>, \n
     <string name="mango_hud_element_graph">Frametime-graf</string>
     <string name="mango_hud_element_engine">Motor</string>
     <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">CPU-klocka</string>
+    <string name="mango_hud_element_gpu_clock">GPU-klocka</string>
+    <string name="mango_hud_element_cores">Per kärna</string>
+    <string name="mango_hud_element_network">Nätverk</string>
+    <string name="mango_hud_element_swap">Swap</string>
+    <string name="mango_hud_element_resolution">Upplösning</string>
+    <string name="mango_hud_element_wine">Wine-version</string>
+    <string name="mango_hud_element_duration">Sessionstid</string>
+    <string name="mango_hud_element_clock">Klocka</string>
+    <string name="mango_hud_element_throttle">Termisk status</string>
     <string name="hud_position_menu_title">Flytta HUD till</string>
     <string name="hud_position_top_left">Uppe till vänster</string>
     <string name="hud_position_top_center">Uppe i mitten</string>

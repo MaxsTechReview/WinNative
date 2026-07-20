@@ -629,6 +629,16 @@
     <string name="mango_hud_element_graph">График фреймтайма</string>
     <string name="mango_hud_element_engine">Движок</string>
     <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">Частота CPU</string>
+    <string name="mango_hud_element_gpu_clock">Частота GPU</string>
+    <string name="mango_hud_element_cores">По ядрам</string>
+    <string name="mango_hud_element_network">Сеть</string>
+    <string name="mango_hud_element_swap">Подкачка</string>
+    <string name="mango_hud_element_resolution">Разрешение</string>
+    <string name="mango_hud_element_wine">Версия Wine</string>
+    <string name="mango_hud_element_duration">Время сессии</string>
+    <string name="mango_hud_element_clock">Часы</string>
+    <string name="mango_hud_element_throttle">Троттлинг</string>
     <string name="hud_position_menu_title">Переместить HUD</string>
     <string name="hud_position_top_left">Вверху слева</string>
     <string name="hud_position_top_center">Вверху по центру</string>

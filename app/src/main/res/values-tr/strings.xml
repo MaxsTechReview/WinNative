@@ -757,6 +757,16 @@ E.g. <b>META</b> için <i>META tuşu</i>, \n
     <string name="mango_hud_element_graph">Frametime Grafiği</string>
     <string name="mango_hud_element_engine">Motor</string>
     <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">CPU Hızı</string>
+    <string name="mango_hud_element_gpu_clock">GPU Hızı</string>
+    <string name="mango_hud_element_cores">Çekirdek Başına</string>
+    <string name="mango_hud_element_network">Ağ</string>
+    <string name="mango_hud_element_swap">Takas</string>
+    <string name="mango_hud_element_resolution">Çözünürlük</string>
+    <string name="mango_hud_element_wine">Wine Sürümü</string>
+    <string name="mango_hud_element_duration">Oturum Süresi</string>
+    <string name="mango_hud_element_clock">Saat</string>
+    <string name="mango_hud_element_throttle">Kısıtlama Durumu</string>
     <string name="hud_position_menu_title">HUD\'u şuraya taşı</string>
     <string name="hud_position_top_left">Sol Üst</string>
     <string name="hud_position_top_center">Üst Orta</string>

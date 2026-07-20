@@ -757,6 +757,16 @@
     <string name="mango_hud_element_graph">กราฟเฟรมไทม์</string>
     <string name="mango_hud_element_engine">เอนจิน</string>
     <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">คล็อก CPU</string>
+    <string name="mango_hud_element_gpu_clock">คล็อก GPU</string>
+    <string name="mango_hud_element_cores">รายคอร์</string>
+    <string name="mango_hud_element_network">เครือข่าย</string>
+    <string name="mango_hud_element_swap">สวอป</string>
+    <string name="mango_hud_element_resolution">ความละเอียด</string>
+    <string name="mango_hud_element_wine">เวอร์ชัน Wine</string>
+    <string name="mango_hud_element_duration">เวลาเซสชัน</string>
+    <string name="mango_hud_element_clock">นาฬิกา</string>
+    <string name="mango_hud_element_throttle">สถานะควบคุมความร้อน</string>
     <string name="hud_position_menu_title">ย้าย HUD ไปที่</string>
     <string name="hud_position_top_left">บนซ้าย</string>
     <string name="hud_position_top_center">บนกลาง</string>

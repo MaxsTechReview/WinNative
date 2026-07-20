@@ -544,6 +544,16 @@ internal fun MangoHudSettingsDialog(
             stringResource(R.string.mango_hud_element_graph),
             stringResource(R.string.mango_hud_element_engine),
             stringResource(R.string.mango_hud_element_vram),
+            stringResource(R.string.mango_hud_element_cpu_mhz),
+            stringResource(R.string.mango_hud_element_gpu_clock),
+            stringResource(R.string.mango_hud_element_cores),
+            stringResource(R.string.mango_hud_element_network),
+            stringResource(R.string.mango_hud_element_swap),
+            stringResource(R.string.mango_hud_element_resolution),
+            stringResource(R.string.mango_hud_element_wine),
+            stringResource(R.string.mango_hud_element_duration),
+            stringResource(R.string.mango_hud_element_clock),
+            stringResource(R.string.mango_hud_element_throttle),
         )
     WinNativeDialogShell(
         onDismiss = onDismiss,

@@ -757,6 +757,16 @@ Por ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="mango_hud_element_graph">Gráfico de frametime</string>
     <string name="mango_hud_element_engine">Motor</string>
     <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">Clock da CPU</string>
+    <string name="mango_hud_element_gpu_clock">Clock da GPU</string>
+    <string name="mango_hud_element_cores">Por núcleo</string>
+    <string name="mango_hud_element_network">Rede</string>
+    <string name="mango_hud_element_swap">Swap</string>
+    <string name="mango_hud_element_resolution">Resolução</string>
+    <string name="mango_hud_element_wine">Versão do Wine</string>
+    <string name="mango_hud_element_duration">Tempo de sessão</string>
+    <string name="mango_hud_element_clock">Relógio</string>
+    <string name="mango_hud_element_throttle">Estado térmico</string>
     <string name="hud_position_menu_title">Mover HUD para</string>
     <string name="hud_position_top_left">Superior Esquerdo</string>
     <string name="hud_position_top_center">Superior Centro</string>

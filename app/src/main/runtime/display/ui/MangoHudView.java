@@ -8,9 +8,12 @@ import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Typeface;
+import android.net.TrafficStats;
 import android.os.BatteryManager;
+import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.PowerManager;
 import android.os.SystemClock;
 import android.view.MotionEvent;
 import android.view.View;
@@ -32,7 +35,9 @@ import java.util.Locale;
  */
 public class MangoHudView extends View {
   public static final String PREF_ENABLED = "mango_hud_enabled";
-  private static final String PREF_ELEMENTS = "mango_hud_elements";
+  // v2: element list grew and battery joined the defaults; fresh key so every
+  // install starts from the new default set.
+  private static final String PREF_ELEMENTS = "mango_hud_elements2";
   private static final String PREF_POS_X = "mango_hud_position_x";
   private static final String PREF_POS_Y = "mango_hud_position_y";
   private static final String PREF_HAS_POSITION = "mango_hud_has_position";
@@ -53,20 +58,47 @@ public class MangoHudView extends View {
   public static final int EL_GRAPH = 7;
   public static final int EL_ENGINE = 8;
   public static final int EL_VRAM = 9;
-  public static final int ELEMENT_COUNT = 10;
-  private static final int DEFAULT_ELEMENTS_MASK = 0x3DF; // all except battery
+  public static final int EL_CPU_MHZ = 10;
+  public static final int EL_GPU_CLOCK = 11;
+  public static final int EL_CORES = 12;
+  public static final int EL_NET = 13;
+  public static final int EL_SWAP = 14;
+  public static final int EL_RES = 15;
+  public static final int EL_WINE = 16;
+  public static final int EL_DURATION = 17;
+  public static final int EL_CLOCK = 18;
+  public static final int EL_THROTTLE = 19;
+  public static final int ELEMENT_COUNT = 20;
+  // Original ten elements on; every round-8 addition is opt-in.
+  private static final int DEFAULT_ELEMENTS_MASK = 0x3FF;
 
-  // Overlay color palette.
+  // Overlay color palette; accents run through vivid() for brighter, more
+  // saturated labels on small phone screens.
   private static final int C_BG = 0x00020202;
   private static final int C_TEXT = 0xFFFFFFFF;
-  private static final int C_GPU = 0xFF2E9762;
-  private static final int C_CPU = 0xFF2E97CB;
-  private static final int C_VRAM = 0xFFAD64C1;
-  private static final int C_RAM = 0xFFC26693;
-  private static final int C_BAT = 0xFFFF9078;
-  private static final int C_ENGINE = 0xFFEB5B5B;
+  private static final int C_GPU = vivid(0xFF2E9762);
+  private static final int C_CPU = vivid(0xFF2E97CB);
+  private static final int C_VRAM = vivid(0xFFAD64C1);
+  private static final int C_RAM = vivid(0xFFC26693);
+  private static final int C_BAT = vivid(0xFFFF9078);
+  private static final int C_ENGINE = vivid(0xFFEB5B5B);
+  private static final int C_NET = vivid(0xFFE07B85);
   private static final int C_GRAPH = 0xFF00FF00;
   private static final int C_OUTLINE = 0xFF000000;
+
+  private static int vivid(int color) {
+    float[] hsv = new float[3];
+    android.graphics.Color.colorToHSV(color, hsv);
+    hsv[1] = Math.min(1f, hsv[1] * 1.45f);
+    hsv[2] = Math.min(1f, hsv[2] * 1.2f);
+    return android.graphics.Color.HSVToColor(0xFF, hsv);
+  }
+  private static final int C_THROTTLE_WARN = 0xFFFDFD09;
+  private static final int C_THROTTLE_HOT = 0xFFB22222;
+  private static final String[] THROTTLE_TEXT = {
+    "", "throttle: light", "throttle: moderate", "throttle: severe",
+    "throttle: critical", "throttle: emergency", "throttle: shutdown"
+  };
 
   private static final float[] SCALE_STEPS = {0.75f, 1.0f, 1.25f, 1.5f};
   private static final float BASE_TEXT_DP = 14f;
@@ -114,7 +146,21 @@ public class MangoHudView extends View {
   private final StringBuilder sbLow1 = new StringBuilder(8);
   private final StringBuilder sbLow01 = new StringBuilder(8);
   private final StringBuilder sbMinMax = new StringBuilder(24);
+  private final StringBuilder sbCpuMhz = new StringBuilder(8);
+  private final StringBuilder sbGpuClk = new StringBuilder(8);
+  private final StringBuilder sbNetRx = new StringBuilder(8);
+  private final StringBuilder sbNetTx = new StringBuilder(8);
+  private final StringBuilder sbSwap = new StringBuilder(8);
+  private final StringBuilder sbRes = new StringBuilder(24);
+  private final StringBuilder sbDuration = new StringBuilder(20);
+  private final StringBuilder sbClock = new StringBuilder(8);
+  private final StringBuilder[] sbCorePct;
+  private final StringBuilder[] sbCoreMhz;
+  private final String[] coreLabels;
+  private final int coreCount;
   private String engineName = "VULKAN";
+  private String resolutionText = "";
+  private String wineText = "";
   private final boolean[] elements = new boolean[ELEMENT_COUNT];
   private int scaleIndex = 1;
   private float textAlpha = DEFAULT_ALPHA;
@@ -143,7 +189,16 @@ public class MangoHudView extends View {
   private float ramGib = -1f, vramGib = -1f, batteryWatts = -1f;
   private String[] gpuTempPaths;
   private String vramPath;
-  private boolean vramPathSearched;
+  private int vramMode = -1; // -1 probe, 1 kgsl own-pid sum, 2 single file, 3 own-process graphics
+  private String gpuClkPath;
+  private boolean gpuClkSearched;
+  private short[] coreMaxMhz;
+  private int cpuMhz = -1, gpuClkMhz = -1, netRxKbs = -1, netTxKbs = -1, throttleStatus;
+  private float swapGib = -1f;
+  private final int[] corePct;
+  private final int[] coreMhz;
+  private long prevRxBytes = -1, prevTxBytes = -1, prevNetMs;
+  private final long sessionStartMs = SystemClock.elapsedRealtime();
   // Self-reposting like FrameRating's stats loop: alive for the view's whole
   // attached life, independent of frame events, so a session where frames never
   // reach the HUD still shows live system stats. Near-free while hidden (one
@@ -164,6 +219,19 @@ public class MangoHudView extends View {
     this.preferences = PreferenceManager.getDefaultSharedPreferences(context);
     this.batteryManager = (BatteryManager) context.getSystemService(Context.BATTERY_SERVICE);
     this.density = getResources().getDisplayMetrics().density;
+    this.coreCount = Math.min(Runtime.getRuntime().availableProcessors(), 10);
+    this.corePct = new int[coreCount];
+    this.coreMhz = new int[coreCount];
+    this.sbCorePct = new StringBuilder[coreCount];
+    this.sbCoreMhz = new StringBuilder[coreCount];
+    this.coreLabels = new String[coreCount];
+    for (int i = 0; i < coreCount; i++) {
+      sbCorePct[i] = new StringBuilder(8);
+      sbCoreMhz[i] = new StringBuilder(8);
+      coreLabels[i] = "C" + i;
+      corePct[i] = -1;
+      coreMhz[i] = -1;
+    }
 
     int mask = preferences.getInt(PREF_ELEMENTS, DEFAULT_ELEMENTS_MASK);
     for (int i = 0; i < ELEMENT_COUNT; i++) elements[i] = (mask & (1 << i)) != 0;
@@ -258,6 +326,19 @@ public class MangoHudView extends View {
     if (upper.length() > 16) upper = upper.substring(0, 16);
     synchronized (uiLock) {
       engineName = upper;
+      computeLayoutLocked();
+    }
+    post(() -> {
+      requestLayout();
+      invalidate();
+    });
+  }
+
+  /** Static per-session rows: game resolution and wine/proton build. */
+  public void setSessionInfo(String resolution, String wineVersion) {
+    synchronized (uiLock) {
+      if (resolution != null) resolutionText = resolution.length() > 16 ? resolution.substring(0, 16) : resolution;
+      if (wineVersion != null) wineText = wineVersion.length() > 28 ? wineVersion.substring(0, 28) : wineVersion;
       computeLayoutLocked();
     }
     post(() -> {
@@ -413,12 +494,17 @@ public class MangoHudView extends View {
     boolean slowTick = (slowTickParity++ & 1) == 0;
     if (elements[EL_GPU_LOAD]) readGpuLoad();
     if (elements[EL_CPU_LOAD]) readCpuLoad();
+    if (elements[EL_CPU_MHZ] || elements[EL_CORES]) readCpuClocks();
     if (slowTick) {
       if (elements[EL_GPU_TEMP]) gpuTemp = readGpuTempC();
       if (elements[EL_CPU_TEMP]) cpuTemp = CPUStatus.getCpuTempC();
+      if (elements[EL_GPU_CLOCK]) readGpuClock();
       if (elements[EL_VRAM]) readVram();
       if (elements[EL_RAM]) readRam();
+      if (elements[EL_SWAP]) readSwap();
+      if (elements[EL_NET]) readNet();
       if (elements[EL_BATTERY]) readBattery();
+      if (elements[EL_THROTTLE]) readThrottle();
     }
 
     synchronized (uiLock) {
@@ -435,6 +521,31 @@ public class MangoHudView extends View {
       formatInt(sbAvg, Math.round(avgFps));
       formatInt(sbLow1, Math.round(low1Fps));
       formatInt(sbLow01, Math.round(low01Fps));
+      formatInt(sbCpuMhz, cpuMhz);
+      formatInt(sbGpuClk, gpuClkMhz);
+      formatNetCell(sbNetRx, netRxKbs);
+      formatNetCell(sbNetTx, netTxKbs);
+      formatTenths(sbSwap, swapGib);
+      if (elements[EL_CORES]) {
+        for (int i = 0; i < coreCount; i++) {
+          formatInt(sbCorePct[i], corePct[i]);
+          formatInt(sbCoreMhz[i], coreMhz[i]);
+        }
+      }
+      if (elements[EL_RES]) {
+        sbRes.setLength(0);
+        sbRes.append(resolutionText);
+        float hz = getDisplayRefreshRate();
+        if (hz > 0f) {
+          sbRes.append(" @ ").append(Math.round(hz)).append("Hz");
+        }
+      }
+      if (elements[EL_DURATION]) {
+        formatDuration(sbDuration, SystemClock.elapsedRealtime() - sessionStartMs);
+      }
+      if (elements[EL_CLOCK]) {
+        formatClock(sbClock);
+      }
       sbMinMax.setLength(0);
       sbMinMax.append("min:");
       appendTenths(sbMinMax, graphMin);
@@ -576,41 +687,235 @@ public class MangoHudView extends View {
     }
   }
 
-  /** GPU memory is shared on Android; best-effort read of the GPU allocator total (bytes). */
+  /**
+   * GPU memory is shared on Android; best-effort "VRAM in use". Preferred source is the
+   * Adreno per-client allocation nodes (kgsl/proc/&lt;pid&gt;/gpumem_mapped, summed = GPU
+   * memory held by all clients); falls back to global allocator totals where exposed.
+   */
   private void readVram() {
-    if (!vramPathSearched) {
-      vramPathSearched = true;
-      String[] candidates = {
-        "/sys/class/kgsl/kgsl/page_alloc",
-        "/sys/class/kgsl/kgsl-3d0/page_alloc",
-        "/sys/kernel/gpu/gpu_memory",
-        "/proc/mali/memory_usage"
-      };
+    if (vramMode == -1) {
+      vramMode = 3;
+      // Listing kgsl/proc is SELinux-denied on some ROMs, but opening
+      // kgsl/proc/<pid>/gpumem_mapped directly for our own pids still works —
+      // and summing those is exactly the game's GPU memory.
+      if (readOwnPidsGpuMem() >= 0) {
+        vramMode = 1;
+      } else {
+        String[] candidates = {
+          "/sys/class/kgsl/kgsl/page_alloc",
+          "/sys/class/kgsl/kgsl-3d0/page_alloc",
+          "/sys/kernel/gpu/gpu_memory",
+          "/proc/mali/memory_usage"
+        };
+        for (String path : candidates) {
+          if (readLongFile(new File(path)) > 0) {
+            vramPath = path;
+            vramMode = 2;
+            break;
+          }
+        }
+      }
+    }
+    long bytes = -1;
+    if (vramMode == 1) {
+      bytes = readOwnPidsGpuMem();
+    } else if (vramMode == 2) {
+      bytes = readLongFile(new File(vramPath));
+    }
+    if (bytes < 0) {
+      // Own-process graphics allocations (buffers, swapchains) — always available,
+      // narrower meaning than a global counter but never blank.
+      try {
+        android.os.Debug.MemoryInfo mi = new android.os.Debug.MemoryInfo();
+        android.os.Debug.getMemoryInfo(mi);
+        String kb = mi.getMemoryStat("summary.graphics");
+        if (kb != null) bytes = Long.parseLong(kb) * 1024L;
+      } catch (Exception ignored) {
+      }
+    }
+    vramGib = bytes >= 0 ? bytes / 1073741824.0f : -1f;
+  }
+
+  /** Sum GPU memory of every process in our uid via direct kgsl per-pid paths. */
+  private static long readOwnPidsGpuMem() {
+    String[] names = new File("/proc").list();
+    if (names == null) return -1;
+    int myUid = android.os.Process.myUid();
+    long total = 0;
+    boolean any = false;
+    for (String name : names) {
+      if (name.isEmpty() || !Character.isDigit(name.charAt(0))) continue;
+      try {
+        if (android.system.Os.stat("/proc/" + name).st_uid != myUid) continue;
+      } catch (Exception e) {
+        continue;
+      }
+      long v = readLongFile(new File("/sys/class/kgsl/kgsl/proc/" + name + "/gpumem_mapped"));
+      if (v >= 0) {
+        total += v;
+        any = true;
+      }
+    }
+    return any ? total : -1;
+  }
+
+  private static long readLongFile(File f) {
+    // No exists()/canRead() pre-check: SELinux can deny stat/access on sysfs
+    // while the open itself succeeds (and vice versa) — just try.
+    try (BufferedReader reader = new BufferedReader(new FileReader(f))) {
+      String line = reader.readLine();
+      if (line != null) {
+        String digits = line.trim().replaceAll("[^0-9]", "");
+        if (!digits.isEmpty()) return Long.parseLong(digits);
+      }
+    } catch (Exception ignored) {
+    }
+    return -1;
+  }
+
+  private void readCpuClocks() {
+    try {
+      short[] speeds = CPUStatus.getCurrentClockSpeeds();
+      if (speeds == null || speeds.length == 0) return;
+      if (coreMaxMhz == null) {
+        coreMaxMhz = new short[speeds.length];
+        for (int i = 0; i < speeds.length; i++) coreMaxMhz[i] = CPUStatus.getMaxClockSpeed(i);
+      }
+      long sum = 0;
+      int counted = 0;
+      for (int i = 0; i < speeds.length; i++) {
+        if (speeds[i] > 0) {
+          sum += speeds[i];
+          counted++;
+        }
+        if (i < coreCount) {
+          coreMhz[i] = speeds[i] > 0 ? speeds[i] : -1;
+          corePct[i] = speeds[i] > 0 && i < coreMaxMhz.length && coreMaxMhz[i] > 0
+              ? Math.min(100, speeds[i] * 100 / coreMaxMhz[i]) : -1;
+        }
+      }
+      cpuMhz = counted > 0 ? (int) (sum / counted) : -1;
+    } catch (Exception e) {
+      cpuMhz = -1;
+    }
+  }
+
+  private void readGpuClock() {
+    if (!gpuClkSearched) {
+      gpuClkSearched = true;
+      java.util.ArrayList<String> candidates = new java.util.ArrayList<>(Arrays.asList(
+          "/sys/class/kgsl/kgsl-3d0/gpuclk",
+          "/sys/class/kgsl/kgsl-3d0/devfreq/cur_freq",
+          "/sys/class/kgsl/kgsl-3d0/gpu_clock",
+          "/sys/class/kgsl/kgsl-3d0/clock_mhz",
+          "/sys/kernel/gpu/gpu_clock",
+          // Listing /sys/class/devfreq is SELinux-denied on some ROMs, but direct
+          // opens can still work; known Adreno devfreq node names by SoC address.
+          "/sys/class/devfreq/kgsl-3d0/cur_freq",
+          "/sys/class/devfreq/3d00000.qcom,kgsl-3d0/cur_freq",
+          "/sys/class/devfreq/2c00000.qcom,kgsl-3d0/cur_freq",
+          "/sys/class/devfreq/5000000.qcom,kgsl-3d0/cur_freq",
+          "/sys/class/devfreq/5900000.qcom,kgsl-3d0/cur_freq"));
+      File devfreqRoot = new File("/sys/class/devfreq");
+      File[] nodes = devfreqRoot.listFiles();
+      if (nodes != null) {
+        for (File node : nodes) {
+          String name = node.getName().toLowerCase(Locale.US);
+          if (name.contains("kgsl") || name.contains("gpu") || name.contains("mali")) {
+            candidates.add(new File(node, "cur_freq").getAbsolutePath());
+          }
+        }
+      }
       for (String path : candidates) {
-        File f = new File(path);
-        if (f.exists() && f.canRead()) {
-          vramPath = path;
+        if (readLongFile(new File(path)) > 0) {
+          gpuClkPath = path;
           break;
         }
       }
     }
-    if (vramPath == null) {
-      vramGib = -1f;
+    if (gpuClkPath == null) {
+      gpuClkMhz = -1;
       return;
     }
-    try (BufferedReader reader = new BufferedReader(new FileReader(vramPath))) {
-      String line = reader.readLine();
-      if (line != null) {
-        String digits = line.trim().replaceAll("[^0-9]", "");
-        if (!digits.isEmpty()) {
-          long bytes = Long.parseLong(digits);
-          vramGib = bytes / 1073741824.0f;
-          return;
+    long raw = readLongFile(new File(gpuClkPath));
+    if (raw <= 0) {
+      gpuClkMhz = -1;
+    } else if (raw > 10000000) {
+      gpuClkMhz = (int) (raw / 1000000); // Hz
+    } else if (raw > 10000) {
+      gpuClkMhz = (int) (raw / 1000); // kHz
+    } else {
+      gpuClkMhz = (int) raw; // already MHz
+    }
+  }
+
+  private void readNet() {
+    try {
+      long rx = TrafficStats.getTotalRxBytes();
+      long tx = TrafficStats.getTotalTxBytes();
+      long now = SystemClock.elapsedRealtime();
+      if (rx == TrafficStats.UNSUPPORTED || tx == TrafficStats.UNSUPPORTED) {
+        netRxKbs = -1;
+        netTxKbs = -1;
+        return;
+      }
+      if (prevRxBytes >= 0 && now > prevNetMs) {
+        long elapsed = now - prevNetMs;
+        netRxKbs = (int) ((rx - prevRxBytes) * 1000 / elapsed / 1024);
+        netTxKbs = (int) ((tx - prevTxBytes) * 1000 / elapsed / 1024);
+      }
+      prevRxBytes = rx;
+      prevTxBytes = tx;
+      prevNetMs = now;
+    } catch (Exception e) {
+      netRxKbs = -1;
+      netTxKbs = -1;
+    }
+  }
+
+  private void readSwap() {
+    try (BufferedReader reader = new BufferedReader(new FileReader("/proc/meminfo"))) {
+      long swapTotalKb = -1, swapFreeKb = -1;
+      String line;
+      while ((line = reader.readLine()) != null && (swapTotalKb < 0 || swapFreeKb < 0)) {
+        if (line.startsWith("SwapTotal:")) {
+          swapTotalKb = parseMeminfoKb(line);
+        } else if (line.startsWith("SwapFree:")) {
+          swapFreeKb = parseMeminfoKb(line);
         }
       }
-      vramGib = -1f;
+      swapGib = swapTotalKb >= 0 && swapFreeKb >= 0
+          ? (swapTotalKb - swapFreeKb) / 1048576.0f : -1f;
     } catch (Exception e) {
-      vramGib = -1f;
+      swapGib = -1f;
+    }
+  }
+
+  private static long parseMeminfoKb(String line) {
+    String digits = line.replaceAll("[^0-9]", "");
+    return digits.isEmpty() ? -1 : Long.parseLong(digits);
+  }
+
+  private void readThrottle() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+      throttleStatus = 0;
+      return;
+    }
+    try {
+      PowerManager pm = (PowerManager) getContext().getSystemService(Context.POWER_SERVICE);
+      int status = pm != null ? pm.getCurrentThermalStatus() : 0;
+      throttleStatus = Math.max(0, Math.min(status, THROTTLE_TEXT.length - 1));
+    } catch (Exception e) {
+      throttleStatus = 0;
+    }
+  }
+
+  private float getDisplayRefreshRate() {
+    try {
+      android.view.Display display = getDisplay();
+      return display != null ? display.getRefreshRate() : -1f;
+    } catch (Exception e) {
+      return -1f;
     }
   }
 
@@ -672,6 +977,44 @@ public class MangoHudView extends View {
     sb.append(tenths / 10).append('.').append(tenths % 10);
   }
 
+  /** KB/s up to 4 digits, then whole MB/s (unit glyph stays "K"/"M" via the suffix cell). */
+  private static void formatNetCell(StringBuilder sb, int kbs) {
+    sb.setLength(0);
+    if (kbs < 0) {
+      sb.append('-');
+    } else if (kbs > 9999) {
+      sb.append(kbs / 1024).append('M');
+    } else {
+      sb.append(kbs);
+    }
+  }
+
+  private static void formatDuration(StringBuilder sb, long elapsedMs) {
+    sb.setLength(0);
+    long totalSec = elapsedMs / 1000;
+    sb.append("elapsed ");
+    appendTwoDigits(sb, (int) (totalSec / 3600));
+    sb.append(':');
+    appendTwoDigits(sb, (int) ((totalSec / 60) % 60));
+    sb.append(':');
+    appendTwoDigits(sb, (int) (totalSec % 60));
+  }
+
+  private static void formatClock(StringBuilder sb) {
+    sb.setLength(0);
+    long nowMs = System.currentTimeMillis();
+    int offset = java.util.TimeZone.getDefault().getOffset(nowMs);
+    long dayMin = ((nowMs + offset) / 60000) % 1440;
+    appendTwoDigits(sb, (int) (dayMin / 60));
+    sb.append(':');
+    appendTwoDigits(sb, (int) (dayMin % 60));
+  }
+
+  private static void appendTwoDigits(StringBuilder sb, int value) {
+    if (value < 10) sb.append('0');
+    sb.append(value);
+  }
+
   // ── layout & drawing ─────────────────────────────────────────────
 
   private void applyScaleLocked() {
@@ -719,19 +1062,26 @@ public class MangoHudView extends View {
     }
     float w = 0f;
     int rows = 0;
-    if (elements[EL_GPU_LOAD] || elements[EL_GPU_TEMP]) {
+    int smallRows = 0;
+    if (elements[EL_GPU_LOAD] || elements[EL_GPU_TEMP] || elements[EL_GPU_CLOCK]) {
       rows++;
       float rw = labelColW
           + (elements[EL_GPU_LOAD] ? statCellW(1) : 0f)
-          + (elements[EL_GPU_TEMP] ? statCellW(2) : 0f);
+          + (elements[EL_GPU_TEMP] ? statCellW(2) : 0f)
+          + (elements[EL_GPU_CLOCK] ? statCellW(3) : 0f);
       w = Math.max(w, rw);
     }
-    if (elements[EL_CPU_LOAD] || elements[EL_CPU_TEMP]) {
+    if (elements[EL_CPU_LOAD] || elements[EL_CPU_TEMP] || elements[EL_CPU_MHZ]) {
       rows++;
       float rw = labelColW
           + (elements[EL_CPU_LOAD] ? statCellW(1) : 0f)
-          + (elements[EL_CPU_TEMP] ? statCellW(2) : 0f);
+          + (elements[EL_CPU_TEMP] ? statCellW(2) : 0f)
+          + (elements[EL_CPU_MHZ] ? statCellW(3) : 0f);
       w = Math.max(w, rw);
+    }
+    if (elements[EL_CORES]) {
+      rows += coreCount;
+      w = Math.max(w, labelColW + statCellW(1) + statCellW(3));
     }
     if (elements[EL_VRAM]) {
       rows++;
@@ -740,6 +1090,14 @@ public class MangoHudView extends View {
     if (elements[EL_RAM]) {
       rows++;
       w = Math.max(w, labelColW + statCellW(3));
+    }
+    if (elements[EL_SWAP]) {
+      rows++;
+      w = Math.max(w, labelColW + statCellW(3));
+    }
+    if (elements[EL_NET]) {
+      rows++;
+      w = Math.max(w, labelColW + statCellW(2) + statCellW(2));
     }
     if (elements[EL_BATTERY]) {
       rows++;
@@ -751,10 +1109,24 @@ public class MangoHudView extends View {
       rows += 3;
       w = Math.max(w, labelColW + statCellW(3));
     }
-    // Width must stay independent of live values (min/max digits) so the panel
-    // never relayouts mid-session; the graph header just clips to this width.
+    // Secondary small-font rows. Only value-stable strings contribute to width
+    // (throttle text clips) so the panel never relayouts mid-session.
+    if (elements[EL_RES] && !resolutionText.isEmpty()) {
+      smallRows++;
+      w = Math.max(w, smallCharW * (resolutionText.length() + 8));
+    }
+    if (elements[EL_WINE] && !wineText.isEmpty()) {
+      smallRows++;
+      w = Math.max(w, smallCharW * wineText.length());
+    }
+    if (elements[EL_DURATION]) {
+      smallRows++;
+      w = Math.max(w, smallCharW * 16);
+    }
+    if (elements[EL_CLOCK]) smallRows++;
+    if (elements[EL_THROTTLE] && throttleStatus > 0) smallRows++;
     w = Math.max(w, charW * 13f);
-    float h = rows * rowH;
+    float h = rows * rowH + smallRows * smallRowH;
     if (elements[EL_GRAPH]) {
       h += smallRowH + graphH + pad * 0.5f;
     }
@@ -774,17 +1146,27 @@ public class MangoHudView extends View {
     synchronized (uiLock) {
       canvas.drawRect(0, 0, panelW, panelH, bgPaint);
       float y = pad;
-      if (elements[EL_GPU_LOAD] || elements[EL_GPU_TEMP]) {
+      if (elements[EL_GPU_LOAD] || elements[EL_GPU_TEMP] || elements[EL_GPU_CLOCK]) {
         float x = drawLabel(canvas, "GPU", C_GPU, y);
         if (elements[EL_GPU_LOAD]) x = drawStatCell(canvas, sbGpuLoad, "%", x, y);
-        if (elements[EL_GPU_TEMP]) drawStatCell(canvas, sbGpuTemp, "°C", x, y);
+        if (elements[EL_GPU_TEMP]) x = drawStatCell(canvas, sbGpuTemp, "°C", x, y);
+        if (elements[EL_GPU_CLOCK]) drawStatCell(canvas, sbGpuClk, "MHz", x, y);
         y += rowH;
       }
-      if (elements[EL_CPU_LOAD] || elements[EL_CPU_TEMP]) {
+      if (elements[EL_CPU_LOAD] || elements[EL_CPU_TEMP] || elements[EL_CPU_MHZ]) {
         float x = drawLabel(canvas, "CPU", C_CPU, y);
         if (elements[EL_CPU_LOAD]) x = drawStatCell(canvas, sbCpuLoad, "%", x, y);
-        if (elements[EL_CPU_TEMP]) drawStatCell(canvas, sbCpuTemp, "°C", x, y);
+        if (elements[EL_CPU_TEMP]) x = drawStatCell(canvas, sbCpuTemp, "°C", x, y);
+        if (elements[EL_CPU_MHZ]) drawStatCell(canvas, sbCpuMhz, "MHz", x, y);
         y += rowH;
+      }
+      if (elements[EL_CORES]) {
+        for (int i = 0; i < coreCount; i++) {
+          float x = drawLabel(canvas, coreLabels[i], C_CPU, y);
+          x = drawStatCell(canvas, sbCorePct[i], "%", x, y);
+          drawStatCell(canvas, sbCoreMhz[i], "MHz", x, y);
+          y += rowH;
+        }
       }
       if (elements[EL_VRAM]) {
         float x = drawLabel(canvas, "VRAM", C_VRAM, y);
@@ -794,6 +1176,17 @@ public class MangoHudView extends View {
       if (elements[EL_RAM]) {
         float x = drawLabel(canvas, "RAM", C_RAM, y);
         drawStatCell(canvas, sbRam, "GiB", x, y);
+        y += rowH;
+      }
+      if (elements[EL_SWAP]) {
+        float x = drawLabel(canvas, "SWP", C_RAM, y);
+        drawStatCell(canvas, sbSwap, "GiB", x, y);
+        y += rowH;
+      }
+      if (elements[EL_NET]) {
+        float x = drawLabel(canvas, "NET", C_NET, y);
+        x = drawStatCell(canvas, sbNetRx, "K↓", x, y);
+        drawStatCell(canvas, sbNetTx, "K↑", x, y);
         y += rowH;
       }
       if (elements[EL_BATTERY]) {
@@ -820,6 +1213,28 @@ public class MangoHudView extends View {
         x = drawLabel(canvas, "0.1%", C_TEXT, y);
         drawStatCell(canvas, sbLow01, "FPS", x, y);
         y += rowH;
+      }
+      if (elements[EL_RES] && !resolutionText.isEmpty()) {
+        drawOutlinedSmall(canvas, sbRes, 0, sbRes.length(), pad, y + smallBaseline, C_TEXT);
+        y += smallRowH;
+      }
+      if (elements[EL_WINE] && !wineText.isEmpty()) {
+        drawOutlinedSmall(canvas, wineText, 0, wineText.length(), pad, y + smallBaseline, C_ENGINE);
+        y += smallRowH;
+      }
+      if (elements[EL_DURATION]) {
+        drawOutlinedSmall(canvas, sbDuration, 0, sbDuration.length(), pad, y + smallBaseline, C_TEXT);
+        y += smallRowH;
+      }
+      if (elements[EL_CLOCK]) {
+        drawOutlinedSmall(canvas, sbClock, 0, sbClock.length(), pad, y + smallBaseline, C_TEXT);
+        y += smallRowH;
+      }
+      if (elements[EL_THROTTLE] && throttleStatus > 0) {
+        String text = THROTTLE_TEXT[throttleStatus];
+        int color = throttleStatus >= 3 ? C_THROTTLE_HOT : C_THROTTLE_WARN;
+        drawOutlinedSmall(canvas, text, 0, text.length(), pad, y + smallBaseline, color);
+        y += smallRowH;
       }
       if (elements[EL_GRAPH]) {
         float sy = y + smallBaseline;

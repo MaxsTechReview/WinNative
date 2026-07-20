@@ -4152,6 +4152,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         }
                         if (mangoHud != null) {
                             mangoHud.setEngineName(mangoEngineLabel());
+                            mangoHud.setSessionInfo(
+                                    xServer != null ? xServer.screenInfo.width + "x" + xServer.screenInfo.height : null,
+                                    wineInfo != null ? String.valueOf(wineInfo) : null);
                             mangoHud.setHudVisible(enabled);
                         }
                         renderDrawerMenu();
@@ -7123,6 +7126,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (preferences.getBoolean(MangoHudView.PREF_ENABLED, false)) {
             mangoHud = new MangoHudView(this);
             mangoHud.setEngineName(mangoEngineLabel());
+            mangoHud.setSessionInfo(
+                    xServer != null ? xServer.screenInfo.width + "x" + xServer.screenInfo.height : null,
+                    wineInfo != null ? String.valueOf(wineInfo) : null);
             // Deferred: adding while the frame is detached puts this view inside the frame's later
             // attach walk, which FrameRating's onAttachedToWindow bringToFront() reorders mid-walk —
             // the child that slides into the already-visited slot never gets attached. post() runs

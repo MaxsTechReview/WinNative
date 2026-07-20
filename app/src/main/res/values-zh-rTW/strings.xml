@@ -604,6 +604,16 @@
     <string name="mango_hud_element_graph">幀生成時間圖表</string>
     <string name="mango_hud_element_engine">引擎</string>
     <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">CPU 頻率</string>
+    <string name="mango_hud_element_gpu_clock">GPU 頻率</string>
+    <string name="mango_hud_element_cores">每核心</string>
+    <string name="mango_hud_element_network">網路</string>
+    <string name="mango_hud_element_swap">交換記憶體</string>
+    <string name="mango_hud_element_resolution">解析度</string>
+    <string name="mango_hud_element_wine">Wine 版本</string>
+    <string name="mango_hud_element_duration">工作階段時長</string>
+    <string name="mango_hud_element_clock">時鐘</string>
+    <string name="mango_hud_element_throttle">溫控狀態</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">您要結束此程序嗎？</string>

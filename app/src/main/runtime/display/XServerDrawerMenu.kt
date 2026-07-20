@@ -682,7 +682,7 @@ data class XServerDrawerState(
     val rightStickSensitivity: Float = 1.0f,
     val screenTouchRsSensitivity: Float = 1.25f,
     val mangoHudEnabled: Boolean = false,
-    val mangoHudElements: BooleanArray = BooleanArray(10) { it != 5 },
+    val mangoHudElements: BooleanArray = BooleanArray(20) { it < 10 },
     val mangoHudAlpha: Float = 1.0f,
     val mangoHudBgAlpha: Float = 0.5f,
 )
@@ -1204,7 +1204,7 @@ fun buildXServerDrawerState(
     rightStickSensitivity: Float = 1.0f,
     screenTouchRsSensitivity: Float = 1.25f,
     mangoHudEnabled: Boolean = false,
-    mangoHudElements: BooleanArray = BooleanArray(10) { it != 5 },
+    mangoHudElements: BooleanArray = BooleanArray(20) { it < 10 },
     mangoHudAlpha: Float = 1.0f,
     mangoHudBgAlpha: Float = 0.5f,
 ): XServerDrawerState {

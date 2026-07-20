@@ -677,6 +677,16 @@
     <string name="mango_hud_element_graph">फ्रेमटाइम ग्राफ़</string>
     <string name="mango_hud_element_engine">इंजन</string>
     <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">CPU क्लॉक</string>
+    <string name="mango_hud_element_gpu_clock">GPU क्लॉक</string>
+    <string name="mango_hud_element_cores">प्रति कोर</string>
+    <string name="mango_hud_element_network">नेटवर्क</string>
+    <string name="mango_hud_element_swap">स्वैप</string>
+    <string name="mango_hud_element_resolution">रिज़ॉल्यूशन</string>
+    <string name="mango_hud_element_wine">Wine संस्करण</string>
+    <string name="mango_hud_element_duration">सत्र समय</string>
+    <string name="mango_hud_element_clock">घड़ी</string>
+    <string name="mango_hud_element_throttle">थ्रॉटल स्थिति</string>
     <string name="hud_position_menu_title">HUD को यहाँ ले जाएँ</string>
     <string name="hud_position_top_left">ऊपर बाएँ</string>
     <string name="hud_position_top_center">ऊपर केंद्र</string>

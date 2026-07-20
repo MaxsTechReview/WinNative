@@ -758,6 +758,16 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="mango_hud_element_graph">Frametime Graph</string>
     <string name="mango_hud_element_engine">Engine</string>
     <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">CPU Clock</string>
+    <string name="mango_hud_element_gpu_clock">GPU Clock</string>
+    <string name="mango_hud_element_cores">Per-Core</string>
+    <string name="mango_hud_element_network">Network</string>
+    <string name="mango_hud_element_swap">Swap</string>
+    <string name="mango_hud_element_resolution">Resolution</string>
+    <string name="mango_hud_element_wine">Wine Version</string>
+    <string name="mango_hud_element_duration">Session Time</string>
+    <string name="mango_hud_element_clock">Clock</string>
+    <string name="mango_hud_element_throttle">Throttle Status</string>
     <string name="hud_position_menu_title">Move HUD to</string>
     <string name="hud_position_top_left">Top Left</string>
     <string name="hud_position_top_center">Top Center</string>

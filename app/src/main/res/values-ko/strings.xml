@@ -604,6 +604,16 @@
     <string name="mango_hud_element_graph">프레임타임 그래프</string>
     <string name="mango_hud_element_engine">엔진</string>
     <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">CPU 클럭</string>
+    <string name="mango_hud_element_gpu_clock">GPU 클럭</string>
+    <string name="mango_hud_element_cores">코어별</string>
+    <string name="mango_hud_element_network">네트워크</string>
+    <string name="mango_hud_element_swap">스왑</string>
+    <string name="mango_hud_element_resolution">해상도</string>
+    <string name="mango_hud_element_wine">Wine 버전</string>
+    <string name="mango_hud_element_duration">세션 시간</string>
+    <string name="mango_hud_element_clock">시계</string>
+    <string name="mango_hud_element_throttle">스로틀 상태</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">이 프로세스를 종료하시겠습니까?</string>

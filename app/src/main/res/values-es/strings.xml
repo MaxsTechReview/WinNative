@@ -604,6 +604,16 @@ Ej. <b>META</b> para la <i>tecla META</i>, \n
     <string name="mango_hud_element_graph">Gráfico de frametime</string>
     <string name="mango_hud_element_engine">Motor</string>
     <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">Frecuencia CPU</string>
+    <string name="mango_hud_element_gpu_clock">Frecuencia GPU</string>
+    <string name="mango_hud_element_cores">Por núcleo</string>
+    <string name="mango_hud_element_network">Red</string>
+    <string name="mango_hud_element_swap">Swap</string>
+    <string name="mango_hud_element_resolution">Resolución</string>
+    <string name="mango_hud_element_wine">Versión de Wine</string>
+    <string name="mango_hud_element_duration">Tiempo de sesión</string>
+    <string name="mango_hud_element_clock">Reloj</string>
+    <string name="mango_hud_element_throttle">Estado térmico</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">¿Deseas finalizar este proceso?</string>
