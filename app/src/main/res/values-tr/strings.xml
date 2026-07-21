@@ -772,7 +772,7 @@ E.g. <b>META</b> için <i>META tuşu</i>, \n
     <string name="mango_hud_group_memory">Bellek</string>
     <string name="mango_hud_group_system">Sistem</string>
     <string name="mango_hud_lock">HUD\'u Kilitle</string>
-    <string name="mango_hud_lock_subtitle">Dokunuşların HUD arkasındaki kontrollere geçmesini sağlar. Kilitlemek için HUD\'a basılı tutun. (3.5 sec)</string>
+    <string name="mango_hud_lock_subtitle">Dokunuşların HUD arkasındaki kontrollere geçmesini sağlar. Kilitlemek için HUD\'a basılı tutun. (5s)</string>
     <string name="hud_position_menu_title">HUD\'u şuraya taşı</string>
     <string name="hud_position_top_left">Sol Üst</string>
     <string name="hud_position_top_center">Üst Orta</string>

@@ -623,7 +623,7 @@
     <string name="mango_hud_group_memory">Пам\'ять</string>
     <string name="mango_hud_group_system">Система</string>
     <string name="mango_hud_lock">Заблокувати HUD</string>
-    <string name="mango_hud_lock_subtitle">Дотики проходять до елементів керування за HUD. Утримуйте HUD, щоб заблокувати. (3.5 sec)</string>
+    <string name="mango_hud_lock_subtitle">Дотики проходять до елементів керування за HUD. Утримуйте HUD, щоб заблокувати. (5s)</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Ви хочете завершити цей процес?</string>

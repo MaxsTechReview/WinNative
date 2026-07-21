@@ -623,7 +623,7 @@ Np. <b>META</b> dla <i>klawisza META</i>, \n
     <string name="mango_hud_group_memory">Pamięć</string>
     <string name="mango_hud_group_system">System</string>
     <string name="mango_hud_lock">Zablokuj HUD</string>
-    <string name="mango_hud_lock_subtitle">Dotknięcia trafiają do sterowania za HUD-em. Przytrzymaj HUD, aby go zablokować. (3.5 sec)</string>
+    <string name="mango_hud_lock_subtitle">Dotknięcia trafiają do sterowania za HUD-em. Przytrzymaj HUD, aby go zablokować. (5s)</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Czy chcesz zakończyć ten proces?</string>

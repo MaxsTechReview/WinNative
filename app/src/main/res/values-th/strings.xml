@@ -772,7 +772,7 @@
     <string name="mango_hud_group_memory">หน่วยความจำ</string>
     <string name="mango_hud_group_system">ระบบ</string>
     <string name="mango_hud_lock">ล็อก HUD</string>
-    <string name="mango_hud_lock_subtitle">ให้การสัมผัสผ่านไปยังปุ่มควบคุมด้านหลัง HUD กด HUD ค้างไว้เพื่อล็อก (3.5 sec)</string>
+    <string name="mango_hud_lock_subtitle">ให้การสัมผัสผ่านไปยังปุ่มควบคุมด้านหลัง HUD กด HUD ค้างไว้เพื่อล็อก (5s)</string>
     <string name="hud_position_menu_title">ย้าย HUD ไปที่</string>
     <string name="hud_position_top_left">บนซ้าย</string>
     <string name="hud_position_top_center">บนกลาง</string>

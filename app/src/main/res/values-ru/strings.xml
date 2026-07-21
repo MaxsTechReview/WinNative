@@ -644,7 +644,7 @@
     <string name="mango_hud_group_memory">Память</string>
     <string name="mango_hud_group_system">Система</string>
     <string name="mango_hud_lock">Заблокировать HUD</string>
-    <string name="mango_hud_lock_subtitle">Касания проходят к элементам управления за HUD. Удерживайте HUD, чтобы заблокировать. (3.5 sec)</string>
+    <string name="mango_hud_lock_subtitle">Касания проходят к элементам управления за HUD. Удерживайте HUD, чтобы заблокировать. (5s)</string>
     <string name="hud_position_menu_title">Переместить HUD</string>
     <string name="hud_position_top_left">Вверху слева</string>
     <string name="hud_position_top_center">Вверху по центру</string>

@@ -101,7 +101,7 @@ public class MangoHudView extends View {
   };
 
   // Double-tap snap targets; the settings slider sets any value between MIN and MAX.
-  private static final float[] SCALE_STEPS = {0.735f, 0.98f, 1.225f, 1.47f};
+  private static final float[] SCALE_STEPS = {0.735f, 0.98f, 1.225f, 1.5f};
   public static final float DEFAULT_SCALE = 0.735f;
   private static final float BASE_TEXT_DP = 14f;
   private static final long TICK_MS = 500L;
@@ -162,7 +162,8 @@ public class MangoHudView extends View {
   private final StringBuilder[] sbCoreMhz;
   private final String[] coreLabels;
   private final int coreCount;
-  private String engineName = "VULKAN";
+  private String engineBase = "VULKAN";
+  private String engineVersion = "";
   private String resolutionText = "";
   private String wineText = "";
   private final boolean[] elements = new boolean[ELEMENT_COUNT];
@@ -172,7 +173,7 @@ public class MangoHudView extends View {
   private float bgAlpha = DEFAULT_BG_ALPHA;
   private int panelW = 1, panelH = 1;
   private float textSize, smallSize, rowH, smallRowH, baseline, smallBaseline;
-  private float pad, charW, smallCharW, labelColW, graphH;
+  private float pad, charW, smallCharW, labelColW, fpsLabelColW, graphH;
 
   private final Paint bgPaint = new Paint();
   private final Paint valuePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -333,8 +334,17 @@ public class MangoHudView extends View {
     if (name == null || name.isEmpty()) return;
     String upper = name.toUpperCase(Locale.US);
     if (upper.length() > 16) upper = upper.substring(0, 16);
+    // Base name draws full-size; anything after the first space (version) draws
+    // small so a long engine string doesn't widen the panel.
+    int space = upper.indexOf(' ');
     synchronized (uiLock) {
-      engineName = upper;
+      if (space > 0) {
+        engineBase = upper.substring(0, space);
+        engineVersion = upper.substring(space + 1).trim();
+      } else {
+        engineBase = upper;
+        engineVersion = "";
+      }
       computeLayoutLocked();
     }
     post(() -> {
@@ -1048,7 +1058,7 @@ public class MangoHudView extends View {
     Paint.FontMetrics sfm = smallPaint.getFontMetrics();
     smallRowH = (sfm.descent - sfm.ascent) * 1.1f;
     smallBaseline = -sfm.ascent;
-    pad = textSize * 0.3f;
+    pad = textSize * 0.25f;
     charW = valuePaint.measureText("0");
     smallCharW = smallPaint.measureText("0");
     graphH = textSize * 2.0f;
@@ -1067,14 +1077,20 @@ public class MangoHudView extends View {
     return Math.round(Math.max(0f, Math.min(textAlpha, 1f)) * 255f);
   }
 
-  private float statCellW(int unitChars) {
-    return charW * 4 + smallCharW * (unitChars + 0.4f);
+  // Per-cell value reservation: 3 chars for bounded ints (%/°C), 4 for the rest.
+  private float statCellW(int valueChars, int unitChars) {
+    return charW * valueChars + smallCharW * (unitChars + 0.2f);
   }
 
   private void computeLayoutLocked() {
-    labelColW = charW * 4.6f;
+    labelColW = charW * 4.2f;
+    fpsLabelColW = labelColW;
     if (elements[EL_ENGINE]) {
-      labelColW = Math.max(labelColW, charW * (engineName.length() + 0.6f));
+      float engineW = valuePaint.measureText(engineBase);
+      if (!engineVersion.isEmpty()) {
+        engineW += smallCharW * 0.3f + smallPaint.measureText(engineVersion);
+      }
+      fpsLabelColW = Math.max(labelColW, engineW + charW * 0.4f);
     }
     float w = 0f;
     int rows = 0;
@@ -1082,48 +1098,48 @@ public class MangoHudView extends View {
     if (elements[EL_GPU_LOAD] || elements[EL_GPU_TEMP] || elements[EL_GPU_CLOCK]) {
       rows++;
       float rw = labelColW
-          + (elements[EL_GPU_LOAD] ? statCellW(1) : 0f)
-          + (elements[EL_GPU_TEMP] ? statCellW(2) : 0f)
-          + (elements[EL_GPU_CLOCK] ? statCellW(3) : 0f);
+          + (elements[EL_GPU_LOAD] ? statCellW(3, 1) : 0f)
+          + (elements[EL_GPU_TEMP] ? statCellW(3, 2) : 0f)
+          + (elements[EL_GPU_CLOCK] ? statCellW(4, 3) : 0f);
       w = Math.max(w, rw);
     }
     if (elements[EL_CPU_LOAD] || elements[EL_CPU_TEMP] || elements[EL_CPU_MHZ]) {
       rows++;
       float rw = labelColW
-          + (elements[EL_CPU_LOAD] ? statCellW(1) : 0f)
-          + (elements[EL_CPU_TEMP] ? statCellW(2) : 0f)
-          + (elements[EL_CPU_MHZ] ? statCellW(3) : 0f);
+          + (elements[EL_CPU_LOAD] ? statCellW(3, 1) : 0f)
+          + (elements[EL_CPU_TEMP] ? statCellW(3, 2) : 0f)
+          + (elements[EL_CPU_MHZ] ? statCellW(4, 3) : 0f);
       w = Math.max(w, rw);
     }
     if (elements[EL_CORES]) {
       rows += coreCount;
-      w = Math.max(w, labelColW + statCellW(1) + statCellW(3));
+      w = Math.max(w, labelColW + statCellW(3, 1) + statCellW(4, 3));
     }
     if (elements[EL_VRAM]) {
       rows++;
-      w = Math.max(w, labelColW + statCellW(3));
+      w = Math.max(w, labelColW + statCellW(4, 3));
     }
     if (elements[EL_RAM]) {
       rows++;
-      w = Math.max(w, labelColW + statCellW(3) + statCellW(1));
+      w = Math.max(w, labelColW + statCellW(4, 3) + statCellW(3, 1));
     }
     if (elements[EL_SWAP]) {
       rows++;
-      w = Math.max(w, labelColW + statCellW(3));
+      w = Math.max(w, labelColW + statCellW(4, 3));
     }
     if (elements[EL_NET]) {
       rows++;
-      w = Math.max(w, labelColW + statCellW(2) + statCellW(2));
+      w = Math.max(w, labelColW + statCellW(4, 2) + statCellW(4, 2));
     }
     if (elements[EL_BATTERY]) {
       rows++;
-      w = Math.max(w, labelColW + statCellW(1) + statCellW(2) + statCellW(1));
+      w = Math.max(w, labelColW + statCellW(3, 1) + statCellW(3, 2) + statCellW(4, 1));
     }
     rows++; // FPS row is the HUD core, always shown
-    w = Math.max(w, labelColW + statCellW(3) + statCellW(2));
+    w = Math.max(w, fpsLabelColW + statCellW(4, 3) + statCellW(4, 2));
     if (elements[EL_LOWS]) {
       rows += 3;
-      w = Math.max(w, labelColW + statCellW(3));
+      w = Math.max(w, labelColW + statCellW(4, 3));
     }
     // Small rows: only value-stable strings contribute to width so the panel never relayouts mid-session.
     if (elements[EL_RES] && !resolutionText.isEmpty()) {
@@ -1163,73 +1179,82 @@ public class MangoHudView extends View {
       float y = pad;
       if (elements[EL_GPU_LOAD] || elements[EL_GPU_TEMP] || elements[EL_GPU_CLOCK]) {
         float x = drawLabel(canvas, "GPU", C_GPU, y);
-        if (elements[EL_GPU_LOAD]) x = drawStatCell(canvas, sbGpuLoad, "%", x, y);
-        if (elements[EL_GPU_TEMP]) x = drawStatCell(canvas, sbGpuTemp, "°C", x, y);
-        if (elements[EL_GPU_CLOCK]) drawStatCell(canvas, sbGpuClk, "MHz", x, y);
+        if (elements[EL_GPU_LOAD]) x = drawStatCell(canvas, sbGpuLoad, "%", x, y, 3);
+        if (elements[EL_GPU_TEMP]) x = drawStatCell(canvas, sbGpuTemp, "°C", x, y, 3);
+        if (elements[EL_GPU_CLOCK]) drawStatCell(canvas, sbGpuClk, "MHz", x, y, 4);
         y += rowH;
       }
       if (elements[EL_CPU_LOAD] || elements[EL_CPU_TEMP] || elements[EL_CPU_MHZ]) {
         float x = drawLabel(canvas, "CPU", C_CPU, y);
-        if (elements[EL_CPU_LOAD]) x = drawStatCell(canvas, sbCpuLoad, "%", x, y);
-        if (elements[EL_CPU_TEMP]) x = drawStatCell(canvas, sbCpuTemp, "°C", x, y);
-        if (elements[EL_CPU_MHZ]) drawStatCell(canvas, sbCpuMhz, "MHz", x, y);
+        if (elements[EL_CPU_LOAD]) x = drawStatCell(canvas, sbCpuLoad, "%", x, y, 3);
+        if (elements[EL_CPU_TEMP]) x = drawStatCell(canvas, sbCpuTemp, "°C", x, y, 3);
+        if (elements[EL_CPU_MHZ]) drawStatCell(canvas, sbCpuMhz, "MHz", x, y, 4);
         y += rowH;
       }
       if (elements[EL_CORES]) {
         for (int i = 0; i < coreCount; i++) {
           float x = drawLabel(canvas, coreLabels[i], C_CPU, y);
-          x = drawStatCell(canvas, sbCorePct[i], "%", x, y);
-          drawStatCell(canvas, sbCoreMhz[i], "MHz", x, y);
+          x = drawStatCell(canvas, sbCorePct[i], "%", x, y, 3);
+          drawStatCell(canvas, sbCoreMhz[i], "MHz", x, y, 4);
           y += rowH;
         }
       }
       if (elements[EL_VRAM]) {
         float x = drawLabel(canvas, "VRAM", C_VRAM, y);
-        drawStatCell(canvas, sbVram, "GiB", x, y);
+        drawStatCell(canvas, sbVram, "GiB", x, y, 4);
         y += rowH;
       }
       if (elements[EL_RAM]) {
         float x = drawLabel(canvas, "RAM", C_RAM, y);
-        x = drawStatCell(canvas, sbRam, "GiB", x, y);
-        drawStatCell(canvas, sbRamPct, "%", x, y);
+        x = drawStatCell(canvas, sbRam, "GiB", x, y, 4);
+        drawStatCell(canvas, sbRamPct, "%", x, y, 3);
         y += rowH;
       }
       if (elements[EL_SWAP]) {
         float x = drawLabel(canvas, "SWP", C_RAM, y);
-        drawStatCell(canvas, sbSwap, "GiB", x, y);
+        drawStatCell(canvas, sbSwap, "GiB", x, y, 4);
         y += rowH;
       }
       if (elements[EL_NET]) {
         float x = drawLabel(canvas, "NET", C_NET, y);
-        x = drawStatCell(canvas, sbNetRx, "K↓", x, y);
-        drawStatCell(canvas, sbNetTx, "K↑", x, y);
+        x = drawStatCell(canvas, sbNetRx, "K↓", x, y, 4);
+        drawStatCell(canvas, sbNetTx, "K↑", x, y, 4);
         y += rowH;
       }
       if (elements[EL_BATTERY]) {
         float x = drawLabel(canvas, "BAT", C_BAT, y);
-        x = drawStatCell(canvas, sbBatPct, "%", x, y);
+        x = drawStatCell(canvas, sbBatPct, "%", x, y, 3);
         // Temp sits in the same column as the GPU/CPU temps.
-        x = drawStatCell(canvas, sbBatTemp, "°C", x, y);
-        drawStatCell(canvas, sbBatW, "W", x, y);
+        x = drawStatCell(canvas, sbBatTemp, "°C", x, y, 3);
+        drawStatCell(canvas, sbBatW, "W", x, y, 4);
         y += rowH;
       }
       {
-        float x = elements[EL_ENGINE]
-            ? drawLabel(canvas, engineName, C_ENGINE, y)
-            : pad + labelColW;
-        x = drawStatCell(canvas, sbFps, "FPS", x, y);
-        drawStatCell(canvas, sbMs, "ms", x, y);
+        float x;
+        if (elements[EL_ENGINE]) {
+          drawLabel(canvas, engineBase, C_ENGINE, y);
+          if (!engineVersion.isEmpty()) {
+            float vxs = pad + valuePaint.measureText(engineBase) + smallCharW * 0.3f;
+            drawOutlinedSmall(
+                canvas, engineVersion, 0, engineVersion.length(), vxs, y + baseline, C_ENGINE);
+          }
+          x = pad + fpsLabelColW;
+        } else {
+          x = pad + labelColW;
+        }
+        x = drawStatCell(canvas, sbFps, "FPS", x, y, 4);
+        drawStatCell(canvas, sbMs, "ms", x, y, 4);
         y += rowH;
       }
       if (elements[EL_LOWS]) {
         float x = drawLabel(canvas, "AVG", C_TEXT, y);
-        drawStatCell(canvas, sbAvg, "FPS", x, y);
+        drawStatCell(canvas, sbAvg, "FPS", x, y, 4);
         y += rowH;
         x = drawLabel(canvas, "1%", C_TEXT, y);
-        drawStatCell(canvas, sbLow1, "FPS", x, y);
+        drawStatCell(canvas, sbLow1, "FPS", x, y, 4);
         y += rowH;
         x = drawLabel(canvas, "0.1%", C_TEXT, y);
-        drawStatCell(canvas, sbLow01, "FPS", x, y);
+        drawStatCell(canvas, sbLow01, "FPS", x, y, 4);
         y += rowH;
       }
       if (elements[EL_RES] && !resolutionText.isEmpty()) {
@@ -1275,15 +1300,16 @@ public class MangoHudView extends View {
     return pad + labelColW;
   }
 
-  private float drawStatCell(Canvas canvas, StringBuilder value, String unit, float x, float rowTop) {
+  private float drawStatCell(
+      Canvas canvas, StringBuilder value, String unit, float x, float rowTop, int valueChars) {
     float y = rowTop + baseline;
-    float vx = x + charW * 4 - value.length() * charW;
+    float vx = x + charW * valueChars - value.length() * charW;
     outlinePaint.setTextSize(textSize);
     canvas.drawText(value, 0, value.length(), vx, y, outlinePaint);
     canvas.drawText(value, 0, value.length(), vx, y, valuePaint);
-    float ux = x + charW * 4 + smallCharW * 0.2f;
+    float ux = x + charW * valueChars + smallCharW * 0.1f;
     drawOutlinedSmall(canvas, unit, 0, unit.length(), ux, y, C_TEXT);
-    return x + statCellW(unit.length());
+    return x + statCellW(valueChars, unit.length());
   }
 
   private void drawOutlinedSmall(Canvas canvas, CharSequence text, int start, int end,

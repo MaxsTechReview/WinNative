@@ -772,7 +772,7 @@
     <string name="mango_hud_group_memory">メモリ</string>
     <string name="mango_hud_group_system">システム</string>
     <string name="mango_hud_lock">HUDをロック</string>
-    <string name="mango_hud_lock_subtitle">タッチをHUD背後のコントロールに通します。HUDを長押しするとロックします。 (3.5 sec)</string>
+    <string name="mango_hud_lock_subtitle">タッチをHUD背後のコントロールに通します。HUDを長押しするとロックします。 (5s)</string>
     <string name="hud_position_menu_title">HUD の移動先</string>
     <string name="hud_position_top_left">左上</string>
     <string name="hud_position_top_center">上中央</string>

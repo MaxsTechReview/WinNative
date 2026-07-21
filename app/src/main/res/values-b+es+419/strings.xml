@@ -772,7 +772,7 @@ Por ejemplo, <b>META</b> para la <i>tecla META</i>, \n
     <string name="mango_hud_group_memory">Memoria</string>
     <string name="mango_hud_group_system">Sistema</string>
     <string name="mango_hud_lock">Bloquear HUD</string>
-    <string name="mango_hud_lock_subtitle">Permite que los toques pasen a los controles detrás del HUD. Mantén pulsado el HUD para bloquearlo. (3.5 sec)</string>
+    <string name="mango_hud_lock_subtitle">Permite que los toques pasen a los controles detrás del HUD. Mantén pulsado el HUD para bloquearlo. (5s)</string>
     <string name="hud_position_menu_title">Mover HUD a</string>
     <string name="hud_position_top_left">Arriba a la izquierda</string>
     <string name="hud_position_top_center">Arriba al centro</string>

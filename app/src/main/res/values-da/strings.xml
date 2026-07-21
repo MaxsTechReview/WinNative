@@ -619,7 +619,7 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="mango_hud_group_memory">Hukommelse</string>
     <string name="mango_hud_group_system">System</string>
     <string name="mango_hud_lock">Lås HUD</string>
-    <string name="mango_hud_lock_subtitle">Lad berøringer gå videre til knapperne bag HUD\'et. Hold på HUD\'et for at låse det. (3.5 sec)</string>
+    <string name="mango_hud_lock_subtitle">Lad berøringer gå videre til knapperne bag HUD\'et. Hold på HUD\'et for at låse det. (5s)</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Vil du afslutte denne proces?</string>

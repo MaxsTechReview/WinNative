@@ -619,7 +619,7 @@ Z. B. <b>META</b> für <i>Meta-Taste</i>, \n
     <string name="mango_hud_group_memory">Speicher</string>
     <string name="mango_hud_group_system">System</string>
     <string name="mango_hud_lock">HUD sperren</string>
-    <string name="mango_hud_lock_subtitle">Berührungen gelangen zu den Steuerelementen hinter dem HUD. Halte das HUD gedrückt, um es zu sperren. (3.5 sec)</string>
+    <string name="mango_hud_lock_subtitle">Berührungen gelangen zu den Steuerelementen hinter dem HUD. Halte das HUD gedrückt, um es zu sperren. (5s)</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Möchtest du diesen Prozess beenden?</string>

@@ -692,7 +692,7 @@
     <string name="mango_hud_group_memory">मेमोरी</string>
     <string name="mango_hud_group_system">सिस्टम</string>
     <string name="mango_hud_lock">HUD लॉक करें</string>
-    <string name="mango_hud_lock_subtitle">स्पर्श HUD के पीछे के नियंत्रणों तक पहुँचें। लॉक करने के लिए HUD को दबाए रखें। (3.5 sec)</string>
+    <string name="mango_hud_lock_subtitle">स्पर्श HUD के पीछे के नियंत्रणों तक पहुँचें। लॉक करने के लिए HUD को दबाए रखें। (5s)</string>
     <string name="hud_position_menu_title">HUD को यहाँ ले जाएँ</string>
     <string name="hud_position_top_left">ऊपर बाएँ</string>
     <string name="hud_position_top_center">ऊपर केंद्र</string>

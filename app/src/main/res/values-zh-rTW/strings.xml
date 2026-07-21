@@ -619,7 +619,7 @@
     <string name="mango_hud_group_memory">記憶體</string>
     <string name="mango_hud_group_system">系統</string>
     <string name="mango_hud_lock">鎖定 HUD</string>
-    <string name="mango_hud_lock_subtitle">讓觸控穿透至 HUD 後方的控制項。長按 HUD 即可鎖定。 (3.5 sec)</string>
+    <string name="mango_hud_lock_subtitle">讓觸控穿透至 HUD 後方的控制項。長按 HUD 即可鎖定。 (5s)</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">您要結束此程序嗎？</string>

@@ -619,7 +619,7 @@
     <string name="mango_hud_group_memory">内存</string>
     <string name="mango_hud_group_system">系统</string>
     <string name="mango_hud_lock">锁定 HUD</string>
-    <string name="mango_hud_lock_subtitle">让触摸穿透到 HUD 后面的控件。长按 HUD 即可锁定。 (3.5 sec)</string>
+    <string name="mango_hud_lock_subtitle">让触摸穿透到 HUD 后面的控件。长按 HUD 即可锁定。 (5s)</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">您要结束此进程吗？</string>

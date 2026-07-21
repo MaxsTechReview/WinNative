@@ -619,7 +619,7 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="mango_hud_group_memory">Memória</string>
     <string name="mango_hud_group_system">Sistema</string>
     <string name="mango_hud_lock">Bloquear HUD</string>
-    <string name="mango_hud_lock_subtitle">Permite que os toques cheguem aos controles atrás do HUD. Segure o HUD para bloqueá-lo. (3.5 sec)</string>
+    <string name="mango_hud_lock_subtitle">Permite que os toques cheguem aos controles atrás do HUD. Segure o HUD para bloqueá-lo. (5s)</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Deseja encerrar este processo?</string>

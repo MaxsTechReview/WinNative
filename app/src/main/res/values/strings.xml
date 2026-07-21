@@ -773,7 +773,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="mango_hud_group_memory">Memory</string>
     <string name="mango_hud_group_system">System</string>
     <string name="mango_hud_lock">Lock HUD</string>
-    <string name="mango_hud_lock_subtitle">Let touches pass through to the controls behind the HUD. Press and hold the HUD to lock it. (3.5 sec)</string>
+    <string name="mango_hud_lock_subtitle">Let touches pass through to the controls behind the HUD. Press and hold the HUD to lock it. (5s)</string>
     <string name="hud_position_menu_title">Move HUD to</string>
     <string name="hud_position_top_left">Top Left</string>
     <string name="hud_position_top_center">Top Center</string>

@@ -619,7 +619,7 @@
     <string name="mango_hud_group_memory">메모리</string>
     <string name="mango_hud_group_system">시스템</string>
     <string name="mango_hud_lock">HUD 잠금</string>
-    <string name="mango_hud_lock_subtitle">터치가 HUD 뒤의 컨트롤로 전달됩니다. HUD를 길게 누르면 잠깁니다. (3.5 sec)</string>
+    <string name="mango_hud_lock_subtitle">터치가 HUD 뒤의 컨트롤로 전달됩니다. HUD를 길게 누르면 잠깁니다. (5s)</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">이 프로세스를 종료하시겠습니까?</string>

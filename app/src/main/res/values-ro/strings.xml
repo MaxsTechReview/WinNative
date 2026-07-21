@@ -619,7 +619,7 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="mango_hud_group_memory">Memorie</string>
     <string name="mango_hud_group_system">Sistem</string>
     <string name="mango_hud_lock">Blochează HUD</string>
-    <string name="mango_hud_lock_subtitle">Permite atingerilor să ajungă la comenzile din spatele HUD-ului. Ține apăsat HUD-ul pentru a-l bloca. (3.5 sec)</string>
+    <string name="mango_hud_lock_subtitle">Permite atingerilor să ajungă la comenzile din spatele HUD-ului. Ține apăsat HUD-ul pentru a-l bloca. (5s)</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Doresti sa opresti acest proces?</string>
