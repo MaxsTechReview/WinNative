@@ -157,6 +157,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">아트워크 가져오기</string>
+    <string name="library_games_scraping_artwork">가져오는 중</string>
     <string name="library_games_shortcut_created">바로가기가 생성되었습니다</string>
     <string name="library_games_failed_to_create_shortcut">바로가기 생성 실패: %s</string>
     <string name="library_games_install_path">설치 경로</string>
@@ -505,9 +507,12 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">FEXCore 프리셋</string>
     <string name="container_fexcore_version">FEXCore 버전</string>
+    <string name="use_unix_libs">UnixLibs 사용</string>
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">그래픽 드라이버</string>
+    <string name="container_graphics_transcoder">BCn 트랜스코더</string>
+    <string name="container_graphics_quality">BCn 품질</string>
     <string name="container_graphics_configuration">그래픽 드라이버 구성</string>
     <string name="container_graphics_version">그래픽 드라이버 버전</string>
     <string name="container_graphics_available_extensions">사용 가능한 확장</string>
@@ -588,6 +593,33 @@
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">배터리</string>
     <string name="session_drawer_hud_element_graph">그래프</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">Mango 스타일 HUD</string>
+    <string name="session_drawer_hud_mango_settings">Mango HUD 설정</string>
+    <string name="mango_hud_element_gpu_load">GPU 부하</string>
+    <string name="mango_hud_element_gpu_temp">GPU 온도</string>
+    <string name="mango_hud_element_cpu_load">CPU 부하</string>
+    <string name="mango_hud_element_cpu_temp">CPU 온도</string>
+    <string name="mango_hud_element_ram">RAM</string>
+    <string name="mango_hud_element_battery">배터리</string>
+    <string name="mango_hud_element_lows" formatted="false">1% 최저</string>
+    <string name="mango_hud_element_graph">프레임타임 그래프</string>
+    <string name="mango_hud_element_engine">엔진</string>
+    <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">CPU 클럭</string>
+    <string name="mango_hud_element_gpu_clock">GPU 클럭</string>
+    <string name="mango_hud_element_cores">코어별</string>
+    <string name="mango_hud_element_network">네트워크</string>
+    <string name="mango_hud_element_swap">스왑</string>
+    <string name="mango_hud_element_resolution">해상도</string>
+    <string name="mango_hud_element_wine">Wine 버전</string>
+    <string name="mango_hud_element_duration">세션 시간</string>
+    <string name="mango_hud_element_clock">시계</string>
+    <string name="mango_hud_element_throttle">스로틀 상태</string>
+    <string name="mango_hud_group_memory">메모리</string>
+    <string name="mango_hud_group_system">시스템</string>
+    <string name="mango_hud_lock">HUD 잠금</string>
+    <string name="mango_hud_lock_subtitle">터치가 HUD 뒤의 컨트롤로 전달됩니다. HUD를 길게 누르면 잠깁니다. (5s)</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">이 프로세스를 종료하시겠습니까?</string>
@@ -730,6 +762,7 @@
     <string name="settings_general_select_wallpaper">배경화면 선택</string>
     <string name="settings_general_title">일반</string>
     <string name="settings_general_enable_file_provider">파일 제공자 활성화</string>
+    <string name="settings_general_enable_auto_scraping">자동 아트워크 가져오기 활성화</string>
     <string name="settings_general_take_effect_next_startup">이 옵션은 다음 시작 시 적용됩니다.</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Imagefs 재설치</string>
@@ -753,6 +786,7 @@
     <string name="settings_general_xinput_toggle_summary">마우스와 키보드만 사용하려는 경우 XInput 처리를 끕니다.</string>
     <string name="settings_external_display_output_summary">이 화면을 미러링하는 대신 연결된 외부 디스플레이로 게임을 옮깁니다. 안경은 항상 자체 디스플레이를 사용합니다.</string>
     <string name="settings_general_file_provider_summary">Android 문서 선택기 및 파일 관리자에 WinNative 파일을 노출합니다.</string>
+    <string name="settings_general_auto_scraping_summary">WinNative가 사용자 지정 게임 아트워크를 자동으로 가져올 수 있도록 합니다.</string>
     <string name="settings_general_open_browser_summary">지원되는 웹 링크를 Wine 내부 대신 Android 브라우저에서 엽니다.</string>
     <string name="settings_general_clipboard_summary">Android와 Wine 세션 간에 복사 및 붙여넣기를 허용합니다.</string>
     <string name="settings_general_imagefs_summary">기존 컨테이너를 제거하지 않고 번들된 시스템 파일을 복원합니다.</string>
@@ -822,6 +856,8 @@
 
     <string name="settings_other_language_title">언어</string>
     <string name="settings_other_language_summary">표시 언어 선택</string>
+    <string name="settings_other_game_language_title">게임 언어</string>
+    <string name="settings_other_game_language_summary">Steam/Epic/GOG 다운로드에 사용할 기본 언어</string>
     <string name="settings_other_language_system_default">시스템 기본값</string>
 
     <string name="settings_other_section_integration">통합</string>
@@ -1064,7 +1100,10 @@
     <!-- Missing translations -->
     <string name="common_ui_graphics">그래픽</string>
     <string name="steam_section_title">Steam</string>
+    <string name="binding_primary">기본 바인딩</string>
     <string name="binding_secondary">보조 바인딩</string>
+    <string name="binding_third">세 번째 바인딩</string>
+    <string name="binding_fourth">네 번째 바인딩</string>
     <string name="input_controls_editor_tap_to_switch">탭하여 전환</string>
     <string name="input_controls_editor_download_profile">프로필 다운로드</string>
     <string name="container_config_emulator_section">에뮬레이터</string>
@@ -1174,6 +1213,9 @@
     <string name="cloud_saves_history_restore_success">백업에서 저장 파일을 복원했습니다.</string>
     <string name="cloud_saves_history_sign_in">Google에 로그인하여 저장 기록을 확인하세요.</string>
     <string name="cloud_saves_history_title">저장 기록</string>
+    <string name="cloud_saves_history_download">다운로드</string>
+    <string name="cloud_saves_history_download_success">파일을 다운로드했습니다.</string>
+    <string name="cloud_saves_history_download_failed">다운로드 실패.</string>
     <string name="cloud_saves_keep_replaced_backup">교체된 저장 파일의 백업 유지</string>
     <string name="cloud_saves_keep_replaced_backup_summary">마음이 바뀌면 저장 기록에서 복원할 수 있습니다.</string>
     <string name="cloud_saves_no_backups">이 게임의 백업이 아직 없습니다.</string>
@@ -1226,6 +1268,7 @@
     <string name="input_controls_editor_radial_menu">방사형 메뉴</string>
     <string name="input_controls_editor_radial_menu_options">방사형 메뉴 옵션</string>
     <string name="input_controls_tap_to_click">탭하여 클릭</string>
+    <string name="input_controls_reverse_binding_order">바인딩 순서 반대로</string>
     <string name="num_controllers">컨트롤러 수</string>
     <string name="session_drawer_controls_section">컨트롤</string>
     <string name="session_drawer_header_subtitle">컨트롤, 오버레이 및 세션 도구 빠른 접근</string>
@@ -1246,16 +1289,12 @@
     <string name="session_gyroscope_mouse_sensitivity_format">마우스 배율: %1$d%%</string>
     <string name="settings_other_setup_wizard_summary">설정 마법사를 다시 열어 권한, 시스템 파일 및 기본 컨테이너를 검토하세요.</string>
     <string name="settings_other_setup_wizard_title">설정 마법사</string>
-    <string name="shortcuts_library_artwork_carousel_title">캐러셀 이미지</string>
-    <string name="shortcuts_library_artwork_change">이미지 변경</string>
     <string name="shortcuts_library_artwork_failed">선택한 이미지를 불러오지 못했습니다.</string>
-    <string name="shortcuts_library_artwork_game_card_title">게임 카드 이미지</string>
-    <string name="shortcuts_library_artwork_grid_title">그리드 이미지</string>
-    <string name="shortcuts_library_artwork_list_title">목록 이미지</string>
     <string name="shortcuts_library_artwork_open_source">SteamGridDB 열기</string>
-    <string name="shortcuts_library_artwork_selected">선택됨: %1$s</string>
     <string name="shortcuts_library_artwork_set">이미지 설정</string>
     <string name="shortcuts_library_artwork_title">라이브러리 아트워크</string>
+    <string name="shortcuts_library_artwork_icon_title">아이콘 이미지</string>
+    <string name="shortcuts_library_artwork_hero_title">배경</string>
     <string name="shortcuts_list_readded_existing">기존 바로가기를 다시 추가했습니다</string>
     <string name="shortcuts_properties_runtime_patcher">런타임 DRM 패처</string>
     <string name="shortcuts_properties_runtime_patcher_description">실행 시 DRM 패처 DLL을 주입합니다. FPS가 저하되므로 Legacy Launcher만으로 실패할 때만 사용하세요.</string>
@@ -1293,12 +1332,16 @@
     <string name="steam_section_emulator">레거시 Steam 에뮬레이터</string>
     <string name="shortcuts_properties_steam_offline_mode_description">에뮬레이트된 Steam 클라이언트가 오프라인으로 표시되게 하여 게임이 온라인 연결을 시도하지 않도록 합니다. Steam 네트워크 확인에서 멈추는 게임에 사용하세요.</string>
     <string name="input_controls_select_style">스타일 선택</string>
-    <string name="input_controls_select_label_theme">버튼 레이블</string>
     <string name="input_controls_style_original">원본</string>
     <string name="input_controls_style_gamehub">Glass</string>
-    <string name="input_controls_label_theme_default">원본</string>
-    <string name="input_controls_label_theme_xbox">Xbox</string>
-    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_style_slate">슬레이트</string>
+    <string name="input_controls_style_halo">헤일로</string>
+    <string name="input_controls_style_glint">글린트</string>
+    <string name="input_controls_style_shadow">섀도우</string>
+    <string name="input_controls_style_reticle">레티클</string>
+    <string name="input_controls_style_neon">네온</string>
+    <string name="input_controls_style_lumina">루미나</string>
+    <string name="input_controls_accent_theme">색상 테마</string>
     <string name="input_controls_edit_duplicating_builtin">기본 제공 프로필입니다. 편집할 수 있는 복사본을 만들었습니다.</string>
     <string name="input_controls_editor_confirm_reset_profile">이 프로필을 원래 레이아웃으로 초기화할까요? 변경 사항이 모두 손실됩니다.</string>
     <string name="input_controls_editor_profile_reset">프로필이 원래 레이아웃으로 초기화되었습니다.</string>
@@ -1359,6 +1402,7 @@
     <string name="steam_friends_section_online">온라인 (%1$d)</string>
     <string name="steam_friends_section_offline">오프라인 (%1$d)</string>
     <string name="steam_friends_none_loaded">아직 불러온 친구가 없습니다.</string>
+    <string name="steam_friends_chat_off">채팅이 꺼져 있습니다. 친구를 보려면 채팅 서비스를 다시 켜세요.</string>
     <string name="steam_friends_self_you">나</string>
     <string name="steam_friends_in_game">게임 중</string>
     <string name="steam_friends_join">참가</string>
@@ -1384,6 +1428,8 @@
     <string name="steam_join_the_game">게임</string>
     <string name="steam_friends_settings">Settings</string>
     <string name="steam_chat_settings_title">Chat Settings</string>
+    <string name="steam_chat_setting_service">채팅 서비스</string>
+    <string name="steam_chat_setting_service_desc">로그인하여 친구와 채팅하세요. 끄면 오프라인으로 전환됩니다.</string>
     <string name="steam_chat_setting_notifications">Chat Notifications</string>
     <string name="steam_chat_setting_notifications_desc">Show a notification when you receive a message</string>
     <string name="steam_chat_setting_heads">Chat Heads</string>
@@ -1513,7 +1559,7 @@
     <string name="session_drawer_hud_background">배경</string>
     <string name="session_drawer_hud_background_alpha">배경 알파</string>
     <string name="session_drawer_hud_background_alpha_input_title">배경 알파 설정</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">크기 조정</string>
     <string name="session_task_bring_to_front">앞으로 가져오기</string>
     <string name="session_task_custom_value">사용자 지정 값</string>
@@ -1556,5 +1602,6 @@
     <string name="session_record_started">녹화 시작됨</string>
     <string name="steam_chat_setting_stay_running">백그라운드에서 실행</string>
     <string name="steam_chat_setting_stay_running_desc">WinNative를 종료한 후에도 채팅 유지</string>
+    <string name="settings_content_refresh">새로고침</string>
 </resources>
 

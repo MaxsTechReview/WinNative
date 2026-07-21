@@ -565,6 +565,8 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
     private val advancedProfiles = mutableStateListOf<RemotePackageSpec>()
     private val advancedInstalledSet = mutableStateListOf<String>()
     private val advancedContainerNames = mutableStateListOf<String>()
+    private val advancedSizeCache = mutableStateMapOf<String, Long>()
+    private val advancedSizeFetchesInFlight = mutableSetOf<String>()
 
     private enum class QueueItemStatus { QUEUED, ACTIVE, FAILED }
 
@@ -1238,6 +1240,26 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             refreshAdvancedInstalledSet()
         }
     }
+
+    private fun fetchAdvancedSizes(specs: List<RemotePackageSpec>) {
+        val urls =
+            specs
+                .map { it.remoteUrl }
+                .filter { it.isNotEmpty() && it !in advancedSizeCache && it !in advancedSizeFetchesInFlight }
+                .distinct()
+        if (urls.isEmpty()) return
+        advancedSizeFetchesInFlight.addAll(urls)
+        urls.forEach { url ->
+            lifecycleScope.launch {
+                val size = withContext(Dispatchers.IO) { Downloader.fetchContentLength(url) }
+                advancedSizeFetchesInFlight.remove(url)
+                if (size > 0L) advancedSizeCache[url] = size
+            }
+        }
+    }
+
+    private fun formatSizeMb(bytes: Long): String =
+        String.format(java.util.Locale.US, "%.1f MB", bytes.toDouble() / (1024.0 * 1024.0))
 
     private fun getFallbackRemoteSpecs(): List<RemotePackageSpec> =
         buildList {
@@ -2452,6 +2474,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                                 LaunchedEffect(selectedTab, tabProfiles.size, installAllSlots) {
                                     setContentLayout(tabProfiles.size + installAllSlots, 1)
                                 }
+                                LaunchedEffect(tabProfiles) { fetchAdvancedSizes(tabProfiles) }
                                 LaunchedEffect(region, navIdx) {
                                     if (region == REGION_CONTENT) runCatching { listState.scrollToSelected(navIdx) }
                                 }
@@ -2563,6 +2586,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                                             enabled = !installed,
                                             recommended = isRecommendedSpec(spec),
                                             status = queueStatus[spec.remoteUrl],
+                                            sizeBytes = advancedSizeCache[spec.remoteUrl],
                                         )
                                     }
                                 }
@@ -2691,6 +2715,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         recommended: Boolean = false,
         status: QueueItemStatus? = null,
         highlighted: Boolean = false,
+        sizeBytes: Long? = null,
     ) {
         val turquoise = Color(0xFF57CBDE)
         val completedTurquoise = Color(0xFF3FAFBE)
@@ -2735,6 +2760,16 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                             fontSize = 9.sp,
                             letterSpacing = 0.5.sp,
                         )
+                        sizeBytes?.takeIf { it > 0L }?.let { bytes ->
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = formatSizeMb(bytes),
+                                color = Color(0xFF8B949E),
+                                fontFamily = InterFont,
+                                fontSize = 9.sp,
+                                maxLines = 1,
+                            )
+                        }
                     }
                     Spacer(Modifier.height(3.dp))
                 }
@@ -2744,9 +2779,22 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     fontFamily = InterFont,
                     fontWeight = FontWeight.Medium,
                     fontSize = 12.sp,
+                    lineHeight = 14.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                if (!recommended) {
+                    sizeBytes?.takeIf { it > 0L }?.let { bytes ->
+                        Text(
+                            text = formatSizeMb(bytes),
+                            color = Color(0xFF8B949E),
+                            fontFamily = InterFont,
+                            fontSize = 9.sp,
+                            lineHeight = 10.sp,
+                            maxLines = 1,
+                        )
+                    }
+                }
             }
             Spacer(Modifier.width(8.dp))
             when {

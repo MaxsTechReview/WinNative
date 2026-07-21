@@ -21,6 +21,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.util.Log;
 import android.view.InputDevice;
 import android.view.KeyEvent;
@@ -126,7 +127,7 @@ import com.winlator.cmod.runtime.input.controls.ExternalController;
 import com.winlator.cmod.runtime.input.controls.GestureProfile;
 import com.winlator.cmod.runtime.input.controls.GestureProfileManager;
 import com.winlator.cmod.runtime.input.controls.InputControlsManager;
-import com.winlator.cmod.runtime.input.controls.LabelTheme;
+import com.winlator.cmod.runtime.input.controls.AccentTheme;
 import com.winlator.cmod.runtime.input.controls.VisualStyle;
 import com.winlator.cmod.shared.math.Mathf;
 import com.winlator.cmod.shared.math.XForm;
@@ -135,6 +136,7 @@ import com.winlator.cmod.runtime.audio.midi.MidiManager;
 import com.winlator.cmod.runtime.display.renderer.VulkanRenderer;
 import com.winlator.cmod.runtime.display.ui.FrameRating;
 import com.winlator.cmod.runtime.display.ui.MagnifierView;
+import com.winlator.cmod.runtime.display.ui.MangoHudView;
 import com.winlator.cmod.runtime.display.ui.XServerSurfaceView;
 import com.winlator.cmod.shared.android.FixedFontScaleAppCompatActivity;
 import com.winlator.cmod.runtime.input.ui.InputControlsView;
@@ -191,6 +193,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import cn.sherlock.com.sun.media.sound.SF2Soundbank;
+import static com.winlator.cmod.runtime.display.XServerDisplayUtils.*;
 
 public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private static final long STEAM_TERMINATION_GRACE_MS = 10000L;
@@ -258,6 +261,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean controllerAutoHidden = false;
     private boolean userOverrodeAutoHide = false;
     private XEnvironment environment;
+    private com.winlator.cmod.runtime.display.environment.AudioFocusHandler audioFocusHandler;
     private ComposeView displayHostComposeView;
     private FrameLayout xServerDisplayFrame;
     private ContainerManager containerManager;
@@ -268,6 +272,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private int currentGestureProfileId = 0;
     private ImageFs imageFs;
     private FrameRating frameRating = null;
+    private MangoHudView mangoHud = null;
     private boolean effectiveShowFPS = false;
     // Phone gauge HUD (Compose host) shown with touch controls disabled while a physical controller + external display are active.
     private boolean controllerHudMode = false;
@@ -297,6 +302,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean isPointerCaptureForcedOff = false;
     private boolean isVolumeUpPressed = false;
     private boolean isVolumeDownPressed = false;
+    private boolean guideHoldPending = false;
+    private long guideMenuOpenedAt = 0L;
+    private static final long GUIDE_HOLD_OPEN_MS = 450L;
+    private static final long GUIDE_HOLD_TAIL_MS = 1200L;
+    private final Runnable guideHoldOpenRunnable = new Runnable() {
+        @Override
+        public void run() {
+            guideHoldPending = false;
+            if (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen()) {
+                guideMenuOpenedAt = SystemClock.uptimeMillis();
+                openDrawerMenu();
+            }
+        }
+    };
     private OnExtractFileListener onExtractFileListener;
     private WinHandler winHandler;
     private WineRequestHandler wineRequestHandler;
@@ -306,6 +325,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private com.winlator.cmod.runtime.system.SessionLogWriter sessionLogWriter;
     private int taskAffinityMask = 0;
     private int taskAffinityMaskWoW64 = 0;
+    private final HashSet<Integer> guestAffinityCheckedPids = new HashSet<>();
+    private volatile boolean serviceAffinityStarted = false;
+    private static final String[] SERVICE_AFFINITY_PROCESSES = {
+        "services.exe", "rpcss.exe", "svchost.exe", "winedevice.exe",
+        "plugplay.exe", "conhost.exe", "start.exe"
+    };
+    private static final String[] SHELL_AFFINITY_PROCESSES = {
+        "explorer.exe", "steamwebhelper.exe"
+    };
     private int frameRatingWindowId = -1;
     private android.net.wifi.WifiManager.MulticastLock multicastLock;
     private final float[] xform = XForm.getInstance();
@@ -402,7 +430,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean hudBackgroundAlphaDecoupled = false;
     private float hudBackgroundTransparency = 1.0f;
     private float hudScale = 1.0f;
-    private boolean[] hudElements = new boolean[]{true, true, true, true, true, true, true, true};
+    private boolean[] hudElements = new boolean[]{true, true, true, true, true, true, true, true, false};
     private boolean dualSeriesBattery = false;
     private boolean frametimeNumericMode = false;
     private boolean hudCardExpanded = false;
@@ -439,7 +467,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private final ArrayList<TaskManagerProcess> taskManagerAccum = new ArrayList<>();
     private boolean taskManagerCpuExpanded = false;
     private boolean taskManagerPaneVisible = false;
-    private short[] cachedMaxClockSpeeds;
+    private CPUStatus.AppCpuSample prevTaskCpuSample;
     private boolean drawerEdgeGesturePossible = false;
     private float drawerEdgeGestureStartX = 0f;
     private float drawerEdgeGestureStartY = 0f;
@@ -610,7 +638,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private int getRefreshRateOverride() {
         int perGameRate = getPerGameRefreshRateOverride();
-        return perGameRate > 0 ? perGameRate : getGlobalRefreshRateOverride();
+        if (perGameRate > 0) return perGameRate;
+        int containerRate = getContainerRefreshRateOverride();
+        return containerRate > 0 ? containerRate : getGlobalRefreshRateOverride();
     }
 
     private int getPerGameRefreshRateOverride() {
@@ -618,22 +648,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return parsePositiveInt(shortcut.getExtra("refreshRate", ""));
     }
 
+    private int getContainerRefreshRateOverride() {
+        if (container == null) return 0;
+        return parsePositiveInt(container.getExtra("refreshRate", ""));
+    }
+
     private int getGlobalRefreshRateOverride() {
         if (preferences == null) return 0;
         return Math.max(0, preferences.getInt("refresh_rate_override", 0));
-    }
-
-    private int getDxvkFrameRateOverride() {
-        int perGameRate = getPerGameRefreshRateOverride();
-        if (perGameRate > 0) {
-            return perGameRate;
-        }
-
-        int globalRate = getGlobalRefreshRateOverride();
-        if (globalRate > 0) {
-            return globalRate;
-        }
-        return 0;
     }
 
     private int parsePositiveInt(String value) {
@@ -969,6 +991,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         isDarkMode = preferences.getBoolean("dark_mode", false);
         isTapToClickEnabled = true;
+        // Force the touchscreen-controls overlay on at each session start (profile default stays none).
+        preferences.edit().putBoolean("show_touchscreen_controls_enabled", true).apply();
         boolean isOpenWithAndroidBrowser = preferences.getBoolean("open_with_android_browser", false);
         boolean isShareAndroidClipboard = preferences.getBoolean("share_android_clipboard", false);
 
@@ -1075,11 +1099,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         GuestProgramLauncherComponent.ensureImageFsNativeLibrary(this, imageFs, "libfakeinput.so");
         GuestProgramLauncherComponent.ensureImageFsNativeLibrary(this, imageFs, "libandroid-sysvshm.so");
         File devInputDir = new File(imageFs.getRootDir(), "dev/input");
+        boolean reattachingLiveSession = SessionKeepAliveService.isSessionActive()
+                && SessionKeepAliveService.getActiveEnvironment() != null
+                && SessionKeepAliveService.getActiveXServer() != null;
         if (devInputDir.exists() || devInputDir.mkdirs()) {
-            for (int i = 0; i < 4; i++) {
-                File eventFile = new File(devInputDir, "event" + i);
-                if (eventFile.exists()) {
-                    eventFile.delete();
+            // On reattach the running guest still holds these nodes; deleting them breaks its live input mapping.
+            if (!reattachingLiveSession) {
+                for (int i = 0; i < 4; i++) {
+                    File eventFile = new File(devInputDir, "event" + i);
+                    if (eventFile.exists()) {
+                        eventFile.delete();
+                    }
                 }
             }
         }
@@ -1217,7 +1247,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         boolean recordToFile = preferences.getBoolean("hud_record_to_file", false);
         perfController = new SessionRecordingController(this);
-        perfController.start(shortcut, container, recordToFile);
+        // Only sample per-frame stats when recording to file is on; nothing else consumes them.
+        if (recordToFile) perfController.start(shortcut, container, recordToFile);
 
         int numControllers = 1;
         if (shortcut != null) {
@@ -1524,7 +1555,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         cachedPreloaderSubtitle = container != null ? container.getName() : "";
         showLaunchPreloader(getString(R.string.preloader_initializing));
 
-        if (preferences.getBoolean("enable_background_session", false)) {
+        // Dependency-install sessions must not become background/reattachable sessions.
+        if (!isDependencyInstall && preferences.getBoolean("enable_background_session", false)) {
             SessionKeepAliveService.startSession(this);
         }
 
@@ -1582,6 +1614,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             @Override
             public void onMapWindow(Window window) {
                 assignTaskAffinity(window);
+                pinServiceAffinity();
                 if ((effectiveShowFPS || controllerHudMode) && frameRating != null) {
                     syncFrameRatingWithExistingWindows();
                 }
@@ -1596,6 +1629,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             public void onFramePresented(Window window, WindowManager.FrameSource source, int serial) {
                 if (shouldRecordFpsFrame(window, source)) {
                     frameRating.recordGameFrame(source == WindowManager.FrameSource.PRESENT, serial);
+                    if (mangoHud != null) mangoHud.recordGameFrame(source == WindowManager.FrameSource.PRESENT);
                 }
             }
 
@@ -2318,11 +2352,23 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private int[] getCapturedPointerDelta(MotionEvent event) {
-        float dx = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
-        float dy = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
+        // Sum batched samples; skipping history drops movement at low refresh rates.
+        final int historySize = event.getHistorySize();
+        float dx = 0.0f;
+        float dy = 0.0f;
+        for (int i = 0; i < historySize; i++) {
+            dx += event.getHistoricalAxisValue(MotionEvent.AXIS_RELATIVE_X, i);
+            dy += event.getHistoricalAxisValue(MotionEvent.AXIS_RELATIVE_Y, i);
+        }
+        dx += event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
+        dy += event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
         if (dx == 0.0f && dy == 0.0f) {
-            dx = event.getX();
-            dy = event.getY();
+            for (int i = 0; i < historySize; i++) {
+                dx += event.getHistoricalX(i);
+                dy += event.getHistoricalY(i);
+            }
+            dx += event.getX();
+            dy += event.getY();
         }
         dx *= globalCursorSpeed;
         dy *= globalCursorSpeed;
@@ -2330,6 +2376,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 (int)(xform[0] * dx + xform[2] * dy),
                 (int)(xform[1] * dx + xform[3] * dy)
         };
+    }
+
+    private void ensureAudioFocusHandler() {
+        if (audioFocusHandler != null) return;
+        audioFocusHandler =
+                new com.winlator.cmod.runtime.display.environment.AudioFocusHandler(
+                        this,
+                        () -> { if (environment != null) environment.onPause(); },
+                        () -> { if (environment != null) environment.onResume(); });
     }
 
     @Override
@@ -2344,6 +2399,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (!cleaningUp && environment != null) {
             xServerView.onResume();
             environment.onResume();
+            ensureAudioFocusHandler();
+            if (audioFocusHandler != null) audioFocusHandler.request();
         }
 
         if (inputControlsView != null && touchpadView != null) {
@@ -2374,6 +2431,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         super.onPause();
         isVolumeUpPressed = false;
         isVolumeDownPressed = false;
+        guideHoldPending = false;
+        handler.removeCallbacks(guideHoldOpenRunnable);
         boolean gyroEnabled = preferences.getBoolean("gyro_enabled", false);
 
         if (gyroEnabled) {
@@ -3087,30 +3146,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         onComplete.run();
     }
 
-    private interface ExitUploadAction {
-        void start(ExitUploadCallback callback);
-    }
-
-    private interface ExitUploadCallback {
-        void onComplete(ExitUploadResult result);
-    }
-
-    private interface ExitUploadBlockingAction {
-        ExitUploadResult run() throws Exception;
-    }
-
-    private static final class ExitUploadResult {
-        final boolean success;
-        @NonNull final String message;
-        final boolean retryable;
-
-        ExitUploadResult(boolean success, @Nullable String message, boolean retryable) {
-            this.success = success;
-            this.message = message == null ? "" : message;
-            this.retryable = retryable;
-        }
-    }
-
     private void runExitUploadWithRetries(
             String uploadName,
             String retryStatusMessage,
@@ -3236,6 +3271,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         SteamExitCloudSync.syncOnExit(
                                 this,
                                 shortcut,
+                                container,
                                 text -> preloaderDialog.showOnUiThread(text),
                                 result ->
                                         callback.onComplete(
@@ -3529,32 +3565,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
-    // Builds a WINEDEBUG value enabling only the chosen message classes on the
-    // chosen channels. "-all" first zeroes every class so unchosen ones (notably
-    // trace) stay off, then each "class+channel" turns one class on.
-    private static String buildWineDebug(String classesCsv, String channelsCsv) {
-        java.util.List<String> classes = splitCsv(classesCsv);
-        java.util.List<String> channels = splitCsv(channelsCsv);
-        if (classes.isEmpty() || channels.isEmpty()) return "-all";
-        StringBuilder sb = new StringBuilder("-all");
-        for (String channel : channels) {
-            for (String cls : classes) {
-                sb.append(',').append(cls).append('+').append(channel);
-            }
-        }
-        return sb.toString();
-    }
-
-    private static java.util.List<String> splitCsv(String value) {
-        java.util.List<String> out = new java.util.ArrayList<>();
-        if (value == null) return out;
-        for (String part : value.split(",")) {
-            String token = part.trim();
-            if (!token.isEmpty()) out.add(token);
-        }
-        return out;
-    }
-
     private void scrubPlanWBridgeFilesForNextSession() {
         if (container == null) return;
         try {
@@ -3702,25 +3712,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         } catch (Exception ignored) {}
     }
 
-    private static boolean isSteamExeRunning() {
-        for (String detail : ProcessHelper.listRunningWineProcessDetails()) {
-            if (detail.toLowerCase().contains("steam.exe")) return true;
-        }
-        return false;
-    }
-
-    private static boolean wnLauncherLogContains(File log, String marker) {
-        if (log == null || !log.isFile()) return false;
-        try (java.io.BufferedReader reader = new java.io.BufferedReader(
-                new java.io.InputStreamReader(new java.io.FileInputStream(log)))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (line.contains(marker)) return true;
-            }
-        } catch (Exception ignored) {}
-        return false;
-    }
-
     @Override
     protected void onDestroy() {
         activityDestroyed.set(true);
@@ -3738,6 +3729,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (externalDisplayController != null) {
             externalDisplayController.release();
             externalDisplayController = null;
+        }
+        if (audioFocusHandler != null) {
+            audioFocusHandler.release();
+            audioFocusHandler = null;
         }
         if (isDependencyInstall) {
             com.winlator.cmod.runtime.content.component.DependencyInstallBridge.complete(dependencyExitStatus);
@@ -3933,19 +3928,27 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         ArrayList<String> styleNames = new ArrayList<>();
-        styleNames.add(getString(R.string.input_controls_style_original));
-        styleNames.add(getString(R.string.input_controls_style_gamehub));
+        if (activeProfile != null) {
+            styleNames.add(getString(R.string.input_controls_style_slate));
+            styleNames.add(getString(R.string.input_controls_style_gamehub));
+            styleNames.add(getString(R.string.input_controls_style_halo));
+            styleNames.add(getString(R.string.input_controls_style_glint));
+            styleNames.add(getString(R.string.input_controls_style_shadow));
+            styleNames.add(getString(R.string.input_controls_style_reticle));
+            styleNames.add(getString(R.string.input_controls_style_neon));
+            styleNames.add(getString(R.string.input_controls_style_lumina));
+            styleNames.add(getString(R.string.input_controls_style_original));
+        }
         VisualStyle currentStyle = inputControlsView != null && inputControlsView.getVisualStyle() != null
-                ? inputControlsView.getVisualStyle() : VisualStyle.ORIGINAL;
+                ? inputControlsView.getVisualStyle() : VisualStyle.SLATE;
         int selectedStyleIndex = currentStyle.ordinal();
 
-        ArrayList<String> labelThemeNames = new ArrayList<>();
-        labelThemeNames.add(getString(R.string.input_controls_label_theme_default));
-        labelThemeNames.add(getString(R.string.input_controls_label_theme_xbox));
-        labelThemeNames.add(getString(R.string.input_controls_label_theme_playstation));
-        LabelTheme currentLabelTheme = inputControlsView != null && inputControlsView.getLabelTheme() != null
-                ? inputControlsView.getLabelTheme() : LabelTheme.DEFAULT;
-        int selectedLabelThemeIndex = currentLabelTheme.ordinal();
+        ArrayList<String> accentThemeNames = new ArrayList<>();
+        int selectedAccentThemeIndex = 0;
+        if (activeProfile != null && inputControlsView != null) {
+            accentThemeNames.addAll(Arrays.asList(AccentTheme.displayNames()));
+            selectedAccentThemeIndex = inputControlsView.getAccentTheme().ordinal();
+        }
 
         List<String> gestureProfileNames = new ArrayList<>();
         int gestureSelectedIndex = 0;
@@ -3969,7 +3972,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 hudBackgroundAlphaDecoupled,
                 hudBackgroundTransparency,
                 hudScale,
-                hudElements,
+                // Fresh array each build so a toggled HUD element yields a changed state and the chips recompose.
+                hudElements.clone(),
                 dualSeriesBattery,
                 frametimeNumericMode,
                 hudCardExpanded,
@@ -4012,8 +4016,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 inputSelectedIndex,
                 styleNames,
                 selectedStyleIndex,
-                labelThemeNames,
-                selectedLabelThemeIndex,
+                accentThemeNames,
+                selectedAccentThemeIndex,
                 preferences.getBoolean("show_touchscreen_controls_enabled", false),
                 isTapToClickEnabled,
                 preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY),
@@ -4022,6 +4026,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 preferences.getString(
                     com.winlator.cmod.runtime.input.rumble.GcmRumbleMode.PREF_KEY,
                     com.winlator.cmod.runtime.input.rumble.GcmRumbleMode.DISABLED.toPrefValue()),
+                preferences.getBoolean("reverse_binding_order", false),
                 globalCursorSpeed,
                 xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen(),
                 RefreshRateUtils.getMaxSupportedRefreshRate(this),
@@ -4033,7 +4038,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 gestureProfileNames,
                 gestureSelectedIndex,
                 preferences.getFloat("right_stick_sensitivity", 1.0f),
-                preferences.getFloat("screen_touch_rs_sensitivity", 1.25f)
+                preferences.getFloat("screen_touch_rs_sensitivity", 1.25f),
+                preferences.getBoolean(MangoHudView.PREF_ENABLED, false),
+                MangoHudView.elementsFromPrefs(preferences),
+                MangoHudView.alphaFromPrefs(preferences),
+                MangoHudView.bgAlphaFromPrefs(preferences),
+                MangoHudView.scaleFromPrefs(preferences),
+                MangoHudView.lockedFromPrefs(preferences)
         );
 
         // Always-present "Output" tab (live controls while swapped, otherwise a Cast entry point).
@@ -4142,6 +4153,58 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         preferences.edit().putBoolean(FrameRating.PREF_HUD_FRAMETIME_NUMERIC, enabled).apply();
                         if (frameRating != null) frameRating.setFrametimeNumericMode(enabled);
                         renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onMangoHudChanged(boolean enabled) {
+                        preferences.edit().putBoolean(MangoHudView.PREF_ENABLED, enabled).apply();
+                        if (enabled && mangoHud == null && xServerDisplayFrame != null) {
+                            mangoHud = new MangoHudView(XServerDisplayActivity.this);
+                            xServerDisplayFrame.addView(mangoHud);
+                        }
+                        if (mangoHud != null) {
+                            mangoHud.setEngineName(mangoEngineLabel());
+                            mangoHud.setSessionInfo(
+                                    xServer != null ? xServer.screenInfo.width + "x" + xServer.screenInfo.height : null,
+                                    wineInfo != null ? String.valueOf(wineInfo) : null);
+                            mangoHud.setHudVisible(enabled);
+                        }
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onMangoHudElementToggled(int index, boolean enabled) {
+                        MangoHudView.saveElement(preferences, index, enabled);
+                        if (mangoHud != null) mangoHud.setElementEnabled(index, enabled);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onMangoHudAlphaChanged(float alpha) {
+                        MangoHudView.saveAlpha(preferences, alpha);
+                        if (mangoHud != null) mangoHud.setTextAlphaValue(alpha);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onMangoHudBackgroundAlphaChanged(float alpha) {
+                        MangoHudView.saveBgAlpha(preferences, alpha);
+                        if (mangoHud != null) mangoHud.setBackgroundAlphaValue(alpha);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onMangoHudLockChanged(boolean locked) {
+                        MangoHudView.saveLocked(preferences, locked);
+                        if (mangoHud != null) mangoHud.setLockedValue(locked);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onMangoHudScaleChanged(float scale) {
+                        // No drawer rebuild: the slider owns its value while dragging.
+                        MangoHudView.saveScale(preferences, scale);
+                        if (mangoHud != null) mangoHud.setScaleValue(scale);
                     }
 
                     @Override
@@ -4540,13 +4603,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             if (index - 1 < profiles.size()) {
                                 ControlsProfile profile = profiles.get(index - 1);
                                 showInputControls(profile);
-
-                                if (profile.id != InputControlsManager.LEGACY_XBOX_PROFILE_ID &&
-                                    profile.id != InputControlsManager.LEGACY_PS_PROFILE_ID &&
-                                    profile.id != InputControlsManager.GAMEHUB_LAYOUT_BUILTIN_ID) {
-                                    if (inputControlsView != null) inputControlsView.setLabelTheme(LabelTheme.DEFAULT);
-                                    preferences.edit().putString("input_label_theme", LabelTheme.DEFAULT.name()).apply();
-                                }                            }
+                            }
                         }
                         renderDrawerMenu();
                     }
@@ -4556,34 +4613,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         if (index < 0 || index >= all.length) return;
                         VisualStyle chosen = all[index];
                         if (inputControlsView != null) inputControlsView.setVisualStyle(chosen);
-                        preferences.edit().putString("input_visual_style", chosen.name()).apply();
+                        persistSelectedStyle(chosen);
                         renderDrawerMenu();
                     }
 
                     @Override
-                    public void onInputControlsLabelThemeSelected(int index) {
-                        LabelTheme[] all = LabelTheme.values();
+                    public void onInputControlsAccentThemeSelected(int index) {
+                        AccentTheme[] all = AccentTheme.values();
                         if (index < 0 || index >= all.length) return;
-                        LabelTheme chosen = all[index];
-
-                        ControlsProfile currentProfile = inputControlsView != null ? inputControlsView.getProfile() : null;
-                        int currentId = currentProfile != null ? currentProfile.id : -1;
-
-                        if (currentId != InputControlsManager.GAMEHUB_LAYOUT_BUILTIN_ID) {
-                            if (chosen == LabelTheme.XBOX) {
-                                ControlsProfile p = inputControlsManager.getProfile(InputControlsManager.LEGACY_XBOX_PROFILE_ID);
-                                if (p != null) showInputControls(p);
-                            } else if (chosen == LabelTheme.PLAYSTATION) {
-                                ControlsProfile p = inputControlsManager.getProfile(InputControlsManager.LEGACY_PS_PROFILE_ID);
-                                if (p != null) showInputControls(p);
-                            } else if (chosen == LabelTheme.DEFAULT) {
-                                ControlsProfile p = inputControlsManager.getProfile(InputControlsManager.VIRTUAL_GAMEPAD_BUILTIN_ID);
-                                if (p != null) showInputControls(p);
-                            }
-                        }
-
-                        if (inputControlsView != null) inputControlsView.setLabelTheme(chosen);
-                        preferences.edit().putString("input_label_theme", chosen.name()).apply();
+                        AccentTheme chosen = all[index];
+                        if (inputControlsView != null) inputControlsView.setAccentTheme(chosen);
+                        persistSelectedAccentTheme(chosen);
                         renderDrawerMenu();
                     }
 
@@ -4653,6 +4693,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                                 gcmMode.toPrefValue())
                             .commit();
                         if (winHandler != null) winHandler.setGcmRumbleMode(gcmMode);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onInputControlsReverseBindingOrderChanged(boolean enabled) {
+                        preferences.edit().putBoolean("reverse_binding_order", enabled).commit();
+                        if (inputControlsView != null) inputControlsView.setReverseBindingOrder(enabled);
                         renderDrawerMenu();
                     }
 
@@ -4844,6 +4891,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         @Override
                         public void onDrawerOpened() {
                             releasePointerCapture();
+                            if (winHandler != null) {
+                                winHandler.neutralizeControllers();
+                            }
                             renderDrawerMenu();
                             if (drawerStateHolder != null) {
                                 drawerStateHolder.resetMenuNav();
@@ -4924,6 +4974,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (winHandler != null) winHandler.setOnGetProcessInfoListener(null);
         taskManagerAccum.clear();
         taskManagerCpuExpanded = false;
+        prevTaskCpuSample = null;
         if (drawerStateHolder != null) {
             drawerStateHolder.setTaskManagerState(new TaskManagerPaneState(
                     new ArrayList<>(), 0, 0, new ArrayList<>(), 0, ""));
@@ -4970,35 +5021,24 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private void pushTaskManagerSystemStats() {
         if (drawerStateHolder == null) return;
 
-        short[] clockSpeeds = CPUStatus.getCurrentClockSpeeds();
-        if (cachedMaxClockSpeeds == null || cachedMaxClockSpeeds.length != clockSpeeds.length) {
-            short[] maxes = new short[clockSpeeds.length];
-            for (int i = 0; i < clockSpeeds.length; i++) maxes[i] = CPUStatus.getMaxClockSpeed(i);
-            cachedMaxClockSpeeds = maxes;
-        }
-
-        int totalClock = 0;
-        short maxClock = 0;
-        for (int i = 0; i < clockSpeeds.length; i++) {
-            totalClock += clockSpeeds[i];
-            if (cachedMaxClockSpeeds[i] > maxClock) maxClock = cachedMaxClockSpeeds[i];
-        }
-        int cpuPercent = 0;
-        if (clockSpeeds.length > 0 && maxClock > 0) {
-            int avg = totalClock / clockSpeeds.length;
-            cpuPercent = (int) (((float) avg / maxClock) * 100.0f);
-        }
-
-        ArrayList<Integer> corePercents;
-        if (taskManagerCpuExpanded) {
-            corePercents = new ArrayList<>(clockSpeeds.length);
-            for (int i = 0; i < clockSpeeds.length; i++) {
-                short maxFor = cachedMaxClockSpeeds[i];
-                int corePercent = maxFor > 0 ? (int) (((float) clockSpeeds[i] / maxFor) * 100.0f) : 0;
-                corePercents.add(corePercent);
-            }
+        CPUStatus.AppCpuSample cpuSample = CPUStatus.readAppCpuSample();
+        int cpuPercent = -1;
+        if (cpuSample != null) {
+            if (prevTaskCpuSample != null) cpuPercent = cpuSample.percentSince(prevTaskCpuSample);
+            prevTaskCpuSample = cpuSample;
         } else {
-            corePercents = new ArrayList<>();
+            prevTaskCpuSample = null;
+        }
+        if (cpuPercent < 0) cpuPercent = CPUStatus.getClockFreqLoadPercent();
+        if (cpuPercent < 0) cpuPercent = 0;
+
+        short[] clocks = CPUStatus.getCurrentClockSpeeds();
+        int coreCount = clocks != null ? clocks.length : 0;
+        ArrayList<Integer> corePercents = new ArrayList<>();
+        if (taskManagerCpuExpanded) {
+            for (int i = 0; i < coreCount; i++) {
+                corePercents.add(CPUStatus.getClockFreqCorePercent(i));
+            }
         }
 
         ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
@@ -5012,18 +5052,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         drawerStateHolder.setTaskManagerState(new TaskManagerPaneState(
                 current.getProcesses(),
                 cpuPercent,
-                clockSpeeds.length,
+                coreCount,
                 corePercents,
                 memPercent,
                 memDetail));
-    }
-
-    private static int clampSGSRUpscaleMode(int mode) {
-        return SGSRResolutionUtils.clampUpscaleMode(mode);
-    }
-
-    private static int normalizeSGSRShortcutUpscaleMode(int mode) {
-        return SGSRResolutionUtils.normalizeShortcutUpscaleMode(mode);
     }
 
     private void saveSGSRShortcutSettings() {
@@ -5271,10 +5303,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
-    private static float clampHudAlpha(float v) {
-        return Math.max(0.1f, Math.min(1.0f, v));
-    }
-
     private void loadHUDSettings() {
         if (container == null) return;
         String json = container.getExtra("hudSettings");
@@ -5299,6 +5327,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 hudElements[5] = obj.optBoolean("showBattery", legacyBattTemp);
                 hudElements[6] = obj.optBoolean("showTemp", legacyBattTemp);
                 hudElements[7] = obj.optBoolean("showGraph", true);
+                hudElements[8] = obj.optBoolean("showCpuTemp", false);
             } catch (JSONException e) {
                 Log.e("XServerDisplayActivity", "Failed to load HUD settings", e);
             }
@@ -5322,6 +5351,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             obj.put("showBattery", hudElements[5]);
             obj.put("showTemp", hudElements[6]);
             obj.put("showGraph", hudElements[7]);
+            obj.put("showCpuTemp", hudElements[8]);
             container.putExtra("hudSettings", obj.toString());
             container.saveData();
         } catch (JSONException e) {
@@ -5508,16 +5538,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return out;
     }
 
-    private static String resTierLabel(int shortSide) {
-        switch (shortSide) {
-            case 2160: return "4K";
-            case 1440: return "2K";
-            case 1080: return "1080p";
-            case 720:  return "720p";
-            default:   return shortSide + "p";
-        }
-    }
-
     // Build the popup config with persisted selections mapped to current indices.
     private RecordUiConfig buildRecordConfig() {
         java.util.List<Integer> fps = recordFpsOptions();
@@ -5686,28 +5706,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         recordUiBitmap = null;
         recordUiPixels = null;
         recordUiBuffer = null;
-    }
-
-    private static int tierShortForLabel(String label) {
-        switch (label) {
-            case "4K":    return 2160;
-            case "2K":    return 1440;
-            case "1080p": return 1080;
-            case "720p":  return 720;
-            default:      return 0;
-        }
-    }
-
-    // Quality preset → bits-per-pixel·frame, then bitrate, clamped to a sane window.
-    private static int recordBitrate(int w, int h, int fps, int quality) {
-        double bpp;
-        switch (quality) {
-            case 0:  bpp = 0.035; break; // Performance
-            case 1:  bpp = 0.075; break; // Balance
-            default: bpp = 0.15;  break; // Quality
-        }
-        long bps = (long) (w * (long) h * fps * bpp);
-        return (int) Math.max(2_000_000L, Math.min(bps, 80_000_000L));
     }
 
     private void stopScreenRecording() {
@@ -5888,8 +5886,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             int appId = Integer.parseInt(shortcut.getExtra("app_id"));
             String gameInstallPath = resolveSteamGameInstallPath(appId);
             File gameDir = new File(gameInstallPath);
-            String language = container.getExtra("containerLanguage", "english");
-            if (language == null || language.isEmpty()) language = "english";
+            String language = PrefManager.INSTANCE.getContainerLanguage();
+            String containerLang = container.getExtra("containerLanguage", null);
+            if (containerLang != null && !containerLang.isEmpty()) {
+                language = containerLang;
+            }
             boolean isOfflineMode = parseBoolean(
                     getShortcutSetting("steamOfflineMode",
                             container.isSteamOfflineMode() ? "1" : "0"));
@@ -6399,18 +6400,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return best != null ? contentVersionIdentifier(best) : "";
     }
 
-    private static String contentVersionIdentifier(ContentProfile profile) {
-        String entryName = ContentsManager.getEntryName(profile);
-        int firstDash = entryName.indexOf('-');
-        return firstDash >= 0 ? entryName.substring(firstDash + 1) : entryName;
-    }
-
-    private static boolean safeEquals(String a, String b) {
-        return a != null && a.equals(b);
-    }
-
     private void setupXEnvironment() throws PackageManager.NameNotFoundException {
-        if (SessionKeepAliveService.isSessionActive()) {
+        // Never reattach for a dependency install: the boot exe must run in a fresh
+        // environment, and a stale activeEnvironment from a just-closed session would
+        // swallow the launch (black screen, bridge never completes).
+        if (!isDependencyInstall && SessionKeepAliveService.isSessionActive()) {
             XEnvironment existingEnv = SessionKeepAliveService.getActiveEnvironment();
             XServer existingXServer = SessionKeepAliveService.getActiveXServer();
             if (existingEnv != null && existingXServer != null) {
@@ -6420,8 +6414,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 this.environment.setContext(this);
                 this.reusingSession = true;
 
+                // Free the old handler's socket (keep its writers/rings) and mark the fresh one initialized so the guest's input keeps flowing.
+                WinHandler previousWinHandler = this.xServer.getWinHandler();
+                if (previousWinHandler != null && previousWinHandler != winHandler) {
+                    previousWinHandler.stopForReattach();
+                }
                 this.xServer.setWinHandler(winHandler);
-                
+                winHandler.markSessionInitialized();
+
                 this.guestProgramLauncherComponent = environment.getComponent(GuestProgramLauncherComponent.class);
                 return;
             }
@@ -6529,7 +6529,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             guestProgramLauncherComponent.setFEXCorePreset(effectiveFEXCorePreset);
 
                 // Steam preUnpack installs prerequisites before game launch.
-                boolean isSteamGameForUnpack = shortcut != null && "STEAM".equals(shortcut.getExtra("game_source"));
+                String prereqGameSource = shortcut != null ? shortcut.getExtra("game_source") : null;
+                boolean isSteamGameForUnpack = "STEAM".equals(prereqGameSource);
                 if (isSteamGameForUnpack) {
                     guestProgramLauncherComponent.setPreUnpack(() -> {
                         try {
@@ -6544,6 +6545,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                                     guestProgramLauncherComponent,
                                     container.isNeedsUnpacking(),
                                     currentUnpackFiles);
+                        } catch (Exception e) {
+                            Log.e("XServerDisplayActivity", "preUnpack failed", e);
+                        }
+                    });
+                } else if ("GOG".equals(prereqGameSource) || "EPIC".equals(prereqGameSource)) {
+                    guestProgramLauncherComponent.setPreUnpack(() -> {
+                        try {
+                            installMonoIfNeeded(guestProgramLauncherComponent);
+                            installGeckoIfNeeded(guestProgramLauncherComponent);
                         } catch (Exception e) {
                             Log.e("XServerDisplayActivity", "preUnpack failed", e);
                         }
@@ -6709,6 +6719,179 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         envVars.put("WN_STEAM_STEAMID", planWSid);
                         envVars.put("WN_STEAM_TOKEN", planWTok);
                         envVars.put("WN_STEAM_APPID", String.valueOf(bsAppId));
+                        // Pass language for native launcher ACF UserConfig/MountedConfig
+                        String acfLang = PrefManager.INSTANCE.getContainerLanguage();
+                        String acfContainerLang = container.getExtra("containerLanguage", null);
+                        if (acfContainerLang != null && !acfContainerLang.isEmpty()) {
+                            acfLang = acfContainerLang;
+                        }
+                        if (acfLang != null && !acfLang.isEmpty()) {
+                            envVars.put("WN_STEAM_LANGUAGE", acfLang);
+                        }
+                        // Pass DLC depot data for native launcher ACF
+                        try {
+                            com.winlator.cmod.feature.stores.steam.data.SteamApp depotAppInfo =
+                                com.winlator.cmod.feature.stores.steam.service.SteamService.Companion
+                                    .getAppInfoOf(bsAppId);
+                            if (depotAppInfo != null) {
+                                envVars.put("WN_STEAM_APP_NAME", depotAppInfo.getName());
+                                String installScript = depotAppInfo.getInstallScript();
+                                if (installScript != null && !installScript.isEmpty()) {
+                                    StringBuilder installScriptsSb = new StringBuilder();
+                                    java.util.Map<Integer, com.winlator.cmod.feature.stores.steam.data.DepotInfo> allDepots =
+                                        depotAppInfo.getDepots();
+                                    for (java.util.Map.Entry<Integer, com.winlator.cmod.feature.stores.steam.data.DepotInfo> entry : allDepots.entrySet()) {
+                                        com.winlator.cmod.feature.stores.steam.data.DepotInfo di = entry.getValue();
+                                        if (di.getDlcAppId() == com.winlator.cmod.feature.stores.steam.service.SteamService.INVALID_APP_ID
+                                            && di.getDepotFromApp() == com.winlator.cmod.feature.stores.steam.service.SteamService.INVALID_APP_ID) {
+                                            if (installScriptsSb.length() > 0) installScriptsSb.append(",");
+                                            installScriptsSb.append(entry.getKey()).append(":").append(installScript);
+                                        }
+                                    }
+                                    if (installScriptsSb.length() > 0) {
+                                        envVars.put("WN_STEAM_INSTALL_SCRIPTS", installScriptsSb.toString());
+                                    }
+                                }
+                                java.util.Map<Integer, com.winlator.cmod.feature.stores.steam.data.DepotInfo> depots =
+                                    depotAppInfo.getDepots();
+                                String branch = com.winlator.cmod.feature.stores.steam.service.SteamService.Companion
+                                    .resolveSelectedBetaName(bsAppId);
+                                if (branch == null || branch.isEmpty()) branch = "public";
+
+                                // Resolve buildId from branch info
+                                java.util.Map<String, com.winlator.cmod.feature.stores.steam.data.BranchInfo> branches =
+                                    depotAppInfo.getBranches();
+                                long buildId = 0L;
+                                if (branches != null) {
+                                    com.winlator.cmod.feature.stores.steam.data.BranchInfo branchInfo = branches.get(branch);
+                                    if (branchInfo != null) {
+                                        buildId = branchInfo.getBuildId();
+                                    } else if (branches.containsKey("public")) {
+                                        buildId = branches.get("public").getBuildId();
+                                    }
+                                }
+                                envVars.put("WN_STEAM_BUILD_ID", String.valueOf(buildId));
+
+                                // Compute sizeOnDisk recursively from game directory (match Kotlin
+                                // calculateDirectorySize); null-guard listFiles() so a transient I/O
+                                // error never NPEs and silently drops all depot data.
+                                String gameInstallPath = resolveSteamGameInstallPath(bsAppId);
+                                long sizeOnDisk = 0L;
+                                if (gameInstallPath != null) {
+                                    java.util.ArrayDeque<java.io.File> stack = new java.util.ArrayDeque<>();
+                                    stack.push(new java.io.File(gameInstallPath));
+                                    while (!stack.isEmpty()) {
+                                        java.io.File cur = stack.pop();
+                                        if (cur.isDirectory()) {
+                                            java.io.File[] children = cur.listFiles();
+                                            if (children != null) {
+                                                for (java.io.File c : children) stack.push(c);
+                                            }
+                                        } else if (cur.isFile()) {
+                                            sizeOnDisk += cur.length();
+                                        }
+                                    }
+                                }
+                                envVars.put("WN_STEAM_SIZE_ON_DISK", String.valueOf(sizeOnDisk));
+
+                                // Collect installed depot IDs and DLC app IDs (same as Kotlin collectInstalledDepotManifests)
+                                java.util.Set<Integer> installedDepotIds = new java.util.HashSet<>();
+                                java.util.List<Integer> installedDepotsList = com.winlator.cmod.feature.stores.steam.service.SteamService.Companion
+                                    .getInstalledDepotsOf(bsAppId);
+                                if (installedDepotsList != null) installedDepotIds.addAll(installedDepotsList);
+
+                                java.util.Set<Integer> installedDlcAppIds = new java.util.HashSet<>();
+                                java.util.List<Integer> installedDlcList = com.winlator.cmod.feature.stores.steam.service.SteamService.Companion
+                                    .getInstalledDlcDepotsOf(bsAppId);
+                                if (installedDlcList != null) installedDlcAppIds.addAll(installedDlcList);
+
+                                // Collect all known depots (app depots + downloadable depots)
+                                java.util.LinkedHashMap<Integer, com.winlator.cmod.feature.stores.steam.data.DepotInfo> allKnownDepots = new java.util.LinkedHashMap<>();
+                                allKnownDepots.putAll(depots);
+                                java.util.Map<Integer, com.winlator.cmod.feature.stores.steam.data.DepotInfo> downloadableDepots = com.winlator.cmod.feature.stores.steam.service.SteamService.Companion
+                                    .getDownloadableDepots(bsAppId, acfLang != null ? acfLang : "");
+                                if (downloadableDepots != null) allKnownDepots.putAll(downloadableDepots);
+
+                                // Also add DLC depots from getOwnedAppDlc (matches Kotlin collectInstalledDepotManifests)
+                                if (installedDlcList != null) {
+                                    for (Integer dlcAppId : installedDlcList) {
+                                        try {
+                                            @SuppressWarnings("unchecked")
+                                            java.util.Map<Integer, com.winlator.cmod.feature.stores.steam.data.DepotInfo> ownedDlc =
+                                                (java.util.Map<Integer, com.winlator.cmod.feature.stores.steam.data.DepotInfo>)
+                                                    kotlinx.coroutines.BuildersKt.runBlocking(
+                                                        kotlinx.coroutines.Dispatchers.getIO(),
+                                                        (scope, continuation) -> com.winlator.cmod.feature.stores.steam.service.SteamService.Companion
+                                                            .getOwnedAppDlc(dlcAppId, continuation)
+                                                    );
+                                            if (ownedDlc != null) allKnownDepots.putAll(ownedDlc);
+                                        } catch (InterruptedException ie) {
+                                            Thread.currentThread().interrupt();
+                                        } catch (Exception ignored) {}
+                                    }
+                                }
+
+                                StringBuilder depotSb = new StringBuilder();
+                                StringBuilder sharedSb = new StringBuilder();
+                                long totalBytesToDownload = 0L;
+                                long totalBytesToStage = 0L;
+                                for (java.util.Map.Entry<Integer, com.winlator.cmod.feature.stores.steam.data.DepotInfo> entry : allKnownDepots.entrySet()) {
+                                    int depotId = entry.getKey();
+                                    com.winlator.cmod.feature.stores.steam.data.DepotInfo di = entry.getValue();
+
+                                    // Shared depots are excluded from InstalledDepots entirely (match Kotlin
+                                    // collectInstalledDepotManifests); emit to SharedDepots only when the source app is known.
+                                    if (di.getSharedInstall()) {
+                                        if (di.getDepotFromApp() != com.winlator.cmod.feature.stores.steam.service.SteamService.INVALID_APP_ID) {
+                                            if (sharedSb.length() > 0) sharedSb.append(",");
+                                            sharedSb.append(depotId).append(":").append(di.getDepotFromApp());
+                                        }
+                                        continue;
+                                    }
+
+                                    // Match Kotlin collectInstalledDepotManifests: include if depot is installed,
+                                    // or its DLC is installed
+                                    boolean shouldInclude = installedDepotIds.contains(depotId)
+                                        || (di.getDlcAppId() != com.winlator.cmod.feature.stores.steam.service.SteamService.INVALID_APP_ID
+                                            && installedDlcAppIds.contains(di.getDlcAppId()));
+                                    if (!shouldInclude) continue;
+
+                                    com.winlator.cmod.feature.stores.steam.data.ManifestInfo manifest = null;
+                                    java.util.Map<String, com.winlator.cmod.feature.stores.steam.data.ManifestInfo> manifests = di.getManifests();
+                                    if (manifests.containsKey(branch)) manifest = manifests.get(branch);
+                                    else if (!branch.equals("public") && manifests.containsKey("public")) manifest = manifests.get("public");
+                                    if (manifest != null && manifest.getGid() != 0L) {
+                                        if (depotSb.length() > 0) depotSb.append(",");
+                                        depotSb.append(depotId).append(":").append(manifest.getGid()).append(":").append(manifest.getSize());
+                                        int dlcAppId = di.getDlcAppId();
+                                        if (dlcAppId != com.winlator.cmod.feature.stores.steam.service.SteamService.INVALID_APP_ID) {
+                                            depotSb.append(":").append(dlcAppId);
+                                        } else if (installedDlcAppIds.contains(depotId)) {
+                                            // Mirror Kotlin createAppManifest: fall back to depotId as the dlcappid
+                                            // when the depot carries no dlcAppId but is itself a tracked DLC.
+                                            depotSb.append(":").append(depotId);
+                                        }
+                                        totalBytesToDownload += manifest.getDownload();
+                                        totalBytesToStage += manifest.getSize();
+                                    }
+                                }
+                                if (depotSb.length() > 0) {
+                                    envVars.put("WN_STEAM_DEPOTS", depotSb.toString());
+                                }
+                                if (sharedSb.length() > 0) {
+                                    envVars.put("WN_STEAM_SHARED_DEPOTS", sharedSb.toString());
+                                }
+                                envVars.put("WN_STEAM_BYTES_TO_DOWNLOAD", String.valueOf(totalBytesToDownload));
+                                envVars.put("WN_STEAM_BYTES_TO_STAGE", String.valueOf(totalBytesToStage));
+                                Log.i("XServerDisplayActivity",
+                                    "Steam Launcher: depots=" + depotSb + " shared=" + sharedSb
+                                    + " buildId=" + buildId + " sizeOnDisk=" + sizeOnDisk
+                                    + " dlBytes=" + totalBytesToDownload + " stageBytes=" + totalBytesToStage);
+                            }
+                        } catch (Exception depotIgnored) {
+                            Log.w("XServerDisplayActivity",
+                                    "Steam Launcher: Could not query depot data", depotIgnored);
+                        }
                         if (wnSteamDirectExeOverride) {
                             envVars.put("WN_STEAM_DIRECT_EXE", "1");
                             Log.i("XServerDisplayActivity",
@@ -6874,8 +7057,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 preloaderDialog.setStepOnUiThread(R.string.preloader_starting_wine);
             }
             environment.startEnvironmentComponents();
-            SessionKeepAliveService.setActiveEnvironment(environment);
-            SessionKeepAliveService.setActiveXServer(xServer);
+            if (!isDependencyInstall) {
+                SessionKeepAliveService.setActiveEnvironment(environment);
+                SessionKeepAliveService.setActiveXServer(xServer);
+            }
         }
 
         winHandler.start();
@@ -6909,9 +7094,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         renderer.setPresentMode(VulkanRenderer.parsePresentMode(
                 graphicsDriverConfig != null ? graphicsDriverConfig.get("compositorPresentMode") : null));
 
-        boolean swapRB = shortcut != null ? shortcut.getExtra("swapRB", "0").equals("1")
-                         : (container != null && container.getExtra("swapRB", "0").equals("1"));
-        renderer.setSwapRB(swapRB);
+        String containerSwapRB = container != null ? container.getExtra("swapRB", "0") : "0";
+        renderer.setSwapRB("1".equals(getShortcutSetting("swapRB", containerSwapRB)));
 
         if (shortcut != null || (bootExePath != null && !bootExePath.isEmpty())) {
             renderer.setUnviewableWMClasses("explorer.exe");
@@ -6920,11 +7104,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             String savedFpsLimit = shortcut.getExtra("fpsLimit", "0");
             try {
                 runtimeFpsLimit = Integer.parseInt(savedFpsLimit);
-                renderer.setFpsLimit(runtimeFpsLimit);
             } catch (NumberFormatException e) {
                 runtimeFpsLimit = 0;
             }
         }
+        renderer.setFpsLimit(runtimeFpsLimit);
 
         applyScreenEffects();
         xServer.setRenderer(renderer);
@@ -6945,6 +7129,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         inputControlsView = new InputControlsView(this, timeoutHandler, hideControlsRunnable);
         inputControlsView.setInputControlsManager(inputControlsManager);
         inputControlsView.setOverlayOpacity(preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY));
+        inputControlsView.setReverseBindingOrder(preferences.getBoolean("reverse_binding_order", false));
         inputControlsView.setTouchpadView(touchpadView);
         inputControlsView.setXServer(xServer);
         applyTouchscreenOverlayPreference();
@@ -6963,6 +7148,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         updateHUDRenderMode();
         rootView.addView(frameRating);
         if (perfController != null) perfController.attachToFrameRating(frameRating);
+
+        if (preferences.getBoolean(MangoHudView.PREF_ENABLED, false)) {
+            mangoHud = new MangoHudView(this);
+            mangoHud.setEngineName(mangoEngineLabel());
+            mangoHud.setSessionInfo(
+                    xServer != null ? xServer.screenInfo.width + "x" + xServer.screenInfo.height : null,
+                    wineInfo != null ? String.valueOf(wineInfo) : null);
+            // Deferred: adding while the frame is detached puts this view inside the frame's later
+            // attach walk, which FrameRating's onAttachedToWindow bringToFront() reorders mid-walk —
+            // the child that slides into the already-visited slot never gets attached. post() runs
+            // after that walk completes, so the add always lands on an attached parent.
+            rootView.post(() -> {
+                if (mangoHud != null && mangoHud.getParent() == null) rootView.addView(mangoHud);
+            });
+        }
 
         setupControllerHudDetection();
 
@@ -7349,24 +7549,35 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void persistSelectedProfile(ControlsProfile profile) {
-        SharedPreferences.Editor editor = preferences.edit();
-        if (profile != null) {
-            int selectedProfileIndex = -1;
-            ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
-            for (int i = 0; i < profiles.size(); i++) {
-                ControlsProfile storedProfile = profiles.get(i);
-                if (storedProfile != null && storedProfile.id == profile.id) {
-                    selectedProfileIndex = i;
-                    break;
-                }
-            }
-            editor.putInt("selected_profile_id", profile.id);
-            editor.putInt("selected_profile_index", selectedProfileIndex);
-        } else {
-            editor.remove("selected_profile_id");
-            editor.putInt("selected_profile_index", -1);
+        if (shortcut == null) return;
+        String newVal = profile != null ? String.valueOf(profile.id) : "";
+        if (!newVal.equals(shortcut.getExtra("controlsProfile", ""))) {
+            shortcut.putExtra("controlsProfile", newVal.isEmpty() ? null : newVal);
+            shortcut.saveData();
         }
-        editor.apply();
+    }
+
+    // Style/theme picks persist like controlsProfile: on the shortcut if present, else globally.
+    private void persistSelectedStyle(VisualStyle style) {
+        if (shortcut != null) {
+            if (!style.name().equals(shortcut.getExtra("controlsStyle", ""))) {
+                shortcut.putExtra("controlsStyle", style.name());
+                shortcut.saveData();
+            }
+        } else {
+            preferences.edit().putString("input_visual_style", style.name()).apply();
+        }
+    }
+
+    private void persistSelectedAccentTheme(AccentTheme theme) {
+        if (shortcut != null) {
+            if (!theme.name().equals(shortcut.getExtra("controlsAccentTheme", ""))) {
+                shortcut.putExtra("controlsAccentTheme", theme.name());
+                shortcut.saveData();
+            }
+        } else {
+            preferences.edit().putString("input_accent_theme", theme.name()).apply();
+        }
     }
 
     private void pushSelectedGestureConfig() {
@@ -7395,42 +7606,31 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return def != null ? def.id : 0;
     }
 
-    // Hide legacy label-only profiles unless one is already active.
     private ArrayList<ControlsProfile> getVisibleControlsProfiles() {
-        ArrayList<ControlsProfile> all = inputControlsManager != null
+        return inputControlsManager != null
                 ? inputControlsManager.getProfiles(true)
                 : new ArrayList<>();
-        ControlsProfile active = inputControlsView != null ? inputControlsView.getProfile() : null;
-        ArrayList<ControlsProfile> visible = new ArrayList<>(all.size());
-        for (ControlsProfile p : all) {
-            if (InputControlsManager.isLegacyLabelOnlyProfile(p)
-                    && (active == null || active.id != p.id)) {
-                continue;
-            }
-            visible.add(p);
-        }
-        return visible;
     }
 
     private void applyInputVisualStylePreferences() {
         if (inputControlsView == null || preferences == null) return;
-        inputControlsView.setVisualStyle(
-                VisualStyle.fromPreference(preferences.getString("input_visual_style", VisualStyle.ORIGINAL.name())));
-        inputControlsView.setLabelTheme(
-                LabelTheme.fromPreference(preferences.getString("input_label_theme", LabelTheme.DEFAULT.name())));
+        String style = shortcut != null ? shortcut.getExtra("controlsStyle", "") : "";
+        if (style.isEmpty()) style = preferences.getString("input_visual_style", VisualStyle.SLATE.name());
+        inputControlsView.setVisualStyle(VisualStyle.fromPreference(style));
+        String theme = shortcut != null ? shortcut.getExtra("controlsAccentTheme", "") : "";
+        if (theme.isEmpty()) theme = preferences.getString("input_accent_theme", AccentTheme.CYAN.name());
+        inputControlsView.setAccentTheme(AccentTheme.fromPreference(theme));
     }
 
     private ControlsProfile resolvePreferredStartupProfile() {
-        ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
-        int selectedProfileId = preferences.getInt("selected_profile_id", 0);
-        int selectedProfileIndex = preferences.getInt("selected_profile_index", -1);
-        ControlsProfile selectedProfile =
-                selectedProfileId != 0 ? inputControlsManager.getProfile(selectedProfileId) : null;
-
-        if (selectedProfile == null
-                && selectedProfileIndex >= 0
-                && selectedProfileIndex < profiles.size()) {
-            selectedProfile = profiles.get(selectedProfileIndex);
+        if (shortcut == null) return null;
+        String cp = shortcut.getExtra("controlsProfile", "");
+        if (cp.isEmpty()) return null;
+        ControlsProfile selectedProfile;
+        try {
+            selectedProfile = inputControlsManager.getProfile(Integer.parseInt(cp));
+        } catch (NumberFormatException e) {
+            return null;
         }
 
         if (selectedProfile != null) {
@@ -7506,7 +7706,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private void hideInputControls() {
         inputControlsView.setVisibility(View.GONE);
         inputControlsView.setProfile(null);
-        preferences.edit().putBoolean("show_touchscreen_controls_enabled", false).apply();
         applyTouchscreenOverlayPreference();
         persistSelectedProfile(null);
 
@@ -7531,8 +7730,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         File rootDir = imageFs.getRootDir();
 
         if (dxwrapper.contains("dxvk")) {
-            int refreshRateOverride = getDxvkFrameRateOverride();
-            DXVKConfigUtils.setEnvVars(this, dxwrapperConfig, envVars, refreshRateOverride);
+            DXVKConfigUtils.setEnvVars(this, dxwrapperConfig, envVars);
             String version = dxwrapperConfig.get("version");
             if (version.equals("1.11.1-sarek")) {
                 Log.d("GraphicsDriverExtraction", "Disabling Wrapper PATCH_OPCONSTCOMP SPIR-V pass");
@@ -7556,15 +7754,35 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/extra_libs" + ".tzst", rootDir);
         }
 
+        // FFmpeg 8 libs for Wine's winedmo media path (arm64ec native Wine only; these
+        // aarch64 libs are inert under x86_64/box64). Extract into usr/lib when absent
+        // so existing containers get it without a full imagefs reinstall.
+        if (wineInfo != null && wineInfo.isArm64EC()
+                && !new File(rootDir, "usr/lib/libavcodec.so.62").exists()) {
+            try {
+                TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "ffmpeg8.tzst", rootDir);
+            } catch (Exception e) {
+                Log.w("XServerDisplayActivity", "ffmpeg8.tzst extraction failed", e);
+            }
+        }
+
         boolean wantLeegao = "wrapper-leegao".equals(graphicsDriver);
+        boolean wantGamenative = "wrapper-gamenative".equals(graphicsDriver);
         File leegaoMarker = new File(rootDir, "usr/lib/.wrapper_leegao");
+        File gamenativeMarker = new File(rootDir, "usr/lib/.wrapper_gamenative");
         if (wantLeegao) {
             TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/wrapper-leegao.tzst", rootDir);
             try { leegaoMarker.createNewFile(); } catch (IOException ignored) {}
-        } else if (leegaoMarker.exists()) {
+            gamenativeMarker.delete();
+        } else if (wantGamenative) {
+            TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/wrapper-gamenative.tzst", rootDir);
+            try { gamenativeMarker.createNewFile(); } catch (IOException ignored) {}
+            leegaoMarker.delete();
+        } else if (leegaoMarker.exists() || gamenativeMarker.exists()) {
             TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/wrapper" + ".tzst", rootDir);
             TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "layers" + ".tzst", rootDir);
             leegaoMarker.delete();
+            gamenativeMarker.delete();
         }
 
         if (adrenoToolsDriverId != null && !adrenoToolsDriverId.isEmpty()
@@ -7647,16 +7865,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         String bcnEmulation = graphicsDriverConfig.get("bcnEmulation");
         String bcnEmulationType = graphicsDriverConfig.get("bcnEmulationType");
 
+        int gpuVendorId = GPUInformation.getVendorID(null, null);
+        // BCn compute shaders are unsupported on Adreno and crash on Xclipse with this wrapper
+        boolean excludeBcnCompute = gpuVendorId == 20803 || (wantGamenative && gpuVendorId == 0x144D);
+
         switch (bcnEmulation) {
             case "auto" -> {
-                if ("compute".equals(bcnEmulationType) && GPUInformation.getVendorID(null, null) != 20803) {
+                if ("compute".equals(bcnEmulationType) && !excludeBcnCompute) {
                     envVars.put("ENABLE_BCN_COMPUTE", "1");
                     envVars.put("BCN_COMPUTE_AUTO", "1");
                 }
                 envVars.put("WRAPPER_EMULATE_BCN", "3");
             }
             case "full" -> {
-                if ("compute".equals(bcnEmulationType) && GPUInformation.getVendorID(null, null) != 20803) {
+                if ("compute".equals(bcnEmulationType) && !excludeBcnCompute) {
                     envVars.put("ENABLE_BCN_COMPUTE", "1");
                     envVars.put("BCN_COMPUTE_AUTO", "0");
                 }
@@ -7664,6 +7886,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
             case "none" -> envVars.put("WRAPPER_EMULATE_BCN", "0");
             default -> envVars.put("WRAPPER_EMULATE_BCN", "1");
+        }
+
+        if (wantGamenative) {
+            String transcoder = graphicsDriverConfig.get("transcoder");
+            envVars.put("WRAPPER_BCN_GPU", "gpu".equalsIgnoreCase(transcoder) ? "1" : "0");
+            String wrapperQuality = graphicsDriverConfig.get("quality");
+            envVars.put("WRAPPER_ASTC_BLOCK", "high".equalsIgnoreCase(wrapperQuality) ? "4x4" : "8x8");
         }
 
         String bcnEmulationCache = graphicsDriverConfig.get("bcnEmulationCache");
@@ -7831,7 +8060,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             drawerStateHolder.updateControllerConnected(true);
             int kc = event.getKeyCode();
             boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
-            if (kc == KeyEvent.KEYCODE_BUTTON_B || kc == KeyEvent.KEYCODE_BUTTON_MODE) {
+            if (kc == KeyEvent.KEYCODE_BUTTON_MODE) {
+                // Menu open: a fresh press closes it; suppress the tail of the hold that opened it.
+                if (down && event.getEventTime() - guideMenuOpenedAt > GUIDE_HOLD_TAIL_MS) {
+                    guideMenuOpenedAt = 0L;
+                    handleNavigationBackPressed();
+                }
+                return true;
+            }
+            if (kc == KeyEvent.KEYCODE_BUTTON_B) {
                 if (down) handleNavigationBackPressed();
                 return true;
             }
@@ -7902,11 +8139,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         if (event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_MODE) {
+            // Menu closed: hold the guide button to open (a quick tap does nothing). Timer-based, so a
+            // missed release can never leave it stuck.
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                handleNavigationBackPressed();
+                if (!guideHoldPending) {
+                    guideHoldPending = true;
+                    handler.removeCallbacks(guideHoldOpenRunnable);
+                    handler.postDelayed(guideHoldOpenRunnable, GUIDE_HOLD_OPEN_MS);
+                }
+            } else if (event.getAction() == KeyEvent.ACTION_UP) {
+                guideHoldPending = false;
+                handler.removeCallbacks(guideHoldOpenRunnable);
             }
             return true;
         }
+
 
         if (event.getAction() == KeyEvent.ACTION_DOWN &&
                 (event.getKeyCode() == KeyEvent.KEYCODE_HOME ||
@@ -8058,26 +8305,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return null;
     }
 
-    private static String findDelimitedWrapper(String value, String prefix) {
-        if (value == null) return null;
-        for (String part : value.split(";")) {
-            if (part.startsWith(prefix)) return part;
-        }
-        return null;
-    }
-
-    private static boolean hasSelectedVkd3dVersion(String version) {
-        return version != null && !version.isEmpty() && !version.equalsIgnoreCase("None");
-    }
-
-    private static boolean hasSelectedDxvkWrapper(String dxvkWrapper) {
-        if (dxvkWrapper == null) return false;
-        String version = dxvkWrapper.startsWith("dxvk-")
-                ? dxvkWrapper.substring("dxvk-".length())
-                : dxvkWrapper;
-        return !version.trim().isEmpty() && !version.equalsIgnoreCase("None");
-    }
-
     private void extractD8VKIfNeeded(String dxvkWrapper, File windowsDir) {
         if (compareVersion(dxvkWrapper, "2.4") >= 0) return;
 
@@ -8089,49 +8316,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 windowsDir,
                 onExtractFileListener
         );
-    }
-
-    private static int compareVersion(String varA, String varB) {
-        int[] a = parseSemverLoose(varA);
-        int[] b = parseSemverLoose(varB);
-
-        if (a[0] != b[0]) return a[0] - b[0];
-        if (a[1] != b[1]) return a[1] - b[1];
-        return a[2] - b[2];
-    }
-
-    private static final Pattern SEMVER_LOOSE =
-            Pattern.compile("(\\d+)\\.(\\d+)(?:\\.(\\d+))?");
-
-    private static int[] parseSemverLoose(String s) {
-        if (s == null) return new int[]{0, 0, 0};
-
-        Matcher m = SEMVER_LOOSE.matcher(s);
-
-        String g1 = null, g2 = null, g3 = null;
-        while (m.find()) {
-            g1 = m.group(1);
-            g2 = m.group(2);
-            g3 = m.group(3);
-        }
-
-        if (g1 == null || g2 == null) {
-            return new int[]{0, 0, 0};
-        }
-
-        int major = safeParseInt(g1);
-        int minor = safeParseInt(g2);
-        int patch = safeParseInt(g3);
-        return new int[]{major, minor, patch};
-    }
-
-    private static int safeParseInt(String s) {
-        if (s == null || s.isEmpty()) return 0;
-        try {
-            return Integer.parseInt(s);
-        } catch (NumberFormatException ignored) {
-            return 0;
-        }
     }
 
     private String getWineStartCommand(GuestProgramLauncherComponent launcherComponent) {
@@ -8736,15 +8920,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 && !resolved.equalsIgnoreCase(configured);
     }
 
-    /** Base file name of a Windows/Unix exe path (handles both '\\' and '/' separators). */
-    private static String exeBaseName(String path) {
-        if (path == null) return "";
-        String normalized = path.replace('\\', '/');
-        int slash = normalized.lastIndexOf('/');
-        if (slash >= 0) normalized = normalized.substring(slash + 1);
-        return normalized.trim();
-    }
-
     private String resolveRelativeGameExe(int appId, String gameInstPath) {
         // Per-game launch_exe_path wins over the shared container cache.
         String shortcutExePath = resolveShortcutSteamExecutablePath(gameInstPath);
@@ -9299,6 +9474,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                                   boolean needsUnpacking, boolean unpackFiles) {
         boolean monoReady = installMonoIfNeeded(launcher);
 
+        installGeckoIfNeeded(launcher);
+
         installRedistributablesIfNeeded(launcher);
 
         if (!unpackFiles) {
@@ -9385,16 +9562,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 + executableInfo.file.lastModified() + "\n";
     }
 
-    private static class SteamExecutableInfo {
-        final String relativePath;
-        final File file;
-
-        SteamExecutableInfo(String relativePath, File file) {
-            this.relativePath = relativePath;
-            this.file = file;
-        }
-    }
-
     private void ensureUnpackedExeActive() {
         if (shortcut == null || !"STEAM".equals(shortcut.getExtra("game_source"))) return;
         try {
@@ -9452,6 +9619,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private boolean installMonoIfNeeded(GuestProgramLauncherComponent launcher) {
+        // Any installed Mono is kept as-is; prefix repair clears the marker to force a reinstall.
+        String installedVersion = container.getExtra("mono_version", null);
+        if (installedVersion != null) {
+            Log.d("XServerDisplayActivity", "Mono v" + installedVersion + " already installed in container " + container.id + ", skipping");
+            return true;
+        }
+        if (hasInstalledComponentPrefix("mono")) {
+            Log.d("XServerDisplayActivity", "Mono already installed via components in container " + container.id + ", skipping");
+            return true;
+        }
+
         String winePath = wineInfo != null ? wineInfo.path : null;
 
         String requiredVersion = SteamClientManager.detectRequiredMonoVersion(this, winePath);
@@ -9460,36 +9638,81 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             return false;
         }
 
-        String installedVersion = container.getExtra("mono_version", null);
-        if (requiredVersion.equals(installedVersion)) {
-            Log.d("XServerDisplayActivity", "Mono v" + installedVersion + " already installed in container " + container.id + ", skipping");
-            return true;
-        }
-
-        if (installedVersion != null) {
-            Log.w("XServerDisplayActivity", "Mono version mismatch in container " + container.id
-                    + ": installed v" + installedVersion + " but need v" + requiredVersion + " — reinstalling");
-        }
-
         String monoWinePath = SteamClientManager.getMonoMsiWinePath(this, winePath);
         if (monoWinePath == null) {
             Log.w("XServerDisplayActivity", "Mono MSI not available (no internet?), will retry next launch");
             return false;
         }
 
+        // The MSI actually resolved may be a fallback version; record what really got installed.
+        String actualVersion = requiredVersion;
+        java.util.regex.Matcher monoMsiMatcher =
+                java.util.regex.Pattern.compile("wine-mono-(\\d+\\.\\d+\\.\\d+)").matcher(monoWinePath);
+        if (monoMsiMatcher.find()) actualVersion = monoMsiMatcher.group(1);
+        if (!actualVersion.equals(requiredVersion)) {
+            Log.w("XServerDisplayActivity", "Mono fallback: required v" + requiredVersion
+                    + " but installing v" + actualVersion + " (" + monoWinePath + ")");
+        }
+
         try {
-            Log.d("XServerDisplayActivity", "Installing Wine Mono v" + requiredVersion
+            Log.d("XServerDisplayActivity", "Installing Wine Mono v" + actualVersion
                     + " (" + monoWinePath + ") in container " + container.id + "...");
             String monoCmd = "wine msiexec /i " + monoWinePath + " && wineserver -k";
             launcher.execShellCommand(monoCmd);
             container.putExtra("mono_installed", "true");
-            container.putExtra("mono_version", requiredVersion);
+            container.putExtra("mono_version", actualVersion);
             container.saveData();
-            Log.d("XServerDisplayActivity", "Mono v" + requiredVersion + " installed in container " + container.id);
+            Log.d("XServerDisplayActivity", "Mono v" + actualVersion + " installed in container " + container.id);
             return true;
         } catch (Exception e) {
             Log.w("XServerDisplayActivity", "Mono msiexec failed, will retry next launch", e);
             return false;
+        }
+    }
+
+    private boolean hasInstalledComponentPrefix(String prefix) {
+        for (String name : com.winlator.cmod.runtime.content.component.ComponentInstaller
+                .installedComponents(container)) {
+            if (name.startsWith(prefix)) return true;
+        }
+        return false;
+    }
+
+    private void installGeckoIfNeeded(GuestProgramLauncherComponent launcher) {
+        String installedGecko = container.getExtra("gecko_version", null);
+        if (installedGecko != null) {
+            Log.d("XServerDisplayActivity", "Gecko v" + installedGecko + " already installed in container "
+                    + container.id + ", skipping");
+            return;
+        }
+        if (hasInstalledComponentPrefix("gecko")) {
+            Log.d("XServerDisplayActivity", "Gecko already installed via components in container "
+                    + container.id + ", skipping");
+            return;
+        }
+        String geckoVersion = SteamClientManager.GECKO_VERSION;
+
+        java.util.List<String> geckoWinePaths = SteamClientManager.getGeckoMsiWinePaths(this);
+        if (geckoWinePaths.size() < 2) {
+            Log.w("XServerDisplayActivity", "Gecko MSIs not available (no internet?), will retry next launch");
+            return;
+        }
+
+        try {
+            Log.d("XServerDisplayActivity", "Installing Wine Gecko v" + geckoVersion
+                    + " in container " + container.id + "...");
+            StringBuilder geckoCmd = new StringBuilder();
+            for (String p : geckoWinePaths) {
+                if (geckoCmd.length() > 0) geckoCmd.append(" && ");
+                geckoCmd.append("wine msiexec /i ").append(p);
+            }
+            geckoCmd.append(" && wineserver -k");
+            launcher.execShellCommand(geckoCmd.toString());
+            container.putExtra("gecko_version", geckoVersion);
+            container.saveData();
+            Log.d("XServerDisplayActivity", "Gecko v" + geckoVersion + " installed in container " + container.id);
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity", "Gecko msiexec failed, will retry next launch", e);
         }
     }
 
@@ -10256,11 +10479,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             commonDir.mkdirs();
             WineUtils.ensureSteamappsCommonSymlink(container, gameDir.getAbsolutePath());
 
-            SteamUtils.createAppManifest(this, appId);
+            String acfLanguage = PrefManager.INSTANCE.getContainerLanguage();
+            String containerLang = container.getExtra("containerLanguage", null);
+            if (containerLang != null && !containerLang.isEmpty()) {
+                acfLanguage = containerLang;
+            }
+            SteamUtils.createAppManifest(this, appId, acfLanguage);
 
             File defaultAcf = new File(imageFs.getRootDir(),
                     ImageFs.WINEPREFIX + "/drive_c/Program Files (x86)/Steam/steamapps/appmanifest_" + appId + ".acf");
             File containerAcf = new File(steamappsDir, "appmanifest_" + appId + ".acf");
+            // Refresh the container manifest from the freshly generated one on every launch so
+            // newly installed DLC / language changes propagate. The generated manifest is the
+            // source of truth (the native launcher rewrites this same file too), so a stale
+            // container copy must not be left in place.
             if (defaultAcf.exists()) {
                 try {
                     java.nio.file.Files.copy(defaultAcf.toPath(), containerAcf.toPath(),
@@ -10278,7 +10510,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 String steamworksAcfContent = "\"AppState\"\n" +
                         "{\n" +
                         "\t\"appid\"\t\t\"228980\"\n" +
-                        "\t\"Universe\"\t\t\"1\"\n" +
+                        "\t\"universe\"\t\t\"1\"\n" +
                         "\t\"name\"\t\t\"Steamworks Common Redistributables\"\n" +
                         "\t\"StateFlags\"\t\t\"4\"\n" +
                         "\t\"installdir\"\t\t\"Steamworks Shared\"\n" +
@@ -10786,16 +11018,121 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (taskAffinityMask == 0 && taskAffinityMaskWoW64 == 0) return;
         int processId = window.getProcessId();
         String className = window.getClassName();
-        int processAffinity = window.isWoW64() ? taskAffinityMaskWoW64 : taskAffinityMask;
-
-        if (processAffinity == 0) return;
 
         if (processId > 0) {
-            winHandler.setProcessAffinity(processId, processAffinity);
+            if (taskAffinityMask == taskAffinityMaskWoW64) {
+                winHandler.setProcessAffinity(processId, taskAffinityMask);
+            } else {
+                applyGuestResolvedAffinity(processId, window.isWoW64());
+            }
         }
         else if (!className.isEmpty()) {
-            winHandler.setProcessAffinity(window.getClassName(), processAffinity);
+            int processAffinity = window.isWoW64() ? taskAffinityMaskWoW64 : taskAffinityMask;
+            if (processAffinity != 0) winHandler.setProcessAffinity(className, processAffinity);
         }
+    }
+
+    // Background service processes have no windows and never pass through
+    // assignTaskAffinity. One complete pass over the guest process list at the
+    // first window map pins every matching instance BY PID (by-name requests
+    // can't address duplicates like the two winedevice hosts). Children spawned
+    // afterwards inherit their parent's mask, so a single early pass keeps the
+    // policy without ever re-sending — manual task manager changes stick.
+    // Services go to the efficiency cores (lower half), shell/UI to the 64-bit
+    // list, winhandler to all cores.
+    private void pinServiceAffinity() {
+        if (serviceAffinityStarted || winHandler == null) return;
+        serviceAffinityStarted = true;
+        new Thread(() -> {
+            final WinHandler wh = winHandler;
+            if (wh == null) return;
+            int coreCount = Runtime.getRuntime().availableProcessors();
+            final int littleMask = ProcessHelper.getAffinityMask(0, coreCount / 2);
+            final int fullMask = ProcessHelper.getAffinityMask(0, coreCount);
+            final CountDownLatch latch = new CountDownLatch(1);
+            final OnGetProcessInfoListener previous = wh.getOnGetProcessInfoListener();
+            final OnGetProcessInfoListener pinner = (index, numProcesses, processInfo) -> {
+                if (previous != null) previous.onGetProcessInfo(index, numProcesses, processInfo);
+                if (processInfo != null) {
+                    int desired = serviceMaskForProcess(processInfo.name, littleMask, fullMask);
+                    if (desired != 0 && processInfo.affinityMask != desired) {
+                        wh.setProcessAffinity(processInfo.pid, desired);
+                    }
+                }
+                if (processInfo == null || index == numProcesses - 1) latch.countDown();
+            };
+            wh.setOnGetProcessInfoListener(pinner);
+            try {
+                wh.listProcesses();
+                if (!latch.await(3000, TimeUnit.MILLISECONDS)) serviceAffinityStarted = false;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                if (wh.getOnGetProcessInfoListener() == pinner) {
+                    wh.setOnGetProcessInfoListener(previous);
+                }
+            }
+        }, "ServiceAffinityPin").start();
+    }
+
+    private int serviceMaskForProcess(String name, int littleMask, int fullMask) {
+        if (name == null) return 0;
+        if (name.equalsIgnoreCase("winhandler.exe")) return fullMask;
+        for (String service : SERVICE_AFFINITY_PROCESSES) {
+            if (name.equalsIgnoreCase(service)) return littleMask;
+        }
+        for (String shell : SHELL_AFFINITY_PROCESSES) {
+            if (name.equalsIgnoreCase(shell)) return taskAffinityMask;
+        }
+        return 0;
+    }
+
+    // _NET_WM_WOW64 can be absent on 32-bit guest windows, so when the two masks
+    // differ, resolve the wow64 flag from the guest process list and apply once.
+    // The window property is only the fallback if the guest doesn't answer.
+    private void applyGuestResolvedAffinity(final int pid, final boolean windowSaysWoW64) {
+        synchronized (guestAffinityCheckedPids) {
+            if (!guestAffinityCheckedPids.add(pid)) return;
+        }
+        new Thread(() -> {
+            final WinHandler handler = winHandler;
+            if (handler == null) return;
+            final CountDownLatch latch = new CountDownLatch(1);
+            final boolean[] resolved = new boolean[1];
+            final OnGetProcessInfoListener previous = handler.getOnGetProcessInfoListener();
+            final OnGetProcessInfoListener resolver = (index, numProcesses, processInfo) -> {
+                if (previous != null) previous.onGetProcessInfo(index, numProcesses, processInfo);
+                if (processInfo != null && processInfo.pid == pid) {
+                    int desired = processInfo.wow64Process ? taskAffinityMaskWoW64 : taskAffinityMask;
+                    Log.d("XServerDisplayActivity", "Guest affinity resolve pid=" + pid
+                            + " wow64=" + processInfo.wow64Process
+                            + " mask=0x" + Integer.toHexString(desired));
+                    if (desired != 0) handler.setProcessAffinity(pid, desired);
+                    resolved[0] = true;
+                    latch.countDown();
+                } else if (processInfo == null || index == numProcesses - 1) {
+                    latch.countDown();
+                }
+            };
+            handler.setOnGetProcessInfoListener(resolver);
+            try {
+                handler.listProcesses();
+                latch.await(3000, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                if (handler.getOnGetProcessInfoListener() == resolver) {
+                    handler.setOnGetProcessInfoListener(previous);
+                }
+            }
+            if (!resolved[0]) {
+                int fallback = windowSaysWoW64 ? taskAffinityMaskWoW64 : taskAffinityMask;
+                if (fallback != 0) handler.setProcessAffinity(pid, fallback);
+                synchronized (guestAffinityCheckedPids) {
+                    guestAffinityCheckedPids.remove(pid);
+                }
+            }
+        }, "GuestAffinityResolve").start();
     }
 
     private void changeFrameRatingVisibility(Window window, Property property) {
@@ -10866,6 +11203,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
         }
 
+        boolean windowChanged = bestWindow != null && frameRatingWindowId != bestWindow.id;
         if (bestWindow != null) {
             lastRendererName = bestRenderer;
             lastGpuName = bestGpu;
@@ -10879,12 +11217,30 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         runOnUiThread(() -> {
             frameRating.setRenderer(lastRendererName);
             frameRating.setGpuName(lastGpuName);
+            if (mangoHud != null) {
+                mangoHud.setEngineName(mangoEngineLabel());
+                // New game window: drop loading/menu frames from the averages.
+                if (windowChanged) mangoHud.resetMetrics();
+            }
             updateHUDRenderMode();
         });
     }
 
+    /** Engine label for the Mango HUD: renderer name plus the DXVK version when running DXVK. */
+    private String mangoEngineLabel() {
+        String name = lastRendererName != null ? lastRendererName : "Vulkan";
+        if (name.toLowerCase().contains("dxvk") && dxwrapperConfig != null) {
+            String version = dxwrapperConfig.get("version");
+            if (version != null && !version.isEmpty()) return "DXVK " + version;
+        }
+        return name;
+    }
+
     private boolean shouldRecordFpsFrame(Window window, WindowManager.FrameSource source) {
-        if ((!effectiveShowFPS && !controllerHudMode) || frameRating == null || window == null) return false;
+        // Perf recording is driven solely by the record-to-file toggle, independent of HUD/controller.
+        boolean recording = perfController != null && perfController.isActive();
+        boolean mangoVisible = mangoHud != null && mangoHud.getVisibility() == View.VISIBLE;
+        if ((!effectiveShowFPS && !controllerHudMode && !recording && !mangoVisible) || frameRating == null || window == null) return false;
         if (source == WindowManager.FrameSource.UNKNOWN) return false;
         if (frameRatingWindowId == window.id) return true;
         if (isRelatedToFrameRatingWindow(window)) return true;

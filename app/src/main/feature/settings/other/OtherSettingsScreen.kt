@@ -26,6 +26,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ArrowCircleDown
 import androidx.compose.material.icons.outlined.Autorenew
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Folder
@@ -106,6 +107,7 @@ data class OtherSettingsState(
     val cursorLock: Boolean = false,
     val xinputDisabled: Boolean = false,
     val enableFileProvider: Boolean = true,
+    val enableAutoScraping: Boolean = false,
     val openInBrowser: Boolean = false,
     val shareClipboard: Boolean = false,
     val enableBackgroundSession: Boolean = false,
@@ -149,6 +151,7 @@ fun OtherSettingsScreen(
     onCursorLockChanged: (Boolean) -> Unit,
     onXinputDisabledChanged: (Boolean) -> Unit,
     onEnableFileProviderChanged: (Boolean) -> Unit,
+    onAutoScrapingChanged: (Boolean) -> Unit,
     onOpenInBrowserChanged: (Boolean) -> Unit,
     onShareClipboardChanged: (Boolean) -> Unit,
     onEnableBackgroundSessionChanged: (Boolean) -> Unit,
@@ -275,6 +278,13 @@ fun OtherSettingsScreen(
                 icon = Icons.Outlined.Visibility,
                 checked = state.enableBackgroundSession,
                 onCheckedChange = onEnableBackgroundSessionChanged,
+            )
+            SettingsToggleCard(
+                title = stringResource(R.string.settings_general_enable_auto_scraping),
+                subtitle = stringResource(R.string.settings_general_auto_scraping_summary),
+                icon = Icons.Outlined.ArrowCircleDown,
+                checked = state.enableAutoScraping,
+                onCheckedChange = onAutoScrapingChanged,
             )
 
             SettingsToggleCard(

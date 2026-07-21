@@ -157,6 +157,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">Obține ilustrații</string>
+    <string name="library_games_scraping_artwork">Se obțin…</string>
     <string name="library_games_shortcut_created">Comanda rapida creata</string>
     <string name="library_games_failed_to_create_shortcut">Nu s-a putut crea comanda rapida: %s</string>
     <string name="library_games_install_path">Cale de instalare</string>
@@ -505,9 +507,12 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">Preset FEXCore</string>
     <string name="container_fexcore_version">Versiune FEXCore</string>
+    <string name="use_unix_libs">Folosește UnixLibs</string>
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Driver grafic</string>
+    <string name="container_graphics_transcoder">Transcodor BCn</string>
+    <string name="container_graphics_quality">Calitate BCn</string>
     <string name="container_graphics_configuration">Configurare driver grafic</string>
     <string name="container_graphics_version">Versiune driver grafic</string>
     <string name="container_graphics_available_extensions">Extensii disponibile</string>
@@ -588,6 +593,33 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Bat.</string>
     <string name="session_drawer_hud_element_graph">Grafic</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">HUD stil Mango</string>
+    <string name="session_drawer_hud_mango_settings">Setări HUD Mango</string>
+    <string name="mango_hud_element_gpu_load">Sarcină GPU</string>
+    <string name="mango_hud_element_gpu_temp">Temp. GPU</string>
+    <string name="mango_hud_element_cpu_load">Sarcină CPU</string>
+    <string name="mango_hud_element_cpu_temp">Temp. CPU</string>
+    <string name="mango_hud_element_ram">RAM</string>
+    <string name="mango_hud_element_battery">Baterie</string>
+    <string name="mango_hud_element_lows" formatted="false">Minime 1%</string>
+    <string name="mango_hud_element_graph">Grafic frametime</string>
+    <string name="mango_hud_element_engine">Motor</string>
+    <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">Frecvență CPU</string>
+    <string name="mango_hud_element_gpu_clock">Frecvență GPU</string>
+    <string name="mango_hud_element_cores">Per nucleu</string>
+    <string name="mango_hud_element_network">Rețea</string>
+    <string name="mango_hud_element_swap">Swap</string>
+    <string name="mango_hud_element_resolution">Rezoluție</string>
+    <string name="mango_hud_element_wine">Versiune Wine</string>
+    <string name="mango_hud_element_duration">Timp sesiune</string>
+    <string name="mango_hud_element_clock">Ceas</string>
+    <string name="mango_hud_element_throttle">Stare termică</string>
+    <string name="mango_hud_group_memory">Memorie</string>
+    <string name="mango_hud_group_system">Sistem</string>
+    <string name="mango_hud_lock">Blochează HUD</string>
+    <string name="mango_hud_lock_subtitle">Permite atingerilor să ajungă la comenzile din spatele HUD-ului. Ține apăsat HUD-ul pentru a-l bloca. (5s)</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Doresti sa opresti acest proces?</string>
@@ -730,6 +762,7 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="settings_general_select_wallpaper">Selectează fundalul</string>
     <string name="settings_general_title">General</string>
     <string name="settings_general_enable_file_provider">Activeaza furnizorul de fisiere</string>
+    <string name="settings_general_enable_auto_scraping">Activează obținerea automată</string>
     <string name="settings_general_take_effect_next_startup">Aceasta optiune va avea efect la urmatoarea pornire.</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Reinstaleaza Imagefs</string>
@@ -753,6 +786,7 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="settings_general_xinput_toggle_summary">Opreste gestionarea XInput cand doresti control exclusiv cu mouse-ul si tastatura.</string>
     <string name="settings_external_display_output_summary">Mută jocul pe un afișaj extern conectat în loc să oglindească acest ecran. Ochelarii folosesc întotdeauna propriul afișaj.</string>
     <string name="settings_general_file_provider_summary">Expune fisierele WinNative catre selectoarele de documente si managerii de fisiere Android.</string>
+    <string name="settings_general_auto_scraping_summary">Această setare permite WinNative să obțină automat ilustrațiile jocurilor personalizate.</string>
     <string name="settings_general_open_browser_summary">Deschide link-urile web compatibile in browserul Android in loc de Wine.</string>
     <string name="settings_general_clipboard_summary">Permite copierea si lipirea intre Android si sesiunile Wine.</string>
     <string name="settings_general_imagefs_summary">Restaureaza fisierele de sistem incluse fara a elimina containerele existente.</string>
@@ -822,6 +856,8 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
 
     <string name="settings_other_language_title">Limbă</string>
     <string name="settings_other_language_summary">Alege limba de afișare</string>
+    <string name="settings_other_game_language_title">Limba jocului</string>
+    <string name="settings_other_game_language_summary">Limba preferată pentru descărcările Steam/Epic/GOG</string>
     <string name="settings_other_language_system_default">Implicit sistem</string>
 
     <string name="settings_other_section_integration">Integrare</string>
@@ -1064,7 +1100,10 @@ Cale instalata:
     <!-- Missing translations -->
     <string name="common_ui_graphics">Grafică</string>
     <string name="steam_section_title">Steam</string>
+    <string name="binding_primary">Asociere primară</string>
     <string name="binding_secondary">Asociere secundară</string>
+    <string name="binding_third">Asociere terțiară</string>
+    <string name="binding_fourth">Asociere cuaternară</string>
     <string name="input_controls_editor_tap_to_switch">Atinge pentru a schimba</string>
     <string name="input_controls_editor_download_profile">Descarcă profilul</string>
     <string name="container_config_emulator_section">Emulator</string>
@@ -1173,6 +1212,9 @@ Cale instalata:
     <string name="cloud_saves_history_restore_success">Salvare restaurată din copia de siguranță.</string>
     <string name="cloud_saves_history_sign_in">Autentifică-te la Google pentru a vedea istoricul salvărilor.</string>
     <string name="cloud_saves_history_title">Istoric salvări</string>
+    <string name="cloud_saves_history_download">Descarcă</string>
+    <string name="cloud_saves_history_download_success">Fișier descărcat.</string>
+    <string name="cloud_saves_history_download_failed">Descărcarea a eșuat.</string>
     <string name="cloud_saves_keep_replaced_backup">Păstrează o copie de siguranță a salvării înlocuite</string>
     <string name="cloud_saves_keep_replaced_backup_summary">Dacă te răzgândești, o poți restaura din Istoricul salvărilor.</string>
     <string name="cloud_saves_no_backups">Nicio copie de siguranță pentru acest joc încă.</string>
@@ -1225,6 +1267,7 @@ Cale instalata:
     <string name="input_controls_editor_radial_menu">Meniu radial</string>
     <string name="input_controls_editor_radial_menu_options">Opțiuni meniu radial</string>
     <string name="input_controls_tap_to_click">Atingere pentru clic</string>
+    <string name="input_controls_reverse_binding_order">Inversează ordinea asocierilor</string>
     <string name="num_controllers">Număr de controlere</string>
     <string name="session_drawer_controls_section">Controale</string>
     <string name="session_drawer_header_subtitle">Acces rapid la controale, suprapuneri și instrumente de sesiune</string>
@@ -1245,16 +1288,12 @@ Cale instalata:
     <string name="session_gyroscope_mouse_sensitivity_format">Scară mouse: %1$d%%</string>
     <string name="settings_other_setup_wizard_summary">Deschide din nou expertul de configurare pentru a revizui permisiunile, fișierele de sistem și containerele implicite.</string>
     <string name="settings_other_setup_wizard_title">Expert de configurare</string>
-    <string name="shortcuts_library_artwork_carousel_title">Imagine carusel</string>
-    <string name="shortcuts_library_artwork_change">Schimbă imaginea</string>
     <string name="shortcuts_library_artwork_failed">Imposibil de încărcat imaginea selectată.</string>
-    <string name="shortcuts_library_artwork_game_card_title">Imagine card joc</string>
-    <string name="shortcuts_library_artwork_grid_title">Imagine grilă</string>
-    <string name="shortcuts_library_artwork_list_title">Imagine listă</string>
     <string name="shortcuts_library_artwork_open_source">Deschide SteamGridDB</string>
-    <string name="shortcuts_library_artwork_selected">Selectată: %1$s</string>
     <string name="shortcuts_library_artwork_set">Setează imaginea</string>
     <string name="shortcuts_library_artwork_title">Ilustrații bibliotecă</string>
+    <string name="shortcuts_library_artwork_icon_title">Imagine pictogramă</string>
+    <string name="shortcuts_library_artwork_hero_title">Fundal</string>
     <string name="shortcuts_list_readded_existing">Scurtătură existentă readăugată</string>
     <string name="shortcuts_properties_runtime_patcher">Runtime DRM Patcher</string>
     <string name="shortcuts_properties_runtime_patcher_description">Injectează un DLL patcher DRM la lansare. Reduce FPS — folosește doar dacă lansatorul moștenit singur eșuează.</string>
@@ -1292,12 +1331,16 @@ Cale instalata:
     <string name="steam_section_emulator">Emulator Steam moștenit</string>
     <string name="shortcuts_properties_steam_offline_mode_description">Face clientul Steam emulat să raporteze că este offline, astfel încât jocul să nu încerce conexiuni online. Folosește pentru jocurile care se blochează la verificarea rețelei Steam.</string>
     <string name="input_controls_select_style">Selectează stilul</string>
-    <string name="input_controls_select_label_theme">Etichete butoane</string>
     <string name="input_controls_style_original">Original</string>
     <string name="input_controls_style_gamehub">Glass</string>
-    <string name="input_controls_label_theme_default">Original</string>
-    <string name="input_controls_label_theme_xbox">Xbox</string>
-    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_style_slate">Ardezie</string>
+    <string name="input_controls_style_halo">Halo</string>
+    <string name="input_controls_style_glint">Sclipire</string>
+    <string name="input_controls_style_shadow">Umbră</string>
+    <string name="input_controls_style_reticle">Reticul</string>
+    <string name="input_controls_style_neon">Neon</string>
+    <string name="input_controls_style_lumina">Lumina</string>
+    <string name="input_controls_accent_theme">Temă de culoare</string>
     <string name="input_controls_edit_duplicating_builtin">Profil integrat - a fost creată o copie editabilă.</string>
     <string name="input_controls_editor_confirm_reset_profile">Resetezi acest profil la aspectul original? Toate modificările făcute se vor pierde.</string>
     <string name="input_controls_editor_profile_reset">Profil resetat la aspectul original.</string>
@@ -1358,6 +1401,7 @@ Cale instalata:
     <string name="steam_friends_section_online">Online (%1$d)</string>
     <string name="steam_friends_section_offline">Offline (%1$d)</string>
     <string name="steam_friends_none_loaded">Niciun prieten încărcat încă.</string>
+    <string name="steam_friends_chat_off">Chatul este dezactivat. Reactivează Serviciul de chat pentru a-ți vedea prietenii.</string>
     <string name="steam_friends_self_you">Tu</string>
     <string name="steam_friends_in_game">În joc</string>
     <string name="steam_friends_join">Alătură-te</string>
@@ -1383,6 +1427,8 @@ Cale instalata:
     <string name="steam_join_the_game">jocul</string>
     <string name="steam_friends_settings">Settings</string>
     <string name="steam_chat_settings_title">Chat Settings</string>
+    <string name="steam_chat_setting_service">Serviciu de chat</string>
+    <string name="steam_chat_setting_service_desc">Conectează-te pentru a-ți vedea prietenii și a discuta; dezactivează pentru a apărea offline</string>
     <string name="steam_chat_setting_notifications">Chat Notifications</string>
     <string name="steam_chat_setting_notifications_desc">Show a notification when you receive a message</string>
     <string name="steam_chat_setting_heads">Chat Heads</string>
@@ -1511,7 +1557,7 @@ Cale instalata:
     <string name="session_drawer_hud_background">Fundal</string>
     <string name="session_drawer_hud_background_alpha">Alfa fundal</string>
     <string name="session_drawer_hud_background_alpha_input_title">Setează alfa fundalului</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">Ajustează dimensiunea</string>
     <string name="session_task_bring_to_front">Adu în față</string>
     <string name="session_task_custom_value">Valoare personalizată</string>
@@ -1554,5 +1600,6 @@ Cale instalata:
     <string name="session_record_started">Înregistrare pornită</string>
     <string name="steam_chat_setting_stay_running">Rulează în fundal</string>
     <string name="steam_chat_setting_stay_running_desc">Menține chatul activ după ce ieși din WinNative</string>
+    <string name="settings_content_refresh">Reîmprospătează</string>
 </resources>
 

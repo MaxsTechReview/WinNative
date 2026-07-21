@@ -45,7 +45,7 @@ const val DATABASE_NAME = "pluvia_database"
         DownloadingAppInfo::class,
         DownloadRecord::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = false,
 )
 @TypeConverters(
@@ -91,7 +91,7 @@ abstract class PluviaDatabase : RoomDatabase() {
                         context.applicationContext,
                         PluviaDatabase::class.java,
                         DATABASE_NAME,
-                    ).addMigrations(MIGRATION_6_7)
+                    ).addMigrations(MIGRATION_6_7, MIGRATION_7_8)
                     .fallbackToDestructiveMigration(true)
                     .build()
                     .also { instance = it }
@@ -100,6 +100,13 @@ abstract class PluviaDatabase : RoomDatabase() {
         fun getInstance(context: android.content.Context): PluviaDatabase = init(context)
 
         fun getInstance(): PluviaDatabase = instance ?: throw IllegalStateException("PluviaDatabase not initialized")
+
+        private val MIGRATION_7_8 =
+            object : Migration(7, 8) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE app_info ADD COLUMN install_path TEXT")
+                }
+            }
 
         private val MIGRATION_6_7 =
             object : Migration(6, 7) {

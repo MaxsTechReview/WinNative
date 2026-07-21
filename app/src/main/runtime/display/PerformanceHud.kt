@@ -98,7 +98,7 @@ fun PerformanceHudOverlay(modifier: Modifier = Modifier) {
         gauges.add(GaugeSpec("GPU", pctText(s.gpuLoad), pctFraction(s.gpuLoad), loadColor(maxOf(s.gpuLoad, 0))))
     }
     if (s.enabled.getOrElse(3) { false }) {
-        gauges.add(GaugeSpec("CPU", pctText(s.cpuPercent), pctFraction(s.cpuPercent), loadColor(maxOf(s.cpuPercent, 0))))
+        gauges.add(GaugeSpec("CPU", pctText(maxOf(s.cpuPercent, 0)), pctFraction(maxOf(s.cpuPercent, 0)), loadColor(maxOf(s.cpuPercent, 0))))
     }
     if (s.enabled.getOrElse(4) { false }) {
         gauges.add(GaugeSpec("RAM", pctText(s.ramPercent), pctFraction(s.ramPercent), loadColor(maxOf(s.ramPercent, 0))))

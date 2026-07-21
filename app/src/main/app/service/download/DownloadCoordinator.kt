@@ -37,6 +37,9 @@ object DownloadCoordinator {
 
         /** Cancel a running download and delete partial files. */
         fun cancelRunning(record: DownloadRecord)
+
+        /** True while the store has a live transfer for this record. */
+        fun isTransferActive(record: DownloadRecord): Boolean = true
     }
 
     private val mutex = Mutex()
@@ -237,7 +240,30 @@ object DownloadCoordinator {
                 }
                 tick()
             }
+            DownloadRecord.STATUS_DOWNLOADING -> {
+                // Requeue records wedged in DOWNLOADING with no live transfer so Retry works.
+                val live = dispatchers[store]?.isTransferActive(record) ?: false
+                if (!live) {
+                    Timber.w("resume: requeuing wedged DOWNLOADING record ${record.store}/${record.storeGameId}")
+                    mutex.withLock {
+                        daoRef.updateStatus(record.id, DownloadRecord.STATUS_QUEUED)
+                        refreshState(daoRef)
+                    }
+                    tick()
+                }
+            }
             else -> Unit
+        }
+    }
+
+    /** Put a just-dispatched record back in the queue without ticking; a later tick() retries it. */
+    suspend fun requeue(store: String, storeGameId: String) {
+        val daoRef = dao ?: return
+        val record = daoRef.findByStoreGame(store, storeGameId) ?: return
+        if (record.status != DownloadRecord.STATUS_DOWNLOADING) return
+        mutex.withLock {
+            daoRef.updateStatus(record.id, DownloadRecord.STATUS_QUEUED)
+            refreshState(daoRef)
         }
     }
 

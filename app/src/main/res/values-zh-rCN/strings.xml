@@ -157,6 +157,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">抓取封面</string>
+    <string name="library_games_scraping_artwork">抓取中</string>
     <string name="library_games_shortcut_created">快捷方式已创建</string>
     <string name="library_games_failed_to_create_shortcut">创建快捷方式失败：%s</string>
     <string name="library_games_install_path">安装路径</string>
@@ -505,9 +507,12 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">FEXCore 预设</string>
     <string name="container_fexcore_version">FEXCore 版本</string>
+    <string name="use_unix_libs">使用 UnixLibs</string>
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">图形驱动</string>
+    <string name="container_graphics_transcoder">BCn 转码器</string>
+    <string name="container_graphics_quality">BCn 质量</string>
     <string name="container_graphics_configuration">图形驱动配置</string>
     <string name="container_graphics_version">图形驱动版本</string>
     <string name="container_graphics_available_extensions">可用扩展</string>
@@ -588,6 +593,33 @@
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">电量</string>
     <string name="session_drawer_hud_element_graph">图表</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">Mango 风格 HUD</string>
+    <string name="session_drawer_hud_mango_settings">Mango HUD 设置</string>
+    <string name="mango_hud_element_gpu_load">GPU 负载</string>
+    <string name="mango_hud_element_gpu_temp">GPU 温度</string>
+    <string name="mango_hud_element_cpu_load">CPU 负载</string>
+    <string name="mango_hud_element_cpu_temp">CPU 温度</string>
+    <string name="mango_hud_element_ram">内存</string>
+    <string name="mango_hud_element_battery">电池</string>
+    <string name="mango_hud_element_lows" formatted="false">1% 最低帧</string>
+    <string name="mango_hud_element_graph">帧生成时间图表</string>
+    <string name="mango_hud_element_engine">引擎</string>
+    <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">CPU 频率</string>
+    <string name="mango_hud_element_gpu_clock">GPU 频率</string>
+    <string name="mango_hud_element_cores">每核心</string>
+    <string name="mango_hud_element_network">网络</string>
+    <string name="mango_hud_element_swap">交换内存</string>
+    <string name="mango_hud_element_resolution">分辨率</string>
+    <string name="mango_hud_element_wine">Wine 版本</string>
+    <string name="mango_hud_element_duration">会话时长</string>
+    <string name="mango_hud_element_clock">时钟</string>
+    <string name="mango_hud_element_throttle">温控状态</string>
+    <string name="mango_hud_group_memory">内存</string>
+    <string name="mango_hud_group_system">系统</string>
+    <string name="mango_hud_lock">锁定 HUD</string>
+    <string name="mango_hud_lock_subtitle">让触摸穿透到 HUD 后面的控件。长按 HUD 即可锁定。 (5s)</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">您要结束此进程吗？</string>
@@ -730,6 +762,7 @@
     <string name="settings_general_select_wallpaper">选择壁纸</string>
     <string name="settings_general_title">通用</string>
     <string name="settings_general_enable_file_provider">启用文件提供程序</string>
+    <string name="settings_general_enable_auto_scraping">启用自动抓取</string>
     <string name="settings_general_take_effect_next_startup">此选项将在下次启动时生效。</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">重新安装 Imagefs</string>
@@ -753,6 +786,7 @@
     <string name="settings_general_xinput_toggle_summary">在需要独占鼠标和键盘控制时关闭 XInput 处理。</string>
     <string name="settings_external_display_output_summary">将游戏移到已连接的外部显示器，而不是镜像此屏幕。眼镜始终使用自己的显示屏。</string>
     <string name="settings_general_file_provider_summary">向 Android 文档选择器和文件管理器公开 WinNative 文件。</string>
+    <string name="settings_general_auto_scraping_summary">让 WinNative 自动抓取自定义游戏封面。</string>
     <string name="settings_general_open_browser_summary">在 Android 浏览器中打开支持的网页链接，而非在 Wine 内部打开。</string>
     <string name="settings_general_clipboard_summary">允许在 Android 和 Wine 会话之间复制和粘贴。</string>
     <string name="settings_general_imagefs_summary">恢复捆绑的系统文件而不删除现有容器。</string>
@@ -822,6 +856,8 @@
 
     <string name="settings_other_language_title">语言</string>
     <string name="settings_other_language_summary">选择显示语言</string>
+    <string name="settings_other_game_language_title">游戏语言</string>
+    <string name="settings_other_game_language_summary">Steam/Epic/GOG 下载的首选语言</string>
     <string name="settings_other_language_system_default">系统默认</string>
 
     <string name="settings_other_section_integration">集成</string>
@@ -1064,7 +1100,10 @@
     <!-- Missing translations -->
     <string name="common_ui_graphics">图形</string>
     <string name="steam_section_title">Steam</string>
+    <string name="binding_primary">主要绑定</string>
     <string name="binding_secondary">次要绑定</string>
+    <string name="binding_third">第三绑定</string>
+    <string name="binding_fourth">第四绑定</string>
     <string name="input_controls_editor_tap_to_switch">点按切换</string>
     <string name="input_controls_editor_download_profile">下载配置文件</string>
     <string name="container_config_emulator_section">模拟器</string>
@@ -1173,6 +1212,9 @@
     <string name="cloud_saves_history_restore_success">已从备份还原存档。</string>
     <string name="cloud_saves_history_sign_in">登录 Google 以查看存档历史。</string>
     <string name="cloud_saves_history_title">存档历史</string>
+    <string name="cloud_saves_history_download">下载</string>
+    <string name="cloud_saves_history_download_success">文件已下载。</string>
+    <string name="cloud_saves_history_download_failed">下载失败。</string>
     <string name="cloud_saves_keep_replaced_backup">保留被替换存档的备份</string>
     <string name="cloud_saves_keep_replaced_backup_summary">如果您改变主意，可从存档历史中还原。</string>
     <string name="cloud_saves_no_backups">此游戏暂无备份。</string>
@@ -1225,6 +1267,7 @@
     <string name="input_controls_editor_radial_menu">径向菜单</string>
     <string name="input_controls_editor_radial_menu_options">径向菜单选项</string>
     <string name="input_controls_tap_to_click">轻触点击</string>
+    <string name="input_controls_reverse_binding_order">反向绑定顺序</string>
     <string name="num_controllers">手柄数量</string>
     <string name="session_drawer_controls_section">控制</string>
     <string name="session_drawer_header_subtitle">快速访问控制、悬浮层和会话工具</string>
@@ -1245,16 +1288,12 @@
     <string name="session_gyroscope_mouse_sensitivity_format">鼠标缩放：%1$d%%</string>
     <string name="settings_other_setup_wizard_summary">再次打开设置向导，检查权限、系统文件和默认容器。</string>
     <string name="settings_other_setup_wizard_title">设置向导</string>
-    <string name="shortcuts_library_artwork_carousel_title">轮播图片</string>
-    <string name="shortcuts_library_artwork_change">更换图片</string>
     <string name="shortcuts_library_artwork_failed">加载所选图片失败。</string>
-    <string name="shortcuts_library_artwork_game_card_title">游戏卡片图片</string>
-    <string name="shortcuts_library_artwork_grid_title">网格图片</string>
-    <string name="shortcuts_library_artwork_list_title">列表图片</string>
     <string name="shortcuts_library_artwork_open_source">打开 SteamGridDB</string>
-    <string name="shortcuts_library_artwork_selected">已选择：%1$s</string>
     <string name="shortcuts_library_artwork_set">设置图片</string>
     <string name="shortcuts_library_artwork_title">库封面</string>
+    <string name="shortcuts_library_artwork_icon_title">图标图片</string>
+    <string name="shortcuts_library_artwork_hero_title">背景</string>
     <string name="shortcuts_list_readded_existing">已重新添加现有快捷方式</string>
     <string name="shortcuts_properties_runtime_patcher">运行时 DRM 破解器</string>
     <string name="shortcuts_properties_runtime_patcher_description">启动时注入 DRM 补丁 DLL。会降低 FPS——仅在单独使用旧版启动器失败时使用。</string>
@@ -1292,12 +1331,16 @@
     <string name="steam_section_emulator">旧版 Steam 模拟器</string>
     <string name="shortcuts_properties_steam_offline_mode_description">让模拟的 Steam 客户端报告为离线，这样游戏就不会尝试在线连接。适用于在 Steam 网络检查时卡住的游戏。</string>
     <string name="input_controls_select_style">选择样式</string>
-    <string name="input_controls_select_label_theme">按钮标签</string>
     <string name="input_controls_style_original">原版</string>
     <string name="input_controls_style_gamehub">Glass</string>
-    <string name="input_controls_label_theme_default">原版</string>
-    <string name="input_controls_label_theme_xbox">Xbox</string>
-    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_style_slate">石板</string>
+    <string name="input_controls_style_halo">光环</string>
+    <string name="input_controls_style_glint">微光</string>
+    <string name="input_controls_style_shadow">暗影</string>
+    <string name="input_controls_style_reticle">准星</string>
+    <string name="input_controls_style_neon">霓虹</string>
+    <string name="input_controls_style_lumina">流光</string>
+    <string name="input_controls_accent_theme">颜色主题</string>
     <string name="input_controls_edit_duplicating_builtin">内置配置文件 - 已创建可编辑副本。</string>
     <string name="input_controls_editor_confirm_reset_profile">将此配置文件重置为原始布局？你所做的任何更改都会丢失。</string>
     <string name="input_controls_editor_profile_reset">配置文件已重置为原始布局。</string>
@@ -1358,6 +1401,7 @@
     <string name="steam_friends_section_online">在线 (%1$d)</string>
     <string name="steam_friends_section_offline">离线 (%1$d)</string>
     <string name="steam_friends_none_loaded">尚未加载好友。</string>
+    <string name="steam_friends_chat_off">聊天已关闭。重新开启聊天服务以查看好友。</string>
     <string name="steam_friends_self_you">你</string>
     <string name="steam_friends_in_game">游戏中</string>
     <string name="steam_friends_join">加入</string>
@@ -1383,6 +1427,8 @@
     <string name="steam_join_the_game">游戏</string>
     <string name="steam_friends_settings">Settings</string>
     <string name="steam_chat_settings_title">Chat Settings</string>
+    <string name="steam_chat_setting_service">聊天服务</string>
+    <string name="steam_chat_setting_service_desc">登录以使用好友和聊天；关闭则显示为离线。</string>
     <string name="steam_chat_setting_notifications">Chat Notifications</string>
     <string name="steam_chat_setting_notifications_desc">Show a notification when you receive a message</string>
     <string name="steam_chat_setting_heads">Chat Heads</string>
@@ -1512,7 +1558,7 @@
     <string name="session_drawer_hud_background">背景</string>
     <string name="session_drawer_hud_background_alpha">背景透明度</string>
     <string name="session_drawer_hud_background_alpha_input_title">设置背景透明度</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">调整大小</string>
     <string name="session_task_bring_to_front">置于顶层</string>
     <string name="session_task_custom_value">自定义值</string>
@@ -1555,5 +1601,6 @@
     <string name="session_record_started">已开始录制</string>
     <string name="steam_chat_setting_stay_running">在后台运行</string>
     <string name="steam_chat_setting_stay_running_desc">退出 WinNative 后保持聊天运行</string>
+    <string name="settings_content_refresh">刷新</string>
 </resources>
 

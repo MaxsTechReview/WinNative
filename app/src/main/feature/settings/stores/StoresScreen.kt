@@ -44,6 +44,7 @@ import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderShared
 import androidx.compose.material.icons.outlined.Gamepad
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Wifi
@@ -109,6 +110,8 @@ data class StoreState(
     val steamFolder: String = "",
     val epicFolder: String = "",
     val gogFolder: String = "",
+    val containerLanguageLabels: List<String> = emptyList(),
+    val containerLanguageIndex: Int = 0,
 )
 
 @Composable
@@ -128,6 +131,7 @@ fun StoresScreen(
     onPickSteamFolder: () -> Unit,
     onPickEpicFolder: () -> Unit,
     onPickGogFolder: () -> Unit,
+    onContainerLanguageSelected: (Int) -> Unit,
     bridge: SettingsNavBridge? = null,
 ) {
     val layoutDirection = LocalLayoutDirection.current
@@ -256,6 +260,18 @@ fun StoresScreen(
                 selectedValue = state.downloadServer,
                 options = serverOptions,
                 onOptionSelected = onDownloadServerChanged,
+            )
+
+            val gameLanguageOptions = remember(state.containerLanguageLabels) {
+                state.containerLanguageLabels.mapIndexed { index, label -> index to label }
+            }
+            SettingsDropdownCard(
+                title = stringResource(R.string.settings_other_game_language_title),
+                subtitle = stringResource(R.string.settings_other_game_language_summary),
+                icon = Icons.Outlined.Language,
+                selectedValue = state.containerLanguageIndex,
+                options = gameLanguageOptions,
+                onOptionSelected = onContainerLanguageSelected,
             )
 
             Spacer(Modifier.height(24.dp + navBarBottomPadding))

@@ -33,6 +33,8 @@ import com.winlator.cmod.shared.io.StorageUtils
 import com.winlator.cmod.shared.ui.dialog.ContentDialog
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -52,13 +54,14 @@ class ContentsFragment : Fragment() {
 
     private var downloadProgress: ComponentsDownloadProgress? = null
     private var conflictingContentPath: String? = null
+    private var isRefreshing = false
+    private var loadFailed = false
 
     private var autoCreateContainer = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         manager = ContentsManager(requireContext())
-        manager.syncContents()
 
         savedInstanceState
             ?.getString(STATE_CONTENT_TYPE)
@@ -114,6 +117,7 @@ class ContentsFragment : Fragment() {
                                 .apply()
                             publishState()
                         },
+                        onRefresh = { refreshRemoteProfiles() },
                     )
                 }
             }
@@ -126,6 +130,15 @@ class ContentsFragment : Fragment() {
     ) {
         super.onViewCreated(view, savedInstanceState)
         (activity as? AppCompatActivity)?.supportActionBar?.setTitle(R.string.settings_content_components)
+        syncAndPublish()
+    }
+
+    private fun syncAndPublish() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            withContext(Dispatchers.IO) { manager.syncContents() }
+            if (!isAdded || view == null) return@launch
+            publishState()
+        }
     }
 
     override fun onResume() {
@@ -194,6 +207,8 @@ class ContentsFragment : Fragment() {
                 downloadProgress = downloadProgress,
                 conflict = conflictingContentPath?.let(::ComponentsConflict),
                 autoCreateContainer = autoCreateContainer,
+                isRefreshing = isRefreshing,
+                loadFailed = loadFailed,
             )
 
         scheduleRemoteSizeFetches(availableItems)
@@ -266,16 +281,16 @@ class ContentsFragment : Fragment() {
         remoteSizeFetchesInFlight.addAll(urlsToFetch)
 
         viewLifecycleOwner.lifecycleScope.launch {
-            urlsToFetch.forEach { url ->
-                val size =
-                    withContext(Dispatchers.IO) {
-                        Downloader.fetchContentLength(url)
-                    }
-                if (!isAdded || view == null) return@launch
+            val sizes =
+                urlsToFetch
+                    .map { url -> async(Dispatchers.IO) { url to Downloader.fetchContentLength(url) } }
+                    .awaitAll()
+            if (!isAdded || view == null) return@launch
+            sizes.forEach { (url, size) ->
                 remoteSizeCache[url] = size
                 remoteSizeFetchesInFlight.remove(url)
-                publishState()
             }
+            publishState()
         }
     }
 
@@ -292,16 +307,16 @@ class ContentsFragment : Fragment() {
         installedSizeFetchesInFlight.addAll(installDirsToFetch)
 
         viewLifecycleOwner.lifecycleScope.launch {
-            installDirsToFetch.forEach { installDir ->
-                val size =
-                    withContext(Dispatchers.IO) {
-                        StorageUtils.getFolderSize(installDir)
-                    }
-                if (!isAdded || view == null) return@launch
+            val sizes =
+                installDirsToFetch
+                    .map { installDir -> async(Dispatchers.IO) { installDir to StorageUtils.getFolderSize(installDir) } }
+                    .awaitAll()
+            if (!isAdded || view == null) return@launch
+            sizes.forEach { (installDir, size) ->
                 installedSizeCache[installDir] = size
                 installedSizeFetchesInFlight.remove(installDir)
-                publishState()
             }
+            publishState()
         }
     }
 
@@ -352,37 +367,54 @@ class ContentsFragment : Fragment() {
             return
         }
 
-        manager.removeContent(profile)
-        manager.syncContents()
-        publishState()
+        viewLifecycleOwner.lifecycleScope.launch {
+            withContext(Dispatchers.IO) { manager.removeContent(profile) }
+            if (!isAdded || view == null) return@launch
+            publishState()
+        }
     }
 
     private fun refreshRemoteProfiles() {
+        if (isRefreshing) return
+        isRefreshing = true
+        loadFailed = false
+        remoteSizeCache.entries.removeAll { it.value <= 0L }
+        installedSizeCache.entries.removeAll { it.value <= 0L }
+        publishState()
+
         viewLifecycleOwner.lifecycleScope.launch {
+            var failed = false
             try {
-                val context = context ?: return@launch
-                val preferences = PreferenceManager.getDefaultSharedPreferences(context)
+                val context = context
                 val contentsUrl =
-                    preferences.getString(
-                        "downloadable_contents_url",
-                        ContentsManager.REMOTE_PROFILES,
-                    ) ?: ContentsManager.REMOTE_PROFILES
+                    if (context != null) {
+                        PreferenceManager
+                            .getDefaultSharedPreferences(context)
+                            .getString("downloadable_contents_url", ContentsManager.REMOTE_PROFILES)
+                            ?: ContentsManager.REMOTE_PROFILES
+                    } else {
+                        ContentsManager.REMOTE_PROFILES
+                    }
 
                 val json =
                     withContext(Dispatchers.IO) {
                         Downloader.downloadString(contentsUrl)
-                    } ?: return@launch
+                    }
 
-                withContext(Dispatchers.IO) {
-                    manager.setRemoteProfiles(json)
-                }
-
-                if (isAdded && view != null) {
-                    publishState()
+                if (json != null) {
+                    withContext(Dispatchers.IO) { manager.setRemoteProfiles(json) }
+                } else {
+                    failed = true
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to refresh remote profiles.", e)
+                failed = true
+            } finally {
+                isRefreshing = false
             }
+
+            loadFailed = failed
+            if (isAdded && view != null) publishState()
         }
     }
 
@@ -447,12 +479,13 @@ class ContentsFragment : Fragment() {
                         return
                     }
 
+                    if (sourceRemoteUrl != null) {
+                        manager.registerRemoteProfileAlias(sourceRemoteUrl, profile)
+                    }
+                    manager.syncContents()
+
                     runOnMain {
-                        if (sourceRemoteUrl != null) {
-                            manager.registerRemoteProfileAlias(sourceRemoteUrl, profile)
-                        }
                         WinToast.show(requireContext(), completionMessage)
-                        manager.syncContents()
                         currentContentType = profile.type
                         publishState()
 
@@ -569,25 +602,27 @@ class ContentsFragment : Fragment() {
 
     private fun downloadRemoteContent(profile: ContentProfile) {
         val remoteUrl = profile.remoteUrl ?: return
-        findInstalledProfileFor(profile)?.let { installedProfile ->
-            publishState()
-            showConflictingContentDialog(installedProfile)
-            return
-        }
-
-        updateDownloadProgress(
-            title = getString(R.string.settings_content_downloading_title),
-            message = profile.verName,
-            indeterminate = true,
-        )
-
-        // Keep the app process alive while the download/install runs so screen
-        // lock doesn't tear it down. installSelectedContent() owns its own
-        // keep-alive scope; this one covers the download step alone.
-        val keepAliveTag = "components_download_${remoteUrl}"
-        val appCtx = requireContext().applicationContext
-        com.winlator.cmod.runtime.system.SessionKeepAliveService.startDownload(appCtx, keepAliveTag)
         viewLifecycleOwner.lifecycleScope.launch {
+            val installedProfile = withContext(Dispatchers.IO) { findInstalledProfileFor(profile) }
+            if (!isAdded || view == null) return@launch
+            if (installedProfile != null) {
+                publishState()
+                showConflictingContentDialog(installedProfile)
+                return@launch
+            }
+
+            updateDownloadProgress(
+                title = getString(R.string.settings_content_downloading_title),
+                message = profile.verName,
+                indeterminate = true,
+            )
+
+            // Keep the app process alive while the download/install runs so screen
+            // lock doesn't tear it down. installSelectedContent() owns its own
+            // keep-alive scope; this one covers the download step alone.
+            val keepAliveTag = "components_download_${remoteUrl}"
+            val appCtx = requireContext().applicationContext
+            com.winlator.cmod.runtime.system.SessionKeepAliveService.startDownload(appCtx, keepAliveTag)
             val output = File(requireContext().cacheDir, "temp_${System.currentTimeMillis()}")
             val success =
                 withContext(Dispatchers.IO) {

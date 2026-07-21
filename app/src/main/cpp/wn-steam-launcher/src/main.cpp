@@ -231,6 +231,24 @@ static void stage_steam_config(void) {
     }
 }
 
+// Escape a free-text value for a VDF/ACF quoted field: double backslashes, then
+// escape quotes and newlines. Mirrors the Kotlin escapeString() so the C++ and
+// Kotlin manifest paths produce identical, well-formed output.
+static std::string vdf_escape(const char* s) {
+    std::string out;
+    if (!s) return out;
+    for (const char* p = s; *p; ++p) {
+        switch (*p) {
+            case '\\': out += "\\\\"; break;
+            case '"':  out += "\\\""; break;
+            case '\n': out += "\\n"; break;
+            case '\r': out += "\\r"; break;
+            default:   out += *p; break;
+        }
+    }
+    return out;
+}
+
 static void stage_app_manifest(uint32_t appId, const char* gameExe) {
     if (appId == 0 || !gameExe) return;
     const char* marker = "\\steamapps\\common\\";
@@ -258,33 +276,155 @@ static void stage_app_manifest(uint32_t appId, const char* gameExe) {
     snprintf(acf, sizeof(acf),
              "C:\\Program Files (x86)\\Steam\\steamapps\\appmanifest_%u.acf",
              appId);
+    const char* owner = getenv("WN_STEAM_STEAMID");
+    const char* depotsEnv = getenv("WN_STEAM_DEPOTS");
+    const char* sharedEnv = getenv("WN_STEAM_SHARED_DEPOTS");
+    const char* appName = getenv("WN_STEAM_APP_NAME");
+    const char* installScriptsEnv = getenv("WN_STEAM_INSTALL_SCRIPTS");
+    const char* language = getenv("WN_STEAM_LANGUAGE");
+    const char* buildIdStr = getenv("WN_STEAM_BUILD_ID");
+    const char* sizeOnDiskStr = getenv("WN_STEAM_SIZE_ON_DISK");
+    const char* bytesToDownloadStr = getenv("WN_STEAM_BYTES_TO_DOWNLOAD");
+    const char* bytesToStageStr = getenv("WN_STEAM_BYTES_TO_STAGE");
+    if (!appName || !*appName) appName = installdir;
+    if (!language || !*language) language = "english";
+    unsigned long long buildId = (buildIdStr && *buildIdStr) ? strtoull(buildIdStr, NULL, 10) : 0ULL;
+    unsigned long long sizeOnDisk = (sizeOnDiskStr && *sizeOnDiskStr) ? strtoull(sizeOnDiskStr, NULL, 10) : 0ULL;
+    unsigned long long bytesToDownload = (bytesToDownloadStr && *bytesToDownloadStr) ? strtoull(bytesToDownloadStr, NULL, 10) : 0ULL;
+    unsigned long long bytesToStage = (bytesToStageStr && *bytesToStageStr) ? strtoull(bytesToStageStr, NULL, 10) : 0ULL;
     FILE* f = fopen(acf, "w");
     if (!f) {
         log_line("[wn-launcher] app manifest: fopen(%s) failed", acf);
         return;
     }
-    const char* owner = getenv("WN_STEAM_STEAMID");
+    std::string nameEsc = vdf_escape(appName);
+    std::string installdirEsc = vdf_escape(installdir);
+    std::string languageEsc = vdf_escape(language);
     fprintf(f,
             "\"AppState\"\n"
             "{\n"
             "\t\"appid\"\t\t\"%u\"\n"
-            "\t\"Universe\"\t\t\"1\"\n"
+            "\t\"universe\"\t\t\"1\"\n"
+            "\t\"LauncherPath\"\t\t\"C:\\\\Program Files (x86)\\\\Steam\\\\steam.exe\"\n"
             "\t\"name\"\t\t\"%s\"\n"
             "\t\"StateFlags\"\t\t\"4\"\n"
             "\t\"installdir\"\t\t\"%s\"\n"
-            "\t\"LastUpdated\"\t\t\"0\"\n"
-            "\t\"SizeOnDisk\"\t\t\"0\"\n"
-            "\t\"buildid\"\t\t\"0\"\n"
+            "\t\"LastUpdated\"\t\t\"%llu\"\n"
+            "\t\"LastPlayed\"\t\t\"0\"\n"
+            "\t\"SizeOnDisk\"\t\t\"%llu\"\n"
+            "\t\"StagingSize\"\t\t\"0\"\n"
+            "\t\"buildid\"\t\t\"%llu\"\n"
             "\t\"LastOwner\"\t\t\"%s\"\n"
-            "\t\"InstalledDepots\"\n"
+            "\t\"DownloadType\"\t\t\"1\"\n"
+            "\t\"UpdateResult\"\t\t\"0\"\n"
+            "\t\"BytesToDownload\"\t\t\"%llu\"\n"
+            "\t\"BytesDownloaded\"\t\t\"%llu\"\n"
+            "\t\"BytesToStage\"\t\t\"%llu\"\n"
+            "\t\"BytesStaged\"\t\t\"%llu\"\n"
+            "\t\"TargetBuildID\"\t\t\"%llu\"\n"
+            "\t\"AutoUpdateBehavior\"\t\t\"0\"\n"
+            "\t\"AllowOtherDownloadsWhileRunning\"\t\t\"0\"\n"
+            "\t\"ScheduledAutoUpdate\"\t\t\"0\"\n",
+            appId, nameEsc.c_str(), installdirEsc.c_str(),
+            (unsigned long long)time(NULL),
+            sizeOnDisk, buildId,
+            (owner && *owner) ? owner : "0",
+            bytesToDownload, bytesToDownload,
+            bytesToStage, bytesToStage, buildId);
+    // Write InstalledDepots with depot data from WN_STEAM_DEPOTS env var.
+    // Format: depotId:manifestGid:size[:dlcAppId],...
+    if (depotsEnv && *depotsEnv) {
+        fprintf(f, "\t\"InstalledDepots\"\n\t{\n");
+        std::vector<char> buf(strlen(depotsEnv) + 1);
+        memcpy(buf.data(), depotsEnv, buf.size());
+        char* token = strtok(buf.data(), ",");
+        while (token) {
+            // Parse depotId:manifestGid:size[:dlcAppId]
+            char* colon1 = strchr(token, ':');
+            if (!colon1) { token = strtok(NULL, ","); continue; }
+            *colon1 = '\0';
+            const char* depotIdStr = token;
+            char* manifestStart = colon1 + 1;
+            char* colon2 = strchr(manifestStart, ':');
+            if (!colon2) { token = strtok(NULL, ","); continue; }
+            *colon2 = '\0';
+            const char* manifestStr = manifestStart;
+            char* sizeStart = colon2 + 1;
+            char* colon3 = strchr(sizeStart, ':');
+            const char* sizeStr, *dlcAppIdStr;
+            if (colon3) {
+                *colon3 = '\0';
+                sizeStr = sizeStart;
+                dlcAppIdStr = colon3 + 1;
+            } else {
+                sizeStr = sizeStart;
+                dlcAppIdStr = NULL;
+            }
+            fprintf(f, "\t\t\"%s\"\n\t\t{\n"
+                       "\t\t\t\"manifest\"\t\t\"%s\"\n"
+                       "\t\t\t\"size\"\t\t\"%s\"\n",
+                    depotIdStr, manifestStr, sizeStr);
+            if (dlcAppIdStr && *dlcAppIdStr) {
+                fprintf(f, "\t\t\t\"dlcappid\"\t\t\"%s\"\n", dlcAppIdStr);
+            }
+            fprintf(f, "\t\t}\n");
+            token = strtok(NULL, ",");
+        }
+        fprintf(f, "\t}\n");
+    } else {
+        fprintf(f, "\t\"InstalledDepots\"\n\t{\n\t}\n");
+    }
+    // Write InstallScripts from WN_STEAM_INSTALL_SCRIPTS env var.
+    // Format: depotId:scriptFilename,...
+    if (installScriptsEnv && *installScriptsEnv) {
+        fprintf(f, "\t\"InstallScripts\"\n\t{\n");
+        std::vector<char> isbuf(strlen(installScriptsEnv) + 1);
+        memcpy(isbuf.data(), installScriptsEnv, isbuf.size());
+        char* istoken = strtok(isbuf.data(), ",");
+        while (istoken) {
+            char* iscolon = strchr(istoken, ':');
+            if (!iscolon) { istoken = strtok(NULL, ","); continue; }
+            *iscolon = '\0';
+            std::string scriptEsc = vdf_escape(iscolon + 1);
+            fprintf(f, "\t\t\"%s\"\t\t\"%s\"\n", istoken, scriptEsc.c_str());
+            istoken = strtok(NULL, ",");
+        }
+        fprintf(f, "\t}\n");
+    }
+    // Write SharedDepots from WN_STEAM_SHARED_DEPOTS env var.
+    // Format: sourceDepotId:targetAppId,...
+    if (sharedEnv && *sharedEnv) {
+        fprintf(f, "\t\"SharedDepots\"\n\t{\n");
+        std::vector<char> sbuf(strlen(sharedEnv) + 1);
+        memcpy(sbuf.data(), sharedEnv, sbuf.size());
+        char* stoken = strtok(sbuf.data(), ",");
+        while (stoken) {
+            char* scolon = strchr(stoken, ':');
+            if (!scolon) { stoken = strtok(NULL, ","); continue; }
+            *scolon = '\0';
+            fprintf(f, "\t\t\"%s\"\t\t\"%s\"\n", stoken, scolon + 1);
+            stoken = strtok(NULL, ",");
+        }
+        fprintf(f, "\t}\n");
+    }
+    fprintf(f,
+            "\t\"UserConfig\"\n"
             "\t{\n"
+            "\t\t\"language\"\t\t\"%s\"\n"
+            "\t}\n"
+            "\t\"MountedConfig\"\n"
+            "\t{\n"
+            "\t\t\"language\"\t\t\"%s\"\n"
             "\t}\n"
             "}\n",
-            appId, installdir, installdir,
-            (owner && *owner) ? owner : "0");
+            languageEsc.c_str(), languageEsc.c_str());
     fclose(f);
-    log_line("[wn-launcher] app manifest staged: %s (installdir=\"%s\", StateFlags=4)",
-             acf, installdir);
+    log_line("[wn-launcher] app manifest staged: %s (installdir=\"%s\", "
+             "depots=%s shared=%s scripts=%s)",
+             acf, installdir,
+             depotsEnv && *depotsEnv ? depotsEnv : "(none)",
+             sharedEnv && *sharedEnv ? sharedEnv : "(none)",
+             installScriptsEnv && *installScriptsEnv ? installScriptsEnv : "(none)");
 }
 
 // Counts running game processes (matches LaunchApp's canonical name or the literal
@@ -1162,12 +1302,7 @@ int main(int argc, char** argv) {
     bool launchedViaFallback = false;
     const char* launchFailureReason = "LaunchApp path unavailable";
 
-    // When the user overrides the launch target (picks their own exe instead of the
-    // app's Steam-configured launch entry), Steam's LaunchApp would still spawn the
-    // configured entry (e.g. a pre-launcher), not the chosen exe — so skip LaunchApp
-    // entirely and start the selected exe directly via CreateProcess. The Steam session
-    // (login/steamservice/cloud) is already established above, and the game's
-    // SteamAPI_Init attaches to it through the inherited SteamAppId env.
+    // User override: skip LaunchApp (it would spawn the app's configured entry, not the chosen exe) and CreateProcess the selected exe directly; the Steam session is already up.
     const char* directExeEnv = getenv("WN_STEAM_DIRECT_EXE");
     const bool directExe = directExeEnv && directExeEnv[0] != '\0';
 
@@ -1380,10 +1515,7 @@ int main(int argc, char** argv) {
         launchFailureReason = engine ? "appId was 0" : "IClientEngine was null";
     }
 
-    // LaunchApp didn't bring the game up — start it directly (clean-shutdown arm
-    // still reaps the session on exit, avoiding next-launch AlreadyRunning). The
-    // "LaunchApp dispatched … never appeared … falling back to CreateProcess"
-    // markers disarm WnLauncherStatusTailer's post-dispatch watchdog.
+    // LaunchApp didn't bring the game up — start it directly; the "dispatched/never appeared/falling back" log markers disarm WnLauncherStatusTailer's post-dispatch watchdog.
     if (!launchedViaApp) {
         if (directExe) {
             log_line("[wn-launcher] direct-exe mode: launching user-selected \"%s\" via "

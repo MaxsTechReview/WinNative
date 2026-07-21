@@ -1430,10 +1430,25 @@ object SteamAutoCloud {
                                             // Only a real content divergence is a conflict; a bare change-number drift reconciles the baseline silently.
                                             val contentDiffers =
                                                 cloudContentDiffersFromLocal(appFileListChange, prefixToPath, appInfo)
+                                            // cloudContentDiffersFromLocal only walks cloud files, so local-only files (new this session) are invisible to it; upload them instead of baselining them away.
+                                            val cloudLocalPaths =
+                                                groupPersistedCloudFilesByLocalPath(appFileListChange, prefixToPath, cloudRouting).keys
+                                            val hasLocalOnlyFiles =
+                                                allLocalUserFiles.any { file ->
+                                                    runCatching {
+                                                        file.getAbsPath(prefixToPath).toAbsolutePath().normalize()
+                                                    }.getOrNull() !in cloudLocalPaths
+                                                }
                                             if (contentDiffers) {
                                                 syncResult = SyncResult.Conflict
                                                 remoteTimestamp = appFileListChange.files.map { it.timestamp }.maxOrNull() ?: 0L
                                                 localTimestamp = allLocalUserFiles.map { it.timestamp }.maxOrNull() ?: 0L
+                                            } else if (hasLocalOnlyFiles) {
+                                                Timber.i(
+                                                    "Change number differs ($effectiveLocalAppChangeNumber -> $cloudAppChangeNumber) " +
+                                                        "with identical shared content but new local-only file(s); uploading",
+                                                )
+                                                uploadUserFiles(parentScope).await()
                                             } else {
                                                 Timber.i(
                                                     "Change number differs ($effectiveLocalAppChangeNumber -> $cloudAppChangeNumber) " +

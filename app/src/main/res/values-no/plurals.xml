@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="github_repo_asset_count">
+        <item quantity="one">%d ZIP-ressurs</item>
+        <item quantity="other">%d ZIP-ressurser</item>
+    </plurals>
+</resources>

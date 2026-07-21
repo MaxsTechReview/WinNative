@@ -51,7 +51,7 @@ object GameSaveBackupManager {
     private const val AUTH_SESSION_RETRY_DELAY_MS = 750L
 
     /** Maximum number of history entries retained (and shown) per game. */
-    const val MAX_HISTORY_ENTRIES = 30
+    const val MAX_HISTORY_ENTRIES = 100
 
     /** Entries older than this are pruned whenever history is listed or written. */
     const val HISTORY_MAX_AGE_DAYS = 30
@@ -235,6 +235,7 @@ object GameSaveBackupManager {
         origin: BackupOrigin,
         authMode: GoogleAuthMode = GoogleAuthMode.INTERACTIVE,
         customSaveDir: File? = null,
+        containerHint: Container? = null,
     ): BackupResult =
         withContext(Dispatchers.IO) {
             try {
@@ -245,12 +246,12 @@ object GameSaveBackupManager {
                     ?: return@withContext BackupResult(false, "Invalid Steam appId for snapshot.")
 
                 // 1) Local rolling snapshot — the offline rollback safety net (always attempted).
-                val localOk = SteamSaveSnapshotManager.recordSnapshot(activity.applicationContext, appId, origin)
+                val localOk = SteamSaveSnapshotManager.recordSnapshot(activity.applicationContext, appId, origin, containerHint)
 
                 // 2) Mirror to Google Play Games when signed in; a silent no-op otherwise (only the local snapshot is kept).
                 val googleResult =
                     runCatching {
-                        backupSaveToGoogle(activity, gameSource, gameId, gameName, origin, authMode)
+                        backupSaveToGoogle(activity, gameSource, gameId, gameName, origin, authMode, containerHint = containerHint)
                     }.getOrElse { e ->
                         Timber.tag(TAG).w(e, "Google mirror of kept save failed for $gameId")
                         BackupResult(false, e.message ?: "Google backup failed.")

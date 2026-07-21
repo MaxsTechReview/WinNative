@@ -160,6 +160,8 @@
         <item quantity="other">%d файла</item>
     </plurals>
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">Загрузить обложки</string>
+    <string name="library_games_scraping_artwork">Загрузка</string>
     <string name="library_games_shortcut_created">Ярлык создан.</string>
     <string name="library_games_failed_to_create_shortcut">Не удалось создать ярлык: %s</string>
     <string name="library_games_install_path">Путь установки</string>
@@ -289,13 +291,9 @@
     <string name="shortcuts_list_confirm_remove">Вы хотите удалить этот ярлык?</string>
     <string name="shortcuts_list_add_to_home_screen">Добавить на главный экран</string>
     <string name="shortcuts_library_artwork_title">Обложки библиотеки</string>
-    <string name="shortcuts_library_artwork_game_card_title">Изображение карточки игры</string>
-    <string name="shortcuts_library_artwork_grid_title">Изображение сетки</string>
-    <string name="shortcuts_library_artwork_carousel_title">Изображение карусели</string>
-    <string name="shortcuts_library_artwork_list_title">Изображение списка</string>
-    <string name="shortcuts_library_artwork_selected">Выбрано: %1$s</string>
+    <string name="shortcuts_library_artwork_icon_title">Изображение значка</string>
+    <string name="shortcuts_library_artwork_hero_title">Фон</string>
     <string name="shortcuts_library_artwork_set">Установить изображение</string>
-    <string name="shortcuts_library_artwork_change">Изменить изображение</string>
     <string name="shortcuts_library_artwork_failed">Не удалось загрузить выбранное изображение.</string>
     <string name="shortcuts_library_artwork_open_source">Открыть SteamGridDB</string>
     <string name="shortcuts_list_not_available">Этот ярлык больше недоступен. Пожалуйста, удалите или создайте заново.</string>
@@ -339,7 +337,10 @@
     <string name="input_controls_editor_shape">Форма</string>
     <string name="input_controls_editor_type">Тип</string>
     <string name="input_controls_editor_binding">Привязка</string>
+    <string name="binding_primary">Первичная привязка</string>
     <string name="binding_secondary">Вторичная привязка</string>
+    <string name="binding_third">Третичная привязка</string>
+    <string name="binding_fourth">Четвертичная привязка</string>
     <string name="input_controls_editor_binding_up">Привязка вверх</string>
     <string name="input_controls_editor_binding_right">Привязка вправо</string>
     <string name="input_controls_editor_binding_down">Привязка вниз</string>
@@ -351,12 +352,16 @@
     <string name="input_controls_editor_number_of_bindings">Количество привязок</string>
     <string name="input_controls_editor_select_profile">Выберите профиль</string>
     <string name="input_controls_select_style">Выберите стиль</string>
-    <string name="input_controls_select_label_theme">Метки кнопок</string>
     <string name="input_controls_style_original">Оригинал</string>
     <string name="input_controls_style_gamehub">Glass</string>
-    <string name="input_controls_label_theme_default">Оригинал</string>
-    <string name="input_controls_label_theme_xbox">Xbox</string>
-    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_style_slate">Сланец</string>
+    <string name="input_controls_style_halo">Ореол</string>
+    <string name="input_controls_style_glint">Блик</string>
+    <string name="input_controls_style_shadow">Тень</string>
+    <string name="input_controls_style_reticle">Прицел</string>
+    <string name="input_controls_style_neon">Неон</string>
+    <string name="input_controls_style_lumina">Люмина</string>
+    <string name="input_controls_accent_theme">Цветовая тема</string>
     <string name="input_controls_edit_duplicating_builtin">Встроенный профиль — созданную копию можно редактировать.</string>
     <string name="input_controls_editor_profile_name">Имя профиля</string>
     <string name="input_controls_editor_no_profile_selected">Профиль не выбран</string>
@@ -513,8 +518,11 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">Пресет FEXCore</string>
     <string name="container_fexcore_version">Версия FEXCore</string>
+    <string name="use_unix_libs">Использовать UnixLibs</string>
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Графический драйвер</string>
+    <string name="container_graphics_transcoder">Транскодер BCn</string>
+    <string name="container_graphics_quality">Качество BCn</string>
     <string name="container_graphics_configuration">Конфигурация графического драйвера</string>
     <string name="container_graphics_version">Версия графического драйвера</string>
     <string name="container_graphics_available_extensions">Доступные расширения</string>
@@ -610,6 +618,33 @@
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Батарея</string>
     <string name="session_drawer_hud_element_graph">График</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">HUD в стиле Mango</string>
+    <string name="session_drawer_hud_mango_settings">Настройки Mango HUD</string>
+    <string name="mango_hud_element_gpu_load">Нагрузка GPU</string>
+    <string name="mango_hud_element_gpu_temp">Темп. GPU</string>
+    <string name="mango_hud_element_cpu_load">Нагрузка CPU</string>
+    <string name="mango_hud_element_cpu_temp">Темп. CPU</string>
+    <string name="mango_hud_element_ram">ОЗУ</string>
+    <string name="mango_hud_element_battery">Батарея</string>
+    <string name="mango_hud_element_lows" formatted="false">1% минимумы</string>
+    <string name="mango_hud_element_graph">График фреймтайма</string>
+    <string name="mango_hud_element_engine">Движок</string>
+    <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">Частота CPU</string>
+    <string name="mango_hud_element_gpu_clock">Частота GPU</string>
+    <string name="mango_hud_element_cores">По ядрам</string>
+    <string name="mango_hud_element_network">Сеть</string>
+    <string name="mango_hud_element_swap">Подкачка</string>
+    <string name="mango_hud_element_resolution">Разрешение</string>
+    <string name="mango_hud_element_wine">Версия Wine</string>
+    <string name="mango_hud_element_duration">Время сессии</string>
+    <string name="mango_hud_element_clock">Часы</string>
+    <string name="mango_hud_element_throttle">Троттлинг</string>
+    <string name="mango_hud_group_memory">Память</string>
+    <string name="mango_hud_group_system">Система</string>
+    <string name="mango_hud_lock">Заблокировать HUD</string>
+    <string name="mango_hud_lock_subtitle">Касания проходят к элементам управления за HUD. Удерживайте HUD, чтобы заблокировать. (5s)</string>
     <string name="hud_position_menu_title">Переместить HUD</string>
     <string name="hud_position_top_left">Вверху слева</string>
     <string name="hud_position_top_center">Вверху по центру</string>
@@ -798,6 +833,7 @@
     <string name="settings_general_select_wallpaper">Выбрать обои</string>
     <string name="settings_general_title">Общие</string>
     <string name="settings_general_enable_file_provider">Включить поставщика файлов</string>
+    <string name="settings_general_enable_auto_scraping">Включить автозагрузку обложек</string>
     <string name="settings_general_take_effect_next_startup">Эта опция вступит в силу при следующем запуске.</string>
     <string name="settings_general_imagefs">ImageFS</string>
     <string name="settings_general_reinstall_imagefs">Переустановить ImageFS</string>
@@ -821,6 +857,7 @@
     <string name="settings_general_xinput_toggle_summary">Отключает обработку XInput, если вам требуется единоличное управление мышью и клавиатурой.</string>
     <string name="settings_external_display_output_summary">Переносит игру на подключённый внешний дисплей вместо зеркалирования этого экрана. Очки всегда используют собственный дисплей.</string>
     <string name="settings_general_file_provider_summary">Предоставляйте файлы WinNative средствам выбора документов и файловым менеджерам Android.</string>
+    <string name="settings_general_auto_scraping_summary">Этот параметр позволяет WinNative автоматически загружать обложки пользовательских игр.</string>
     <string name="settings_general_open_browser_summary">Открывайте поддерживаемые веб-ссылки в браузере Android, а не внутри Wine.</string>
     <string name="settings_general_clipboard_summary">Разрешить копирование и вставку между сеансами Android и Wine.</string>
     <string name="settings_general_imagefs_summary">Восстановите связанные системные файлы, не удаляя существующие контейнеры.</string>
@@ -889,6 +926,8 @@
     <string name="settings_debug_remove_channel_desc">Удалить %1$s</string>
     <string name="settings_other_language_title">Язык</string>
     <string name="settings_other_language_summary">Выберите язык интерфейса</string>
+    <string name="settings_other_game_language_title">Язык игры</string>
+    <string name="settings_other_game_language_summary">Предпочитаемый язык для загрузок Steam/Epic/GOG</string>
     <string name="settings_other_language_system_default">Системный язык</string>
     <string name="settings_other_section_integration">Интеграция</string>
     <string name="settings_other_setup_wizard_title">Мастер установки</string>
@@ -1014,6 +1053,7 @@
     <string name="setup_wizard_create_container">Создать контейнер</string>
     <string name="setup_wizard_creating_container">Создание\u2026</string>
     <string name="input_controls_tap_to_click">Касание для клика</string>
+    <string name="input_controls_reverse_binding_order">Обратный порядок привязок</string>
     <!-- Steam > Login -->
     <string name="steam_login_auth_webview_title">Авторизация</string>
     <string name="steam_login_sign_in_to_your_account">Войдите в свою учетную запись</string>
@@ -1113,6 +1153,9 @@
     <string name="cloud_saves_gog_zip_failed">Не удалось сохранить ZIP облачных сохранений GOG.</string>
     <string name="cloud_saves_gog_zip_empty">Файлы облачного сохранения GOG не найдены.</string>
     <string name="cloud_saves_history_title">История сохранений</string>
+    <string name="cloud_saves_history_download">Скачать</string>
+    <string name="cloud_saves_history_download_success">Файл скачан.</string>
+    <string name="cloud_saves_history_download_failed">Не удалось скачать.</string>
     <string name="cloud_saves_history_empty">Предыдущие сохранения еще не сохранены. Замененные сохранения и ручные резервные копии будут появляться здесь в течение 30 дней.</string>
     <string name="cloud_saves_history_loading">Загрузка истории сохранений\u2026</string>
     <string name="cloud_saves_history_sign_in">Войдите в Google, чтобы просмотреть историю сохранений.</string>
@@ -1264,6 +1307,7 @@
     <string name="steam_friends_section_online">В сети (%1$d)</string>
     <string name="steam_friends_section_offline">Не в сети (%1$d)</string>
     <string name="steam_friends_none_loaded">Друзья ещё не загружены.</string>
+    <string name="steam_friends_chat_off">Чат выключен. Снова включите Службу чата, чтобы видеть друзей.</string>
     <string name="steam_friends_self_you">Вы</string>
     <string name="steam_friends_in_game">В игре</string>
     <string name="steam_friends_join">Войти</string>
@@ -1289,6 +1333,8 @@
     <string name="steam_join_the_game">игру</string>
     <string name="steam_friends_settings">Settings</string>
     <string name="steam_chat_settings_title">Chat Settings</string>
+    <string name="steam_chat_setting_service">Служба чата</string>
+    <string name="steam_chat_setting_service_desc">Войдите, чтобы видеть друзей и общаться в чате; выключите, чтобы перейти в офлайн</string>
     <string name="steam_chat_setting_notifications">Chat Notifications</string>
     <string name="steam_chat_setting_notifications_desc">Show a notification when you receive a message</string>
     <string name="steam_chat_setting_heads">Chat Heads</string>
@@ -1418,7 +1464,7 @@
     <string name="session_drawer_hud_background">Фон</string>
     <string name="session_drawer_hud_background_alpha">Альфа фона</string>
     <string name="session_drawer_hud_background_alpha_input_title">Задать альфу фона</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">Изменить размер</string>
     <string name="session_task_bring_to_front">На передний план</string>
     <string name="session_task_custom_value">Своё значение</string>
@@ -1461,4 +1507,5 @@
     <string name="session_record_started">Запись начата</string>
     <string name="steam_chat_setting_stay_running">Работать в фоне</string>
     <string name="steam_chat_setting_stay_running_desc">Оставлять чат активным после выхода из WinNative</string>
+    <string name="settings_content_refresh">Обновить</string>
 </resources>

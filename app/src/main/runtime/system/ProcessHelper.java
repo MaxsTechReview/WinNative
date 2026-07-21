@@ -654,7 +654,11 @@ public abstract class ProcessHelper {
 
   private static String readProcCmdline(File proc, String pid) {
     try (FileInputStream fr = new FileInputStream(proc + "/" + pid + "/cmdline")) {
-      byte[] bytes = fr.readAllBytes();
+      ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+      byte[] data = new byte[8192];
+      int nRead;
+      while ((nRead = fr.read(data)) != -1) buffer.write(data, 0, nRead);
+      byte[] bytes = buffer.toByteArray();
       return new String(bytes, StandardCharsets.UTF_8).replace('\0', ' ');
     } catch (IOException e) {
       return "";

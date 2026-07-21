@@ -327,6 +327,13 @@ private fun Modifier.smartDropdownAnchor(
 
 data class WinComponentItem(val key: String, val label: String, val selectedIndex: Int)
 data class EnvVarItem(val key: String, val value: String)
+
+// Row-preserving parse: duplicate names stay as separate rows (EnvVars would collapse them into a map).
+fun parseEnvVarItems(envVarsStr: String?): List<EnvVarItem> =
+    envVarsStr.orEmpty().split(" ").mapNotNull { part ->
+        val index = part.indexOf('=')
+        if (index <= 0) null else EnvVarItem(part.substring(0, index), part.substring(index + 1))
+    }
 data class ExtraArgGroup(val header: String, val args: List<String>)
 data class DriveItem(
     val letter: String,
@@ -352,12 +359,8 @@ class GameSettingsStateHolder {
     val customHeight = mutableStateOf("")
     val gameCardArtworkSelected = mutableStateOf(false)
     val gameCardArtworkSummary = mutableStateOf("")
-    val gridArtworkSelected = mutableStateOf(false)
-    val gridArtworkSummary = mutableStateOf("")
-    val carouselArtworkSelected = mutableStateOf(false)
-    val carouselArtworkSummary = mutableStateOf("")
-    val listArtworkSelected = mutableStateOf(false)
-    val listArtworkSummary = mutableStateOf("")
+    val iconArtworkSelected = mutableStateOf(false)
+    val iconArtworkSummary = mutableStateOf("")
     val refreshRateEntries = mutableStateOf<List<String>>(emptyList())
     val selectedRefreshRate = mutableIntStateOf(0)
     val fpsLimit = mutableIntStateOf(0)
@@ -398,6 +401,10 @@ class GameSettingsStateHolder {
     val gfxSelectedBcnEmulationType = mutableIntStateOf(0)
     val gfxBcnEmulationCacheEntries = mutableStateOf<List<String>>(emptyList())
     val gfxSelectedBcnEmulationCache = mutableIntStateOf(0)
+    val gfxTranscoderEntries = mutableStateOf<List<String>>(emptyList())
+    val gfxSelectedTranscoder = mutableIntStateOf(0)
+    val gfxQualityEntries = mutableStateOf<List<String>>(emptyList())
+    val gfxSelectedQuality = mutableIntStateOf(0)
     val gfxSyncFrame = mutableStateOf(false)
     val gfxDisablePresentWait = mutableStateOf(false)
 
@@ -507,6 +514,7 @@ class GameSettingsStateHolder {
     val selectedFexcoreVersion = mutableIntStateOf(0)
     val fexcorePresetEntries = mutableStateOf<List<String>>(emptyList())
     val selectedFexcorePreset = mutableIntStateOf(0)
+    val useUnixLibs = mutableStateOf(true)
 
     // Advanced - System
     val startupSelectionEntries = mutableStateOf<List<String>>(emptyList())
@@ -534,15 +542,12 @@ interface GameSettingsCallbacks {
     fun onDismiss()
     fun onAddToHomeScreen()
 
+    fun onScrapeGameArtwork(gameName: String) {}
     fun onPickGameCardArtwork() {}
     fun onRemoveGameCardArtwork() {}
-    fun onPickGridArtwork() {}
-    fun onRemoveGridArtwork() {}
-    fun onPickCarouselArtwork() {}
-    fun onRemoveCarouselArtwork() {}
-    fun onPickListArtwork() {}
-    fun onRemoveListArtwork() {}
-    fun onOpenArtworkSource() {}
+    fun onPickIconArtwork() {}
+    fun onRemoveIconArtwork() {}
+    fun onOpenArtworkSource(gameName: String) {}
     fun onRemoveEnvVar(index: Int)
     fun onUpdateWinComponent(isDirectX: Boolean, index: Int, newValue: Int)
     fun onSelectExe() {}
@@ -1214,14 +1219,32 @@ private fun GeneralSection(
                     fontWeight = FontWeight.SemiBold,
                     letterSpacing = 0.8.sp
                 )
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(AccentBlue.copy(alpha = 0.08f))
+                        .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                        .paneNavItem(cornerRadius = 10.dp, onActivate = { callbacks.onScrapeGameArtwork(state.name.value) }, highlightColor = NavHighlight)
+                        .clickable { callbacks.onScrapeGameArtwork(state.name.value) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = stringResource(R.string.library_games_scrape_artwork),
+                            color = AccentBlue,
+                            fontSize = SettingValueSize,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
 
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
                         .background(AccentBlue.copy(alpha = 0.08f))
                         .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
-                        .paneNavItem(cornerRadius = 10.dp, onActivate = { callbacks.onOpenArtworkSource() }, highlightColor = NavHighlight)
-                        .clickable { callbacks.onOpenArtworkSource() }
+                        .paneNavItem(cornerRadius = 10.dp, onActivate = { callbacks.onOpenArtworkSource(state.name.value) }, highlightColor = NavHighlight)
+                        .clickable { callbacks.onOpenArtworkSource(state.name.value) }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1247,43 +1270,20 @@ private fun GeneralSection(
             Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                 Box(Modifier.weight(1f)) {
                     ArtworkPickerRow(
-                        title = stringResource(R.string.shortcuts_library_artwork_game_card_title),
+                        title = stringResource(R.string.shortcuts_library_artwork_icon_title),
+                        summary = state.iconArtworkSummary.value,
+                        selected = state.iconArtworkSelected.value,
+                        onPick = callbacks::onPickIconArtwork,
+                        onRemove = callbacks::onRemoveIconArtwork
+                    )
+                }
+                Box(Modifier.weight(1f)) {
+                    ArtworkPickerRow(
+                        title = stringResource(R.string.shortcuts_library_artwork_hero_title),
                         summary = state.gameCardArtworkSummary.value,
                         selected = state.gameCardArtworkSelected.value,
                         onPick = callbacks::onPickGameCardArtwork,
                         onRemove = callbacks::onRemoveGameCardArtwork
-                    )
-                }
-                Box(Modifier.weight(1f)) {
-                    ArtworkPickerRow(
-                        title = stringResource(R.string.shortcuts_library_artwork_grid_title),
-                        summary = state.gridArtworkSummary.value,
-                        selected = state.gridArtworkSelected.value,
-                        onPick = callbacks::onPickGridArtwork,
-                        onRemove = callbacks::onRemoveGridArtwork
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(SettingItemGap))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
-                Box(Modifier.weight(1f)) {
-                    ArtworkPickerRow(
-                        title = stringResource(R.string.shortcuts_library_artwork_carousel_title),
-                        summary = state.carouselArtworkSummary.value,
-                        selected = state.carouselArtworkSelected.value,
-                        onPick = callbacks::onPickCarouselArtwork,
-                        onRemove = callbacks::onRemoveCarouselArtwork
-                    )
-                }
-                Box(Modifier.weight(1f)) {
-                    ArtworkPickerRow(
-                        title = stringResource(R.string.shortcuts_library_artwork_list_title),
-                        summary = state.listArtworkSummary.value,
-                        selected = state.listArtworkSelected.value,
-                        onPick = callbacks::onPickListArtwork,
-                        onRemove = callbacks::onRemoveListArtwork
                     )
                 }
             }
@@ -1302,15 +1302,13 @@ private fun GeneralSection(
                     onSelected = { state.selectedScreenSize.intValue = it }
                 )
             }
-            if (!isContainer) {
-                Box(Modifier.weight(1f)) {
-                    SettingDropdown(
-                        label = stringResource(R.string.settings_general_refresh_rate),
-                        entries = state.refreshRateEntries.value,
-                        selectedIndex = state.selectedRefreshRate.intValue,
-                        onSelected = { state.selectedRefreshRate.intValue = it }
-                    )
-                }
+            Box(Modifier.weight(1f)) {
+                SettingDropdown(
+                    label = stringResource(R.string.settings_general_refresh_rate),
+                    entries = state.refreshRateEntries.value,
+                    selectedIndex = state.selectedRefreshRate.intValue,
+                    onSelected = { state.selectedRefreshRate.intValue = it }
+                )
             }
         }
 
@@ -1666,6 +1664,32 @@ private fun GraphicsDriverConfigCard(
                                 entries = state.gfxBcnEmulationCacheEntries.value,
                                 selectedIndex = state.gfxSelectedBcnEmulationCache.intValue,
                                 onSelected = { state.gfxSelectedBcnEmulationCache.intValue = it }
+                            )
+                        }
+                    }
+                }
+
+                val gamenativeWrapperActive = state.graphicsDriverEntries.value
+                    .getOrElse(state.selectedGraphicsDriver.intValue) { "" }
+                    .equals("Wrapper-Gamenative", ignoreCase = true)
+                if (gamenativeWrapperActive) {
+                    Spacer(Modifier.height(SettingItemGap))
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                        Box(Modifier.weight(1f)) {
+                            SettingDropdown(
+                                label = stringResource(R.string.container_graphics_transcoder),
+                                entries = state.gfxTranscoderEntries.value,
+                                selectedIndex = state.gfxSelectedTranscoder.intValue,
+                                onSelected = { state.gfxSelectedTranscoder.intValue = it }
+                            )
+                        }
+                        Box(Modifier.weight(1f)) {
+                            SettingDropdown(
+                                label = stringResource(R.string.container_graphics_quality),
+                                entries = state.gfxQualityEntries.value,
+                                selectedIndex = state.gfxSelectedQuality.intValue,
+                                onSelected = { state.gfxSelectedQuality.intValue = it }
                             )
                         }
                     }
@@ -2488,6 +2512,11 @@ private fun ComponentsSection(
 private fun findKnownEnvVar(name: String): Array<String>? =
     EnvVarsView.knownEnvVars.firstOrNull { it[0] == name }
 
+private fun defaultValueForEnvVar(name: String): String? {
+    val known = findKnownEnvVar(name) ?: return null
+    return if (known.getOrNull(1) == "TEXT") known.getOrNull(2) else null
+}
+
 @Composable
 private fun VariablesSection(
     state: GameSettingsStateHolder,
@@ -2541,17 +2570,14 @@ private fun VariablesSection(
                 EnvVarRow(
                     name = envVar.key,
                     value = envVar.value,
-                    excludeOtherNames = state.envVars.value
-                        .filterIndexed { i, _ -> i != index }
-                        .map { it.key }
-                        .toSet(),
                     onNameChange = { newKey ->
                         val normalizedKey = newKey.trim()
                         val list = state.envVars.value.toMutableList()
-                        val isUnique = normalizedKey.isEmpty() ||
-                            state.envVars.value.none { it.key == normalizedKey }
-                        if (index in list.indices && isUnique) {
-                            list[index] = EnvVarItem(normalizedKey, envVar.value)
+                        if (index in list.indices) {
+                            val newValue = envVar.value.ifBlank {
+                                defaultValueForEnvVar(normalizedKey) ?: ""
+                            }
+                            list[index] = EnvVarItem(normalizedKey, newValue)
                             state.envVars.value = list
                         }
                     },
@@ -2819,7 +2845,6 @@ private fun DriveLetterSelector(
 private fun EnvVarRow(
     name: String,
     value: String,
-    excludeOtherNames: Set<String>,
     onNameChange: (String) -> Unit,
     onValueChange: (String) -> Unit,
     onRemove: (() -> Unit)?,
@@ -2933,33 +2958,22 @@ private fun EnvVarRow(
                 )
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
 
-                val allKnown = EnvVarsView.knownEnvVars.map { it[0] }
-                val unselected = allKnown
-                    .filter { it !in excludeOtherNames && it != name }
+                EnvVarsView.knownEnvVars
+                    .map { it[0] }
                     .sortedBy { it.uppercase() }
-                val selected = allKnown
-                    .filter { it in excludeOtherNames }
-                    .sortedBy { it.uppercase() }
-
-                (unselected + selected).forEach { knownName ->
-                    val disabled = knownName != name && knownName in excludeOtherNames
-                    DropdownMenuItem(
-                        enabled = !disabled,
-                        text = {
-                            Text(
-                                knownName,
-                                color = if (disabled) TextDim else TextPrimary,
-                                fontSize = SettingValueSize
-                            )
-                        },
-                        onClick = {
-                            isCustomMode = false
-                            customText = ""
-                            onNameChange(knownName)
-                            nameMenuExpanded = false
-                        }
-                    )
-                }
+                    .forEach { knownName ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(knownName, color = TextPrimary, fontSize = SettingValueSize)
+                            },
+                            onClick = {
+                                isCustomMode = false
+                                customText = ""
+                                onNameChange(knownName)
+                                nameMenuExpanded = false
+                            }
+                        )
+                    }
             }
         }
         Spacer(Modifier.width(6.dp))
@@ -3034,6 +3048,14 @@ private fun EnvVarValueEditor(
                 onSelected = onValueChange
             )
         }
+        "SELECT_CUSTOM" -> {
+            val options = known!!.drop(2)
+            EnvValueDropdownWithCustom(
+                current = value,
+                options = options,
+                onChanged = onValueChange
+            )
+        }
         "SELECT_MULTIPLE" -> {
             val options = known!!.drop(2)
             EnvValueMultiDropdown(
@@ -3105,6 +3127,109 @@ private fun EnvValueDropdown(
                     }
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun EnvValueDropdownWithCustom(
+    current: String,
+    options: List<String>,
+    onChanged: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val menuOffset = rememberSmartDropdownOffset()
+    var customMode by remember { mutableStateOf(current.isNotEmpty() && current !in options) }
+    Box {
+        if (customMode) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) {
+                    EnvValueTextField(current, onChanged)
+                }
+                Spacer(Modifier.width(4.dp))
+                Box(
+                    modifier = Modifier
+                        .size(EnvVarControlHeight)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(InputSurface)
+                        .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                        .paneNavItem(cornerRadius = 8.dp, onActivate = { expanded = true }, highlightColor = NavHighlight)
+                        .smartDropdownAnchor(offset = menuOffset) { expanded = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Outlined.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = TextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(EnvVarControlHeight)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(InputSurface)
+                    .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                    .paneNavItem(cornerRadius = 8.dp, onActivate = { expanded = true }, highlightColor = NavHighlight)
+                    .smartDropdownAnchor(offset = menuOffset) { expanded = true }
+                    .padding(horizontal = SettingFieldHorizontalPadding),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        if (current.isEmpty()) options.firstOrNull().orEmpty() else current,
+                        color = TextPrimary,
+                        fontSize = SettingValueSize,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Icon(
+                        Icons.Outlined.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = TextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            offset = menuOffset.value,
+            shape = RoundedCornerShape(8.dp),
+            containerColor = CardSurface,
+            modifier = Modifier.width(220.dp)
+        ) {
+            options.forEach { opt ->
+                DropdownMenuItem(
+                    text = { Text(opt, color = TextPrimary, fontSize = SettingValueSize) },
+                    onClick = {
+                        customMode = false
+                        onChanged(opt)
+                        expanded = false
+                    }
+                )
+            }
+            Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        stringResource(R.string.common_ui_custom),
+                        color = AccentBlue,
+                        fontSize = SettingValueSize,
+                        fontWeight = FontWeight.Medium
+                    )
+                },
+                onClick = {
+                    customMode = true
+                    onChanged("")
+                    expanded = false
+                }
+            )
         }
     }
 }
@@ -3554,6 +3679,14 @@ private fun AdvancedSection(
 
     // FEXCore — hidden when FEXCore isn't explicitly in either slot.
     if (state.showFexcoreFrame.value) {
+        val fexVersionUnix = state.fexcoreVersionEntries.value
+            .getOrNull(state.selectedFexcoreVersion.intValue)
+            ?.contains("unix", ignoreCase = true) == true
+        val protonUnix = state.wineVersionDisplay.value.contains("unix", ignoreCase = true) ||
+            state.wineVersionEntries.value.getOrNull(state.selectedWineVersion.intValue)
+                ?.contains("unix", ignoreCase = true) == true
+        val unixCompatible = fexVersionUnix && protonUnix
+
         val fexcoreUsage = emulatorUsageLabel(state, setOf("fexcore"))
         EmulatorSectionHeader(stringResource(R.string.container_fexcore_config), fexcoreUsage)
         Spacer(Modifier.height(8.dp))
@@ -3564,7 +3697,14 @@ private fun AdvancedSection(
                         label = stringResource(R.string.container_fexcore_version),
                         entries = state.fexcoreVersionEntries.value,
                         selectedIndex = state.selectedFexcoreVersion.intValue,
-                        onSelected = { state.selectedFexcoreVersion.intValue = it }
+                        onSelected = { state.selectedFexcoreVersion.intValue = it },
+                        labelTrailing = {
+                            UnixLibsChip(
+                                compatible = unixCompatible,
+                                on = state.useUnixLibs.value,
+                                onClick = { state.useUnixLibs.value = !state.useUnixLibs.value }
+                            )
+                        }
                     )
                 }
                 Box(Modifier.weight(1f)) {
@@ -3825,6 +3965,48 @@ private fun CpuChip(
     }
 }
 
+@Composable
+private fun UnixLibsChip(
+    compatible: Boolean,
+    on: Boolean,
+    onClick: () -> Unit
+) {
+    val active = compatible && on
+    val bgColor = if (active) AccentBlue.copy(alpha = 0.15f) else ChipSurface
+    val borderColor = if (active) AccentBlue.copy(alpha = 0.4f) else ChipBorder
+    val textColor = if (active) AccentBlue else TextDim
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(bgColor)
+            .border(1.dp, borderColor, RoundedCornerShape(6.dp))
+            .then(
+                if (compatible) {
+                    Modifier
+                        .clickable(onClick = onClick)
+                        .paneNavItem(
+                            cornerRadius = 6.dp,
+                            onActivate = onClick,
+                            highlightColor = NavHighlight,
+                            tapToSelect = true,
+                        )
+                } else {
+                    Modifier
+                }
+            )
+            .padding(horizontal = 10.dp, vertical = 2.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            "UnixLibs",
+            color = textColor,
+            fontSize = SettingLabelSize,
+            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal
+        )
+    }
+}
+
 
 @Composable
 private fun HtmlText(
@@ -3957,7 +4139,8 @@ private fun SettingDropdown(
     selectedIndex: Int,
     onSelected: (Int) -> Unit,
     enabled: Boolean = true,
-    disabledAlpha: Float = 0.4f
+    disabledAlpha: Float = 0.4f,
+    labelTrailing: (@Composable () -> Unit)? = null
 ) {
     var expanded by remember { mutableStateOf(false) }
     val menuOffset = rememberSmartDropdownOffset()
@@ -3978,14 +4161,31 @@ private fun SettingDropdown(
     }
 
     Column(modifier = Modifier.fillMaxWidth().alpha(alpha)) {
-        Text(
-            label,
-            color = TextSecondary,
-            fontSize = SettingLabelSize,
-            fontWeight = FontWeight.Medium,
-            letterSpacing = 0.3.sp,
-            modifier = Modifier.padding(bottom = SettingTightGap)
-        )
+        if (labelTrailing != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = SettingTightGap),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    label,
+                    color = TextSecondary,
+                    fontSize = SettingLabelSize,
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 0.3.sp
+                )
+                Spacer(Modifier.weight(1f))
+                labelTrailing()
+            }
+        } else {
+            Text(
+                label,
+                color = TextSecondary,
+                fontSize = SettingLabelSize,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 0.3.sp,
+                modifier = Modifier.padding(bottom = SettingTightGap)
+            )
+        }
         Box {
             Row(
                 modifier = Modifier

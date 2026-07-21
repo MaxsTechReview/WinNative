@@ -831,11 +831,7 @@ object DirectoryPickerDialog {
                                         isEntry = entry === entries.first(),
                                         onClick = {
                                             if (entry.isSelectableFile) {
-                                                if (mode == SelectionMode.FILE) {
-                                                    onSelect(entry.target.absolutePath)
-                                                } else {
-                                                    selectedFile = entry.target
-                                                }
+                                                selectedFile = entry.target
                                             } else {
                                                 currentDir = entry.target
                                             }

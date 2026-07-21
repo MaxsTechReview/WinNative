@@ -157,6 +157,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">Hent grafik</string>
+    <string name="library_games_scraping_artwork">Henter</string>
     <string name="library_games_shortcut_created">Genvej oprettet</string>
     <string name="library_games_failed_to_create_shortcut">Kunne ikke oprette genvej: %s</string>
     <string name="library_games_install_path">Installationssti</string>
@@ -505,9 +507,12 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">FEXCore-forudindstilling</string>
     <string name="container_fexcore_version">FEXCore-version</string>
+    <string name="use_unix_libs">Brug UnixLibs</string>
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Grafikdriver</string>
+    <string name="container_graphics_transcoder">BCn-transkoder</string>
+    <string name="container_graphics_quality">BCn-kvalitet</string>
     <string name="container_graphics_configuration">Grafikdriver-konfiguration</string>
     <string name="container_graphics_version">Grafikdriver-version</string>
     <string name="container_graphics_available_extensions">Tilgængelige udvidelser</string>
@@ -588,6 +593,33 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Bat.</string>
     <string name="session_drawer_hud_element_graph">Graf</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">Mango-stil HUD</string>
+    <string name="session_drawer_hud_mango_settings">Mango HUD-indstillinger</string>
+    <string name="mango_hud_element_gpu_load">GPU-belastning</string>
+    <string name="mango_hud_element_gpu_temp">GPU-temp.</string>
+    <string name="mango_hud_element_cpu_load">CPU-belastning</string>
+    <string name="mango_hud_element_cpu_temp">CPU-temp.</string>
+    <string name="mango_hud_element_ram">RAM</string>
+    <string name="mango_hud_element_battery">Batteri</string>
+    <string name="mango_hud_element_lows" formatted="false">1% lavpunkter</string>
+    <string name="mango_hud_element_graph">Frametime-graf</string>
+    <string name="mango_hud_element_engine">Motor</string>
+    <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">CPU-frekvens</string>
+    <string name="mango_hud_element_gpu_clock">GPU-frekvens</string>
+    <string name="mango_hud_element_cores">Pr. kerne</string>
+    <string name="mango_hud_element_network">Netværk</string>
+    <string name="mango_hud_element_swap">Swap</string>
+    <string name="mango_hud_element_resolution">Opløsning</string>
+    <string name="mango_hud_element_wine">Wine-version</string>
+    <string name="mango_hud_element_duration">Sessionstid</string>
+    <string name="mango_hud_element_clock">Ur</string>
+    <string name="mango_hud_element_throttle">Termisk status</string>
+    <string name="mango_hud_group_memory">Hukommelse</string>
+    <string name="mango_hud_group_system">System</string>
+    <string name="mango_hud_lock">Lås HUD</string>
+    <string name="mango_hud_lock_subtitle">Lad berøringer gå videre til knapperne bag HUD\'et. Hold på HUD\'et for at låse det. (5s)</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Vil du afslutte denne proces?</string>
@@ -730,6 +762,7 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_general_select_wallpaper">Vælg baggrundsbillede</string>
     <string name="settings_general_title">Generelt</string>
     <string name="settings_general_enable_file_provider">Aktiver filudbyder</string>
+    <string name="settings_general_enable_auto_scraping">Aktiver automatisk hentning</string>
     <string name="settings_general_take_effect_next_startup">Denne indstilling træder i kraft ved næste opstart.</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Geninstaller Imagefs</string>
@@ -753,6 +786,7 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_general_xinput_toggle_summary">Slår XInput-håndtering fra når du ønsker eksklusiv mus- og tastaturkontrol.</string>
     <string name="settings_external_display_output_summary">Flyt spillet til en tilsluttet ekstern skærm i stedet for at spejle denne skærm. Briller bruger altid deres egen skærm.</string>
     <string name="settings_general_file_provider_summary">Gør WinNative-filer tilgængelige for Android-dokumentvælgere og filhåndtering.</string>
+    <string name="settings_general_auto_scraping_summary">Denne indstilling giver WinNative mulighed for automatisk at hente grafik til brugerdefinerede spil.</string>
     <string name="settings_general_open_browser_summary">Åbn understøttede weblinks i Android-browseren i stedet for inde i Wine.</string>
     <string name="settings_general_clipboard_summary">Tillad kopiering og indsættelse mellem Android og Wine-sessioner.</string>
     <string name="settings_general_imagefs_summary">Gendan medfølgende systemfiler uden at fjerne dine eksisterende containere.</string>
@@ -822,6 +856,8 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
 
     <string name="settings_other_language_title">Sprog</string>
     <string name="settings_other_language_summary">Vælg visningssprog</string>
+    <string name="settings_other_game_language_title">Spilsprog</string>
+    <string name="settings_other_game_language_summary">Foretrukket sprog til Steam/Epic/GOG-downloads</string>
     <string name="settings_other_language_system_default">Systemstandard</string>
 
     <string name="settings_other_section_integration">Integration</string>
@@ -1064,7 +1100,10 @@ Installeret sti:
     <!-- Missing translations -->
     <string name="common_ui_graphics">Grafik</string>
     <string name="steam_section_title">Steam</string>
+    <string name="binding_primary">Primær binding</string>
     <string name="binding_secondary">Sekundær binding</string>
+    <string name="binding_third">Tertiær binding</string>
+    <string name="binding_fourth">Kvartær binding</string>
     <string name="input_controls_editor_tap_to_switch">Tryk for at skifte</string>
     <string name="input_controls_editor_download_profile">Download profil</string>
     <string name="container_config_emulator_section">Emulator</string>
@@ -1173,6 +1212,9 @@ Installeret sti:
     <string name="cloud_saves_history_restore_success">Save gendannet fra sikkerhedskopi.</string>
     <string name="cloud_saves_history_sign_in">Log ind på Google for at se din save-historik.</string>
     <string name="cloud_saves_history_title">Save-historik</string>
+    <string name="cloud_saves_history_download">Download</string>
+    <string name="cloud_saves_history_download_success">Filen er downloadet.</string>
+    <string name="cloud_saves_history_download_failed">Download mislykkedes.</string>
     <string name="cloud_saves_keep_replaced_backup">Behold en sikkerhedskopi af det erstattede save</string>
     <string name="cloud_saves_keep_replaced_backup_summary">Hvis du fortryder, kan du gendanne det fra Save-historik.</string>
     <string name="cloud_saves_no_backups">Ingen sikkerhedskopier endnu for dette spil.</string>
@@ -1225,6 +1267,7 @@ Installeret sti:
     <string name="input_controls_editor_radial_menu">Radialmenu</string>
     <string name="input_controls_editor_radial_menu_options">Radialmenupunkter</string>
     <string name="input_controls_tap_to_click">Tryk for at klikke</string>
+    <string name="input_controls_reverse_binding_order">Omvendt rækkefølge for bindinger</string>
     <string name="num_controllers">Antal controllere</string>
     <string name="session_drawer_controls_section">Kontroller</string>
     <string name="session_drawer_header_subtitle">Hurtig adgang til kontroller, overlays og sessionsværktøjer</string>
@@ -1245,16 +1288,12 @@ Installeret sti:
     <string name="session_gyroscope_mouse_sensitivity_format">Museskalering: %1$d%%</string>
     <string name="settings_other_setup_wizard_summary">Åbn opsætningsguiden igen for at gennemgå tilladelser, systemfiler og standardcontainere.</string>
     <string name="settings_other_setup_wizard_title">Opsætningsguide</string>
-    <string name="shortcuts_library_artwork_carousel_title">Karusselbillede</string>
-    <string name="shortcuts_library_artwork_change">Skift billede</string>
     <string name="shortcuts_library_artwork_failed">Kunne ikke indlæse det valgte billede.</string>
-    <string name="shortcuts_library_artwork_game_card_title">Spilkortbillede</string>
-    <string name="shortcuts_library_artwork_grid_title">Gitterbillede</string>
-    <string name="shortcuts_library_artwork_list_title">Listebillede</string>
     <string name="shortcuts_library_artwork_open_source">Åbn SteamGridDB</string>
-    <string name="shortcuts_library_artwork_selected">Valgt: %1$s</string>
     <string name="shortcuts_library_artwork_set">Indstil billede</string>
     <string name="shortcuts_library_artwork_title">Biblioteksbilleder</string>
+    <string name="shortcuts_library_artwork_icon_title">Ikonbillede</string>
+    <string name="shortcuts_library_artwork_hero_title">Baggrund</string>
     <string name="shortcuts_list_readded_existing">Eksisterende genvej genføjet</string>
     <string name="shortcuts_properties_runtime_patcher">Runtime DRM Patcher</string>
     <string name="shortcuts_properties_runtime_patcher_description">Injicerer en DRM-patcher-DLL ved opstart. Reducerer FPS – brug kun hvis Legacy Launcher alene fejler.</string>
@@ -1292,12 +1331,16 @@ Installeret sti:
     <string name="steam_section_emulator">Ældre Steam-emulator</string>
     <string name="shortcuts_properties_steam_offline_mode_description">Får den emulerede Steam-klient til at melde sig offline, så spillet ikke forsøger onlineforbindelser. Bruges til spil, der hænger ved Steams netværkstjek.</string>
     <string name="input_controls_select_style">Vælg stil</string>
-    <string name="input_controls_select_label_theme">Knapetiketter</string>
     <string name="input_controls_style_original">Original</string>
     <string name="input_controls_style_gamehub">Glass</string>
-    <string name="input_controls_label_theme_default">Original</string>
-    <string name="input_controls_label_theme_xbox">Xbox</string>
-    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_style_slate">Skifer</string>
+    <string name="input_controls_style_halo">Halo</string>
+    <string name="input_controls_style_glint">Glimt</string>
+    <string name="input_controls_style_shadow">Skygge</string>
+    <string name="input_controls_style_reticle">Sigtekryds</string>
+    <string name="input_controls_style_neon">Neon</string>
+    <string name="input_controls_style_lumina">Lumina</string>
+    <string name="input_controls_accent_theme">Farvetema</string>
     <string name="input_controls_edit_duplicating_builtin">Indbygget profil - oprettede en kopi, du kan redigere.</string>
     <string name="input_controls_editor_confirm_reset_profile">Nulstil denne profil til dens oprindelige layout? Alle ændringer, du har lavet, går tabt.</string>
     <string name="input_controls_editor_profile_reset">Profil nulstillet til dens oprindelige layout.</string>
@@ -1358,6 +1401,7 @@ Installeret sti:
     <string name="steam_friends_section_online">Online (%1$d)</string>
     <string name="steam_friends_section_offline">Offline (%1$d)</string>
     <string name="steam_friends_none_loaded">Ingen venner indlæst endnu.</string>
+    <string name="steam_friends_chat_off">Chat er slået fra. Slå chattjenesten til igen for at se dine venner.</string>
     <string name="steam_friends_self_you">Dig</string>
     <string name="steam_friends_in_game">I spil</string>
     <string name="steam_friends_join">Deltag</string>
@@ -1383,6 +1427,8 @@ Installeret sti:
     <string name="steam_join_the_game">spillet</string>
     <string name="steam_friends_settings">Settings</string>
     <string name="steam_chat_settings_title">Chat Settings</string>
+    <string name="steam_chat_setting_service">Chattjeneste</string>
+    <string name="steam_chat_setting_service_desc">Log ind for at se venner og chatte; slå fra for at fremstå offline</string>
     <string name="steam_chat_setting_notifications">Chat Notifications</string>
     <string name="steam_chat_setting_notifications_desc">Show a notification when you receive a message</string>
     <string name="steam_chat_setting_heads">Chat Heads</string>
@@ -1512,7 +1558,7 @@ Installeret sti:
     <string name="session_drawer_hud_background">Baggrund</string>
     <string name="session_drawer_hud_background_alpha">Baggrundsalfa</string>
     <string name="session_drawer_hud_background_alpha_input_title">Indstil baggrundsalfa</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">Tilpas størrelse</string>
     <string name="session_task_bring_to_front">Flyt til forgrunden</string>
     <string name="session_task_custom_value">Brugerdefineret værdi</string>
@@ -1556,4 +1602,5 @@ Installeret sti:
     <string name="session_record_started">Optagelse startet</string>
     <string name="steam_chat_setting_stay_running">Kør i baggrunden</string>
     <string name="steam_chat_setting_stay_running_desc">Hold chatten kørende, efter du afslutter WinNative</string>
+    <string name="settings_content_refresh">Opdater</string>
 </resources>

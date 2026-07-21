@@ -161,6 +161,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">Завантажити зображення</string>
+    <string name="library_games_scraping_artwork">Завантаження</string>
     <string name="library_games_shortcut_created">Ярлик створено</string>
     <string name="library_games_failed_to_create_shortcut">Не вдалося створити ярлик: %s</string>
     <string name="library_games_install_path">Шлях встановлення</string>
@@ -509,9 +511,12 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">Пресет FEXCore</string>
     <string name="container_fexcore_version">Версія FEXCore</string>
+    <string name="use_unix_libs">Використовувати UnixLibs</string>
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Графічний драйвер</string>
+    <string name="container_graphics_transcoder">Транскодер BCn</string>
+    <string name="container_graphics_quality">Якість BCn</string>
     <string name="container_graphics_configuration">Конфігурація графічного драйвера</string>
     <string name="container_graphics_version">Версія графічного драйвера</string>
     <string name="container_graphics_available_extensions">Доступні розширення</string>
@@ -592,6 +597,33 @@
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Бат.</string>
     <string name="session_drawer_hud_element_graph">Графік</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">HUD у стилі Mango</string>
+    <string name="session_drawer_hud_mango_settings">Налаштування Mango HUD</string>
+    <string name="mango_hud_element_gpu_load">Навантаження GPU</string>
+    <string name="mango_hud_element_gpu_temp">Темп. GPU</string>
+    <string name="mango_hud_element_cpu_load">Навантаження CPU</string>
+    <string name="mango_hud_element_cpu_temp">Темп. CPU</string>
+    <string name="mango_hud_element_ram">ОЗП</string>
+    <string name="mango_hud_element_battery">Батарея</string>
+    <string name="mango_hud_element_lows" formatted="false">1% мінімуми</string>
+    <string name="mango_hud_element_graph">Графік фреймтайму</string>
+    <string name="mango_hud_element_engine">Рушій</string>
+    <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">Частота CPU</string>
+    <string name="mango_hud_element_gpu_clock">Частота GPU</string>
+    <string name="mango_hud_element_cores">По ядрах</string>
+    <string name="mango_hud_element_network">Мережа</string>
+    <string name="mango_hud_element_swap">Підкачка</string>
+    <string name="mango_hud_element_resolution">Роздільність</string>
+    <string name="mango_hud_element_wine">Версія Wine</string>
+    <string name="mango_hud_element_duration">Час сесії</string>
+    <string name="mango_hud_element_clock">Годинник</string>
+    <string name="mango_hud_element_throttle">Тротлінг</string>
+    <string name="mango_hud_group_memory">Пам\'ять</string>
+    <string name="mango_hud_group_system">Система</string>
+    <string name="mango_hud_lock">Заблокувати HUD</string>
+    <string name="mango_hud_lock_subtitle">Дотики проходять до елементів керування за HUD. Утримуйте HUD, щоб заблокувати. (5s)</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Ви хочете завершити цей процес?</string>
@@ -736,6 +768,7 @@
     <string name="settings_general_select_wallpaper">Вибрати шпалери</string>
     <string name="settings_general_title">Загальні</string>
     <string name="settings_general_enable_file_provider">Увімкнути файловий провайдер</string>
+    <string name="settings_general_enable_auto_scraping">Увімкнути автоматичне завантаження зображень</string>
     <string name="settings_general_take_effect_next_startup">Ця опція набуде чинності при наступному запуску.</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Перевстановити Imagefs</string>
@@ -759,6 +792,7 @@
     <string name="settings_general_xinput_toggle_summary">Вимикає обробку XInput, коли потрібне ексклюзивне керування мишею та клавіатурою.</string>
     <string name="settings_external_display_output_summary">Переносить гру на під\'єднаний зовнішній дисплей замість дублювання цього екрана. Окуляри завжди використовують власний дисплей.</string>
     <string name="settings_general_file_provider_summary">Надати доступ до файлів WinNative для засобів вибору документів та файлових менеджерів Android.</string>
+    <string name="settings_general_auto_scraping_summary">Цей параметр дозволяє WinNative автоматично завантажувати зображення користувацьких ігор.</string>
     <string name="settings_general_open_browser_summary">Відкривати підтримувані веб-посилання у браузері Android замість Wine.</string>
     <string name="settings_general_clipboard_summary">Дозволити копіювання та вставку між Android та сесіями Wine.</string>
     <string name="settings_general_imagefs_summary">Відновити системні файли з пакета без видалення існуючих контейнерів.</string>
@@ -828,6 +862,8 @@
 
     <string name="settings_other_language_title">Мова</string>
     <string name="settings_other_language_summary">Виберіть мову інтерфейсу</string>
+    <string name="settings_other_game_language_title">Мова гри</string>
+    <string name="settings_other_game_language_summary">Бажана мова для завантажень Steam/Epic/GOG</string>
     <string name="settings_other_language_system_default">За замовчуванням системи</string>
 
     <string name="settings_other_section_integration">Інтеграція</string>
@@ -1070,7 +1106,10 @@
     <!-- Missing translations -->
     <string name="common_ui_graphics">Графіка</string>
     <string name="steam_section_title">Steam</string>
+    <string name="binding_primary">Первинне призначення</string>
     <string name="binding_secondary">Вторинне призначення</string>
+    <string name="binding_third">Третинне призначення</string>
+    <string name="binding_fourth">Четвертинне призначення</string>
     <string name="input_controls_editor_tap_to_switch">Торкніться, щоб перемкнути</string>
     <string name="input_controls_editor_download_profile">Завантажити профіль</string>
     <string name="container_config_emulator_section">Емулятор</string>
@@ -1179,6 +1218,9 @@
     <string name="cloud_saves_history_restore_success">Збереження відновлено з резервної копії.</string>
     <string name="cloud_saves_history_sign_in">Увійдіть у Google, щоб переглянути історію збережень.</string>
     <string name="cloud_saves_history_title">Історія збережень</string>
+    <string name="cloud_saves_history_download">Завантажити</string>
+    <string name="cloud_saves_history_download_success">Файл завантажено.</string>
+    <string name="cloud_saves_history_download_failed">Не вдалося завантажити.</string>
     <string name="cloud_saves_keep_replaced_backup">Зберігати резервну копію замінених збережень</string>
     <string name="cloud_saves_keep_replaced_backup_summary">Якщо передумаєте, можна відновити їх з Історії збережень.</string>
     <string name="cloud_saves_no_backups">Для цієї гри ще немає резервних копій.</string>
@@ -1231,6 +1273,7 @@
     <string name="input_controls_editor_radial_menu">Радіальне меню</string>
     <string name="input_controls_editor_radial_menu_options">Параметри радіального меню</string>
     <string name="input_controls_tap_to_click">Торкання для кліку</string>
+    <string name="input_controls_reverse_binding_order">Зворотний порядок призначень</string>
     <string name="num_controllers">Кількість контролерів</string>
     <string name="session_drawer_controls_section">Керування</string>
     <string name="session_drawer_header_subtitle">Швидкий доступ до керування, накладень та інструментів сесії</string>
@@ -1251,16 +1294,12 @@
     <string name="session_gyroscope_mouse_sensitivity_format">Масштаб миші: %1$d%%</string>
     <string name="settings_other_setup_wizard_summary">Відкрийте майстер налаштування знову, щоб перевірити дозволи, системні файли та стандартні контейнери.</string>
     <string name="settings_other_setup_wizard_title">Майстер налаштування</string>
-    <string name="shortcuts_library_artwork_carousel_title">Зображення каруселі</string>
-    <string name="shortcuts_library_artwork_change">Змінити зображення</string>
     <string name="shortcuts_library_artwork_failed">Не вдалося завантажити вибране зображення.</string>
-    <string name="shortcuts_library_artwork_game_card_title">Зображення картки гри</string>
-    <string name="shortcuts_library_artwork_grid_title">Зображення сітки</string>
-    <string name="shortcuts_library_artwork_list_title">Зображення списку</string>
     <string name="shortcuts_library_artwork_open_source">Відкрити SteamGridDB</string>
-    <string name="shortcuts_library_artwork_selected">Вибрано: %1$s</string>
     <string name="shortcuts_library_artwork_set">Встановити зображення</string>
     <string name="shortcuts_library_artwork_title">Зображення бібліотеки</string>
+    <string name="shortcuts_library_artwork_icon_title">Зображення піктограми</string>
+    <string name="shortcuts_library_artwork_hero_title">Фон</string>
     <string name="shortcuts_list_readded_existing">Повторно додано наявний ярлик</string>
     <string name="shortcuts_properties_runtime_patcher">Runtime DRM Patcher</string>
     <string name="shortcuts_properties_runtime_patcher_description">Вставляє DLL DRM-патчера під час запуску. Знижує FPS — використовуйте лише якщо сам застарілий лаунчер не допомагає.</string>
@@ -1298,12 +1337,16 @@
     <string name="steam_section_emulator">Застарілий емулятор Steam</string>
     <string name="shortcuts_properties_steam_offline_mode_description">Змушує емульований клієнт Steam повідомляти, що він офлайн, щоб гра не намагалася підключатися до мережі. Використовуйте для ігор, які зависають на мережевій перевірці Steam.</string>
     <string name="input_controls_select_style">Виберіть стиль</string>
-    <string name="input_controls_select_label_theme">Мітки кнопок</string>
     <string name="input_controls_style_original">Оригінальний</string>
     <string name="input_controls_style_gamehub">Glass</string>
-    <string name="input_controls_label_theme_default">Оригінальний</string>
-    <string name="input_controls_label_theme_xbox">Xbox</string>
-    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_style_slate">Сланець</string>
+    <string name="input_controls_style_halo">Ореол</string>
+    <string name="input_controls_style_glint">Відблиск</string>
+    <string name="input_controls_style_shadow">Тінь</string>
+    <string name="input_controls_style_reticle">Приціл</string>
+    <string name="input_controls_style_neon">Неон</string>
+    <string name="input_controls_style_lumina">Люміна</string>
+    <string name="input_controls_accent_theme">Колірна тема</string>
     <string name="input_controls_edit_duplicating_builtin">Вбудований профіль — створено копію, яку можна редагувати.</string>
     <string name="input_controls_editor_confirm_reset_profile">Скинути цей профіль до початкового макета? Усі внесені зміни буде втрачено.</string>
     <string name="input_controls_editor_profile_reset">Профіль скинуто до початкового макета.</string>
@@ -1364,6 +1407,7 @@
     <string name="steam_friends_section_online">У мережі (%1$d)</string>
     <string name="steam_friends_section_offline">Не в мережі (%1$d)</string>
     <string name="steam_friends_none_loaded">Друзів ще не завантажено.</string>
+    <string name="steam_friends_chat_off">Чат вимкнено. Знову ввімкніть Службу чату, щоб бачити друзів.</string>
     <string name="steam_friends_self_you">Ви</string>
     <string name="steam_friends_in_game">У грі</string>
     <string name="steam_friends_join">Приєднатися</string>
@@ -1389,6 +1433,8 @@
     <string name="steam_join_the_game">гру</string>
     <string name="steam_friends_settings">Settings</string>
     <string name="steam_chat_settings_title">Chat Settings</string>
+    <string name="steam_chat_setting_service">Служба чату</string>
+    <string name="steam_chat_setting_service_desc">Увійдіть, щоб бачити друзів і спілкуватися в чаті; вимкніть, щоб перейти в офлайн</string>
     <string name="steam_chat_setting_notifications">Chat Notifications</string>
     <string name="steam_chat_setting_notifications_desc">Show a notification when you receive a message</string>
     <string name="steam_chat_setting_heads">Chat Heads</string>
@@ -1518,7 +1564,7 @@
     <string name="session_drawer_hud_background">Фон</string>
     <string name="session_drawer_hud_background_alpha">Альфа фону</string>
     <string name="session_drawer_hud_background_alpha_input_title">Задати альфу фону</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">Змінити розмір</string>
     <string name="session_task_bring_to_front">На передній план</string>
     <string name="session_task_custom_value">Власне значення</string>
@@ -1561,5 +1607,6 @@
     <string name="session_record_started">Запис розпочато</string>
     <string name="steam_chat_setting_stay_running">Працювати у фоні</string>
     <string name="steam_chat_setting_stay_running_desc">Залишати чат активним після виходу з WinNative</string>
+    <string name="settings_content_refresh">Оновити</string>
 </resources>
 

@@ -157,6 +157,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">Obter arte</string>
+    <string name="library_games_scraping_artwork">Obtendo…</string>
     <string name="library_games_shortcut_created">Atalho criado</string>
     <string name="library_games_failed_to_create_shortcut">Falha ao criar atalho: %s</string>
     <string name="library_games_install_path">Caminho de Instalacao</string>
@@ -505,9 +507,12 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">Predefinicao FEXCore</string>
     <string name="container_fexcore_version">Versao do FEXCore</string>
+    <string name="use_unix_libs">Usar UnixLibs</string>
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Driver Grafico</string>
+    <string name="container_graphics_transcoder">Transcodificador BCn</string>
+    <string name="container_graphics_quality">Qualidade BCn</string>
     <string name="container_graphics_configuration">Configuracao do Driver Grafico</string>
     <string name="container_graphics_version">Versao do Driver Grafico</string>
     <string name="container_graphics_available_extensions">Extensoes Disponiveis</string>
@@ -588,6 +593,33 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Bat.</string>
     <string name="session_drawer_hud_element_graph">Graf.</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">HUD estilo Mango</string>
+    <string name="session_drawer_hud_mango_settings">Configurações do HUD Mango</string>
+    <string name="mango_hud_element_gpu_load">Carga da GPU</string>
+    <string name="mango_hud_element_gpu_temp">Temp. da GPU</string>
+    <string name="mango_hud_element_cpu_load">Carga da CPU</string>
+    <string name="mango_hud_element_cpu_temp">Temp. da CPU</string>
+    <string name="mango_hud_element_ram">RAM</string>
+    <string name="mango_hud_element_battery">Bateria</string>
+    <string name="mango_hud_element_lows" formatted="false">Mínimos de 1%</string>
+    <string name="mango_hud_element_graph">Gráfico de frametime</string>
+    <string name="mango_hud_element_engine">Motor</string>
+    <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">Clock da CPU</string>
+    <string name="mango_hud_element_gpu_clock">Clock da GPU</string>
+    <string name="mango_hud_element_cores">Por núcleo</string>
+    <string name="mango_hud_element_network">Rede</string>
+    <string name="mango_hud_element_swap">Swap</string>
+    <string name="mango_hud_element_resolution">Resolução</string>
+    <string name="mango_hud_element_wine">Versão do Wine</string>
+    <string name="mango_hud_element_duration">Tempo de sessão</string>
+    <string name="mango_hud_element_clock">Relógio</string>
+    <string name="mango_hud_element_throttle">Estado térmico</string>
+    <string name="mango_hud_group_memory">Memória</string>
+    <string name="mango_hud_group_system">Sistema</string>
+    <string name="mango_hud_lock">Bloquear HUD</string>
+    <string name="mango_hud_lock_subtitle">Permite que os toques cheguem aos controles atrás do HUD. Segure o HUD para bloqueá-lo. (5s)</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Deseja encerrar este processo?</string>
@@ -730,6 +762,7 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="settings_general_select_wallpaper">Selecionar papel de parede</string>
     <string name="settings_general_title">Geral</string>
     <string name="settings_general_enable_file_provider">Ativar Provedor de Arquivos</string>
+    <string name="settings_general_enable_auto_scraping">Ativar obtenção automática de arte</string>
     <string name="settings_general_take_effect_next_startup">Esta opcao tera efeito na proxima inicializacao.</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Reinstalar Imagefs</string>
@@ -753,6 +786,7 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="settings_general_xinput_toggle_summary">Desliga o tratamento XInput quando voce quer controle exclusivo de mouse e teclado.</string>
     <string name="settings_external_display_output_summary">Move o jogo para um monitor externo conectado em vez de espelhar esta tela. Os óculos sempre usam a própria tela.</string>
     <string name="settings_general_file_provider_summary">Expor arquivos do WinNative para seletores de documentos e gerenciadores de arquivos do Android.</string>
+    <string name="settings_general_auto_scraping_summary">Permite que o WinNative obtenha automaticamente a arte de jogos personalizados.</string>
     <string name="settings_general_open_browser_summary">Abrir links da web compativeis no navegador Android em vez de dentro do Wine.</string>
     <string name="settings_general_clipboard_summary">Permitir copiar e colar entre o Android e sessoes do Wine.</string>
     <string name="settings_general_imagefs_summary">Restaurar arquivos do sistema inclusos sem remover seus containers existentes.</string>
@@ -822,6 +856,8 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
 
     <string name="settings_other_language_title">Idioma</string>
     <string name="settings_other_language_summary">Escolher o idioma de exibição</string>
+    <string name="settings_other_game_language_title">Idioma do jogo</string>
+    <string name="settings_other_game_language_summary">Idioma preferido para downloads da Steam/Epic/GOG</string>
     <string name="settings_other_language_system_default">Padrão do sistema</string>
 
     <string name="settings_other_section_integration">Integração</string>
@@ -1064,7 +1100,10 @@ Caminho instalado:
     <!-- Missing translations -->
     <string name="common_ui_graphics">Gráficos</string>
     <string name="steam_section_title">Steam</string>
+    <string name="binding_primary">Vinculação primária</string>
     <string name="binding_secondary">Vinculação secundária</string>
+    <string name="binding_third">Vinculação terciária</string>
+    <string name="binding_fourth">Vinculação quaternária</string>
     <string name="input_controls_editor_tap_to_switch">Toque para alternar</string>
     <string name="input_controls_editor_download_profile">Baixar perfil</string>
     <string name="container_config_emulator_section">Emulador</string>
@@ -1173,6 +1212,9 @@ Caminho instalado:
     <string name="cloud_saves_history_restore_success">Save restaurado do backup.</string>
     <string name="cloud_saves_history_sign_in">Faça login no Google para ver seu histórico de saves.</string>
     <string name="cloud_saves_history_title">Histórico de Saves</string>
+    <string name="cloud_saves_history_download">Baixar</string>
+    <string name="cloud_saves_history_download_success">Arquivo baixado.</string>
+    <string name="cloud_saves_history_download_failed">Falha no download.</string>
     <string name="cloud_saves_keep_replaced_backup">Manter backup do save substituído</string>
     <string name="cloud_saves_keep_replaced_backup_summary">Se mudar de ideia, você pode restaurá-lo pelo Histórico de Saves.</string>
     <string name="cloud_saves_no_backups">Nenhum backup ainda para este jogo.</string>
@@ -1225,6 +1267,7 @@ Caminho instalado:
     <string name="input_controls_editor_radial_menu">Menu Radial</string>
     <string name="input_controls_editor_radial_menu_options">Opções do Menu Radial</string>
     <string name="input_controls_tap_to_click">Toque para Clicar</string>
+    <string name="input_controls_reverse_binding_order">Inverter ordem das associações</string>
     <string name="num_controllers">Número de Controles</string>
     <string name="session_drawer_controls_section">Controles</string>
     <string name="session_drawer_header_subtitle">Acesso rápido a controles, sobreposições e ferramentas de sessão</string>
@@ -1245,16 +1288,12 @@ Caminho instalado:
     <string name="session_gyroscope_mouse_sensitivity_format">Escala do Mouse: %1$d%%</string>
     <string name="settings_other_setup_wizard_summary">Abra o assistente de configuração novamente para revisar permissões, arquivos do sistema e contêineres padrão.</string>
     <string name="settings_other_setup_wizard_title">Assistente de Configuração</string>
-    <string name="shortcuts_library_artwork_carousel_title">Imagem do Carrossel</string>
-    <string name="shortcuts_library_artwork_change">Alterar imagem</string>
     <string name="shortcuts_library_artwork_failed">Falha ao carregar a imagem selecionada.</string>
-    <string name="shortcuts_library_artwork_game_card_title">Imagem do Card do Jogo</string>
-    <string name="shortcuts_library_artwork_grid_title">Imagem da Grade</string>
-    <string name="shortcuts_library_artwork_list_title">Imagem da Lista</string>
     <string name="shortcuts_library_artwork_open_source">Abrir SteamGridDB</string>
-    <string name="shortcuts_library_artwork_selected">Selecionada: %1$s</string>
     <string name="shortcuts_library_artwork_set">Definir imagem</string>
     <string name="shortcuts_library_artwork_title">Arte da Biblioteca</string>
+    <string name="shortcuts_library_artwork_icon_title">Arte do Ícone</string>
+    <string name="shortcuts_library_artwork_hero_title">Plano de Fundo</string>
     <string name="shortcuts_list_readded_existing">Atalho existente readicionado</string>
     <string name="shortcuts_properties_runtime_patcher">Patcher DRM em Tempo de Execução</string>
     <string name="shortcuts_properties_runtime_patcher_description">Injeta uma DLL de patch DRM ao iniciar. Reduz FPS — use apenas se o inicializador legado sozinho falhar.</string>
@@ -1292,12 +1331,16 @@ Caminho instalado:
     <string name="steam_section_emulator">Emulador Steam legado</string>
     <string name="shortcuts_properties_steam_offline_mode_description">Faz o cliente Steam emulado informar que está offline, para que o jogo não tente conexões online. Use em jogos que travam na verificação de rede do Steam.</string>
     <string name="input_controls_select_style">Selecionar estilo</string>
-    <string name="input_controls_select_label_theme">Rótulos dos botões</string>
     <string name="input_controls_style_original">Original</string>
     <string name="input_controls_style_gamehub">Glass</string>
-    <string name="input_controls_label_theme_default">Original</string>
-    <string name="input_controls_label_theme_xbox">Xbox</string>
-    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_style_slate">Ardósia</string>
+    <string name="input_controls_style_halo">Halo</string>
+    <string name="input_controls_style_glint">Brilho</string>
+    <string name="input_controls_style_shadow">Sombra</string>
+    <string name="input_controls_style_reticle">Retícula</string>
+    <string name="input_controls_style_neon">Neon</string>
+    <string name="input_controls_style_lumina">Lumina</string>
+    <string name="input_controls_accent_theme">Tema de cores</string>
     <string name="input_controls_edit_duplicating_builtin">Perfil integrado - uma cópia editável foi criada.</string>
     <string name="input_controls_editor_confirm_reset_profile">Redefinir este perfil para o layout original? Todas as alterações feitas serão perdidas.</string>
     <string name="input_controls_editor_profile_reset">Perfil redefinido para o layout original.</string>
@@ -1358,6 +1401,7 @@ Caminho instalado:
     <string name="steam_friends_section_online">Online (%1$d)</string>
     <string name="steam_friends_section_offline">Offline (%1$d)</string>
     <string name="steam_friends_none_loaded">Nenhum amigo carregado ainda.</string>
+    <string name="steam_friends_chat_off">O chat está desativado. Reative o Serviço de Chat para ver seus amigos.</string>
     <string name="steam_friends_self_you">Você</string>
     <string name="steam_friends_in_game">Em jogo</string>
     <string name="steam_friends_join">Entrar</string>
@@ -1383,6 +1427,8 @@ Caminho instalado:
     <string name="steam_join_the_game">o jogo</string>
     <string name="steam_friends_settings">Settings</string>
     <string name="steam_chat_settings_title">Chat Settings</string>
+    <string name="steam_chat_setting_service">Serviço de Chat</string>
+    <string name="steam_chat_setting_service_desc">Entre para ver amigos e conversar; desative para ficar offline</string>
     <string name="steam_chat_setting_notifications">Chat Notifications</string>
     <string name="steam_chat_setting_notifications_desc">Show a notification when you receive a message</string>
     <string name="steam_chat_setting_heads">Chat Heads</string>
@@ -1512,7 +1558,7 @@ Caminho instalado:
     <string name="session_drawer_hud_background">Fundo</string>
     <string name="session_drawer_hud_background_alpha">Alfa do fundo</string>
     <string name="session_drawer_hud_background_alpha_input_title">Definir alfa do fundo</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">Ajustar tamanho</string>
     <string name="session_task_bring_to_front">Trazer para frente</string>
     <string name="session_task_custom_value">Valor personalizado</string>
@@ -1555,5 +1601,6 @@ Caminho instalado:
     <string name="session_record_started">Gravação iniciada</string>
     <string name="steam_chat_setting_stay_running">Executar em segundo plano</string>
     <string name="steam_chat_setting_stay_running_desc">Manter o chat ativo após sair do WinNative</string>
+    <string name="settings_content_refresh">Atualizar</string>
 </resources>
 
