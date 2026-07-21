@@ -326,10 +326,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private int taskAffinityMask = 0;
     private int taskAffinityMaskWoW64 = 0;
     private final HashSet<Integer> guestAffinityCheckedPids = new HashSet<>();
-    private boolean serviceAffinityPinned = false;
+    private volatile boolean serviceAffinityStarted = false;
     private static final String[] SERVICE_AFFINITY_PROCESSES = {
         "services.exe", "rpcss.exe", "svchost.exe", "winedevice.exe",
-        "plugplay.exe", "conhost.exe"
+        "plugplay.exe", "conhost.exe", "start.exe"
     };
     private static final String[] SHELL_AFFINITY_PROCESSES = {
         "explorer.exe", "steamwebhelper.exe"
@@ -11037,28 +11037,58 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     // Background service processes have no windows and never pass through
-    // assignTaskAffinity, leaving them free to wake the prime cores. Once the
-    // session is up (first mapped window), pin them to the efficiency cores
-    // (lower half, matching the upper-half-is-big assumption of the WoW64
-    // fallback list). Shell/UI processes stay on the 64-bit list instead —
-    // they need full speed in the scenarios where they matter.
+    // assignTaskAffinity. One complete pass over the guest process list at the
+    // first window map pins every matching instance BY PID (by-name requests
+    // can't address duplicates like the two winedevice hosts). Children spawned
+    // afterwards inherit their parent's mask, so a single early pass keeps the
+    // policy without ever re-sending — manual task manager changes stick.
+    // Services go to the efficiency cores (lower half), shell/UI to the 64-bit
+    // list, winhandler to all cores.
     private void pinServiceAffinity() {
-        if (serviceAffinityPinned || winHandler == null) return;
-        serviceAffinityPinned = true;
-        int littleMask =
-                ProcessHelper.getAffinityMask(0, Runtime.getRuntime().availableProcessors() / 2);
-        if (littleMask != 0) {
-            for (String name : SERVICE_AFFINITY_PROCESSES) {
-                winHandler.setProcessAffinity(name, littleMask);
+        if (serviceAffinityStarted || winHandler == null) return;
+        serviceAffinityStarted = true;
+        new Thread(() -> {
+            final WinHandler wh = winHandler;
+            if (wh == null) return;
+            int coreCount = Runtime.getRuntime().availableProcessors();
+            final int littleMask = ProcessHelper.getAffinityMask(0, coreCount / 2);
+            final int fullMask = ProcessHelper.getAffinityMask(0, coreCount);
+            final CountDownLatch latch = new CountDownLatch(1);
+            final OnGetProcessInfoListener previous = wh.getOnGetProcessInfoListener();
+            final OnGetProcessInfoListener pinner = (index, numProcesses, processInfo) -> {
+                if (previous != null) previous.onGetProcessInfo(index, numProcesses, processInfo);
+                if (processInfo != null) {
+                    int desired = serviceMaskForProcess(processInfo.name, littleMask, fullMask);
+                    if (desired != 0 && processInfo.affinityMask != desired) {
+                        wh.setProcessAffinity(processInfo.pid, desired);
+                    }
+                }
+                if (processInfo == null || index == numProcesses - 1) latch.countDown();
+            };
+            wh.setOnGetProcessInfoListener(pinner);
+            try {
+                wh.listProcesses();
+                if (!latch.await(3000, TimeUnit.MILLISECONDS)) serviceAffinityStarted = false;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                if (wh.getOnGetProcessInfoListener() == pinner) {
+                    wh.setOnGetProcessInfoListener(previous);
+                }
             }
+        }, "ServiceAffinityPin").start();
+    }
+
+    private int serviceMaskForProcess(String name, int littleMask, int fullMask) {
+        if (name == null) return 0;
+        if (name.equalsIgnoreCase("winhandler.exe")) return fullMask;
+        for (String service : SERVICE_AFFINITY_PROCESSES) {
+            if (name.equalsIgnoreCase(service)) return littleMask;
         }
-        if (taskAffinityMask != 0) {
-            for (String name : SHELL_AFFINITY_PROCESSES) {
-                winHandler.setProcessAffinity(name, taskAffinityMask);
-            }
+        for (String shell : SHELL_AFFINITY_PROCESSES) {
+            if (name.equalsIgnoreCase(shell)) return taskAffinityMask;
         }
-        Log.d("XServerDisplayActivity", "Pinned services to 0x" + Integer.toHexString(littleMask)
-                + ", shell to 0x" + Integer.toHexString(taskAffinityMask));
+        return 0;
     }
 
     // _NET_WM_WOW64 can be absent on 32-bit guest windows, so when the two masks
