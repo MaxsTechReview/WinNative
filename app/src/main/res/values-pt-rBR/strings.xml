@@ -270,6 +270,7 @@
     <string name="containers_list_duplicate_title">Duplicar container</string>
     <string name="containers_list_confirm_remove">Deseja remover este container?</string>
     <string name="containers_list_confirm_duplicate">Deseja duplicar este container?</string>
+    <string name="containers_list_duplicate_failed">Falha ao duplicar o container</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">Deseja remover este atalho?</string>

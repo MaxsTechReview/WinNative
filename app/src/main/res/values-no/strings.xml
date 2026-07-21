@@ -289,6 +289,7 @@
     <string name="containers_list_duplicate_title">Dupliser beholder</string>
     <string name="containers_list_confirm_remove">Fjerne denne beholderen? Eventuelle spilllagringer som er lagret i den, vil bli slettet permanent. Skylagrede lagringer forblir i skyen, men lokale endringer som ennå ikke er synkronisert, vil gå tapt – synkroniser dette spillets skylagringer først hvis du vil beholde dem.</string>
     <string name="containers_list_confirm_duplicate">Vil du duplisere denne beholderen?</string>
+    <string name="containers_list_duplicate_failed">Kunne ikke duplisere beholderen</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">Vil du fjerne denne snarveien?</string>

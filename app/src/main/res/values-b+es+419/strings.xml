@@ -289,6 +289,7 @@
     <string name="containers_list_duplicate_title">Duplicar contenedor</string>
     <string name="containers_list_confirm_remove">¿Eliminar este contenedor? Las partidas guardadas dentro de él se eliminarán de forma permanente. Las partidas sincronizadas en la nube permanecen en la nube, pero los cambios locales que aún no se hayan sincronizado se perderán — sincroniza primero las partidas en la nube de este juego si quieres conservarlas.</string>
     <string name="containers_list_confirm_duplicate">¿Quieres duplicar este contenedor?</string>
+    <string name="containers_list_duplicate_failed">No se pudo duplicar el contenedor</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">¿Quieres eliminar este acceso directo?</string>

@@ -184,12 +184,8 @@ public class ContainerManager {
             });
   }
 
-  public void duplicateContainerAsync(Container container, Runnable callback) {
-    duplicateContainerAsync(container, null, callback);
-  }
-
   public void duplicateContainerAsync(
-      Container container, Callback<Integer> progressCallback, Runnable callback) {
+      Container container, Callback<Integer> progressCallback, Callback<Boolean> callback) {
     final Handler handler = new Handler(Looper.getMainLooper());
     Executors.newSingleThreadExecutor()
         .execute(
@@ -198,8 +194,8 @@ public class ContainerManager {
                   progressCallback != null
                       ? progress -> handler.post(() -> progressCallback.call(progress))
                       : null;
-              duplicateContainer(container, uiProgress);
-              handler.post(callback);
+              final boolean success = duplicateContainer(container, uiProgress);
+              handler.post(() -> callback.call(success));
             });
   }
 
@@ -335,15 +331,22 @@ public class ContainerManager {
     return firstDash >= 0 ? entryName.substring(firstDash + 1) : entryName;
   }
 
-  private void duplicateContainer(Container srcContainer) {
-    duplicateContainer(srcContainer, null);
-  }
-
-  private void duplicateContainer(Container srcContainer, Callback<Integer> progressCallback) {
+  private boolean duplicateContainer(Container srcContainer, Callback<Integer> progressCallback) {
     int id = maxContainerId + 1;
-
     File dstDir = new File(homeDir, ImageFs.USER + "-" + id);
-    if (!dstDir.mkdirs()) return;
+
+    // A crashed create/duplicate can leave an unregistered dir behind; skip past it.
+    while (dstDir.exists()) {
+      id++;
+      dstDir = new File(homeDir, ImageFs.USER + "-" + id);
+    }
+
+    if (!dstDir.mkdirs()) {
+      Log.e(
+          "ContainerManager",
+          "duplicateContainer: failed to create dir " + dstDir.getAbsolutePath());
+      return false;
+    }
 
     final int totalFiles = FileUtils.countFiles(srcContainer.getRootDir());
     final int[] copiedFiles = {0};
@@ -359,32 +362,70 @@ public class ContainerManager {
             progressCallback.call(pct);
           }
         })) {
+      Log.e(
+          "ContainerManager",
+          "duplicateContainer: file copy failed for container " + srcContainer.id);
       FileUtils.delete(dstDir);
-      return;
+      return false;
     }
 
+    // Runtime socket dir; the copy's 0771 makes wineserver refuse to start ("accessible by other users").
+    FileUtils.delete(new File(dstDir, ".wine/.wineserver"));
+
+    // Load the source config wholesale; hand-picking fields reset the rest to defaults.
     Container dstContainer = new Container(id, this);
     dstContainer.setRootDir(dstDir);
+    String configStr = FileUtils.readString(srcContainer.getConfigFile());
+    if (configStr == null || configStr.trim().isEmpty()) {
+      Log.e(
+          "ContainerManager",
+          "duplicateContainer: config empty or unreadable for container " + srcContainer.id);
+      FileUtils.delete(dstDir);
+      return false;
+    }
+    try {
+      JSONObject data = new JSONObject(configStr);
+      data.put("id", id);
+      dstContainer.loadData(data);
+    } catch (JSONException e) {
+      Log.e(
+          "ContainerManager",
+          "duplicateContainer: bad config JSON for container " + srcContainer.id, e);
+      FileUtils.delete(dstDir);
+      return false;
+    }
     dstContainer.setName(
         srcContainer.getName() + " (" + context.getString(R.string.common_ui_copy) + ")");
-    dstContainer.setScreenSize(srcContainer.getScreenSize());
-    dstContainer.setEnvVars(srcContainer.getEnvVars());
-    dstContainer.setCPUList(srcContainer.getCPUList());
-    dstContainer.setCPUListWoW64(srcContainer.getCPUListWoW64());
-    dstContainer.setGraphicsDriver(srcContainer.getGraphicsDriver());
-    dstContainer.setDXWrapper(srcContainer.getDXWrapper());
-    dstContainer.setDXWrapperConfig(srcContainer.getDXWrapperConfig());
-    dstContainer.setAudioDriver(srcContainer.getAudioDriver());
-    dstContainer.setWinComponents(srcContainer.getWinComponents());
-    dstContainer.setDrives(srcContainer.getDrives());
-    dstContainer.setStartupSelection(srcContainer.getStartupSelection());
-    dstContainer.setBox64Preset(srcContainer.getBox64Preset());
-    dstContainer.setDesktopTheme(srcContainer.getDesktopTheme());
-    dstContainer.setWineVersion(srcContainer.getWineVersion());
     dstContainer.saveData();
+    rewriteShortcutContainerIds(dstContainer.getDesktopDir(), id);
 
-    maxContainerId++;
+    maxContainerId = id;
     containers.add(dstContainer);
+    return true;
+  }
+
+  // Copied shortcuts keep the source's container_id, which overrides the owning container at launch.
+  static void rewriteShortcutContainerIds(File desktopDir, int newId) {
+    File[] files = desktopDir.listFiles((dir, name) -> name.endsWith(".desktop"));
+    if (files == null) return;
+
+    for (File file : files) {
+      StringBuilder updated = new StringBuilder();
+      boolean changed = false;
+
+      for (String line : FileUtils.readLines(file)) {
+        String trimmed = line.trim();
+        boolean colon = trimmed.startsWith("container_id:");
+        if (colon || trimmed.startsWith("container_id=")) {
+          updated.append("container_id").append(colon ? ':' : '=').append(newId).append("\n");
+          changed = true;
+        } else updated.append(line).append("\n");
+      }
+
+      if (changed && !FileUtils.writeString(file, updated.toString())) {
+        Log.e("ContainerManager", "rewriteShortcutContainerIds: failed to write " + file);
+      }
+    }
   }
 
   private void removeContainer(Container container) {
@@ -460,10 +501,6 @@ public class ContainerManager {
             shortcutUpgradeRunning.set(false);
         }
     }, "ShortcutUpgrade").start();
-  }
-
-  public int getNextContainerId() {
-    return maxContainerId + 1;
   }
 
   public Container getContainerById(int id) {

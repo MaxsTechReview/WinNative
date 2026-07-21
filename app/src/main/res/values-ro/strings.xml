@@ -270,6 +270,7 @@
     <string name="containers_list_duplicate_title">Duplica containerul</string>
     <string name="containers_list_confirm_remove">Doresti sa elimini acest container?</string>
     <string name="containers_list_confirm_duplicate">Doresti sa duplici acest container?</string>
+    <string name="containers_list_duplicate_failed">Duplicarea containerului a esuat</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">Doresti sa elimini aceasta comanda rapida?</string>

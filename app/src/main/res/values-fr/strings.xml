@@ -270,6 +270,7 @@
     <string name="containers_list_duplicate_title">Dupliquer le conteneur</string>
     <string name="containers_list_confirm_remove">Voulez-vous supprimer ce conteneur ?</string>
     <string name="containers_list_confirm_duplicate">Voulez-vous dupliquer ce conteneur ?</string>
+    <string name="containers_list_duplicate_failed">Échec de la duplication du conteneur</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">Voulez-vous supprimer ce raccourci ?</string>

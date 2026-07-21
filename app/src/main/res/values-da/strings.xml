@@ -270,6 +270,7 @@
     <string name="containers_list_duplicate_title">Dupliker container</string>
     <string name="containers_list_confirm_remove">Vil du fjerne denne container?</string>
     <string name="containers_list_confirm_duplicate">Vil du duplikere denne container?</string>
+    <string name="containers_list_duplicate_failed">Kunne ikke duplikere containeren</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">Vil du fjerne denne genvej?</string>

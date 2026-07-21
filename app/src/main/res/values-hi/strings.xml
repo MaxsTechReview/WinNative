@@ -278,6 +278,7 @@
     <string name="containers_list_duplicate_title">कंटेनर की नकल बनाएं</string>
     <string name="containers_list_confirm_remove">क्या आप इस कंटेनर को हटाना चाहते हैं?</string>
     <string name="containers_list_confirm_duplicate">क्या आप इस कंटेनर की नकल बनाना चाहते हैं?</string>
+    <string name="containers_list_duplicate_failed">कंटेनर डुप्लिकेट करने में विफल</string>
     <string name="shortcuts_list_confirm_remove">क्या आप इस शॉर्टकट को हटाना चाहते हैं?</string>
     <string name="shortcuts_list_add_to_home_screen">होम स्क्रीन में जोड़ें</string>
     <string name="shortcuts_library_artwork_title">लाइब्रेरी आर्टवर्क</string>

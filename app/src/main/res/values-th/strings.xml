@@ -289,6 +289,7 @@
     <string name="containers_list_duplicate_title">ทำสำเนาคอนเทนเนอร์</string>
     <string name="containers_list_confirm_remove">ลบคอนเทนเนอร์นี้หรือไม่? ไฟล์บันทึกเกมที่เก็บไว้ข้างในจะถูกลบอย่างถาวร ไฟล์บันทึกที่ซิงค์กับคลาวด์จะยังอยู่บนคลาวด์ แต่การเปลี่ยนแปลงในเครื่องที่ยังไม่ได้ซิงค์จะสูญหาย — ซิงค์ไฟล์บันทึกบนคลาวด์ของเกมนี้ก่อนหากต้องการเก็บไว้</string>
     <string name="containers_list_confirm_duplicate">คุณต้องการทำสำเนาคอนเทนเนอร์นี้หรือไม่?</string>
+    <string name="containers_list_duplicate_failed">ทำสำเนาคอนเทนเนอร์ไม่สำเร็จ</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">คุณต้องการลบทางลัดนี้หรือไม่?</string>

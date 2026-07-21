@@ -270,6 +270,7 @@
     <string name="containers_list_duplicate_title">Duplica contenitore</string>
     <string name="containers_list_confirm_remove">Vuoi rimuovere questo contenitore?</string>
     <string name="containers_list_confirm_duplicate">Vuoi duplicare questo contenitore?</string>
+    <string name="containers_list_duplicate_failed">Impossibile duplicare il contenitore</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">Vuoi rimuovere questa scorciatoia?</string>
