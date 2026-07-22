@@ -2738,11 +2738,23 @@ return boundingBox;
         float elementSize = scroller.getElementSize();
         float scrollOffset = scroller.getScrollOffset();
         byte[] rangeIndex = scroller.getRangeIndex();
-        luminaGlassBody(canvas, paint, boundingBox, a);
+        paint.setStyle(Paint.Style.FILL);
+        placeShader(getLuminaBodyShader(), boundingBox.left, boundingBox.top, Math.max(1, boundingBox.height()));
+        paint.setShader(getLuminaBodyShader());
+        paint.setAlpha((int) (170 * a));
+        canvas.drawRoundRect(
+            boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom, rr, rr, paint);
+        placeShader(getLuminaShadeShader(), boundingBox.left, boundingBox.top, Math.max(1, boundingBox.height()));
+        paint.setShader(getLuminaShadeShader());
+        paint.setAlpha((int) (255 * a));
+        canvas.drawRoundRect(
+            boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom, rr, rr, paint);
+        paint.setShader(null);
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeWidth(hairline * 1.2f);
         paint.setColor(rimColor);
-        drawCleanBody(canvas, paint, boundingBox, 0f);
+        canvas.drawRoundRect(
+            boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom, rr, rr, paint);
 
         canvas.save();
         path.reset();
