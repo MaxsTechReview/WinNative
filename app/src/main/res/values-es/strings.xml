@@ -651,6 +651,7 @@ Ej. <b>META</b> para la <i>tecla META</i>, \n
     <string name="session_display_frame_rate">Tasa de fotogramas</string>
     <string name="session_display_title">Pantalla</string>
     <string name="session_display_fullscreen_stretched">Activar pantalla completa (estirada)</string>
+    <string name="session_display_direct_composition">Composición directa (sin copia)</string>
     <string name="session_display_fps_label">FPS:</string>
     <string name="session_display_renderer_label">Renderizador:</string>
     <string name="session_display_gpu_label">GPU:</string>

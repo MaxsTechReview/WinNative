@@ -651,6 +651,7 @@
     <string name="session_display_frame_rate">幀率</string>
     <string name="session_display_title">顯示</string>
     <string name="session_display_fullscreen_stretched">啟用全螢幕（拉伸）</string>
+    <string name="session_display_direct_composition">直接合成（零複製）</string>
     <string name="session_display_fps_label">FPS：</string>
     <string name="session_display_renderer_label">渲染器：</string>
     <string name="session_display_gpu_label">GPU：</string>

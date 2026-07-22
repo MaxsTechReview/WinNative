@@ -37,6 +37,17 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
 
     private volatile int width;
     private volatile int height;
+    private android.os.PerformanceHintManager.Session perfHintSession;
+    private final long[] adpfDurationHistory = new long[8];
+    private int adpfHistoryIndex = 0;
+    private int adpfHistoryCount = 0;
+    private int adpfFrameCounter = 0;
+    private long adpfLastReportedAvg = 0;
+    private static final int ADPF_REPORT_INTERVAL = 6;
+    private static final double ADPF_DEVIATION_THRESHOLD = 0.15;
+    private static final double ADPF_HEADROOM_BIAS = 1.12;
+    // Lockless input flag — set by input thread, consumed by render thread.
+    private volatile boolean inputDirty = false;
 
     public XServerSurfaceView(Context context, XServer xServer) {
         super(context);
@@ -61,8 +72,20 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
 
     public void requestRender() {
         synchronized (renderLock) {
+            if (renderRequested) return;
             renderRequested = true;
             renderLock.notifyAll();
+        }
+    }
+
+    // Lockless input signal — no buildAndSubmitFrame, just wake the render thread.
+    public void signalInputDirty() {
+        inputDirty = true;
+        synchronized (renderLock) {
+            if (!renderRequested) {
+                renderRequested = true;
+                renderLock.notifyAll();
+            }
         }
     }
 
@@ -186,6 +209,20 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
     }
 
     private void renderLoop() {
+        // ADPF: create hint session targeting 8ms (~120 FPS) so the kernel governor scales CPU clocks.
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            try {
+                android.os.PerformanceHintManager phm = (android.os.PerformanceHintManager)
+                        getContext().getSystemService(android.os.PerformanceHintManager.class);
+                if (phm != null) {
+                    perfHintSession = phm.createHintSession(
+                            new int[]{android.os.Process.myTid()}, 8_000_000L);
+                }
+            } catch (Exception ignored) {}
+        } else {
+            // Legacy fallback: sustained performance mode (API 24-30, via Window flag on Activity).
+            // No wakelock needed — the Activity sets sustained performance mode on its Window.
+        }
         renderer.onSurfaceCreated();
         if (width > 0 && height > 0) renderer.onSurfaceChanged(width, height);
 
@@ -218,10 +255,14 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
                     }
 
                     if (renderMode == RENDERMODE_CONTINUOUSLY) {
-                        draw = true;
-                        transientRenderRequested = false;
-                        nextContinuousFrameNs = 0;
-                        break;
+                        if (nextContinuousFrameNs == 0 || now >= nextContinuousFrameNs) {
+                            draw = true;
+                            transientRenderRequested = false;
+                            nextContinuousFrameNs = now + TRANSIENT_FRAME_INTERVAL_NS;
+                            break;
+                        }
+                        waitNanosLocked(nextContinuousFrameNs - now);
+                        continue;
                     }
 
                     if (transientRenderRequested) {
@@ -249,10 +290,44 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
             if (event != null) {
                 try { event.run(); } catch (Throwable ignore) {}
             } else if (draw) {
+                if (inputDirty) {
+                    inputDirty = false;
+                    renderer.markContentDirty();
+                }
+                long frameStartNs = android.os.SystemClock.elapsedRealtimeNanos();
                 try { renderer.onDrawFrame(); } catch (Throwable ignore) {}
+                if (perfHintSession != null) {
+                    long rawDuration = android.os.SystemClock.elapsedRealtimeNanos() - frameStartNs;
+                    reportAdpfDuration(rawDuration);
+                }
             }
         }
+        // ADPF cleanup.
+        if (perfHintSession != null) {
+            try { perfHintSession.close(); } catch (Exception ignored) {}
+            perfHintSession = null;
+        }
         renderer.onSurfaceDestroyed();
+    }
+
+    // ADPF smoothed reporting: rolling 8-frame average + 12% headroom bias + throttled to every 6 frames or >15% deviation.
+    private void reportAdpfDuration(long rawDurationNs) {
+        adpfDurationHistory[adpfHistoryIndex] = rawDurationNs;
+        adpfHistoryIndex = (adpfHistoryIndex + 1) % 8;
+        if (adpfHistoryCount < 8) adpfHistoryCount++;
+        long sum = 0;
+        for (int i = 0; i < adpfHistoryCount; i++) sum += adpfDurationHistory[i];
+        long avg = sum / adpfHistoryCount;
+        long biased = (long)(avg * ADPF_HEADROOM_BIAS);
+        adpfFrameCounter++;
+        boolean intervalMet = (adpfFrameCounter >= ADPF_REPORT_INTERVAL);
+        boolean deviationExceeded = (adpfLastReportedAvg == 0 ||
+                Math.abs(biased - adpfLastReportedAvg) > adpfLastReportedAvg * ADPF_DEVIATION_THRESHOLD);
+        if (intervalMet || deviationExceeded) {
+            try { perfHintSession.reportActualWorkDuration(biased); } catch (Exception ignored) {}
+            adpfLastReportedAvg = biased;
+            adpfFrameCounter = 0;
+        }
     }
 
     private void waitNanosLocked(long nanos) {

@@ -766,6 +766,7 @@
     <string name="session_display_frame_rate">फ़्रेम दर</string>
     <string name="session_display_title">डिस्प्ले</string>
     <string name="session_display_fullscreen_stretched">फ़ुलस्क्रीन सक्षम करें (खींचा हुआ)</string>
+    <string name="session_display_direct_composition">डायरेक्ट कंपोज़िशन (ज़ीरो-कॉपी)</string>
     <string name="session_display_fps_label">FPS:</string>
     <string name="session_display_renderer_label">Renderer:</string>
     <string name="session_display_gpu_label">GPU:</string>

@@ -7,6 +7,7 @@ import com.winlator.cmod.shared.math.Mathf;
 import com.winlator.cmod.shared.util.Callback;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Drawable extends XResource {
   public final short width;
@@ -25,6 +26,24 @@ public class Drawable extends XResource {
   private Runnable onDrawListener;
   private Callback<Drawable> onDestroyListener;
   public final Object renderLock = new Object();
+
+  /**
+   * Producer-side acquire fence FD for the Direct Composition path. -1 means
+   * "no fence; buffer is ready for immediate read".
+   *
+   * <p>Today the value is usually -1: the in-process Java X server receives
+   * the AHardwareBuffer from the Wine client over the DRI3
+   * PIXMAP_FROM_BUFFERS path, which the X-server worker thread processes only
+   * after the client has already submitted its Vulkan command buffer.
+   * Empirically this CPU-side handoff latency exceeds the GPU-write completion
+   * time, so we observe no tearing without an explicit fence.
+   *
+   * <p>Stored as AtomicInteger so the "consume" semantic is atomic with
+   * respect to concurrent setAcquireFenceFd writes — without it, a producer
+   * could overwrite a still-pending FD between the consumer's read and clear,
+   * leaking the old FD.
+   */
+  private final AtomicInteger acquireFenceFd = new AtomicInteger(-1);
 
   static {
     System.loadLibrary("winlator");
@@ -140,6 +159,36 @@ public class Drawable extends XResource {
 
   public boolean isDirectScanout() {
     return directScanout;
+  }
+
+  /**
+   * Atomic read-and-clear of the acquire fence FD: returns the current value
+   * (or -1 if none) AND resets the field to -1 in a single CAS. Single-consumer
+   * "take" semantics — the caller now owns the FD and is responsible for
+   * either closing it or transferring ownership (e.g. to
+   * ASurfaceTransaction_setBuffer, which closes it via the framework).
+   */
+  public int takeAcquireFenceFd() {
+    return acquireFenceFd.getAndSet(-1);
+  }
+
+  /**
+   * Sets the producer acquire fence FD. Should be called by Present/DRI3
+   * extension code immediately before the buffer is published. Ownership
+   * transfers to this Drawable; the next consumer of
+   * {@link #takeAcquireFenceFd} takes ownership in turn. If the previous fence
+   * is still set (consumer hasn't taken it yet), this method closes the
+   * previous fence to avoid a leak. Pass {@code -1} to clear without setting.
+   */
+  public void setAcquireFenceFd(int fd) {
+    int prior = acquireFenceFd.getAndSet(fd);
+    if (prior >= 0 && prior != fd) {
+      try {
+        android.os.ParcelFileDescriptor.adoptFd(prior).close();
+      } catch (java.io.IOException ignored) {
+        // best-effort close
+      }
+    }
   }
 
   private short getStride() {

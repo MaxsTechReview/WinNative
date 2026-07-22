@@ -27,6 +27,8 @@ import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.PointerIcon;
+import android.view.Surface;
+import android.view.SurfaceHolder;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
@@ -251,6 +253,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             "cmd"
     ));
     private XServerSurfaceView xServerView;
+    // DC: per-activity SurfaceControl layer.
+    private com.winlator.cmod.runtime.display.composition.DirectCompositionLayer directCompositionLayer;
+    private boolean directCompositionInstalled = false;
     private InputControlsView inputControlsView;
     private boolean inputControlsRevealAllowed = false;
     private TouchpadView touchpadView;
@@ -3715,6 +3720,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     @Override
     protected void onDestroy() {
         activityDestroyed.set(true);
+        // DC: release SC layer + close diagnostic file.
+        releaseDirectCompositionLayer();
+        com.winlator.cmod.runtime.display.composition.SurfaceCompositor.closeDiagnosticFile();
         com.winlator.cmod.feature.stores.steam.service.GameSessionState.setInGame(this, false);
         // Finalize any in-progress recording before the renderer tears down.
         if (screenRecorder != null && screenRecorder.isRecording()) {
@@ -7114,6 +7122,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         xServer.setRenderer(renderer);
         rootView.addView(xServerView);
 
+        // DC: install lifecycle + HUD indicator listener.
+        installDirectCompositionLifecycle();
+        renderer.setDirectCompositionStateListener(active -> {
+            final FrameRating fr = frameRating;
+            if (fr != null) runOnUiThread(() -> fr.setDirectCompositionActive(active));
+        });
+
         globalCursorSpeed = preferences.getFloat("cursor_speed", 1.0f);
         touchpadView = new TouchpadView(this, xServer, timeoutHandler, hideControlsRunnable);
         touchpadView.setTapToClickEnabled(isTapToClickEnabled);
@@ -7284,6 +7299,66 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
         }
         return shortcutName;
+    }
+
+    // DC: check if enabled for this session.
+    private boolean isDirectCompositionEnabledForSession() {
+        String containerValue = container != null && container.isDirectCompositionEnabled() ? "1" : "0";
+        return getShortcutSetting(
+                com.winlator.cmod.runtime.container.Container.EXTRA_DIRECT_COMPOSITION,
+                containerValue).equals("1");
+    }
+
+    // DC: install SurfaceHolder lifecycle.
+    private void installDirectCompositionLifecycle() {
+        if (directCompositionInstalled) return;
+        if (xServerView == null) return;
+        com.winlator.cmod.runtime.display.composition.SurfaceCompositor.initDiagnosticFile(
+                com.winlator.cmod.runtime.system.LogManager.getLogsDir(this));
+        boolean enabled = isDirectCompositionEnabledForSession();
+        com.winlator.cmod.runtime.display.composition.SurfaceCompositor.logEvent("installDirectCompositionLifecycle: enabled=" + enabled);
+        if (!enabled) return;
+        boolean available = com.winlator.cmod.runtime.display.composition.SurfaceCompositor.isAvailable();
+        com.winlator.cmod.runtime.display.composition.SurfaceCompositor.logEvent("isAvailable() = " + available);
+        if (!available) return;
+        directCompositionInstalled = true;
+        xServerView.getHolder().addCallback(new SurfaceHolder.Callback() {
+            @Override
+            public void surfaceCreated(SurfaceHolder holder) {
+                if (directCompositionLayer != null) return;
+                Surface surface = holder.getSurface();
+                if (surface == null || !surface.isValid()) return;
+                directCompositionLayer = new com.winlator.cmod.runtime.display.composition.DirectCompositionLayer();
+                if (!directCompositionLayer.attach(surface)) {
+                    directCompositionLayer.release();
+                    directCompositionLayer = null;
+                    return;
+                }
+                VulkanRenderer r = xServerView != null ? xServerView.getRenderer() : null;
+                if (r != null) r.setDirectCompositionTarget(directCompositionLayer);
+            }
+            @Override
+            public void surfaceChanged(SurfaceHolder holder, int format, int w, int h) {}
+            @Override
+            public void surfaceDestroyed(SurfaceHolder holder) { releaseDirectCompositionLayer(); }
+        });
+        if (xServerView.getHolder().getSurface() != null && xServerView.getHolder().getSurface().isValid()) {
+            Surface surface = xServerView.getHolder().getSurface();
+            directCompositionLayer = new com.winlator.cmod.runtime.display.composition.DirectCompositionLayer();
+            if (directCompositionLayer.attach(surface)) {
+                VulkanRenderer r = xServerView.getRenderer();
+                if (r != null) r.setDirectCompositionTarget(directCompositionLayer);
+            } else { directCompositionLayer.release(); directCompositionLayer = null; }
+        }
+    }
+
+    // DC: release layer.
+    private void releaseDirectCompositionLayer() {
+        if (directCompositionLayer == null) return;
+        VulkanRenderer r = xServerView != null ? xServerView.getRenderer() : null;
+        if (r != null) r.setDirectCompositionTarget(null);
+        directCompositionLayer.release();
+        directCompositionLayer = null;
     }
 
     private void setTextColorForDialog(ViewGroup viewGroup, int color) {

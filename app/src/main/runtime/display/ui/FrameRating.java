@@ -110,6 +110,12 @@ public class FrameRating extends LinearLayout implements Runnable {
   private boolean enableGpu;
   private boolean enableGraph;
   private boolean enableRenderer;
+  // Direct Composition status — when true, " + DC" (green) is appended to the
+  // renderer label so the user can see at a glance whether zero-copy AHB →
+  // SurfaceControl + HWC overlay is active. Toggled from XServerDisplayActivity
+  // via setDirectCompositionActive(). Volatile because it's written from the
+  // render thread and read from the UI thread in updateRendererText().
+  private volatile boolean directCompositionActive = false;
   private volatile FrameObserver frameObserver;
   private int gpuFailCount;
   private int statsParity;
@@ -922,10 +928,34 @@ public class FrameRating extends LinearLayout implements Runnable {
 
   private void updateRendererText() {
     if (this.tvRenderer != null) {
-      this.tvRenderer.setText(this.rendererName);
+      if (directCompositionActive) {
+        // Append " + DC" in green to signal that Direct Composition
+        // (zero-copy AHB → SurfaceControl + HWC overlay) is active.
+        SpannableStringBuilder sb = new SpannableStringBuilder();
+        sb.append(this.rendererName);
+        sb.append(" + DC");
+        sb.setSpan(new ForegroundColorSpan(0xFF4CAF50),  // Material Green 500
+                this.rendererName.length(), sb.length(),
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        this.tvRenderer.setText(sb);
+      } else {
+        this.tvRenderer.setText(this.rendererName);
+      }
       this.tvRenderer.setVisibility(this.enableRenderer ? View.VISIBLE : View.GONE);
       updateSeparators(getOrientation() == LinearLayout.HORIZONTAL);
     }
+  }
+
+  /**
+   * Toggle the Direct Composition status indicator in the HUD. When true,
+   * " + DC" (green) is appended to the renderer label. Safe to call from any
+   * thread — the value is volatile and updateRendererText() is re-run on the
+   * next frame via post().
+   */
+  public void setDirectCompositionActive(boolean active) {
+    if (this.directCompositionActive == active) return;
+    this.directCompositionActive = active;
+    post(this::updateRendererText);
   }
 
   public void setGpuName(String name) {

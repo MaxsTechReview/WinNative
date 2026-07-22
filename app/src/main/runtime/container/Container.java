@@ -31,6 +31,27 @@ public class Container {
     public static final String DEFAULT_GRAPHICSDRIVERCONFIG =
             "vulkanVersion=1.3" + ";version=" + ";blacklistedExtensions=" + ";maxDeviceMemory=0" + ";presentMode=mailbox" + ";syncFrame=0" + ";disablePresentWait=0" + ";resourceType=auto" + ";bcnEmulation=auto" + ";bcnEmulationType=compute" + ";bcnEmulationCache=0" + ";gpuName=Device" + ";transcoder=cpu" + ";quality=low";
     public static final String DEFAULT_DDRAWRAPPER = "none";
+
+    /**
+     * extraData JSON key for the per-container "Direct Composition" toggle.
+     * Stored as a string ("1"/"0") for symmetry with the rest of extraData.
+     * The setting is read at activity startup and applies for the whole
+     * session — it controls whether fullscreen drawables are pushed to a
+     * sibling Android SurfaceControl layer (zero-copy DPU scanout) instead of
+     * being composited by the VulkanRenderer. Changing it mid-game is not
+     * supported.
+     *
+     * <p>When enabled AND the device supports ASurfaceControl (API 29+) AND
+     * the device is not on the soft-boot blocklist (see SurfaceCompositor),
+     * the VulkanRenderer's per-frame hook extracts the AHardwareBuffer from
+     * the fullscreen direct-scanout candidate and hands it directly to
+     * SurfaceFlinger via ASurfaceTransaction_setBuffer. HWC promotes the
+     * layer to a DPU overlay plane — zero GPU compositing cost, zero buffer
+     * copy. This is the true zero-copy path.
+     *
+     * <p>When disabled (default), zero behavior change vs. pre-DC.
+     */
+    public static final String EXTRA_DIRECT_COMPOSITION = "directComposition";
     public static final String DEFAULT_WINCOMPONENTS = "direct3d=1,directsound=0,directmusic=0,directshow=0,directplay=0,xaudio=0,dinput8=1,vcrun2010=1";
     public static final String FALLBACK_WINCOMPONENTS = "direct3d=1,directsound=1,directmusic=1,directshow=1,directplay=1,xaudio=1,dinput8=1,vcrun2010=1";
     public static final String DEFAULT_DRIVES = "D:" + Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath() + "F:" + Environment.getExternalStorageDirectory().getAbsolutePath();
@@ -302,6 +323,22 @@ public class Container {
 
     public String getLanguage() {
         return getExtra("containerLanguage", "english");
+    }
+
+    /**
+     * Whether this container should route fullscreen direct-scanout drawables
+     * to a sibling Android SurfaceControl layer (HWC overlay plane / DPU
+     * scanout) instead of having VulkanRenderer composite them. Default off.
+     *
+     * <p>Sampled once at activity startup and held for the session. Toggling
+     * has no effect on a running game; the user must relaunch the container.
+     */
+    public boolean isDirectCompositionEnabled() {
+        return "1".equals(getExtra(EXTRA_DIRECT_COMPOSITION, "0"));
+    }
+
+    public void setDirectCompositionEnabled(boolean enabled) {
+        putExtra(EXTRA_DIRECT_COMPOSITION, enabled ? "1" : "0");
     }
 
     public String getExtra(String key) {

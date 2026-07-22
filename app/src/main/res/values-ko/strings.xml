@@ -651,6 +651,7 @@
     <string name="session_display_frame_rate">프레임 레이트</string>
     <string name="session_display_title">디스플레이</string>
     <string name="session_display_fullscreen_stretched">전체 화면 활성화 (늘림)</string>
+    <string name="session_display_direct_composition">다이렉트 컴포지션(제로 카피)</string>
     <string name="session_display_fps_label">FPS:</string>
     <string name="session_display_renderer_label">렌더러:</string>
     <string name="session_display_gpu_label">GPU:</string>

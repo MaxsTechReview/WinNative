@@ -425,6 +425,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         }
 
         state.fullscreenStretched.value = c?.isFullscreenStretched() ?: false
+        state.directComposition.value = c?.isDirectCompositionEnabled() ?: false
         state.useUnixLibs.value = c?.isUseUnixLibs() ?: true
 
         // Steam fields are shortcut-only in the UI; leave any existing steam
@@ -816,6 +817,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             c.setWinComponents(wincomponents)
             c.setDrives(drivesString)
             c.setFullscreenStretched(state.fullscreenStretched.value)
+            c.setDirectCompositionEnabled(state.directComposition.value)
             c.setUseUnixLibs(state.useUnixLibs.value)
             c.setInputType(finalInputType)
             c.setExclusiveXInput(state.containerExclusiveInput.value)
@@ -857,6 +859,10 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 data.put("wincomponents", wincomponents)
                 data.put("drives", drivesString)
                 data.put("fullscreenStretched", state.fullscreenStretched.value)
+                val extraDataObj = data.optJSONObject("extraData") ?: org.json.JSONObject()
+                extraDataObj.put(Container.EXTRA_DIRECT_COMPOSITION, if (state.directComposition.value) "1" else "0")
+                extraDataObj.put("swapRB", if (state.selectedSurfaceEffect.intValue == 1) "1" else "0")
+                data.put("extraData", extraDataObj)
                 data.put("useUnixLibs", state.useUnixLibs.value)
                 data.put("inputType", finalInputType)
                 data.put("exclusiveXInput", state.containerExclusiveInput.value)
