@@ -11187,6 +11187,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     score += 6000000;
                 } else if (rName.contains("dxvk")) {
                     score += 5000000;
+                } else if (rName.contains("zink")) {
+                    // Prefer the GL renderer window over a bare-Vulkan probe window.
+                    score += 4500000;
                 } else if (rName.contains("vulkan") || rName.contains("turnip")) {
                     score += 4000000;
                 }
