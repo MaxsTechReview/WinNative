@@ -281,6 +281,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private int runtimeFpsLimit = 0;
     private String lastRendererName = "Vulkan";
     private String lastGpuName = null;
+    private boolean gameWindowSeen;
+    private int rendererWindowId = -1;
+    private boolean rendererWindowPresented;
     private Runnable editInputControlsCallback;
     private Shortcut shortcut;
     private boolean launchedFromPinnedShortcut = false;
@@ -1627,6 +1630,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
             @Override
             public void onFramePresented(Window window, WindowManager.FrameSource source, int serial) {
+                if (window != null && window.id == rendererWindowId) rendererWindowPresented = true;
                 if (shouldRecordFpsFrame(window, source)) {
                     frameRating.recordGameFrame(source == WindowManager.FrameSource.PRESENT, serial);
                     if (mangoHud != null) mangoHud.recordGameFrame(source == WindowManager.FrameSource.PRESENT);
@@ -11177,11 +11181,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 boolean isApp = window.isApplicationWindow();
                 boolean isMapped = window.attributes.isMapped();
                 int area = window.getWidth() * window.getHeight();
-                
+
                 int score = 0;
                 if (isApp) score += 100000000;
                 if (isMapped) score += 10000000;
-                
+
                 String rName = prop.toString().toLowerCase();
                 if (rName.contains("vkd3d")) {
                     score += 6000000;
@@ -11193,9 +11197,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 } else if (rName.contains("vulkan") || rName.contains("turnip")) {
                     score += 4000000;
                 }
-                
+
                 score += Math.min(area, 3000000);
-                
+
                 if (score > bestScore) {
                     bestScore = score;
                     bestWindow = window;
@@ -11206,14 +11210,26 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
         }
 
+        boolean hasApp = hasNonShellAppWindow();
+        if (hasApp) gameWindowSeen = true;
+
         boolean windowChanged = bestWindow != null && frameRatingWindowId != bestWindow.id;
         if (bestWindow != null) {
             lastRendererName = bestRenderer;
             lastGpuName = bestGpu;
+            if (bestWindow.id != rendererWindowId) {
+                rendererWindowId = bestWindow.id;
+                rendererWindowPresented = false;
+            }
             frameRatingWindowId = bestWindow.id;
         } else {
-            lastRendererName = "Vulkan";
-            lastGpuName = null;
+            if (rendererWindowPresented || (gameWindowSeen && !hasApp)) {
+                lastRendererName = "Vulkan";
+                lastGpuName = null;
+                gameWindowSeen = false;
+                rendererWindowId = -1;
+                rendererWindowPresented = false;
+            }
             frameRatingWindowId = -1;
         }
 
@@ -11227,6 +11243,18 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
             updateHUDRenderMode();
         });
+    }
+
+    /** True while an application window other than the desktop shell is mapped. */
+    private boolean hasNonShellAppWindow() {
+        if (xServer == null) return false;
+        for (Window w : xServer.windowManager.getWindows()) {
+            if (w.id == xServer.windowManager.rootWindow.id) continue;
+            if (!w.isApplicationWindow()) continue;
+            String cls = w.getClassName();
+            if (cls == null || !cls.toLowerCase().contains("explorer")) return true;
+        }
+        return false;
     }
 
     /** Engine label for the Mango HUD: renderer name plus the DXVK version when running DXVK. */
