@@ -3778,6 +3778,14 @@ return boundingBox;
     }
   }
 
+  public boolean isCapturing(int pointerId) {
+    return currentPointerId == pointerId;
+  }
+
+  public boolean isSwipeTarget() {
+    return type == Type.BUTTON || type == Type.D_PAD || type == Type.RADIAL_MENU;
+  }
+
   public boolean handleTouchDown(int pointerId, float x, float y) {
     if (currentPointerId == -1 && containsPoint(x, y)) {
       if (type != Type.RANGE_BUTTON && type != Type.RADIAL_MENU) {
