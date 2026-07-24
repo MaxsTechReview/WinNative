@@ -15,42 +15,18 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-// ReShade drop-in support (vkBasalt-powered). App-side discovery + parameter reflection.
-//
-// Users drop ReShade effects into one folder, ONE self-contained subfolder per effect (the .fx plus
-// any .fxh includes and textures). scanEffects() lists every subfolder that contains a .fx;
-// reflectParams() scrapes each .fx's `uniform ... < ui_* > = default;` annotations so the settings UI
-// can describe each tunable uniform. This class never touches the layer binary — it only discovers
-// effects and describes their parameters; conf generation + env wiring live in ReshadeConfigWriter.
-//
-// vkBasalt (already bundled in assets/graphics_driver/extra_libs.tzst as usr/lib/libvkbasalt.so, zlib
-// licence, with the reshadefx compiler embedded) compiles the .fx -> SPIR-V on-device and applies it
-// to DXVK/VKD3D (Vulkan) games. Continuation of DadSchoorse/vkBasalt (original), bundled into the
-// Winlator/Cmod lineage by Pipetto-crypto.
-//
-// NOTE on the SHIPPED (stock) vkBasalt: it reads its config once at swapchain create and does NOT
-// support overriding a .fx uniform from config (only the .fx's own defaults) — and its HOME toggle is
-// a no-op. So on the stock layer, an effect applies at its DEFAULT look; the per-uniform lines this
-// package emits are inert until the live-reload patched libvkbasalt.so lands (follow-up PR). The
-// reflection below is kept so that follow-up wires live/pre-launch parameter tuning with no new
-// scanning code.
+// ReShade effect discovery + .fx uniform reflection; conf generation lives in ReshadeConfigWriter.
 public class ReshadeManager {
     private static final String TAG = "ReshadeManager";
 
-    // User-visible drop-in folder: /sdcard/Android/data/<pkg>/files/ReShade/. Reachable from any file
-    // manager without extra storage permissions. Effect files are COPIED into the guest config dir at
-    // launch (ReshadeConfigWriter), so the layer never reads from external storage directly.
+    // drop-in folder: /sdcard/Android/data/<pkg>/files/ReShade/, one subfolder per effect
     public static final String FOLDER_NAME = "ReShade";
 
-    // FLOAT/INT -> slider (ui_type slider|drag). BOOL -> toggle. COMBO -> dropdown (radio/list too;
-    // value = selected index). COLOR -> color picker (floatN; value = N components).
     public enum ParamType { FLOAT, INT, BOOL, COMBO, COLOR }
 
-    // One tunable uniform reflected from a .fx. Float/int carry min/max/step; bool ignores them.
-    // COMBO carries `options` (the ui_items labels; value is the selected index). COLOR carries
-    // `components` (3 for float3, 4 for float4) + `componentDefaults` (per-component .fx default).
+    // one tunable uniform reflected from a .fx; COMBO value is an index into options
     public static class ReshadeParam {
-        public final String name;          // the uniform identifier (what we write into vkBasalt.conf)
+        public final String name;
         public final ParamType type;
         public final float min, max, step;
         public final float defaultValue;   // bool default carried as 0.0/1.0; combo default = index; color = component 0
@@ -60,7 +36,6 @@ public class ReshadeManager {
         public final int components;        // COLOR component count (3/4); 1 otherwise
         public final float[] componentDefaults; // COLOR per-component defaults (else null)
 
-        // Scalar/bool params (FLOAT/INT/BOOL): no options, single component.
         public ReshadeParam(String name, ParamType type, float min, float max, float step,
                             float defaultValue, String label, String uiType) {
             this(name, type, min, max, step, defaultValue, label, uiType, null, 1, null);
@@ -83,8 +58,6 @@ public class ReshadeManager {
         }
     }
 
-    // A discovered effect: its subfolder name (the selectable identifier), its folder and .fx, and the
-    // reflected param list.
     public static class ReshadeEffect {
         public final String name;
         public final File dir;
@@ -105,8 +78,7 @@ public class ReshadeManager {
         return dir;
     }
 
-    // List every subfolder that contains at least one .fx, sorted by name. Each becomes one selectable
-    // effect. A .fx matching the folder name wins as the technique source; otherwise the first .fx.
+    // every subfolder holding at least one .fx becomes one selectable effect
     public static List<ReshadeEffect> scanEffects(Context context) {
         ArrayList<ReshadeEffect> out = new ArrayList<>();
         File root = getReshadeDir(context);
@@ -136,9 +108,7 @@ public class ReshadeManager {
         return null;
     }
 
-    /** Delete a downloaded effect's entire subfolder from the ReShade dir (recursive). Returns true when
-     *  the folder was found and removed. Only ever deletes a directory that sits directly inside
-     *  getReshadeDir — a crafted name that would escape the dir (or resolve to the root itself) is refused. */
+    /** Recursive delete of one effect subfolder; refuses anything not directly inside getReshadeDir. */
     public static boolean deleteEffect(Context context, String name) {
         if (name == null || name.isEmpty()) return false;
         File root = getReshadeDir(context);
@@ -146,7 +116,7 @@ public class ReshadeManager {
         File dir = (e != null) ? e.dir : new File(root, name);
         File parent = dir.getParentFile();
         if (parent == null || !parent.equals(root) || dir.equals(root)) return false;
-        boolean ok = FileUtils.delete(dir);           // WinNative FileUtils.delete(File) is recursive
+        boolean ok = FileUtils.delete(dir);           // recursive
         if (!ok) Log.w(TAG, "Failed to delete effect folder: " + dir);
         return ok;
     }
@@ -158,7 +128,6 @@ public class ReshadeManager {
         for (File f : files) {
             if (f.isFile() && f.getName().toLowerCase(Locale.US).endsWith(".fx")) {
                 if (first == null) first = f;
-                // Prefer a .fx whose basename matches the folder (e.g. Sepia/Sepia.fx).
                 String base = f.getName().substring(0, f.getName().length() - 3);
                 if (base.equalsIgnoreCase(dir.getName())) return f;
             }
@@ -166,9 +135,7 @@ public class ReshadeManager {
         return first;
     }
 
-    // ── Param reflection (lightweight regex scraper, no native call) ─────────────────────────────
-    // Matches: uniform <type> <name> < ...annotations... > = <default> ;   (default optional)
-    // ReShade annotations don't nest <>, so a non-greedy [^>]* block is sufficient.
+    // uniform <type> <name> < annotations > = <default>; — annotations never nest <>, so [^>]* suffices
     private static final Pattern UNIFORM = Pattern.compile(
             "uniform\\s+(\\w+)\\s+(\\w+)\\s*<([^>]*)>\\s*(?:=\\s*([^;]+?))?\\s*;",
             Pattern.DOTALL);
@@ -183,6 +150,7 @@ public class ReshadeManager {
             return params;
         }
         if (src == null) return params;
+        src = src.replaceAll("(?s)/\\*.*?\\*/", " ");
 
         Matcher m = UNIFORM.matcher(src);
         while (m.find()) {
@@ -191,13 +159,10 @@ public class ReshadeManager {
             String ann = m.group(3) != null ? m.group(3) : "";
             String defExpr = m.group(4);
 
-            // Skip engine-driven uniforms: a `source = "..."` annotation marks a ReShade-provided
-            // semantic (timer/frametime/framecount/pingpong/random/...) that vkBasalt fills each
-            // frame. These are NOT user-tunable — a slider would do nothing and just clutter the list.
+            // a `source =` annotation marks an engine-filled semantic, not user-tunable
             if (annValue(ann, "source") != null) continue;
 
-            // Base scalar type + component count (float3 -> base "float", components 3). Matrices (e.g.
-            // float3x3) keep an "x" in baseType and fall through the family check below.
+            // matrices (float3x3) keep an "x" in baseType and get dropped by the family check
             String baseType = typeStr.replaceAll("[0-9]+$", "");
             int components = parseComponents(typeStr);
             if (!baseType.equals("float") && !baseType.equals("int")
@@ -210,14 +175,12 @@ public class ReshadeManager {
             String label = unquote(annValue(ann, "ui_label"));
             if (label == null || label.isEmpty()) label = name;
 
-            // ── bool -> toggle ──
             if (baseType.equals("bool")) {
                 float def = (defExpr != null && defExpr.trim().equalsIgnoreCase("true")) ? 1f : 0f;
                 params.add(new ReshadeParam(name, ParamType.BOOL, 0f, 1f, 1f, def, label, uiType));
                 continue;
             }
 
-            // ── combo / radio / list -> dropdown (index-backed) ──
             if (uiTypeLc.equals("combo") || uiTypeLc.equals("radio") || uiTypeLc.equals("list")) {
                 List<String> options = parseUiItems(unquote(annValue(ann, "ui_items")));
                 if (options.size() >= 2) {
@@ -228,30 +191,30 @@ public class ReshadeManager {
                             def, label, uiType, options, 1, null));
                     continue;
                 }
-                // No usable ui_items -> fall through to a numeric slider.
+                // no usable ui_items -> fall through to a numeric slider
             }
 
-            // ── color (floatN) -> color picker ──
-            if (uiTypeLc.equals("color") && baseType.equals("float")) {
-                int comp = Math.max(1, components);
-                float[] defs = parseFloatList(defExpr, comp, 0f);
+            if (uiTypeLc.equals("color") && baseType.equals("float") && components > 1) {
+                float[] defs = parseFloatList(defExpr, components, 0f);
                 params.add(new ReshadeParam(name, ParamType.COLOR, 0f, 1f, 0.01f,
-                        defs.length > 0 ? defs[0] : 0f, label, uiType, null, comp, defs));
+                        defs.length > 0 ? defs[0] : 0f, label, uiType, null, components, defs));
                 continue;
             }
 
-            // ── scalar float/int (ui_type slider | drag) -> slider ──
-            // Non-color vectors (e.g. a float2 drag) have no single widget here -> skip, as before.
+            // non-color vectors have no single widget -> skip
             if (components != 1) continue;
             ParamType type = baseType.equals("float") ? ParamType.FLOAT : ParamType.INT;
 
+            boolean hasMin = annValue(ann, "ui_min") != null;
+            boolean hasMax = annValue(ann, "ui_max") != null;
             float min = parseFloat(annValue(ann, "ui_min"), 0f);
             float max = parseFloat(annValue(ann, "ui_max"), type == ParamType.INT ? 100f : 1f);
+            float def = parseFloat(defExpr, min);
+            if (!hasMin && def < min) min = def;
+            if (!hasMax && def > max) max = def;
+            if (max <= min) max = min + 1f;
             float step = parseFloat(annValue(ann, "ui_step"),
                     type == ParamType.INT ? 1f : (Math.max(0.0001f, (max - min) / 100f)));
-            if (max <= min) max = min + 1f;
-
-            float def = parseFloat(defExpr, min);
             if (def < min) def = min;
             if (def > max) def = max;
 
@@ -260,9 +223,7 @@ public class ReshadeManager {
         return params;
     }
 
-    // Value-map key scheme, shared by the settings UI and the conf writer. COLOR seeds one entry per
-    // component under "<name>_<c>"; everything else seeds a single "<name>" entry. Saved JSON
-    // (per-game/container override) wins over the .fx default.
+    // key scheme shared with the conf writer: COLOR seeds "<name>_<c>" per component, others "<name>"
     public static void seedValues(ReshadeParam p, org.json.JSONObject saved, Map<String, Float> out) {
         if (p.type == ParamType.COLOR) {
             for (int c = 0; c < p.components; c++) {
@@ -280,7 +241,6 @@ public class ReshadeManager {
         }
     }
 
-    // Trailing component count of a vector type (float3 -> 3, float -> 1), clamped to 1..4.
     private static int parseComponents(String typeStr) {
         Matcher m = Pattern.compile("([0-9]+)$").matcher(typeStr);
         if (m.find()) {
@@ -292,8 +252,7 @@ public class ReshadeManager {
         return 1;
     }
 
-    // Split a ui_items string ("A\0B\0C\0") on the literal "\0" escape (two chars: backslash + '0', how
-    // the .fx source carries them) or a real NUL, dropping the terminating trailing empty.
+    // ui_items separators arrive as the literal two-char "\0" escape from .fx source, or a real NUL
     private static List<String> parseUiItems(String raw) {
         ArrayList<String> out = new ArrayList<>();
         if (raw == null) return out;
@@ -303,9 +262,7 @@ public class ReshadeManager {
         return out;
     }
 
-    // Parse up to [count] leading floats from a constructor/initializer ("float3(0.5, 0.2, 0.1)",
-    // "{1.0, 0.0, 0.0}", or a scalar "0.5" which is broadcast to all components). A single leading
-    // "floatN"/"intN" constructor name is skipped so its digit isn't read as a component value.
+    // up to [count] floats from "float3(...)", "{...}" or a scalar (broadcast to all components)
     private static float[] parseFloatList(String s, int count, float fallback) {
         float[] out = new float[count];
         Arrays.fill(out, fallback);
@@ -323,8 +280,7 @@ public class ReshadeManager {
         return out;
     }
 
-    // Pull `key = value` from an annotation block; value runs to the next `;` or end. Returns the raw
-    // (possibly quoted) value, or null when absent.
+    // raw (possibly quoted) `key = value` from an annotation block; value runs to the next `;` or end
     private static String annValue(String ann, String key) {
         Pattern p = Pattern.compile("\\b" + Pattern.quote(key) + "\\s*=\\s*([^;]+)",
                 Pattern.CASE_INSENSITIVE);
@@ -340,8 +296,6 @@ public class ReshadeManager {
         return s;
     }
 
-    // Parse the leading float out of an expression (handles "0.5", "float(0.5)", "1.0f", "{0.5, ...}"
-    // by taking the first number). Falls back to [fallback] on anything unparseable.
     private static float parseFloat(String s, float fallback) {
         if (s == null) return fallback;
         Matcher m = Pattern.compile("[-+]?[0-9]*\\.?[0-9]+").matcher(s);

@@ -508,9 +508,7 @@ class ShortcutSettingsComposeDialog private constructor(
                 ?.coerceIn(0, 100)
                 ?: 100
 
-        // ReShade drop-in LOADOUT (per-game). Scan the effect pool + (re)load the ordered multi-effect
-        // model, resolving each field as a shortcut override else the container value (getShortcutSetting),
-        // migrating a legacy single reshadeEffect/flat reshadeParams transparently (ReshadeLoadout.parse).
+        // shortcut override else container value; legacy single reshadeEffect/flat params migrated in parse
         val reshadeEffects = com.winlator.cmod.runtime.reshade.ReshadeManager.scanEffects(context)
         state.reshadeEffects.value = reshadeEffects
         state.reshadeLoadout.init(
@@ -1279,11 +1277,7 @@ class ShortcutSettingsComposeDialog private constructor(
                 shortcut.putExtra("sgsrSharpness", null)
             }
 
-            // ReShade LOADOUT (per-game). Route through saveOverride so it participates in the
-            // container-defaults flag: a bare putExtra left hasContainerOverride false, so a shortcut whose
-            // only change was ReShade got use_container_defaults=1 and getSettingExtra shadowed its own
-            // reshade extras with the container value on read. Persist the array + mode + nested params +
-            // the legacy first-effect (coherence); an empty loadout clears the override (inherit / off).
+            // saveOverride not putExtra: putExtra leaves hasContainerOverride false, so a reshade-only shortcut gets use_container_defaults=1 and reads back the container's extras
             run {
                 val loadoutJson = state.reshadeLoadout.loadoutJsonOrNull() ?: ""
                 hasContainerOverride = hasContainerOverride or saveOverride(
@@ -1294,8 +1288,7 @@ class ShortcutSettingsComposeDialog private constructor(
                 hasContainerOverride = hasContainerOverride or saveOverride(
                     com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_MODE,
                     if (loadoutJson.isEmpty()) "" else state.reshadeLoadout.mode,
-                    // Default "solo" (how launch resolves an unset mode) so an inheriting/legacy shortcut
-                    // whose loadout matches the container doesn't gain a spurious reshadeMode override.
+                    // "solo" is how launch resolves an unset mode; matching it avoids a spurious reshadeMode override
                     if (loadoutJson.isEmpty()) "" else container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_MODE, "solo")
                 )
                 hasContainerOverride = hasContainerOverride or saveOverride(

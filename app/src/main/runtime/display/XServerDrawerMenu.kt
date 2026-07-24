@@ -540,8 +540,7 @@ private val RAIL_PANES =
             itemId = R.id.main_menu_screen_effects,
             labelRes = R.string.session_drawer_rail_label_effects,
         ),
-        // Shown only when the host adds a main_menu_reshade item (via withReshadeState) — i.e. a ReShade
-        // effect was applied at launch on a Vulkan wrapper, so the patched vkBasalt layer is live.
+        // Shown only when the host adds a main_menu_reshade item to state.items.
         RailPaneSpec(
             pane = DrawerPane.RESHADE,
             itemId = R.id.main_menu_reshade,
@@ -638,11 +637,7 @@ data class XServerDrawerState(
     val pixelateEnabled: Boolean = false,
     val pixelateBlock: Int = 6,
     val colorBlind: Int = 0,
-    // ReShade in-game live control. Populated (and the RESHADE rail tab shown) only via withReshadeState,
-    // i.e. when a ReShade LOADOUT was compiled at launch on a Vulkan wrapper so the patched vkBasalt
-    // layer is live. reshadeLoadout is the ordered set of compiled effects; each carries its own enabled
-    // gate + reflected params + live values (ReshadeManager.seedValues key scheme). reshadeMasterEnabled
-    // is the whole-chain passthrough; reshadeMode is "solo" (live switch) or "stack" (layer).
+    // reshadeMode is "solo" (one effect bypasses the rest) or "stack"; param keys follow ReshadeManager.seedValues.
     val reshadeMasterEnabled: Boolean = false,
     val reshadeMode: String = "solo",
     val reshadeLoadout: List<ReshadeLoadoutItem> = emptyList(),
@@ -1091,20 +1086,16 @@ interface XServerDrawerActionListener {
 
     fun onResetEffects()
 
-    // ── ReShade live control (multi-effect loadout) ──
-    // Whole-chain passthrough on/off.
     fun onReshadeMasterEnabledChanged(enabled: Boolean)
 
-    // Flip one loadout effect's live gate. In solo mode enabling one bypasses the others (host-side).
+    // In solo mode enabling one effect bypasses the others (host-side).
     fun onReshadeEffectEnabledChanged(index: Int, enabled: Boolean)
 
-    // Switch solo <-> stack.
     fun onReshadeModeChanged(mode: String)
 
-    // Tune one effect's uniform (key = ReshadeManager.seedValues scheme).
+    // key = ReshadeManager.seedValues scheme.
     fun onReshadeParamChanged(index: Int, key: String, value: Float)
 
-    // Reset one effect's params to its .fx defaults.
     fun onReshadeReset(index: Int)
 
     fun onInputControlsProfileSelected(index: Int)
@@ -1551,9 +1542,7 @@ fun withVitureState(
         outputVitureVolumeMax = volumeMax,
     )
 
-// Append the ReShade tab item + live-control state to the drawer state. Called by the host ONLY when a
-// ReShade effect was applied at launch (Vulkan wrapper), so the patched vkBasalt layer is loaded and the
-// in-game pane's rewrites take effect on the next frame. Mirrors withOutputState.
+// Call only when a ReShade effect was applied at launch (Vulkan wrapper) so the vkBasalt layer is loaded.
 fun withReshadeState(
     state: XServerDrawerState,
     masterEnabled: Boolean,

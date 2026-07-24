@@ -543,9 +543,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         state.surfaceEffectEntries.value = surfaceEffectArr
         state.selectedSurfaceEffect.intValue = if (c?.getExtra("swapRB", "0") == "1") 1 else 0
 
-        // ReShade drop-in LOADOUT (container default). Scan the effect pool + (re)load the ordered
-        // multi-effect model from the reshadeLoadout array + mode + nested params, migrating a legacy
-        // single reshadeEffect/flat reshadeParams transparently (ReshadeLoadout.parse).
+        // init() migrates a legacy single reshadeEffect / flat reshadeParams into the loadout model
         val reshadeEffects = com.winlator.cmod.runtime.reshade.ReshadeManager.scanEffects(context)
         state.reshadeEffects.value = reshadeEffects
         state.reshadeLoadout.init(
@@ -824,8 +822,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             c.putExtra("swapRB", if (state.selectedSurfaceEffect.intValue == 1) "1" else "0")
             c.putExtra("refreshRate", getRefreshRateFromState())
             run {
-                // ReShade loadout: the ordered array + mode + nested per-effect params. reshadeEffect is
-                // kept coherent (= first effect) for any legacy reader; all null when the loadout is empty.
+                // reshadeEffect stays coherent (= first effect) for legacy readers; all null when empty
                 val loadoutJson = state.reshadeLoadout.loadoutJsonOrNull()
                 c.putExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_LOADOUT, loadoutJson)
                 c.putExtra(

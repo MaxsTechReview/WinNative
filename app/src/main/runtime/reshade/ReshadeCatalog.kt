@@ -9,42 +9,7 @@ import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.TimeUnit
 
-/**
- * One downloadable ReShade effect from the LIVE catalog (reshade.json). The catalog index lives on the
- * winlator-contents repo (raw file); each effect's archive is a GitHub RELEASE ASSET referenced by the
- * entry's explicit "url" field. The index URL is not hardcoded here — it comes from
- * BuildConfig.RESHADE_CATALOG_URL so a flavor/branch can repoint it without a code change.
- *
- * Each archive is a zstd-compressed tar (.tzst) whose tar contains the folder "<id>/..." (the .fx plus
- * its co-located .fxh includes and any textures). It extracts into the ReShade ROOT drop-in folder
- * (getReshadeDir → getExternalFilesDir/ReShade/) → yielding ReShade/<id>/, the exact dir
- * ReshadeManager's scanner reads. [id] is the drop-in subfolder name (uniqueness key).
- *
- * SCOPE: the catalog only adds BROWSE + DOWNLOAD of effect FOLDERS. Per-uniform parameter tuning and
- * the in-game toggle still need the live-reload patched vkBasalt layer (follow-up PR) — see
- * ReshadeConfigWriter's STOCK-LAYER SCOPE note.
- *
- * LIVE reshade.json SCHEMA (exact published field names):
- *
- *   {
- *     "schemaVersion": 1,
- *     "mirrorBase": "https://github.com/.../releases/download/reshade-v1/",
- *     "effects": [
- *       {
- *         "id": "Technicolor",            // drop-in subfolder name (uniqueness key)
- *         "name": "Technicolor",          // display label
- *         "description": "Technicolor — prod80",
- *         "category": "Color/Tone",
- *         "author": "prod80",
- *         "license": "MIT",
- *         "url": "https://github.com/.../releases/download/reshade-v1/Technicolor.tzst",
- *         "file_size": "5332",            // bytes, as a string
- *         "file_checksum": "5532...AB",   // UPPERCASE MD5 of the .tzst — verified after download
- *         "version": 1
- *       }
- *     ]
- *   }
- */
+/** One effect entry from reshade.json; [url] points at a .tzst that extracts to ReShade/<id>/. */
 data class ReshadeCatalogEntry(
     val id: String,
     val name: String,
@@ -62,10 +27,8 @@ object ReshadeCatalog {
     private const val TAG = "ReshadeCatalog"
     private const val CACHE_FILE = "reshade_catalog.json"
 
-    /** Index URL is build-config driven (per-flavor/branch repointable), not a hardcoded const. */
     val url: String get() = BuildConfig.RESHADE_CATALOG_URL
 
-    /** Where the catalog list came from, so the UI can tell the user whether it's live or cached. */
     enum class Source { NETWORK, CACHE, NONE }
     data class Result(val entries: List<ReshadeCatalogEntry>, val source: Source)
 
@@ -79,10 +42,7 @@ object ReshadeCatalog {
 
     private fun cacheFile(context: Context) = File(context.filesDir, CACHE_FILE)
 
-    /** Network-first, then offline cache. On a successful fetch the raw JSON is cached to
-     *  filesDir/reshade_catalog.json for next time. On network failure the cached JSON (if any) is
-     *  parsed instead, so the full list still renders offline. Returns NONE (empty) only when there's
-     *  neither network nor a cache — the picker then falls back to scanning the drop-in folder. */
+    /** Network-first, then the offline cache; NONE means neither was available. */
     fun loadCached(context: Context): Result {
         val json = downloadString(url)
         if (json != null) {
@@ -120,7 +80,6 @@ object ReshadeCatalog {
             val o = arr.optJSONObject(i) ?: continue
             val id = o.optString("id").ifBlank { o.optString("name") }.trim()
             if (id.isEmpty()) continue
-            // Prefer the explicit url; fall back to mirrorBase + id + ".tzst".
             val effectUrl = o.optString("url").ifBlank {
                 if (mirrorBase.isBlank()) "" else mirrorBase.trimEnd('/') + "/" + id + ".tzst"
             }

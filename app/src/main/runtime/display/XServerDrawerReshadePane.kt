@@ -41,14 +41,7 @@ import com.winlator.cmod.runtime.reshade.ReshadeLoadout
 import com.winlator.cmod.runtime.reshade.ReshadeManager
 import kotlin.math.roundToInt
 
-// In-game ReShade pane — multi-effect LOADOUT. Every effect in the loadout was compiled into the
-// vkBasalt chain at launch, so this pane only SWITCHES/STACKS the compiled set (never adds effects —
-// selection is pre-launch, in the container/shortcut editor). A master on/off (whole chain), a Solo/
-// Stack mode toggle, and one row per effect: its own enable gate + an expander revealing that effect's
-// typed controls (same control types + key scheme as the pre-launch ReshadeSection). Solo = flipping one
-// on bypasses the rest (live A/B switch); Stack = independent layering. Each edit routes through the
-// loadout callbacks; the host rewrites vkBasalt.conf and the patched libvkbasalt.so applies it on the
-// next rendered frame (mtime watch, no recompile).
+// switches/stacks effects already compiled into the vkBasalt chain at launch; adding effects is pre-launch only.
 
 @Composable
 internal fun ReshadePaneContent(
@@ -81,7 +74,6 @@ internal fun ReshadePaneContent(
                     return@Column
                 }
 
-                // The chain gates + tuning are only meaningful while the master switch is on.
                 if (state.reshadeMasterEnabled) {
                     ReshadeModeRow(mode = state.reshadeMode, onChange = listener::onReshadeModeChanged)
 
@@ -94,7 +86,7 @@ internal fun ReshadePaneContent(
     }
 }
 
-// Solo / Stack pill switch. Solo = one effect active at a time (live A/B); Stack = layer any subset.
+// solo = one effect active at a time; stack = layer any subset.
 @Composable
 private fun ReshadeModeRow(mode: String, onChange: (String) -> Unit) {
     val paneScale = LocalPaneScale.current
@@ -143,8 +135,7 @@ private fun ReshadeModeRow(mode: String, onChange: (String) -> Unit) {
     }
 }
 
-// One loadout effect: its enable gate (NavBooleanRow; in solo mode the host makes it exclusive), plus a
-// collapsible block of typed controls for its reflected uniforms + a per-effect Reset.
+// in solo mode the host makes this enable gate exclusive.
 @Composable
 private fun ReshadeEffectRow(
     index: Int,
@@ -164,7 +155,6 @@ private fun ReshadeEffectRow(
         onCheckedChange = { listener.onReshadeEffectEnabledChanged(index, it) },
     )
 
-    // Params expander (only when this effect exposes tunable uniforms).
     if (item.params.isNotEmpty()) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -213,9 +203,7 @@ private fun ReshadeEffectRow(
     }
 }
 
-// One reflected uniform, rendered with the control type matching its ParamType (parallels the pre-launch
-// ReshadeParamControls). Every edit routes through onReshadeParamChanged(index, key, value) in the shared
-// seedValues key scheme so the host's live conf rewrite and the pre-launch save agree.
+// param keys must follow the shared seedValues scheme or the live conf rewrite and the pre-launch save diverge.
 @Composable
 private fun ReshadeParamRow(
     index: Int,
@@ -268,8 +256,6 @@ private fun ReshadeParamRow(
     }
 }
 
-// Color param: a tappable swatch that expands to per-channel (R/G/B[/A]) sliders — same affordance as
-// the pre-launch ReshadeColorControl, trimmed to the drawer's components.
 @Composable
 private fun ReshadeColorRow(
     index: Int,
@@ -344,8 +330,7 @@ private fun reshadeColorComponentLabel(c: Int, components: Int): String = when {
     else -> (c + 1).toString()
 }
 
-// Float/int slider on top of the shared NavSliderRow — snaps to [step] (or integers when [whole]) so the
-// value written into vkBasalt.conf is clean, and steps the d-pad by one increment.
+// snaps to [step] (or integers when [whole]) to keep the value written into vkBasalt.conf clean.
 @Composable
 private fun ReshadeSliderRow(
     label: String,

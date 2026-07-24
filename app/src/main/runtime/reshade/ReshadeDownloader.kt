@@ -12,17 +12,7 @@ import java.io.FileOutputStream
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
-/**
- * Downloads a ReShade effect archive (the entry's explicit "url" — a GitHub release asset) and
- * installs it into the drop-in folder, so ReshadeManager's scanner then picks it up exactly like a
- * hand-dropped effect. These archives are small and are NOT versioned content the container tracks, so
- * this stays off the heavyweight ContentProfile/DownloadCoordinator pipeline and uses a plain okhttp
- * GET (the same okhttp already shipped for the store/updater code) + TarCompressorUtils (zstd tar).
- *
- * The .tzst's tar already contains the "<id>/..." folder, so it extracts into the ReShade ROOT dir
- * (getReshadeDir → ReShade/) → yielding ReShade/<id>/. The published catalog supplies an UPPERCASE MD5
- * (file_checksum) which is verified before extraction (blank = skip).
- */
+/** Downloads a catalog effect archive into the drop-in folder, where ReshadeManager's scanner picks it up. */
 object ReshadeDownloader {
     private const val TAG = "ReshadeDownloader"
 
@@ -36,8 +26,7 @@ object ReshadeDownloader {
             .build()
     }
 
-    /** Download + verify + extract [entry] into the drop-in folder. progress(phase, 0..1). Returns
-     *  true on success (the effect is then on disk under getReshadeDir/<id>/). Runs on IO. */
+    /** Download + verify + extract [entry] into the drop-in folder. progress(phase, 0..1). Runs on IO. */
     suspend fun install(
         context: Context,
         entry: ReshadeCatalogEntry,
@@ -50,7 +39,6 @@ object ReshadeDownloader {
                 Log.w(TAG, "download failed: ${entry.url}")
                 return@withContext false
             }
-            // Verify the UPPERCASE MD5 from the catalog before trusting the archive (blank = skip).
             if (entry.checksum.isNotBlank()) {
                 val actual = md5Upper(archive)
                 if (!actual.equals(entry.checksum, ignoreCase = true)) {
@@ -61,14 +49,12 @@ object ReshadeDownloader {
             progress(Phase.EXTRACT, 0f)
             // The tar carries "<id>/...", so extract straight into the ReShade root → ReShade/<id>/.
             val reshadeRoot = ReshadeManager.getReshadeDir(context)
-            // Replace any stale copy so a re-download is clean.
             File(reshadeRoot, entry.id).takeIf { it.isDirectory }?.deleteRecursively()
             if (!TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, archive, reshadeRoot)) {
                 Log.w(TAG, "extract failed: $archive")
                 return@withContext false
             }
             progress(Phase.EXTRACT, 1f)
-            // Sanity: a usable effect must end up with at least one .fx under ReShade/<id>/.
             val ok = ReshadeManager.findFxFile(File(reshadeRoot, entry.id)) != null
             if (!ok) Log.w(TAG, "no .fx after install for ${entry.id}")
             ok
@@ -80,7 +66,6 @@ object ReshadeDownloader {
         }
     }
 
-    /** okhttp GET → [dest], reporting fractional progress from Content-Length when available. */
     private fun download(target: String, dest: File, onProgress: (Float) -> Unit): Boolean {
         val req = Request.Builder().url(target).build()
         httpClient.newCall(req).execute().use { resp ->

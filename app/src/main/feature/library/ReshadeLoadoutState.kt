@@ -9,18 +9,11 @@ import com.winlator.cmod.runtime.reshade.ReshadeLoadout
 import com.winlator.cmod.runtime.reshade.ReshadeManager
 import org.json.JSONObject
 
-/**
- * Compose-observable state holder for a pre-launch ReShade LOADOUT, shared by the container editor
- * (ContainerSettingsComposeDialog) and the per-game shortcut editor (ShortcutSettingsComposeDialog).
- * Holds the ordered effect names, per-effect enabled flags, the solo/stack mode, and per-effect uniform
- * values (keyed "<effect>::<uniform>" — the ReshadeManager.seedValues key scheme with an effect prefix).
- * Serializes to the reshadeLoadout array + nested reshadeParams object; migrates legacy single-effect
- * saves transparently via ReshadeLoadout. Held as a plain field on GameSettingsStateHolder.
- */
+// serializes to the reshadeLoadout array + nested reshadeParams object; migrates legacy single-effect saves.
 class ReshadeLoadoutState {
     var mode by mutableStateOf(ReshadeLoadout.MODE_SOLO)
         private set
-    val order = mutableStateListOf<String>()                        // effect names, chain order
+    val order = mutableStateListOf<String>()
     private val enabledMap = mutableStateMapOf<String, Boolean>()
     private val paramValues = mutableStateMapOf<String, Float>()    // "<effect>::<uniformKey>"
 
@@ -46,8 +39,7 @@ class ReshadeLoadoutState {
 
     fun isFull(): Boolean = order.size >= ReshadeLoadout.MAX_EFFECTS
 
-    // Add an effect (seeding its default params). Enabling it respects solo exclusivity. Capped at
-    // ReshadeLoadout.MAX_EFFECTS so a launch can't balloon into an unbounded compile.
+    // capped at MAX_EFFECTS so a launch can't balloon into an unbounded compile.
     fun add(effect: ReshadeManager.ReshadeEffect, saved: JSONObject?) {
         if (order.contains(effect.name) || isFull()) return
         order.add(effect.name)
@@ -60,12 +52,11 @@ class ReshadeLoadoutState {
         enabledMap.remove(name)
         val prefix = "$name::"
         paramValues.keys.filter { it.startsWith(prefix) }.toList().forEach { paramValues.remove(it) }
-        // Solo: if we removed the active effect, promote the first remaining one.
         if (mode == ReshadeLoadout.MODE_SOLO && order.isNotEmpty() && order.none { isEnabled(it) })
             setEnabled(order.first(), true)
     }
 
-    // Reorder within the chain (chain order = apply order). Guards indices so a stale UI event is inert.
+    // chain order = apply order.
     fun move(from: Int, to: Int) {
         if (from !in order.indices || to !in order.indices || from == to) return
         val name = order.removeAt(from)
@@ -102,8 +93,7 @@ class ReshadeLoadoutState {
 
     fun isEmpty(): Boolean = order.isEmpty()
 
-    // (Re)load from stored strings + the scanned effects (used for param reflection). Effects no longer
-    // present in the drop-in folder are dropped. Migrates a legacy single effect + flat params.
+    // effects no longer present in the drop-in folder are dropped; migrates a legacy single effect + flat params.
     fun init(
         effects: List<ReshadeManager.ReshadeEffect>,
         loadoutJson: String?,
@@ -124,8 +114,7 @@ class ReshadeLoadoutState {
         changeMode(mode) // enforce the solo invariant
     }
 
-    // Re-seed after a rescan (post-download), preserving current values where possible. Keeps the
-    // selection; only drops effects whose folder vanished.
+    // re-seed after a rescan, preserving current values; only drops effects whose folder vanished.
     fun reconcile(effects: List<ReshadeManager.ReshadeEffect>) {
         val present = effects.associateBy { it.name }
         order.filter { it !in present }.toList().forEach { remove(it) }
