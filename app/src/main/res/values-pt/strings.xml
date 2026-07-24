@@ -289,6 +289,7 @@
     <string name="containers_list_duplicate_title">Duplicar contentor</string>
     <string name="containers_list_confirm_remove">Remover este contentor? Quaisquer jogos guardados armazenados no seu interior serão eliminados permanentemente. Os jogos guardados sincronizados na nuvem permanecem na nuvem, mas as alterações locais que ainda não foram sincronizadas serão perdidas — sincronize primeiro os jogos guardados na nuvem deste jogo se os quiser manter.</string>
     <string name="containers_list_confirm_duplicate">Pretende duplicar este contentor?</string>
+    <string name="containers_list_duplicate_failed">Falha ao duplicar o contentor</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">Pretende remover este atalho?</string>

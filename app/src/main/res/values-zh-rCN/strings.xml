@@ -270,6 +270,7 @@
     <string name="containers_list_duplicate_title">复制容器</string>
     <string name="containers_list_confirm_remove">您要移除此容器吗？</string>
     <string name="containers_list_confirm_duplicate">您要复制此容器吗？</string>
+    <string name="containers_list_duplicate_failed">复制容器失败</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">您要移除此快捷方式吗？</string>

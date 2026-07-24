@@ -289,6 +289,7 @@
     <string name="containers_list_duplicate_title">Duplicera container</string>
     <string name="containers_list_confirm_remove">Ta bort den här containern? Alla spelsparningar som lagras i den raderas permanent. Molnsynkade sparningar finns kvar i molnet, men lokala ändringar som ännu inte synkats går förlorade — synka det här spelets molnsparningar först om du vill behålla dem.</string>
     <string name="containers_list_confirm_duplicate">Vill du duplicera den här containern?</string>
+    <string name="containers_list_duplicate_failed">Det gick inte att duplicera containern</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">Vill du ta bort den här genvägen?</string>

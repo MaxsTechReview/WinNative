@@ -289,6 +289,7 @@
     <string name="containers_list_duplicate_title">コンテナを複製</string>
     <string name="containers_list_confirm_remove">このコンテナを削除しますか? 内部に保存されたゲームのセーブデータはすべて完全に削除されます。クラウドに同期済みのセーブデータはクラウドに残りますが、未同期のローカルの変更は失われます — 残しておきたい場合は、先にこのゲームのクラウドセーブを同期してください。</string>
     <string name="containers_list_confirm_duplicate">このコンテナを複製しますか?</string>
+    <string name="containers_list_duplicate_failed">コンテナの複製に失敗しました</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">このショートカットを削除しますか?</string>

@@ -289,6 +289,7 @@
     <string name="containers_list_duplicate_title">Konteyneri çoğalt</string>
     <string name="containers_list_confirm_remove">Bu konteyner kaldırılsın mı? İçinde saklanan tüm oyun kayıtları kalıcı olarak silinecek. Buluta eşitlenmiş kayıtlar bulutta kalır, ancak henüz eşitlenmemiş yerel değişiklikler kaybolur — korumak istiyorsanız önce bu oyunun bulut kayıtlarını eşitleyin.</string>
     <string name="containers_list_confirm_duplicate">Bu konteyneri çoğaltmak istiyor musunuz?</string>
+    <string name="containers_list_duplicate_failed">Konteyner çoğaltılamadı</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">Bu kısayolu kaldırmak istiyor musunuz?</string>

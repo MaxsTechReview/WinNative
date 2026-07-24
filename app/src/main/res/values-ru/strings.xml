@@ -287,6 +287,7 @@
     <string name="containers_list_duplicate_title">Дублировать контейнер</string>
     <string name="containers_list_confirm_remove">Вы хотите удалить этот контейнер?</string>
     <string name="containers_list_confirm_duplicate">Вы хотите продублировать этот контейнер?</string>
+    <string name="containers_list_duplicate_failed">Не удалось продублировать контейнер</string>
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">Вы хотите удалить этот ярлык?</string>
     <string name="shortcuts_list_add_to_home_screen">Добавить на главный экран</string>

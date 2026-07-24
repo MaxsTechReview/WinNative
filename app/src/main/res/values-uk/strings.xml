@@ -274,6 +274,7 @@
     <string name="containers_list_duplicate_title">Дублювати контейнер</string>
     <string name="containers_list_confirm_remove">Ви хочете видалити цей контейнер?</string>
     <string name="containers_list_confirm_duplicate">Ви хочете дублювати цей контейнер?</string>
+    <string name="containers_list_duplicate_failed">Не вдалося дублювати контейнер</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">Ви хочете видалити цей ярлик?</string>

@@ -270,6 +270,7 @@
     <string name="containers_list_duplicate_title">컨테이너 복제</string>
     <string name="containers_list_confirm_remove">이 컨테이너를 제거하시겠습니까?</string>
     <string name="containers_list_confirm_duplicate">이 컨테이너를 복제하시겠습니까?</string>
+    <string name="containers_list_duplicate_failed">컨테이너 복제에 실패했습니다</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">이 바로가기를 제거하시겠습니까?</string>

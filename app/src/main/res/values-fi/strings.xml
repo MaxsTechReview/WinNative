@@ -289,6 +289,7 @@
     <string name="containers_list_duplicate_title">Kopioi säiliö</string>
     <string name="containers_list_confirm_remove">Poistetaanko tämä säiliö? Kaikki sen sisältämät pelitallennukset poistetaan pysyvästi. Pilveen synkronoidut tallennukset säilyvät pilvessä, mutta paikalliset muutokset, joita ei ole vielä synkronoitu, menetetään – synkronoi tämän pelin pilvitallennukset ensin, jos haluat säilyttää ne.</string>
     <string name="containers_list_confirm_duplicate">Haluatko kopioida tämän säiliön?</string>
+    <string name="containers_list_duplicate_failed">Säiliön kopiointi epäonnistui</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">Haluatko poistaa tämän pikakuvakkeen?</string>
