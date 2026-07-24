@@ -775,6 +775,15 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
     var gameName by remember { mutableStateOf("") }
     var gameFolder by remember { mutableStateOf<String?>(null) }
     var isAdding by remember { mutableStateOf(false) }
+    var nameEditing by remember { mutableStateOf(false) }
+    val nameFocus = remember { FocusRequester() }
+    val nameKeyboard = LocalSoftwareKeyboardController.current
+    LaunchedEffect(nameEditing) {
+        if (nameEditing) {
+            runCatching { nameFocus.requestFocus() }
+            nameKeyboard?.show()
+        }
+    }
     val registry = remember { PaneNavRegistry() }
     val addEnabled = selectedExePath != null && gameName.isNotBlank() && gameFolder != null && !isAdding
     val doAdd: () -> Unit = {
@@ -910,7 +919,13 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
                                 onValueChange = { gameName = it },
                                 label = { Text(stringResource(R.string.library_games_game_name), fontSize = 11.sp) },
                                 singleLine = true,
-                                modifier = Modifier.fillMaxWidth().paneNavItem(cornerRadius = 10.dp).controllerTextFieldEscape(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .paneNavItem(cornerRadius = 10.dp, onActivate = { nameEditing = true })
+                                    .focusRequester(nameFocus)
+                                    .focusProperties { canFocus = nameEditing }
+                                    .onFocusChanged { if (!it.isFocused) nameEditing = false }
+                                    .controllerTextFieldEscape(),
                                 textStyle = MaterialTheme.typography.bodySmall.copy(color = TextPrimary),
                                 colors =
                                     OutlinedTextFieldDefaults.colors(

@@ -147,6 +147,7 @@ object DirectoryPickerDialog {
     private val CardBorder = WinNativeOutline
     private val IconBoxBg = Color(0xFF242434)
     private val Accent = WinNativeAccent
+    private val NavHighlight = Color(0xFF4FC3F7)
     private val TextPrimary = WinNativeTextPrimary
     private val TextSecondary = WinNativeTextSecondary
 
@@ -402,7 +403,7 @@ object DirectoryPickerDialog {
         val context = LocalContext.current
         val scope = rememberCoroutineScope()
         var currentDir by remember(initialDir.absolutePath) { mutableStateOf(initialDir) }
-        var selectedFile by remember(currentDir.absolutePath) { mutableStateOf<File?>(null) }
+        var selectedFile by remember { mutableStateOf<File?>(null) }
         var rootsExpanded by remember { mutableStateOf(false) }
         var refreshTick by remember { mutableStateOf(0) }
         var clipboard by remember { mutableStateOf<Pair<File, Boolean>?>(null) }
@@ -619,6 +620,7 @@ object DirectoryPickerDialog {
             if (delta != 0f) runCatching { gridState.animateScrollBy(delta) }
         }
         LaunchedEffect(currentDir.absolutePath) {
+            selectedFile = null
             contentRegistry.reset()
             footerZone = false
         }
@@ -852,12 +854,6 @@ object DirectoryPickerDialog {
                                         onMenuDismiss = { menuTarget = null },
                                         actions = if (isMenuOpen) buildItemActions(entry) else emptyList(),
                                         menuRegistry = menuRegistry,
-                                        onHighlighted =
-                                            if (mode == SelectionMode.FILE) {
-                                                { selectedFile = if (entry.isSelectableFile) entry.target else null }
-                                            } else {
-                                                {}
-                                            },
                                     )
                                 }
                             }
@@ -1239,7 +1235,7 @@ object DirectoryPickerDialog {
                         .clip(RoundedCornerShape(10.dp))
                         .background(
                             when {
-                                selected -> Accent.copy(alpha = 0.16f)
+                                selected -> Accent.copy(alpha = 0.35f)
                                 entry.isParent -> Accent.copy(alpha = 0.1f)
                                 else -> CardDark
                             },
@@ -1248,7 +1244,7 @@ object DirectoryPickerDialog {
                             width = 1.dp,
                             color =
                                 when {
-                                    selected -> Accent.copy(alpha = 0.45f)
+                                    selected -> Accent
                                     entry.isParent -> Accent.copy(alpha = 0.24f)
                                     else -> CardBorder
                                 },
@@ -1276,6 +1272,7 @@ object DirectoryPickerDialog {
                             onSecondary = onSecondary,
                             isEntry = isEntry,
                             onHighlighted = onHighlighted,
+                            highlightColor = NavHighlight,
                         ).padding(horizontal = 8.dp, vertical = 8.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
