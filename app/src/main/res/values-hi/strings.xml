@@ -567,6 +567,7 @@
     <string name="container_fexcore_version">FEXCore संस्करण</string>
     <string name="use_unix_libs">UnixLibs का उपयोग करें</string>
     <string name="container_graphics_driver">ग्राफ़िक्स ड्राइवर</string>
+    <string name="container_zink_mode">Zink मोड</string>
     <string name="container_graphics_transcoder">BCn ट्रांसकोडर</string>
     <string name="container_graphics_quality">BCn गुणवत्ता</string>
     <string name="container_graphics_configuration">ग्राफ़िक्स ड्राइवर कॉन्फ़िगरेशन</string>

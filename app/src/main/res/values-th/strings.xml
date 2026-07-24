@@ -594,6 +594,7 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">ไดรเวอร์กราฟิก</string>
+    <string name="container_zink_mode">โหมด Zink</string>
     <string name="container_graphics_configuration">การกำหนดค่าไดรเวอร์กราฟิก</string>
     <string name="container_graphics_version">เวอร์ชันไดรเวอร์กราฟิก</string>
     <string name="container_graphics_available_extensions">ส่วนขยายที่ใช้ได้</string>

@@ -248,6 +248,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 val identifier = wineVersionIdentifiers.getOrNull(versionIndex) ?: return
                 val wineInfo = WineInfo.fromIdentifier(context, contentsManager, identifier)
                 isArm64EC = wineInfo.isArm64EC()
+                state.isArm64EC.value = isArm64EC
                 state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
                 applyDefaultContainerName(wineInfo, identifier)
                 // Box64 list depends on arch (box64 vs wowbox64 entries).
@@ -531,6 +532,10 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             state.selectedGraphicsDriver
         )
 
+        state.zinkModeEntries.value = context.resources.getStringArray(R.array.zink_mode_entries).toList()
+        state.selectedZinkMode.intValue =
+            if ((c?.getZinkMode() ?: Container.DEFAULT_ZINK_MODE) == "windows") 1 else 0
+
         val dxWrapperArr = context.resources.getStringArray(R.array.dxwrapper_entries).toList()
         state.dxWrapperEntries.value = dxWrapperArr
         selectByIdentifier(
@@ -575,6 +580,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         if (c != null) {
             val wineInfo = WineInfo.fromIdentifier(context, contentsManager, c.getWineVersion())
             isArm64EC = wineInfo.isArm64EC()
+            state.isArm64EC.value = isArm64EC
             state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
 
             rebuildEmulatorLists()
@@ -706,6 +712,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val wineInfo = WineInfo.fromIdentifier(context, contentsManager, selectedIdentifier)
         val archChanged = isArm64EC != wineInfo.isArm64EC()
         isArm64EC = wineInfo.isArm64EC()
+        state.isArm64EC.value = isArm64EC
         state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
         applyDefaultContainerName(wineInfo, selectedIdentifier)
 
@@ -816,6 +823,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             c.setCPUList(cpuList)
             c.setCPUListWoW64(cpuListWoW64)
             c.setGraphicsDriver(graphicsDriver)
+            c.setZinkMode(if (state.selectedZinkMode.intValue == 1) "windows" else "unix")
             c.setGraphicsDriverConfig(graphicsDriverConfig)
             c.setDXWrapper(dxwrapper)
             c.setDXWrapperConfig(dxwrapperConfig)
@@ -907,6 +915,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                             if (state.selectedSurfaceEffect.intValue == 1) "1" else "0"
                         )
                         getRefreshRateFromState()?.let { newContainer.putExtra("refreshRate", it) }
+                        newContainer.setZinkMode(if (state.selectedZinkMode.intValue == 1) "windows" else "unix")
                         newContainer.saveData()
                         saveMouseWarpOverride(newContainer)
                     } else {

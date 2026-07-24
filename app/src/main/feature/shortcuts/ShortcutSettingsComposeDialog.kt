@@ -541,6 +541,10 @@ class ShortcutSettingsComposeDialog private constructor(
             state.selectedGraphicsDriver
         )
 
+        state.zinkModeEntries.value = context.resources.getStringArray(R.array.zink_mode_entries).toList()
+        state.selectedZinkMode.intValue =
+            if (getShortcutSetting("zinkMode", container.getZinkMode()) == "windows") 1 else 0
+
         // DX Wrapper
         val dxWrapperArr =
             context.resources.getStringArray(R.array.dxwrapper_entries).toList()
@@ -580,6 +584,7 @@ class ShortcutSettingsComposeDialog private constructor(
         else shortcut.getExtra("wineVersion", container.getWineVersion())
         val wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersionStr)
         isArm64EC = wineInfo.isArm64EC
+        state.isArm64EC.value = isArm64EC
         state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
 
         rebuildEmulatorLists()
@@ -683,6 +688,7 @@ class ShortcutSettingsComposeDialog private constructor(
         val wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersionStr)
         val archChanged = isArm64EC != wineInfo.isArm64EC
         isArm64EC = wineInfo.isArm64EC
+        state.isArm64EC.value = isArm64EC
         state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
 
         rebuildEmulatorLists()
@@ -1039,6 +1045,10 @@ class ShortcutSettingsComposeDialog private constructor(
             )
             hasContainerOverride =
                 hasContainerOverride or saveOverride("graphicsDriver", graphicsDriver, container.getGraphicsDriver())
+
+            val zinkMode = if (state.selectedZinkMode.intValue == 1) "windows" else "unix"
+            hasContainerOverride =
+                hasContainerOverride or saveOverride("zinkMode", zinkMode, container.getZinkMode())
 
             val graphicsDriverConfig = buildGraphicsDriverConfigFromState()
             hasContainerOverride = hasContainerOverride or saveOverride(
@@ -2194,6 +2204,7 @@ class ShortcutSettingsComposeDialog private constructor(
         val wineVersionStr = newContainer.getWineVersion()
         val wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersionStr)
         isArm64EC = wineInfo.isArm64EC
+        state.isArm64EC.value = isArm64EC
         state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
         rebuildEmulatorLists()
 

@@ -594,6 +594,7 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Grafik Sürücüsü</string>
+    <string name="container_zink_mode">Zink Modu</string>
     <string name="container_graphics_configuration">Grafik Sürücüsü Yapılandırması</string>
     <string name="container_graphics_version">Grafik Sürücüsü Sürümü</string>
     <string name="container_graphics_available_extensions">Kullanılabilir Uzantılar</string>

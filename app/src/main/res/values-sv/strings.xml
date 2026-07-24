@@ -594,6 +594,7 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Grafikdrivrutin</string>
+    <string name="container_zink_mode">Zink-läge</string>
     <string name="container_graphics_configuration">Grafikdrivrutinskonfiguration</string>
     <string name="container_graphics_version">Grafikdrivrutinsversion</string>
     <string name="container_graphics_available_extensions">Tillgängliga tillägg</string>

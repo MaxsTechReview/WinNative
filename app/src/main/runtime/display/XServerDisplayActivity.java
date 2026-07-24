@@ -292,6 +292,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private Shortcut shortcut;
     private boolean launchedFromPinnedShortcut = false;
     private String graphicsDriver = Container.DEFAULT_GRAPHICS_DRIVER;
+    private String zinkMode = Container.DEFAULT_ZINK_MODE;
     private HashMap<String, String> graphicsDriverConfig;
     private String audioDriver = Container.DEFAULT_AUDIO_DRIVER;
     private String emulator = Container.DEFAULT_EMULATOR;
@@ -1526,6 +1527,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         graphicsDriver = container.getGraphicsDriver();
+        zinkMode = container.getZinkMode();
         String graphicsDriverConfig = container.getGraphicsDriverConfig();
         audioDriver = container.getAudioDriver();
         emulator = container.getEmulator();
@@ -1672,6 +1674,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             String rawShortcutDxwrapper = shortcutUsesDefaults ? "" : shortcut.getExtra("dxwrapper");
 
             graphicsDriver = getShortcutSetting("graphicsDriver", container.getGraphicsDriver());
+            zinkMode = getShortcutSetting("zinkMode", container.getZinkMode());
             graphicsDriverConfig = getShortcutSetting("graphicsDriverConfig", container.getGraphicsDriverConfig());
             audioDriver = getShortcutSetting("audioDriver", container.getAudioDriver());
             emulator = getShortcutSetting("emulator", container.getEmulator());
@@ -8075,6 +8078,24 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "layers" + ".tzst", rootDir);
             leegaoMarker.delete();
             gamenativeMarker.delete();
+        }
+
+        // libgallium_wgl.dll is present only while Windows Zink is installed — use as marker.
+        if (wineInfo != null && wineInfo.isArm64EC()
+                && !GPUInformation.getRenderer(null, null).contains("Mali")) {
+            File winWindowsDir = new File(rootDir, ImageFs.WINEPREFIX + "/drive_c/windows");
+            File zinkMarker = new File(winWindowsDir, "system32/libgallium_wgl.dll");
+            if ("windows".equals(zinkMode)) {
+                if (!zinkMarker.exists()) {
+                    try {
+                        TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/zink_dlls.tzst", winWindowsDir);
+                    } catch (Exception e) {
+                        Log.w("XServerDisplayActivity", "zink_dlls.tzst extraction failed", e);
+                    }
+                }
+            } else if (zinkMarker.exists()) {
+                WinComponentSetup.restoreWineBuiltinDllFiles(imageFs, wineInfo, "opengl32.dll", "libgallium_wgl.dll");
+            }
         }
 
         if (adrenoToolsDriverId != null && !adrenoToolsDriverId.isEmpty()

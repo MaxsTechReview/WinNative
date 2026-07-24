@@ -594,6 +594,7 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Grafiikka-ajuri</string>
+    <string name="container_zink_mode">Zink-tila</string>
     <string name="container_graphics_configuration">Grafiikka-ajurin asetukset</string>
     <string name="container_graphics_version">Grafiikka-ajurin versio</string>
     <string name="container_graphics_available_extensions">Saatavilla olevat laajennukset</string>

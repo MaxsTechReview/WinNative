@@ -512,6 +512,7 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Driver grafico</string>
+    <string name="container_zink_mode">Modalità Zink</string>
     <string name="container_graphics_transcoder">Transcodificatore BCn</string>
     <string name="container_graphics_quality">Qualità BCn</string>
     <string name="container_graphics_configuration">Configurazione driver grafico</string>

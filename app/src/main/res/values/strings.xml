@@ -633,6 +633,7 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Graphics Driver</string>
+    <string name="container_zink_mode">Zink Mode</string>
     <string name="container_graphics_configuration">Graphics Driver Configuration</string>
     <string name="container_graphics_version">Graphics Driver Version</string>
     <string name="container_graphics_available_extensions">Available Extensions</string>
