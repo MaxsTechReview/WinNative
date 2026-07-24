@@ -54,6 +54,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.horizontalScroll
@@ -922,6 +924,12 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .paneNavItem(cornerRadius = 10.dp, onActivate = { nameEditing = true })
+                                    .pointerInput(Unit) {
+                                        awaitEachGesture {
+                                            awaitFirstDown(requireUnconsumed = false)
+                                            nameEditing = true
+                                        }
+                                    }
                                     .focusRequester(nameFocus)
                                     .focusProperties { canFocus = nameEditing }
                                     .onFocusChanged { if (!it.isFocused) nameEditing = false }
