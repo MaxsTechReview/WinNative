@@ -50,6 +50,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddLink
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ContentCut
 import androidx.compose.material.icons.outlined.ContentPaste
@@ -138,6 +140,7 @@ object DirectoryPickerDialog {
     private const val ContentEnterMillis = 220
     private val ContentEnterEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
     private val FooterButtonHeight = 36.dp
+    private val FooterChipWidth = 78.dp
     private val DialogHorizontalPadding = 18.dp
     private val DialogCutoutStartPadding = 14.dp
     private val CurrentPathHorizontalPadding = 10.dp
@@ -406,15 +409,17 @@ object DirectoryPickerDialog {
         var selectedFile by remember { mutableStateOf<File?>(null) }
         var rootsExpanded by remember { mutableStateOf(false) }
         var refreshTick by remember { mutableStateOf(0) }
-        var clipboard by remember { mutableStateOf<Pair<File, Boolean>?>(null) }
+        var clipboard by remember { mutableStateOf<Pair<List<File>, Boolean>?>(null) }
         var transferProgress by remember { mutableStateOf<Float?>(null) }
         var transferLabel by remember { mutableStateOf("") }
         var transferJob by remember { mutableStateOf<Job?>(null) }
         var menuTarget by remember { mutableStateOf<File?>(null) }
         var renameTarget by remember { mutableStateOf<File?>(null) }
-        var deleteTarget by remember { mutableStateOf<File?>(null) }
+        var deleteTargets by remember { mutableStateOf<List<File>?>(null) }
         var runTarget by remember { mutableStateOf<File?>(null) }
         var showNewFolder by remember { mutableStateOf(false) }
+        var multiSelect by remember { mutableStateOf(false) }
+        var selectedPaths by remember { mutableStateOf<Set<String>>(emptySet()) }
         val upLabel = activityString(R.string.saves_import_export_up_directory)
         val entries = remember(currentDir.absolutePath, upLabel, mode, allowedExtensions, refreshTick) {
             buildEntries(currentDir, upLabel, mode, allowedExtensions)
@@ -427,37 +432,56 @@ object DirectoryPickerDialog {
         fun pasteInto(dir: File) {
             val cb = clipboard ?: return
             if (transferProgress != null) return
-            val src = cb.first
             val isCut = cb.second
-            val dest = File(dir, src.name)
-            if (dest.absolutePath == src.absolutePath) return
-            if (src.isDirectory && isSameOrDescendant(dest, src)) {
+            val sources =
+                cb.first.filter { src ->
+                    val dest = File(dir, src.name)
+                    dest.absolutePath != src.absolutePath && !(src.isDirectory && isSameOrDescendant(dest, src))
+                }
+            if (sources.isEmpty()) {
                 Toast.makeText(context, context.getString(R.string.file_manager_paste_into_itself), Toast.LENGTH_SHORT).show()
                 return
             }
             transferLabel =
-                context.getString(
-                    if (isCut) R.string.file_manager_moving else R.string.file_manager_copying,
-                    src.name,
-                )
+                if (sources.size == 1) {
+                    context.getString(
+                        if (isCut) R.string.file_manager_moving else R.string.file_manager_copying,
+                        sources.first().name,
+                    )
+                } else {
+                    context.getString(
+                        if (isCut) R.string.file_manager_moving_count else R.string.file_manager_copying_count,
+                        sources.size,
+                    )
+                }
             transferProgress = 0f
             transferJob = scope.launch {
+                var inFlight: File? = null
                 try {
                     withContext(Dispatchers.IO) {
-                        transferRecursively(
-                            src = src,
-                            dest = dest,
-                            isCut = isCut,
-                            onProgress = { transferProgress = it },
-                            isActive = { isActive },
-                        )
+                        val totalBytes = sources.sumOf { treeSize(it) }.coerceAtLeast(1L)
+                        var doneBytes = 0L
+                        for (src in sources) {
+                            val dest = File(dir, src.name)
+                            val srcBytes = treeSize(src)
+                            inFlight = dest
+                            transferRecursively(
+                                src = src,
+                                dest = dest,
+                                isCut = isCut,
+                                onProgress = { p ->
+                                    transferProgress = ((doneBytes + srcBytes * p) / totalBytes).coerceIn(0f, 1f)
+                                },
+                                isActive = { isActive },
+                            )
+                            doneBytes += srcBytes
+                            inFlight = null
+                        }
                     }
                     clipboard = null
                 } catch (e: CancellationException) {
                     withContext(NonCancellable + Dispatchers.IO) {
-                        runCatching {
-                            if (dest.exists() && dest.absolutePath != src.absolutePath) dest.deleteRecursively()
-                        }
+                        runCatching { inFlight?.takeIf { it.exists() }?.deleteRecursively() }
                     }
                 } catch (e: Exception) {
                     Toast.makeText(context, e.message ?: context.getString(R.string.file_manager_operation_failed), Toast.LENGTH_SHORT).show()
@@ -469,13 +493,16 @@ object DirectoryPickerDialog {
             }
         }
 
-        fun deleteFile(f: File) {
-            try {
-                f.deleteRecursively()
-            } catch (e: Exception) {
-                Toast.makeText(context, e.message ?: context.getString(R.string.file_manager_delete_failed), Toast.LENGTH_SHORT).show()
+        fun deleteFiles(targets: List<File>) {
+            targets.forEach { f ->
+                try {
+                    f.deleteRecursively()
+                } catch (e: Exception) {
+                    Toast.makeText(context, e.message ?: context.getString(R.string.file_manager_delete_failed), Toast.LENGTH_SHORT).show()
+                }
+                if (selectedFile?.absolutePath == f.absolutePath) selectedFile = null
             }
-            if (selectedFile?.absolutePath == f.absolutePath) selectedFile = null
+            selectedPaths = selectedPaths - targets.map { it.absolutePath }.toSet()
             refreshEntries()
         }
 
@@ -503,26 +530,39 @@ object DirectoryPickerDialog {
 
         fun buildItemActions(entry: Entry): List<ItemAction> {
             val target = entry.target
+            val batch = multiSelect && selectedPaths.isNotEmpty()
+            val targets = if (batch) selectedPaths.map(::File) else listOf(target)
+            val count = targets.size
             val actions = mutableListOf<ItemAction>()
-            if (target.isFile && onRunFile != null) {
+            if (!batch && target.isFile && onRunFile != null) {
                 actions += ItemAction(Icons.Outlined.PlayArrow, context.getString(R.string.file_manager_run_boot)) {
                     runTarget = target
                     menuTarget = null
                 }
             }
-            if (target.isFile && onCreateShortcut != null) {
+            if (!batch && target.isFile && onCreateShortcut != null) {
                 actions += ItemAction(Icons.Outlined.AddLink, context.getString(R.string.file_manager_create_shortcut)) {
                     onCreateShortcut.invoke(target.absolutePath)
                     menuTarget = null
                 }
             }
-            actions += ItemAction(Icons.Outlined.ContentCopy, context.getString(R.string.file_manager_copy)) {
-                clipboard = target to false
+            actions += ItemAction(
+                Icons.Outlined.ContentCopy,
+                if (batch) context.getString(R.string.file_manager_copy_count, count) else context.getString(R.string.file_manager_copy),
+            ) {
+                clipboard = targets to false
                 menuTarget = null
+                multiSelect = false
+                selectedPaths = emptySet()
             }
-            actions += ItemAction(Icons.Outlined.ContentCut, context.getString(R.string.file_manager_cut)) {
-                clipboard = target to true
+            actions += ItemAction(
+                Icons.Outlined.ContentCut,
+                if (batch) context.getString(R.string.file_manager_cut_count, count) else context.getString(R.string.file_manager_cut),
+            ) {
+                clipboard = targets to true
                 menuTarget = null
+                multiSelect = false
+                selectedPaths = emptySet()
             }
             if (clipboard != null) {
                 actions += ItemAction(Icons.Outlined.ContentPaste, context.getString(R.string.file_manager_paste_here)) {
@@ -530,12 +570,17 @@ object DirectoryPickerDialog {
                     menuTarget = null
                 }
             }
-            actions += ItemAction(Icons.Outlined.DriveFileRenameOutline, context.getString(R.string.common_ui_rename)) {
-                renameTarget = target
-                menuTarget = null
+            if (!batch) {
+                actions += ItemAction(Icons.Outlined.DriveFileRenameOutline, context.getString(R.string.common_ui_rename)) {
+                    renameTarget = target
+                    menuTarget = null
+                }
             }
-            actions += ItemAction(Icons.Outlined.Delete, context.getString(R.string.file_manager_delete)) {
-                deleteTarget = target
+            actions += ItemAction(
+                Icons.Outlined.Delete,
+                if (batch) context.getString(R.string.file_manager_delete_count, count) else context.getString(R.string.file_manager_delete),
+            ) {
+                deleteTargets = targets
                 menuTarget = null
             }
             return actions
@@ -621,6 +666,7 @@ object DirectoryPickerDialog {
         }
         LaunchedEffect(currentDir.absolutePath) {
             selectedFile = null
+            selectedPaths = emptySet()
             contentRegistry.reset()
             footerZone = false
         }
@@ -650,18 +696,22 @@ object DirectoryPickerDialog {
                         when {
                             renameTarget != null -> renameTarget = null
                             showNewFolder -> showNewFolder = false
-                            deleteTarget != null -> deleteTarget = null
+                            deleteTargets != null -> deleteTargets = null
                             runTarget != null -> runTarget = null
                             transferProgress != null -> transferJob?.cancel()
                             menuTarget != null -> menuTarget = null
                             rootsExpanded -> rootsExpanded = false
+                            multiSelect -> {
+                                multiSelect = false
+                                selectedPaths = emptySet()
+                            }
                             else -> onDismiss()
                         }
                     },
                     onStart = {
                         val overlayOpen =
                             rootsExpanded || menuTarget != null || renameTarget != null ||
-                                showNewFolder || deleteTarget != null || runTarget != null ||
+                                showNewFolder || deleteTargets != null || runTarget != null ||
                                 transferProgress != null
                         if (!overlayOpen) {
                             if (manage) {
@@ -677,7 +727,7 @@ object DirectoryPickerDialog {
                         when {
                             menuTarget != null -> menuRegistry
                             rootsExpanded -> rootsRegistry
-                            renameTarget != null || showNewFolder || deleteTarget != null ||
+                            renameTarget != null || showNewFolder || deleteTargets != null ||
                                 runTarget != null || transferProgress != null -> null
                             footerZone -> footerRegistry
                             else -> contentRegistry
@@ -827,26 +877,40 @@ object DirectoryPickerDialog {
                                 }) { entry ->
                                     val isMenuOpen =
                                         manage && menuTarget?.absolutePath == entry.target.absolutePath
+                                    val path = entry.target.absolutePath
+                                    val multiSelectable = manage && multiSelect && !entry.isParent
+                                    val openMenu = {
+                                        if (multiSelectable && path !in selectedPaths) selectedPaths = selectedPaths + path
+                                        menuTarget = entry.target
+                                    }
                                     EntryTile(
                                         entry = entry,
-                                        selected = selectedFile?.absolutePath == entry.target.absolutePath,
+                                        selected =
+                                            if (manage && multiSelect) {
+                                                path in selectedPaths
+                                            } else {
+                                                selectedFile?.absolutePath == path
+                                            },
+                                        checked = multiSelectable && path in selectedPaths,
                                         isEntry = entry === entries.first(),
                                         onClick = {
-                                            if (entry.isSelectableFile) {
-                                                selectedFile = entry.target
-                                            } else {
-                                                currentDir = entry.target
+                                            when {
+                                                multiSelectable ->
+                                                    selectedPaths =
+                                                        if (path in selectedPaths) selectedPaths - path else selectedPaths + path
+                                                entry.isSelectableFile -> selectedFile = entry.target
+                                                else -> currentDir = entry.target
                                             }
                                         },
                                         onLongClick =
                                             if (manage && !entry.isParent) {
-                                                { menuTarget = entry.target }
+                                                openMenu
                                             } else {
                                                 null
                                             },
                                         onSecondary =
                                             if (manage && !entry.isParent) {
-                                                { menuTarget = entry.target }
+                                                openMenu
                                             } else {
                                                 {}
                                             },
@@ -881,14 +945,30 @@ object DirectoryPickerDialog {
                                     label = activityString(R.string.file_manager_paste),
                                     icon = Icons.Outlined.ContentPaste,
                                     accent = true,
+                                    compact = true,
+                                    modifier = Modifier.width(FooterChipWidth),
                                     onClick = { pasteInto(currentDir) },
                                 )
                             }
                             SecondaryActionChip(
-                                label = activityString(R.string.file_manager_new_folder),
+                                label = activityString(R.string.file_manager_new_folder_short),
                                 icon = Icons.Outlined.CreateNewFolder,
                                 accent = true,
+                                compact = true,
+                                modifier = Modifier.width(FooterChipWidth),
                                 onClick = { showNewFolder = true },
+                            )
+                            SecondaryActionChip(
+                                label = activityString(R.string.file_manager_multi_select),
+                                icon = Icons.Outlined.Checklist,
+                                accent = true,
+                                active = multiSelect,
+                                compact = true,
+                                modifier = Modifier.width(FooterChipWidth),
+                                onClick = {
+                                    multiSelect = !multiSelect
+                                    if (!multiSelect) selectedPaths = emptySet()
+                                },
                             )
                             ManageRootSelector(
                                 managedRoots = managedRoots,
@@ -998,17 +1078,22 @@ object DirectoryPickerDialog {
                         onDismiss = { showNewFolder = false },
                     )
                 }
-                deleteTarget?.let { target ->
+                deleteTargets?.let { targets ->
                     ConfirmOverlay(
                         modifier = Modifier.matchParentSize(),
                         title = activityString(R.string.file_manager_delete),
-                        message = activityString(R.string.file_manager_delete_confirm, target.name),
+                        message =
+                            if (targets.size == 1) {
+                                activityString(R.string.file_manager_delete_confirm, targets.first().name)
+                            } else {
+                                activityString(R.string.file_manager_delete_confirm_multi, targets.size)
+                            },
                         confirmLabel = activityString(R.string.file_manager_delete),
                         onConfirm = {
-                            deleteFile(target)
-                            deleteTarget = null
+                            deleteFiles(targets)
+                            deleteTargets = null
                         },
-                        onDismiss = { deleteTarget = null },
+                        onDismiss = { deleteTargets = null },
                     )
                 }
                 runTarget?.let { target ->
@@ -1217,6 +1302,7 @@ object DirectoryPickerDialog {
         entry: Entry,
         selected: Boolean,
         onClick: () -> Unit,
+        checked: Boolean = false,
         isEntry: Boolean = false,
         onLongClick: (() -> Unit)? = null,
         onSecondary: () -> Unit = {},
@@ -1295,7 +1381,17 @@ object DirectoryPickerDialog {
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
                     )
+                    if (checked) {
+                        Spacer(Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Outlined.Check,
+                            contentDescription = null,
+                            tint = Accent,
+                            modifier = Modifier.size(14.dp),
+                        )
+                    }
                 }
             }
 
@@ -1358,12 +1454,20 @@ object DirectoryPickerDialog {
         trailingRotationDegrees: Float = 0f,
         modifier: Modifier = Modifier,
         accent: Boolean = false,
+        active: Boolean = false,
+        compact: Boolean = false,
         onClick: () -> Unit,
     ) {
-        val chipBackground = if (accent) Color.Transparent else WinNativePanel
-        val chipBorder = if (accent) Accent.copy(alpha = 0.4f) else CardBorder
-        val iconTint = if (accent) Accent else TextSecondary
-        val labelColor = if (accent) Accent else TextPrimary
+        val highlight = accent || active
+        val chipBackground =
+            when {
+                active -> Accent.copy(alpha = 0.22f)
+                accent -> Color.Transparent
+                else -> WinNativePanel
+            }
+        val chipBorder = if (highlight) Accent.copy(alpha = if (active) 0.9f else 0.4f) else CardBorder
+        val iconTint = if (highlight) Accent else TextSecondary
+        val labelColor = if (highlight) Accent else TextPrimary
         Row(
             modifier =
                 modifier
@@ -1373,9 +1477,10 @@ object DirectoryPickerDialog {
                     .border(1.dp, chipBorder, RoundedCornerShape(10.dp))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = if (accent) ripple(color = Accent) else null,
+                        indication = if (highlight) ripple(color = Accent) else null,
                         onClick = onClick,
-                    ).padding(horizontal = 10.dp, vertical = 6.dp),
+                    ).padding(horizontal = if (compact) 8.dp else 10.dp, vertical = 6.dp),
+            horizontalArrangement = if (compact) Arrangement.Center else Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
@@ -1391,6 +1496,8 @@ object DirectoryPickerDialog {
                 fontSize = 10.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = if (compact) Modifier.weight(1f, fill = false) else Modifier,
             )
             if (trailing != null) {
                 Spacer(Modifier.width(4.dp))
@@ -1480,6 +1587,13 @@ object DirectoryPickerDialog {
 
         return entries
     }
+
+    private fun treeSize(file: File): Long =
+        if (file.isDirectory) {
+            file.walkTopDown().filter { it.isFile }.fold(0L) { acc, f -> acc + f.length() }
+        } else {
+            file.length()
+        }
 
     private fun transferRecursively(
         src: File,
