@@ -288,6 +288,7 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
         element.setType(ControlElement.Type.valueOf(elementJSONObject.getString("type")));
         element.setShape(ControlElement.Shape.valueOf(elementJSONObject.getString("shape")));
         element.setToggleSwitch(elementJSONObject.getBoolean("toggleSwitch"));
+        element.setSwipeable(elementJSONObject.optBoolean("swipeable", true));
         element.setX((int) (elementJSONObject.getDouble("x") * inputControlsView.getMaxWidth()));
         element.setY((int) (elementJSONObject.getDouble("y") * inputControlsView.getMaxHeight()));
         element.setScale((float) elementJSONObject.getDouble("scale"));

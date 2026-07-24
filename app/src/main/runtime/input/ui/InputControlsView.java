@@ -852,7 +852,7 @@ public class InputControlsView extends View {
 
               if (swipeAllowed
                   && activeElement != null
-                  && activeElement.isSwipeTarget()
+                  && activeElement.getType() == ControlElement.Type.BUTTON
                   && !activeElement.isCapturing(movePointerId)) {
                 for (ControlElement element : profile.getElements()) {
                   if (element.isSwipeTarget() && element.handleTouchDown(movePointerId, x, y)) {

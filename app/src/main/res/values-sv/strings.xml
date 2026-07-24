@@ -385,6 +385,7 @@
     <string name="input_controls_editor_reset_unavailable">Ingen ursprunglig ögonblicksbild finns tillgänglig för den här profilen.</string>
     <string name="input_controls_editor_title">Kontrollredigerare</string>
     <string name="input_controls_editor_toggle_switch">Växlingsknapp</string>
+    <string name="input_controls_editor_swipeable">Svepbar</string>
     <string name="input_controls_editor_profile_exported_to">Profil exporterad till</string>
     <string name="input_controls_editor_unable_to_import">Det gick inte att importera profilen</string>
     <string name="input_controls_editor_import_profile">Importera profil</string>

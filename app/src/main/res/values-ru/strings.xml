@@ -375,6 +375,7 @@
     <string name="input_controls_editor_reset_unavailable">Для этого профиля нет исходного снимка.</string>
     <string name="input_controls_editor_title">Редактор элементов управления</string>
     <string name="input_controls_editor_toggle_switch">Тумблер</string>
+    <string name="input_controls_editor_swipeable">Активация свайпом</string>
     <string name="input_controls_editor_profile_exported_to">Профиль экспортирован в</string>
     <string name="input_controls_editor_unable_to_import">Невозможно импортировать профиль</string>
     <string name="input_controls_editor_import_profile">Импортировать профиль</string>
