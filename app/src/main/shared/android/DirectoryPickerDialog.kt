@@ -777,7 +777,7 @@ object DirectoryPickerDialog {
                                 transferProgress != null
                         if (!overlayOpen) {
                             if (manage) {
-                                onDismiss()
+                                if (clipboard != null) pasteInto(currentDir) else onDismiss()
                             } else {
                                 val selectedPath =
                                     if (mode == SelectionMode.FILE) selectedFile?.absolutePath else currentDir.absolutePath
