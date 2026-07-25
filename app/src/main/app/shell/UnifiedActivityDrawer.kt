@@ -889,7 +889,7 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
                                                                 android.os.Environment.DIRECTORY_DOWNLOADS,
                                                             ).absolutePath,
                                                 title = getString(R.string.common_ui_select_exe),
-                                                allowedExtensions = setOf("exe", "bat", "cmd"),
+                                                allowedExtensions = DirectoryPickerDialog.ExecutableExtensions,
                                                 dimAmount = 0.5f,
                                                 preserveBackdropBlur = true,
                                                 extraRoots = driveRoots(includeInternal = true),

@@ -157,6 +157,8 @@ object DirectoryPickerDialog {
     private val TextPrimary = WinNativeTextPrimary
     private val TextSecondary = WinNativeTextSecondary
 
+    val ExecutableExtensions = setOf("exe", "bat", "cmd")
+
     private enum class SelectionMode {
         DIRECTORY,
         FILE,
@@ -579,13 +581,13 @@ object DirectoryPickerDialog {
             val targets = if (batch) selectedPaths.map(::File) else listOf(target)
             val count = targets.size
             val actions = mutableListOf<ItemAction>()
-            if (!batch && target.isFile && onRunFile != null) {
+            if (!batch && isExecutable(target) && onRunFile != null) {
                 actions += ItemAction(Icons.Outlined.PlayArrow, context.getString(R.string.file_manager_run_boot)) {
                     runTarget = target
                     menuTarget = null
                 }
             }
-            if (!batch && target.isFile && onCreateShortcut != null) {
+            if (!batch && isExecutable(target) && onCreateShortcut != null) {
                 actions += ItemAction(Icons.Outlined.AddLink, context.getString(R.string.file_manager_create_shortcut)) {
                     onCreateShortcut.invoke(target.absolutePath)
                     menuTarget = null
@@ -1751,6 +1753,9 @@ object DirectoryPickerDialog {
     }
 
     private fun canBrowse(dir: File?): Boolean = StoragePathUtils.canBrowse(dir)
+
+    private fun isExecutable(file: File): Boolean =
+        file.isFile && ExecutableExtensions.contains(file.extension.lowercase(Locale.ROOT))
 
     private fun canSelectFile(
         file: File,
