@@ -704,6 +704,7 @@ object DirectoryPickerDialog {
         val menuRegistry = remember { PaneNavRegistry() }
         val rootsRegistry = remember { PaneNavRegistry() }
         val footerRegistry = remember { PaneNavRegistry().apply { singleRow = true } }
+        val overlayRegistry = remember { PaneNavRegistry() }
         var footerZone by remember { mutableStateOf(false) }
         val gridState = rememberLazyGridState()
         var gridViewportTop by remember { mutableStateOf(0f) }
@@ -728,6 +729,10 @@ object DirectoryPickerDialog {
             footerZone = false
         }
         LaunchedEffect(menuTarget) { if (menuTarget != null) menuRegistry.reset() }
+        LaunchedEffect(renameTarget, showNewFolder, deleteTargets, runTarget, transferProgress != null) {
+            overlayRegistry.controllerActive = false
+            overlayRegistry.reset()
+        }
         LaunchedEffect(rootsExpanded) { if (rootsExpanded) rootsRegistry.reset() }
         contentRegistry.onEdgeDown = {
             if (gridState.canScrollForward) {
@@ -785,7 +790,7 @@ object DirectoryPickerDialog {
                             menuTarget != null -> menuRegistry
                             rootsExpanded -> rootsRegistry
                             renameTarget != null || showNewFolder || deleteTargets != null ||
-                                runTarget != null || transferProgress != null -> null
+                                runTarget != null || transferProgress != null -> overlayRegistry
                             footerZone -> footerRegistry
                             else -> contentRegistry
                         }
@@ -1113,6 +1118,7 @@ object DirectoryPickerDialog {
             }
 
             if (manage) {
+                CompositionLocalProvider(LocalPaneNav provides overlayRegistry) {
                 renameTarget?.let { target ->
                     TextInputOverlay(
                         modifier = Modifier.matchParentSize(),
@@ -1175,6 +1181,7 @@ object DirectoryPickerDialog {
                         progress = p,
                         onCancel = { transferJob?.cancel() },
                     )
+                }
                 }
             }
         }
@@ -1942,13 +1949,17 @@ object DirectoryPickerDialog {
                                 .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        containers.forEach { c ->
+                        containers.forEachIndexed { index, c ->
                             Row(
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(WinNativePanel)
+                                        .paneNavItem(
+                                            cornerRadius = 10.dp,
+                                            onActivate = { onPick(c.id) },
+                                            isEntry = index == 0,
+                                        ).background(WinNativePanel)
                                         .border(1.dp, CardBorder, RoundedCornerShape(10.dp))
                                         .clickable(
                                             interactionSource = remember { MutableInteractionSource() },
