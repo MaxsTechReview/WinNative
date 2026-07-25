@@ -1594,7 +1594,9 @@
     <string name="file_manager_copy_count">コピー (%1$d)</string>
     <string name="file_manager_cut_count">切り取り (%1$d)</string>
     <string name="file_manager_delete_count">削除 (%1$d)</string>
+    <string name="file_manager_extract">展開</string>
     <string name="file_manager_extract_here">ここに展開</string>
+    <string name="file_manager_extract_to">指定先に展開…</string>
     <string name="file_manager_extracting">%1$s を展開中</string>
     <string name="file_manager_extract_failed">展開に失敗しました</string>
     <string name="file_manager_run_boot">実行 / 起動</string>

@@ -1594,7 +1594,9 @@ Caminho instalado:
     <string name="file_manager_copy_count">Copiar (%1$d)</string>
     <string name="file_manager_cut_count">Cortar (%1$d)</string>
     <string name="file_manager_delete_count">Eliminar (%1$d)</string>
+    <string name="file_manager_extract">Extrair</string>
     <string name="file_manager_extract_here">Extrair aqui</string>
+    <string name="file_manager_extract_to">Extrair para…</string>
     <string name="file_manager_extracting">A extrair %1$s</string>
     <string name="file_manager_extract_failed">Falha na extração</string>
     <string name="file_manager_run_boot">Executar / Arrancar</string>

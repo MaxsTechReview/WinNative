@@ -1580,7 +1580,9 @@ Installierter Pfad:
     <string name="file_manager_copy_count">Kopieren (%1$d)</string>
     <string name="file_manager_cut_count">Ausschneiden (%1$d)</string>
     <string name="file_manager_delete_count">Löschen (%1$d)</string>
+    <string name="file_manager_extract">Entpacken</string>
     <string name="file_manager_extract_here">Hier entpacken</string>
+    <string name="file_manager_extract_to">Entpacken nach…</string>
     <string name="file_manager_extracting">%1$s wird entpackt</string>
     <string name="file_manager_extract_failed">Entpacken fehlgeschlagen</string>
     <string name="file_manager_run_boot">Ausführen / Booten</string>

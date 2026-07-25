@@ -1580,7 +1580,9 @@
     <string name="file_manager_copy_count">복사 (%1$d)</string>
     <string name="file_manager_cut_count">잘라내기 (%1$d)</string>
     <string name="file_manager_delete_count">삭제 (%1$d)</string>
+    <string name="file_manager_extract">풀기</string>
     <string name="file_manager_extract_here">여기에 압축 풀기</string>
+    <string name="file_manager_extract_to">다른 위치에 풀기…</string>
     <string name="file_manager_extracting">%1$s 압축 푸는 중</string>
     <string name="file_manager_extract_failed">압축 풀기 실패</string>
     <string name="file_manager_run_boot">실행 / 부팅</string>

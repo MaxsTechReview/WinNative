@@ -1594,7 +1594,9 @@ Installerad sökväg:
     <string name="file_manager_copy_count">Kopiera (%1$d)</string>
     <string name="file_manager_cut_count">Klipp ut (%1$d)</string>
     <string name="file_manager_delete_count">Ta bort (%1$d)</string>
+    <string name="file_manager_extract">Packa upp</string>
     <string name="file_manager_extract_here">Packa upp här</string>
+    <string name="file_manager_extract_to">Packa upp till…</string>
     <string name="file_manager_extracting">Packar upp %1$s</string>
     <string name="file_manager_extract_failed">Uppackningen misslyckades</string>
     <string name="file_manager_run_boot">Kör / Starta</string>

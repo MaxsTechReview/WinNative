@@ -1594,7 +1594,9 @@ Yüklü konum:
     <string name="file_manager_copy_count">Kopyala (%1$d)</string>
     <string name="file_manager_cut_count">Kes (%1$d)</string>
     <string name="file_manager_delete_count">Sil (%1$d)</string>
+    <string name="file_manager_extract">Çıkar</string>
     <string name="file_manager_extract_here">Buraya çıkar</string>
+    <string name="file_manager_extract_to">Şuraya çıkar…</string>
     <string name="file_manager_extracting">%1$s çıkarılıyor</string>
     <string name="file_manager_extract_failed">Çıkarma başarısız</string>
     <string name="file_manager_run_boot">Çalıştır / Başlat</string>

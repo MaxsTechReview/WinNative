@@ -1585,7 +1585,9 @@ Zainstalowana ścieżka:
     <string name="file_manager_copy_count">Kopiuj (%1$d)</string>
     <string name="file_manager_cut_count">Wytnij (%1$d)</string>
     <string name="file_manager_delete_count">Usuń (%1$d)</string>
+    <string name="file_manager_extract">Wypakuj</string>
     <string name="file_manager_extract_here">Wypakuj tutaj</string>
+    <string name="file_manager_extract_to">Wypakuj do…</string>
     <string name="file_manager_extracting">Wypakowywanie %1$s</string>
     <string name="file_manager_extract_failed">Wypakowywanie nie powiodło się</string>
     <string name="file_manager_run_boot">Uruchom / Rozruch</string>

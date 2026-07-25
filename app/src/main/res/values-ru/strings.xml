@@ -1485,7 +1485,9 @@
     <string name="file_manager_copy_count">Копировать (%1$d)</string>
     <string name="file_manager_cut_count">Вырезать (%1$d)</string>
     <string name="file_manager_delete_count">Удалить (%1$d)</string>
+    <string name="file_manager_extract">Извлечь</string>
     <string name="file_manager_extract_here">Извлечь сюда</string>
+    <string name="file_manager_extract_to">Извлечь в…</string>
     <string name="file_manager_extracting">Извлечение %1$s</string>
     <string name="file_manager_extract_failed">Не удалось извлечь</string>
     <string name="file_manager_run_boot">Запустить / Загрузить</string>

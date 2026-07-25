@@ -1579,7 +1579,9 @@ Ruta instalada:
     <string name="file_manager_copy_count">Copiar (%1$d)</string>
     <string name="file_manager_cut_count">Cortar (%1$d)</string>
     <string name="file_manager_delete_count">Eliminar (%1$d)</string>
+    <string name="file_manager_extract">Extraer</string>
     <string name="file_manager_extract_here">Extraer aquí</string>
+    <string name="file_manager_extract_to">Extraer en…</string>
     <string name="file_manager_extracting">Extrayendo %1$s</string>
     <string name="file_manager_extract_failed">Error al extraer</string>
     <string name="file_manager_run_boot">Ejecutar / Arrancar</string>

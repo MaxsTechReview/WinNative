@@ -27,12 +27,17 @@ object ArchiveExtractor {
             ".zip", ".7z", ".tar",
             ".tgz", ".tbz2", ".tbz", ".txz", ".tzst",
             ".gz", ".bz2", ".xz", ".zst", ".zstd",
+            ".wcp",
         )
+
+    private enum class Format { ZIP, SEVENZ, XZ, ZSTD, GZIP, BZIP2, NONE }
 
     fun isSupported(file: File): Boolean {
         if (!file.isFile) return false
         val name = file.name.lowercase(Locale.ROOT)
-        return COMPOUND_SUFFIXES.any { name.endsWith(it) } || SIMPLE_SUFFIXES.any { name.endsWith(it) }
+        if (COMPOUND_SUFFIXES.any { name.endsWith(it) } || SIMPLE_SUFFIXES.any { name.endsWith(it) }) return true
+        val head = readHead(file)
+        return magicFormat(head) != Format.NONE || hasTarMagic(head)
     }
 
     fun baseName(file: File): String {
@@ -53,13 +58,68 @@ object ArchiveExtractor {
         isActive: () -> Boolean,
     ) {
         if (!destDir.exists() && !destDir.mkdirs()) throw IOException("Cannot create ${destDir.name}")
-        val name = source.name.lowercase(Locale.ROOT)
-        when {
-            name.endsWith(".zip") -> extractZip(source, destDir, onProgress, isActive)
-            name.endsWith(".7z") -> extractSevenZ(source, destDir, onProgress, isActive)
-            else -> extractStream(source, destDir, onProgress, isActive)
+        when (val format = detectFormat(source)) {
+            Format.ZIP -> extractZip(source, destDir, onProgress, isActive)
+            Format.SEVENZ -> extractSevenZ(source, destDir, onProgress, isActive)
+            else -> extractStream(source, destDir, format, onProgress, isActive)
         }
     }
+
+    private fun detectFormat(source: File): Format {
+        val magic = magicFormat(readHead(source))
+        return if (magic != Format.NONE) magic else suffixFormat(source)
+    }
+
+    private fun magicFormat(head: ByteArray): Format =
+        when {
+            matches(head, 0x50, 0x4B, 0x03, 0x04) -> Format.ZIP
+            matches(head, 0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C) -> Format.SEVENZ
+            matches(head, 0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00) -> Format.XZ
+            matches(head, 0x28, 0xB5, 0x2F, 0xFD) -> Format.ZSTD
+            matches(head, 0x1F, 0x8B) -> Format.GZIP
+            matches(head, 0x42, 0x5A, 0x68) -> Format.BZIP2
+            else -> Format.NONE
+        }
+
+    private fun suffixFormat(source: File): Format {
+        val name = source.name.lowercase(Locale.ROOT)
+        return when {
+            name.endsWith(".zip") -> Format.ZIP
+            name.endsWith(".7z") -> Format.SEVENZ
+            name.endsWith(".gz") || name.endsWith(".tgz") -> Format.GZIP
+            name.endsWith(".bz2") || name.endsWith(".tbz2") || name.endsWith(".tbz") -> Format.BZIP2
+            name.endsWith(".xz") || name.endsWith(".txz") -> Format.XZ
+            name.endsWith(".zst") || name.endsWith(".zstd") || name.endsWith(".tzst") -> Format.ZSTD
+            else -> Format.NONE
+        }
+    }
+
+    private fun matches(
+        head: ByteArray,
+        vararg signature: Int,
+    ): Boolean {
+        if (head.size < signature.size) return false
+        return signature.indices.all { (head[it].toInt() and 0xFF) == signature[it] }
+    }
+
+    private fun hasTarMagic(head: ByteArray): Boolean =
+        head.size >= TAR_HEADER_SIZE && String(head, 257, 5, Charsets.US_ASCII) == "ustar"
+
+    private fun readHead(file: File): ByteArray =
+        try {
+            FileInputStream(file).use { input ->
+                val buffer = ByteArray(TAR_HEADER_SIZE)
+                var read = 0
+                while (read < buffer.size) {
+                    val n = input.read(buffer, read, buffer.size - read)
+                    if (n < 0) break
+                    read += n
+                }
+                if (read == buffer.size) buffer else buffer.copyOf(read)
+            }
+        } catch (e: IOException) {
+            ByteArray(0)
+        }
 
     private fun extractZip(
         source: File,
@@ -124,12 +184,13 @@ object ArchiveExtractor {
     private fun extractStream(
         source: File,
         destDir: File,
+        format: Format,
         onProgress: (Float) -> Unit,
         isActive: () -> Boolean,
     ) {
         val total = source.length().coerceAtLeast(1L)
         val counting = CountingInputStream(FileInputStream(source))
-        val decompressed = wrapCompressor(source, BufferedInputStream(counting, BUFFER_SIZE))
+        val decompressed = wrapCompressor(format, BufferedInputStream(counting, BUFFER_SIZE))
         BufferedInputStream(decompressed, BUFFER_SIZE).use { stream ->
             val reporter = ProgressReporter(onProgress)
             val progress = { reporter.report(counting.count.toFloat() / total) }
@@ -144,20 +205,16 @@ object ArchiveExtractor {
     }
 
     private fun wrapCompressor(
-        source: File,
+        format: Format,
         stream: InputStream,
-    ): InputStream {
-        val name = source.name.lowercase(Locale.ROOT)
-        return when {
-            name.endsWith(".gz") || name.endsWith(".tgz") -> GzipCompressorInputStream(stream, true)
-            name.endsWith(".bz2") || name.endsWith(".tbz2") || name.endsWith(".tbz") ->
-                BZip2CompressorInputStream(stream, true)
-            name.endsWith(".xz") || name.endsWith(".txz") -> XZCompressorInputStream(stream, true)
-            name.endsWith(".zst") || name.endsWith(".zstd") || name.endsWith(".tzst") ->
-                ZstdCompressorInputStream(stream)
+    ): InputStream =
+        when (format) {
+            Format.GZIP -> GzipCompressorInputStream(stream, true)
+            Format.BZIP2 -> BZip2CompressorInputStream(stream, true)
+            Format.XZ -> XZCompressorInputStream(stream, true)
+            Format.ZSTD -> ZstdCompressorInputStream(stream)
             else -> stream
         }
-    }
 
     private fun looksLikeTar(stream: BufferedInputStream): Boolean {
         stream.mark(TAR_HEADER_SIZE + 1)

@@ -1633,7 +1633,9 @@ Installed path:
     <string name="file_manager_copy_count">Copy (%1$d)</string>
     <string name="file_manager_cut_count">Cut (%1$d)</string>
     <string name="file_manager_delete_count">Delete (%1$d)</string>
+    <string name="file_manager_extract">Extract</string>
     <string name="file_manager_extract_here">Extract here</string>
+    <string name="file_manager_extract_to">Extract to…</string>
     <string name="file_manager_extracting">Extracting %1$s</string>
     <string name="file_manager_extract_failed">Extraction failed</string>
     <string name="file_manager_run_boot">Run / Boot</string>

@@ -1585,7 +1585,9 @@
     <string name="file_manager_copy_count">Копіювати (%1$d)</string>
     <string name="file_manager_cut_count">Вирізати (%1$d)</string>
     <string name="file_manager_delete_count">Видалити (%1$d)</string>
+    <string name="file_manager_extract">Видобути</string>
     <string name="file_manager_extract_here">Розпакувати сюди</string>
+    <string name="file_manager_extract_to">Видобути до…</string>
     <string name="file_manager_extracting">Розпакування %1$s</string>
     <string name="file_manager_extract_failed">Не вдалося розпакувати</string>
     <string name="file_manager_run_boot">Запустити / Завантажити</string>

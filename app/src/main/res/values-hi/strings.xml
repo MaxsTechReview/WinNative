@@ -1515,7 +1515,9 @@
     <string name="file_manager_copy_count">कॉपी करें (%1$d)</string>
     <string name="file_manager_cut_count">काटें (%1$d)</string>
     <string name="file_manager_delete_count">हटाएँ (%1$d)</string>
+    <string name="file_manager_extract">निकालें</string>
     <string name="file_manager_extract_here">यहाँ निकालें</string>
+    <string name="file_manager_extract_to">यहाँ निकालें…</string>
     <string name="file_manager_extracting">%1$s निकाला जा रहा है</string>
     <string name="file_manager_extract_failed">निकालना विफल</string>
     <string name="file_manager_run_boot">चलाएँ / बूट करें</string>

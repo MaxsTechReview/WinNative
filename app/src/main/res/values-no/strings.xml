@@ -1594,7 +1594,9 @@ Installert bane:
     <string name="file_manager_copy_count">Kopier (%1$d)</string>
     <string name="file_manager_cut_count">Klipp ut (%1$d)</string>
     <string name="file_manager_delete_count">Slett (%1$d)</string>
+    <string name="file_manager_extract">Pakk ut</string>
     <string name="file_manager_extract_here">Pakk ut her</string>
+    <string name="file_manager_extract_to">Pakk ut til…</string>
     <string name="file_manager_extracting">Pakker ut %1$s</string>
     <string name="file_manager_extract_failed">Utpakking mislyktes</string>
     <string name="file_manager_run_boot">Kjør / Boot</string>

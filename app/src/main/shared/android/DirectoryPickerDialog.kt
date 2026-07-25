@@ -58,6 +58,7 @@ import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DriveFileRenameOutline
+import androidx.compose.material.icons.outlined.DriveFolderUpload
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderOpen
@@ -142,7 +143,7 @@ object DirectoryPickerDialog {
     private const val ContentEnterMillis = 220
     private val ContentEnterEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
     private val FooterButtonHeight = 36.dp
-    private val FooterChipWidth = 78.dp
+    private val FooterChipWidth = 84.dp
     private val DialogHorizontalPadding = 18.dp
     private val DialogCutoutStartPadding = 14.dp
     private val CurrentPathHorizontalPadding = 10.dp
@@ -177,6 +178,13 @@ object DirectoryPickerDialog {
         val target: File,
         val isParent: Boolean = false,
         val isSelectableFile: Boolean = false,
+    )
+
+    private enum class ClipMode { COPY, CUT, EXTRACT }
+
+    private data class ClipData(
+        val files: List<File>,
+        val mode: ClipMode,
     )
 
     private data class ItemAction(
@@ -411,7 +419,7 @@ object DirectoryPickerDialog {
         var selectedFile by remember { mutableStateOf<File?>(null) }
         var rootsExpanded by remember { mutableStateOf(false) }
         var refreshTick by remember { mutableStateOf(0) }
-        var clipboard by remember { mutableStateOf<Pair<List<File>, Boolean>?>(null) }
+        var clipboard by remember { mutableStateOf<ClipData?>(null) }
         var transferProgress by remember { mutableStateOf<Float?>(null) }
         var transferLabel by remember { mutableStateOf("") }
         var transferJob by remember { mutableStateOf<Job?>(null) }
@@ -431,12 +439,47 @@ object DirectoryPickerDialog {
             refreshTick++
         }
 
+        fun extractInto(dir: File, archives: List<File>, fromClipboard: Boolean) {
+            val archive = archives.firstOrNull() ?: return
+            if (transferProgress != null) return
+            val destDir = uniqueChild(dir, ArchiveExtractor.baseName(archive))
+            transferLabel = context.getString(R.string.file_manager_extracting, archive.name)
+            transferProgress = 0f
+            transferJob = scope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        ArchiveExtractor.extract(
+                            source = archive,
+                            destDir = destDir,
+                            onProgress = { transferProgress = it },
+                            isActive = { isActive },
+                        )
+                    }
+                    if (fromClipboard) clipboard = null
+                } catch (e: CancellationException) {
+                    withContext(NonCancellable + Dispatchers.IO) {
+                        runCatching { destDir.deleteRecursively() }
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(context, e.message ?: context.getString(R.string.file_manager_extract_failed), Toast.LENGTH_SHORT).show()
+                } finally {
+                    transferProgress = null
+                    transferJob = null
+                    refreshEntries()
+                }
+            }
+        }
+
         fun pasteInto(dir: File) {
             val cb = clipboard ?: return
             if (transferProgress != null) return
-            val isCut = cb.second
+            if (cb.mode == ClipMode.EXTRACT) {
+                extractInto(dir, cb.files, fromClipboard = true)
+                return
+            }
+            val isCut = cb.mode == ClipMode.CUT
             val sources =
-                cb.first.filter { src ->
+                cb.files.filter { src ->
                     val dest = File(dir, src.name)
                     dest.absolutePath != src.absolutePath && !(src.isDirectory && isSameOrDescendant(dest, src))
                 }
@@ -530,35 +573,6 @@ object DirectoryPickerDialog {
             refreshEntries()
         }
 
-        fun extractArchive(archive: File) {
-            if (transferProgress != null) return
-            val destDir = uniqueChild(currentDir, ArchiveExtractor.baseName(archive))
-            transferLabel = context.getString(R.string.file_manager_extracting, archive.name)
-            transferProgress = 0f
-            transferJob = scope.launch {
-                try {
-                    withContext(Dispatchers.IO) {
-                        ArchiveExtractor.extract(
-                            source = archive,
-                            destDir = destDir,
-                            onProgress = { transferProgress = it },
-                            isActive = { isActive },
-                        )
-                    }
-                } catch (e: CancellationException) {
-                    withContext(NonCancellable + Dispatchers.IO) {
-                        runCatching { destDir.deleteRecursively() }
-                    }
-                } catch (e: Exception) {
-                    Toast.makeText(context, e.message ?: context.getString(R.string.file_manager_extract_failed), Toast.LENGTH_SHORT).show()
-                } finally {
-                    transferProgress = null
-                    transferJob = null
-                    refreshEntries()
-                }
-            }
-        }
-
         fun buildItemActions(entry: Entry): List<ItemAction> {
             val target = entry.target
             val batch = multiSelect && selectedPaths.isNotEmpty()
@@ -579,15 +593,21 @@ object DirectoryPickerDialog {
             }
             if (!batch && ArchiveExtractor.isSupported(target)) {
                 actions += ItemAction(Icons.Outlined.Unarchive, context.getString(R.string.file_manager_extract_here)) {
-                    extractArchive(target)
+                    extractInto(currentDir, listOf(target), fromClipboard = false)
                     menuTarget = null
+                }
+                actions += ItemAction(Icons.Outlined.DriveFolderUpload, context.getString(R.string.file_manager_extract_to)) {
+                    clipboard = ClipData(listOf(target), ClipMode.EXTRACT)
+                    menuTarget = null
+                    multiSelect = false
+                    selectedPaths = emptySet()
                 }
             }
             actions += ItemAction(
                 Icons.Outlined.ContentCopy,
                 if (batch) context.getString(R.string.file_manager_copy_count, count) else context.getString(R.string.file_manager_copy),
             ) {
-                clipboard = targets to false
+                clipboard = ClipData(targets, ClipMode.COPY)
                 menuTarget = null
                 multiSelect = false
                 selectedPaths = emptySet()
@@ -596,7 +616,7 @@ object DirectoryPickerDialog {
                 Icons.Outlined.ContentCut,
                 if (batch) context.getString(R.string.file_manager_cut_count, count) else context.getString(R.string.file_manager_cut),
             ) {
-                clipboard = targets to true
+                clipboard = ClipData(targets, ClipMode.CUT)
                 menuTarget = null
                 multiSelect = false
                 selectedPaths = emptySet()
@@ -977,10 +997,14 @@ object DirectoryPickerDialog {
                                 subtitle = selectedFile?.absolutePath ?: currentDir.absolutePath,
                                 modifier = Modifier.weight(1f),
                             )
-                            if (clipboard != null) {
+                            clipboard?.let { cb ->
+                                val extracting = cb.mode == ClipMode.EXTRACT
                                 SecondaryActionChip(
-                                    label = activityString(R.string.file_manager_paste),
-                                    icon = Icons.Outlined.ContentPaste,
+                                    label =
+                                        activityString(
+                                            if (extracting) R.string.file_manager_extract else R.string.file_manager_paste,
+                                        ),
+                                    icon = if (extracting) Icons.Outlined.Unarchive else Icons.Outlined.ContentPaste,
                                     accent = true,
                                     compact = true,
                                     modifier = Modifier.width(FooterChipWidth),
