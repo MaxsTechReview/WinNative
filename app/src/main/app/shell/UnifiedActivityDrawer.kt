@@ -54,6 +54,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.horizontalScroll
@@ -775,6 +777,15 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
     var gameName by remember { mutableStateOf("") }
     var gameFolder by remember { mutableStateOf<String?>(null) }
     var isAdding by remember { mutableStateOf(false) }
+    var nameEditing by remember { mutableStateOf(false) }
+    val nameFocus = remember { FocusRequester() }
+    val nameKeyboard = LocalSoftwareKeyboardController.current
+    LaunchedEffect(nameEditing) {
+        if (nameEditing) {
+            runCatching { nameFocus.requestFocus() }
+            nameKeyboard?.show()
+        }
+    }
     val registry = remember { PaneNavRegistry() }
     val addEnabled = selectedExePath != null && gameName.isNotBlank() && gameFolder != null && !isAdding
     val doAdd: () -> Unit = {
@@ -878,7 +889,7 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
                                                                 android.os.Environment.DIRECTORY_DOWNLOADS,
                                                             ).absolutePath,
                                                 title = getString(R.string.common_ui_select_exe),
-                                                allowedExtensions = setOf("exe", "bat", "cmd"),
+                                                allowedExtensions = DirectoryPickerDialog.ExecutableExtensions,
                                                 dimAmount = 0.5f,
                                                 preserveBackdropBlur = true,
                                                 extraRoots = driveRoots(includeInternal = true),
@@ -910,7 +921,19 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
                                 onValueChange = { gameName = it },
                                 label = { Text(stringResource(R.string.library_games_game_name), fontSize = 11.sp) },
                                 singleLine = true,
-                                modifier = Modifier.fillMaxWidth().paneNavItem(cornerRadius = 10.dp).controllerTextFieldEscape(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .paneNavItem(cornerRadius = 10.dp, onActivate = { nameEditing = true })
+                                    .pointerInput(Unit) {
+                                        awaitEachGesture {
+                                            awaitFirstDown(requireUnconsumed = false)
+                                            nameEditing = true
+                                        }
+                                    }
+                                    .focusRequester(nameFocus)
+                                    .focusProperties { canFocus = nameEditing }
+                                    .onFocusChanged { if (!it.isFocused) nameEditing = false }
+                                    .controllerTextFieldEscape(),
                                 textStyle = MaterialTheme.typography.bodySmall.copy(color = TextPrimary),
                                 colors =
                                     OutlinedTextFieldDefaults.colors(

@@ -386,6 +386,7 @@
     <string name="input_controls_editor_reset_unavailable">No original snapshot is available for this profile.</string>
     <string name="input_controls_editor_title">Controls Editor</string>
     <string name="input_controls_editor_toggle_switch">Toggle Switch</string>
+    <string name="input_controls_editor_swipeable">Swipeable</string>
     <string name="input_controls_editor_profile_exported_to">Profile exported to</string>
     <string name="input_controls_editor_unable_to_import">Unable to import profile</string>
     <string name="input_controls_editor_import_profile">Import Profile</string>
@@ -477,6 +478,44 @@
     <string name="container_wine_title">Wine</string>
     <string name="container_wine_opengl">OpenGL</string>
     <string name="container_surface_effect">Surface Effect</string>
+
+    <!-- ReShade drop-in effects (vkBasalt) -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">Apply a ReShade (.fx) effect to DXVK/VKD3D (Vulkan) games via the bundled vkBasalt layer. Drop each effect into its own folder under Android/data/&lt;package&gt;/files/ReShade/. Live parameter tuning and the in-game toggle arrive with the live-reload layer update.</string>
+    <string name="reshade_catalog_title">ReShade effects</string>
+    <string name="reshade_catalog_search">Search effects…</string>
+    <string name="reshade_catalog_installed">Installed (%1$d)</string>
+    <string name="reshade_catalog_available">Available (%1$d)</string>
+    <string name="reshade_catalog_downloading">Downloading</string>
+    <string name="reshade_catalog_installing">Installing</string>
+    <string name="reshade_catalog_offline_cache">Offline — showing a cached list. Connect to download new effects.</string>
+    <string name="reshade_catalog_offline_none">Offline — showing installed effects only. Connect to browse the catalog.</string>
+    <string name="reshade_catalog_needs_connection">Connect to the internet to download effects.</string>
+    <string name="reshade_catalog_download_failed">Failed to download %1$s.</string>
+    <string name="reshade_catalog_empty_query">No effects match \"%1$s\".</string>
+    <string name="reshade_catalog_empty">No effects available. Connect to the internet to browse the catalog.</string>
+    <string name="reshade_catalog_done">Done</string>
+    <string name="reshade_catalog_delete_cd">Delete %1$s</string>
+    <string name="reshade_catalog_delete_title">Delete %1$s?</string>
+    <string name="reshade_catalog_delete_body">This removes the effect from storage and from any loadout using it. You can download it again later.</string>
+    <string name="reshade_catalog_delete_confirm">Delete</string>
+    <string name="reshade_catalog_delete_cancel">Cancel</string>
+    <string name="reshade_catalog_delete_failed">Couldn\'t delete %1$s.</string>
+    <string name="reshade_params_title">EFFECT PARAMETERS</string>
+    <string name="reshade_params_reset">Reset</string>
+    <!-- Multi-effect ReShade loadout (pre-launch editor) -->
+    <string name="reshade_loadout_empty">No effects yet. Add one or more effects to build a loadout.</string>
+    <string name="reshade_loadout_add">Add effect</string>
+    <string name="reshade_loadout_full">Loadout full — remove an effect to add another.</string>
+    <string name="reshade_effect_active">active</string>
+    <string name="reshade_mode_solo">Solo</string>
+    <string name="reshade_mode_stack">Stack</string>
+    <string name="reshade_mode_solo_hint">One effect active at a time (A/B compare, switch live in-game).</string>
+    <string name="reshade_mode_stack_hint">Layer any subset of effects, applied in order.</string>
+    <!-- In-game ReShade drawer pane (live control) -->
+    <string name="reshade_drawer_enable">Enable ReShade</string>
+    <string name="reshade_drawer_empty">No ReShade effects in this loadout. Add effects in this game\'s settings (or the container\'s) to switch and tune them here.</string>
+    <string name="reshade_drawer_no_params">This effect exposes no adjustable parameters.</string>
 
     <!-- Container > Box64 -->
     <string name="container_box64_title">Box64</string>
@@ -595,6 +634,7 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Graphics Driver</string>
+    <string name="container_zink_mode">Zink Mode</string>
     <string name="container_graphics_configuration">Graphics Driver Configuration</string>
     <string name="container_graphics_version">Graphics Driver Version</string>
     <string name="container_graphics_available_extensions">Available Extensions</string>
@@ -1587,15 +1627,28 @@ Installed path:
     <string name="file_manager_paste">Paste</string>
     <string name="file_manager_paste_here">Paste here</string>
     <string name="file_manager_new_folder">New Folder</string>
+    <string name="file_manager_new_folder_short">Folder</string>
+    <string name="file_manager_multi_select">Select</string>
     <string name="file_manager_create">Create</string>
     <string name="file_manager_delete">Delete</string>
+    <string name="file_manager_copy_count">Copy (%1$d)</string>
+    <string name="file_manager_cut_count">Cut (%1$d)</string>
+    <string name="file_manager_delete_count">Delete (%1$d)</string>
+    <string name="file_manager_extract">Extract</string>
+    <string name="file_manager_extract_here">Extract here</string>
+    <string name="file_manager_extract_to">Extract to…</string>
+    <string name="file_manager_extracting">Extracting %1$s</string>
+    <string name="file_manager_extract_failed">Extraction failed</string>
     <string name="file_manager_run_boot">Run / Boot</string>
     <string name="file_manager_create_shortcut">Create Shortcut</string>
     <string name="file_manager_run_in_container">Run in container</string>
     <string name="file_manager_no_containers">No containers available</string>
     <string name="file_manager_delete_confirm">Delete \"%1$s\"? This cannot be undone.</string>
+    <string name="file_manager_delete_confirm_multi">Delete %1$d items? This cannot be undone.</string>
     <string name="file_manager_copying">Copying %1$s</string>
     <string name="file_manager_moving">Moving %1$s</string>
+    <string name="file_manager_copying_count">Copying %1$d items</string>
+    <string name="file_manager_moving_count">Moving %1$d items</string>
     <string name="file_manager_paste_into_itself">Can\'t paste a folder into itself</string>
     <string name="file_manager_operation_failed">Operation failed</string>
     <string name="file_manager_delete_failed">Delete failed</string>

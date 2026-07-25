@@ -72,6 +72,7 @@ import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.ArrowDropDown
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteSweep
@@ -475,7 +476,7 @@ internal enum class HUDMetricEditor(
     BACKGROUND_ALPHA(minPercent = 10, maxPercent = 100),
 }
 
-internal enum class DrawerPane { INPUT_CONTROLS, HUD, GYROSCOPE, SCREEN_EFFECTS, OUTPUT, TASK_MANAGER, LOGS, TOUCH }
+internal enum class DrawerPane { INPUT_CONTROLS, HUD, GYROSCOPE, SCREEN_EFFECTS, RESHADE, OUTPUT, TASK_MANAGER, LOGS, TOUCH }
 
 internal const val LogsPaneMaxLines = 2000
 internal const val LogsFlushIntervalMs = 200L
@@ -538,6 +539,13 @@ private val RAIL_PANES =
             pane = DrawerPane.SCREEN_EFFECTS,
             itemId = R.id.main_menu_screen_effects,
             labelRes = R.string.session_drawer_rail_label_effects,
+        ),
+        // Shown only when the host adds a main_menu_reshade item to state.items.
+        RailPaneSpec(
+            pane = DrawerPane.RESHADE,
+            itemId = R.id.main_menu_reshade,
+            labelRes = R.string.reshade_section_title,
+            iconOverride = Icons.Outlined.AutoAwesome,
         ),
         // Shown only when the host adds a main_menu_output item to state.items.
         RailPaneSpec(
@@ -629,6 +637,10 @@ data class XServerDrawerState(
     val pixelateEnabled: Boolean = false,
     val pixelateBlock: Int = 6,
     val colorBlind: Int = 0,
+    // reshadeMode is "solo" (one effect bypasses the rest) or "stack"; param keys follow ReshadeManager.seedValues.
+    val reshadeMasterEnabled: Boolean = false,
+    val reshadeMode: String = "solo",
+    val reshadeLoadout: List<ReshadeLoadoutItem> = emptyList(),
     val inputControlsProfileNames: List<String> = emptyList(),
     val inputControlsSelectedProfileIndex: Int = 0,
     val inputControlsStyleNames: List<String> = emptyList(),
@@ -1074,6 +1086,18 @@ interface XServerDrawerActionListener {
 
     fun onResetEffects()
 
+    fun onReshadeMasterEnabledChanged(enabled: Boolean)
+
+    // In solo mode enabling one effect bypasses the others (host-side).
+    fun onReshadeEffectEnabledChanged(index: Int, enabled: Boolean)
+
+    fun onReshadeModeChanged(mode: String)
+
+    // key = ReshadeManager.seedValues scheme.
+    fun onReshadeParamChanged(index: Int, key: String, value: Float)
+
+    fun onReshadeReset(index: Int)
+
     fun onInputControlsProfileSelected(index: Int)
 
     fun onInputControlsStyleSelected(index: Int)
@@ -1518,6 +1542,30 @@ fun withVitureState(
         outputVitureVolumeMax = volumeMax,
     )
 
+// Call only when a ReShade effect was applied at launch (Vulkan wrapper) so the vkBasalt layer is loaded.
+fun withReshadeState(
+    state: XServerDrawerState,
+    masterEnabled: Boolean,
+    mode: String,
+    loadout: List<ReshadeLoadoutItem>,
+    reshadeTitle: String,
+): XServerDrawerState {
+    val reshadeItem =
+        XServerDrawerItem(
+            itemId = R.id.main_menu_reshade,
+            title = reshadeTitle,
+            subtitle = "",
+            icon = Icons.Outlined.AutoAwesome,
+            active = masterEnabled,
+        )
+    return state.copy(
+        items = state.items + reshadeItem,
+        reshadeMasterEnabled = masterEnabled,
+        reshadeMode = mode,
+        reshadeLoadout = loadout,
+    )
+}
+
 @Composable
 internal fun XServerDrawerContent(
     state: XServerDrawerState,
@@ -1635,6 +1683,7 @@ internal fun XServerDrawerContent(
                                 DrawerPane.GYROSCOPE -> GyroscopePaneContent(state = state, listener = listener)
                                 DrawerPane.TOUCH -> TouchPaneContent(state = state, listener = listener, onClose = { onOpenPaneChange(null) })
                                 DrawerPane.SCREEN_EFFECTS -> ScreenEffectsPaneContent(state = state, listener = listener)
+                                DrawerPane.RESHADE -> ReshadePaneContent(state = state, listener = listener)
                                 DrawerPane.OUTPUT -> OutputPaneContent(state = state, listener = listener)
                                 DrawerPane.TASK_MANAGER ->
                                     TaskManagerPaneContent(

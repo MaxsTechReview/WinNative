@@ -104,6 +104,7 @@ android {
         resConfigs "en", "da", "de", "es", "b+es+419", "fi", "fr", "hi", "it", "ja", "ko", "no", "pl", "pt", "pt-rBR", "ro", "ru", "sv", "th", "tr", "uk", "zh-rCN", "zh-rTW"
 
         buildConfigField("String", "COLD_CLIENT_VERSION", "\"${coldClientVersion}\"")
+        buildConfigField "String", "RESHADE_CATALOG_URL", "\"https://raw.githubusercontent.com/nicholasx417/WinNative-Components/main/Reshade.json\""
     }
 
     androidResources {

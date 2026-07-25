@@ -96,6 +96,7 @@ public class ControlElement {
   private short y;
   private boolean selected = false;
   private boolean toggleSwitch = false;
+  private boolean swipeable = true;
   private boolean radialMenuExpanded = false;
   private int activeRadialBindingIndex = -1;
   private boolean isRadialBindingCurrentlyHeld = false;
@@ -213,6 +214,14 @@ public class ControlElement {
 
   public void setToggleSwitch(boolean toggleSwitch) {
     this.toggleSwitch = toggleSwitch;
+  }
+
+  public boolean isSwipeable() {
+    return swipeable;
+  }
+
+  public void setSwipeable(boolean swipeable) {
+    this.swipeable = swipeable;
   }
 
   public float getOpacity() {
@@ -3732,6 +3741,7 @@ return boundingBox;
       elementJSONObject.put("x", (float) x / inputControlsView.getMaxWidth());
       elementJSONObject.put("y", (float) y / inputControlsView.getMaxHeight());
       elementJSONObject.put("toggleSwitch", toggleSwitch);
+      elementJSONObject.put("swipeable", swipeable);
       elementJSONObject.put("text", text);
       elementJSONObject.put("iconId", iconId);
 
@@ -3776,6 +3786,15 @@ return boundingBox;
     } else {
       for (int i = 0; i < count; i++) inputControlsView.handleInputEvent(ordered[i], pressed);
     }
+  }
+
+  public boolean isCapturing(int pointerId) {
+    return currentPointerId == pointerId;
+  }
+
+  public boolean isSwipeTarget() {
+    if (type == Type.RADIAL_MENU) return true;
+    return (type == Type.BUTTON || type == Type.D_PAD) && swipeable;
   }
 
   public boolean handleTouchDown(int pointerId, float x, float y) {

@@ -326,6 +326,7 @@
     <string name="input_controls_editor_confirm_duplicate_profile">Vil du duplikere denne profil?</string>
     <string name="input_controls_editor_title">Kontroleditor</string>
     <string name="input_controls_editor_toggle_switch">Skiftekontakt</string>
+    <string name="input_controls_editor_swipeable">Swipebar</string>
     <string name="input_controls_editor_profile_exported_to">Profil eksporteret til</string>
     <string name="input_controls_editor_unable_to_import">Kan ikke importere profil</string>
     <string name="input_controls_editor_import_profile">Importer profil</string>
@@ -512,6 +513,7 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Grafikdriver</string>
+    <string name="container_zink_mode">Zink-tilstand</string>
     <string name="container_graphics_transcoder">BCn-transkoder</string>
     <string name="container_graphics_quality">BCn-kvalitet</string>
     <string name="container_graphics_configuration">Grafikdriver-konfiguration</string>
@@ -1572,15 +1574,28 @@ Installeret sti:
     <string name="file_manager_paste">Indsæt</string>
     <string name="file_manager_paste_here">Indsæt her</string>
     <string name="file_manager_new_folder">Ny mappe</string>
+    <string name="file_manager_new_folder_short">Mappe</string>
+    <string name="file_manager_multi_select">Vælg</string>
     <string name="file_manager_create">Opret</string>
     <string name="file_manager_delete">Slet</string>
+    <string name="file_manager_copy_count">Kopier (%1$d)</string>
+    <string name="file_manager_cut_count">Klip (%1$d)</string>
+    <string name="file_manager_delete_count">Slet (%1$d)</string>
+    <string name="file_manager_extract">Udpak</string>
+    <string name="file_manager_extract_here">Udpak her</string>
+    <string name="file_manager_extract_to">Udpak til…</string>
+    <string name="file_manager_extracting">Udpakker %1$s</string>
+    <string name="file_manager_extract_failed">Udpakning mislykkedes</string>
     <string name="file_manager_run_boot">Kør / Boot</string>
     <string name="file_manager_create_shortcut">Opret genvej</string>
     <string name="file_manager_run_in_container">Kør i container</string>
     <string name="file_manager_no_containers">Ingen containere tilgængelige</string>
     <string name="file_manager_delete_confirm">Slet \"%1$s\"? Dette kan ikke fortrydes.</string>
+    <string name="file_manager_delete_confirm_multi">Slet %1$d elementer? Dette kan ikke fortrydes.</string>
     <string name="file_manager_copying">Kopierer %1$s</string>
     <string name="file_manager_moving">Flytter %1$s</string>
+    <string name="file_manager_copying_count">Kopierer %1$d elementer</string>
+    <string name="file_manager_moving_count">Flytter %1$d elementer</string>
     <string name="file_manager_paste_into_itself">Kan ikke indsætte en mappe i sig selv</string>
     <string name="file_manager_operation_failed">Handlingen mislykkedes</string>
     <string name="file_manager_delete_failed">Sletning mislykkedes</string>
@@ -1604,4 +1619,39 @@ Installeret sti:
     <string name="steam_chat_setting_stay_running">Kør i baggrunden</string>
     <string name="steam_chat_setting_stay_running_desc">Hold chatten kørende, efter du afslutter WinNative</string>
     <string name="settings_content_refresh">Opdater</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">Anvend en ReShade-effekt (.fx) på DXVK/VKD3D-spil (Vulkan) via det indbyggede vkBasalt-lag. Læg hver effekt i sin egen mappe under Android/data/&lt;package&gt;/files/ReShade/. Justering af parametre i realtid og kontakten i spillet kommer med opdateringen af live-reload-laget.</string>
+    <string name="reshade_catalog_title">ReShade-effekter</string>
+    <string name="reshade_catalog_search">Søg efter effekter…</string>
+    <string name="reshade_catalog_installed">Installeret (%1$d)</string>
+    <string name="reshade_catalog_available">Tilgængelige (%1$d)</string>
+    <string name="reshade_catalog_downloading">Downloader</string>
+    <string name="reshade_catalog_installing">Installerer</string>
+    <string name="reshade_catalog_offline_cache">Offline — viser en cachelagret liste. Opret forbindelse for at downloade nye effekter.</string>
+    <string name="reshade_catalog_offline_none">Offline — viser kun installerede effekter. Opret forbindelse for at gennemse kataloget.</string>
+    <string name="reshade_catalog_needs_connection">Opret forbindelse til internettet for at downloade effekter.</string>
+    <string name="reshade_catalog_download_failed">Kunne ikke downloade %1$s.</string>
+    <string name="reshade_catalog_empty_query">Ingen effekter matcher \"%1$s\".</string>
+    <string name="reshade_catalog_empty">Ingen effekter tilgængelige. Opret forbindelse til internettet for at gennemse kataloget.</string>
+    <string name="reshade_catalog_done">Færdig</string>
+    <string name="reshade_catalog_delete_cd">Slet %1$s</string>
+    <string name="reshade_catalog_delete_title">Slet %1$s?</string>
+    <string name="reshade_catalog_delete_body">Dette fjerner effekten fra lageret og fra ethvert sæt, der bruger den. Du kan downloade den igen senere.</string>
+    <string name="reshade_catalog_delete_confirm">Slet</string>
+    <string name="reshade_catalog_delete_cancel">Annuller</string>
+    <string name="reshade_catalog_delete_failed">Kunne ikke slette %1$s.</string>
+    <string name="reshade_params_title">EFFEKTPARAMETRE</string>
+    <string name="reshade_params_reset">Nulstil</string>
+    <string name="reshade_loadout_empty">Ingen effekter endnu. Tilføj en eller flere effekter for at oprette et sæt.</string>
+    <string name="reshade_loadout_add">Tilføj effekt</string>
+    <string name="reshade_loadout_full">Sættet er fuldt — fjern en effekt for at tilføje en anden.</string>
+    <string name="reshade_effect_active">aktiv</string>
+    <string name="reshade_mode_solo">Solo</string>
+    <string name="reshade_mode_stack">Stak</string>
+    <string name="reshade_mode_solo_hint">Én effekt aktiv ad gangen (A/B-sammenligning, skift live i spillet).</string>
+    <string name="reshade_mode_stack_hint">Læg en vilkårlig delmængde af effekter i lag, anvendt i rækkefølge.</string>
+    <string name="reshade_drawer_enable">Aktivér ReShade</string>
+    <string name="reshade_drawer_empty">Ingen ReShade-effekter i dette sæt. Tilføj effekter i dette spils indstillinger (eller containerens) for at skifte og justere dem her.</string>
+    <string name="reshade_drawer_no_params">Denne effekt har ingen justerbare parametre.</string>
 </resources>

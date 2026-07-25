@@ -326,6 +326,7 @@
     <string name="input_controls_editor_confirm_duplicate_profile">您要复制此配置文件吗？</string>
     <string name="input_controls_editor_title">控制编辑器</string>
     <string name="input_controls_editor_toggle_switch">切换开关</string>
+    <string name="input_controls_editor_swipeable">可滑动触发</string>
     <string name="input_controls_editor_profile_exported_to">配置文件已导出到</string>
     <string name="input_controls_editor_unable_to_import">无法导入配置文件</string>
     <string name="input_controls_editor_import_profile">导入配置文件</string>
@@ -512,6 +513,7 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">图形驱动</string>
+    <string name="container_zink_mode">Zink 模式</string>
     <string name="container_graphics_transcoder">BCn 转码器</string>
     <string name="container_graphics_quality">BCn 质量</string>
     <string name="container_graphics_configuration">图形驱动配置</string>
@@ -1571,15 +1573,28 @@
     <string name="file_manager_paste">粘贴</string>
     <string name="file_manager_paste_here">粘贴到此处</string>
     <string name="file_manager_new_folder">新建文件夹</string>
+    <string name="file_manager_new_folder_short">文件夹</string>
+    <string name="file_manager_multi_select">多选</string>
     <string name="file_manager_create">创建</string>
     <string name="file_manager_delete">删除</string>
+    <string name="file_manager_copy_count">复制 (%1$d)</string>
+    <string name="file_manager_cut_count">剪切 (%1$d)</string>
+    <string name="file_manager_delete_count">删除 (%1$d)</string>
+    <string name="file_manager_extract">解压</string>
+    <string name="file_manager_extract_here">解压到此处</string>
+    <string name="file_manager_extract_to">解压到…</string>
+    <string name="file_manager_extracting">正在解压 %1$s</string>
+    <string name="file_manager_extract_failed">解压失败</string>
     <string name="file_manager_run_boot">运行 / 启动</string>
     <string name="file_manager_create_shortcut">创建快捷方式</string>
     <string name="file_manager_run_in_container">在容器中运行</string>
     <string name="file_manager_no_containers">没有可用的容器</string>
     <string name="file_manager_delete_confirm">删除 \"%1$s\"？此操作无法撤消。</string>
+    <string name="file_manager_delete_confirm_multi">删除 %1$d 个项目？此操作无法撤消。</string>
     <string name="file_manager_copying">正在复制 %1$s</string>
     <string name="file_manager_moving">正在移动 %1$s</string>
+    <string name="file_manager_copying_count">正在复制 %1$d 个项目</string>
+    <string name="file_manager_moving_count">正在移动 %1$d 个项目</string>
     <string name="file_manager_paste_into_itself">无法将文件夹粘贴到其自身</string>
     <string name="file_manager_operation_failed">操作失败</string>
     <string name="file_manager_delete_failed">删除失败</string>
@@ -1603,5 +1618,40 @@
     <string name="steam_chat_setting_stay_running">在后台运行</string>
     <string name="steam_chat_setting_stay_running_desc">退出 WinNative 后保持聊天运行</string>
     <string name="settings_content_refresh">刷新</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">通过内置的 vkBasalt 层将 ReShade 效果（.fx）应用于 DXVK/VKD3D（Vulkan）游戏。将每个效果放入 Android/data/&lt;package&gt;/files/ReShade/ 下各自的文件夹中。实时参数调整和游戏内开关将随实时重载层更新一起提供。</string>
+    <string name="reshade_catalog_title">ReShade 效果</string>
+    <string name="reshade_catalog_search">搜索效果…</string>
+    <string name="reshade_catalog_installed">已安装 (%1$d)</string>
+    <string name="reshade_catalog_available">可用 (%1$d)</string>
+    <string name="reshade_catalog_downloading">正在下载</string>
+    <string name="reshade_catalog_installing">正在安装</string>
+    <string name="reshade_catalog_offline_cache">离线 — 显示缓存列表。连接以下载新效果。</string>
+    <string name="reshade_catalog_offline_none">离线 — 仅显示已安装的效果。连接以浏览目录。</string>
+    <string name="reshade_catalog_needs_connection">连接到互联网以下载效果。</string>
+    <string name="reshade_catalog_download_failed">下载 %1$s 失败。</string>
+    <string name="reshade_catalog_empty_query">没有与 \"%1$s\" 匹配的效果。</string>
+    <string name="reshade_catalog_empty">没有可用的效果。连接到互联网以浏览目录。</string>
+    <string name="reshade_catalog_done">完成</string>
+    <string name="reshade_catalog_delete_cd">删除 %1$s</string>
+    <string name="reshade_catalog_delete_title">删除 %1$s？</string>
+    <string name="reshade_catalog_delete_body">这将从存储中以及使用该效果的所有配置中移除该效果。你可以稍后重新下载。</string>
+    <string name="reshade_catalog_delete_confirm">删除</string>
+    <string name="reshade_catalog_delete_cancel">取消</string>
+    <string name="reshade_catalog_delete_failed">无法删除 %1$s。</string>
+    <string name="reshade_params_title">效果参数</string>
+    <string name="reshade_params_reset">重置</string>
+    <string name="reshade_loadout_empty">还没有效果。添加一个或多个效果以创建配置。</string>
+    <string name="reshade_loadout_add">添加效果</string>
+    <string name="reshade_loadout_full">配置已满 — 移除一个效果才能再添加。</string>
+    <string name="reshade_effect_active">已启用</string>
+    <string name="reshade_mode_solo">单独</string>
+    <string name="reshade_mode_stack">叠加</string>
+    <string name="reshade_mode_solo_hint">一次仅激活一个效果（A/B 对比，可在游戏中实时切换）。</string>
+    <string name="reshade_mode_stack_hint">叠加任意效果子集，按顺序应用。</string>
+    <string name="reshade_drawer_enable">启用 ReShade</string>
+    <string name="reshade_drawer_empty">此配置中没有 ReShade 效果。在此游戏（或容器）的设置中添加效果，即可在此切换和调整。</string>
+    <string name="reshade_drawer_no_params">此效果没有可调整的参数。</string>
 </resources>
 

@@ -508,6 +508,29 @@ class ShortcutSettingsComposeDialog private constructor(
                 ?.coerceIn(0, 100)
                 ?: 100
 
+        // shortcut override else container value; legacy single reshadeEffect/flat params migrated in parse
+        val reshadeEffects = com.winlator.cmod.runtime.reshade.ReshadeManager.scanEffects(context)
+        state.reshadeEffects.value = reshadeEffects
+        state.reshadeLoadout.init(
+            reshadeEffects,
+            getShortcutSetting(
+                com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_LOADOUT,
+                container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_LOADOUT, "")
+            ).ifEmpty { null },
+            getShortcutSetting(
+                com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_MODE,
+                container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_MODE, "solo")
+            ),
+            getShortcutSetting(
+                com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_PARAMS,
+                container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_PARAMS, "")
+            ).ifEmpty { null },
+            getShortcutSetting(
+                com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_EFFECT,
+                container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_EFFECT, "None")
+            ),
+        )
+
         // Graphics driver (basic entries - will be updated after contents sync)
         val graphicsDriverArr =
             context.resources.getStringArray(R.array.graphics_driver_entries).toList()
@@ -517,6 +540,10 @@ class ShortcutSettingsComposeDialog private constructor(
             getShortcutSetting("graphicsDriver", container.getGraphicsDriver()),
             state.selectedGraphicsDriver
         )
+
+        state.zinkModeEntries.value = context.resources.getStringArray(R.array.zink_mode_entries).toList()
+        state.selectedZinkMode.intValue =
+            if (getShortcutSetting("zinkMode", container.getZinkMode()) == "windows") 1 else 0
 
         // DX Wrapper
         val dxWrapperArr =
@@ -557,6 +584,7 @@ class ShortcutSettingsComposeDialog private constructor(
         else shortcut.getExtra("wineVersion", container.getWineVersion())
         val wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersionStr)
         isArm64EC = wineInfo.isArm64EC
+        state.isArm64EC.value = isArm64EC
         state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
 
         rebuildEmulatorLists()
@@ -660,6 +688,7 @@ class ShortcutSettingsComposeDialog private constructor(
         val wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersionStr)
         val archChanged = isArm64EC != wineInfo.isArm64EC
         isArm64EC = wineInfo.isArm64EC
+        state.isArm64EC.value = isArm64EC
         state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
 
         rebuildEmulatorLists()
@@ -1017,6 +1046,10 @@ class ShortcutSettingsComposeDialog private constructor(
             hasContainerOverride =
                 hasContainerOverride or saveOverride("graphicsDriver", graphicsDriver, container.getGraphicsDriver())
 
+            val zinkMode = if (state.selectedZinkMode.intValue == 1) "windows" else "unix"
+            hasContainerOverride =
+                hasContainerOverride or saveOverride("zinkMode", zinkMode, container.getZinkMode())
+
             val graphicsDriverConfig = buildGraphicsDriverConfigFromState()
             hasContainerOverride = hasContainerOverride or saveOverride(
                 "graphicsDriverConfig", graphicsDriverConfig, container.getGraphicsDriverConfig()
@@ -1252,6 +1285,32 @@ class ShortcutSettingsComposeDialog private constructor(
                 shortcut.putExtra("sgsrEnabled", null)
                 shortcut.putExtra("sgsrUpscaleMode", null)
                 shortcut.putExtra("sgsrSharpness", null)
+            }
+
+            // saveOverride not putExtra: putExtra leaves hasContainerOverride false, so a reshade-only shortcut gets use_container_defaults=1 and reads back the container's extras
+            run {
+                val loadoutJson = state.reshadeLoadout.loadoutJsonOrNull() ?: ""
+                hasContainerOverride = hasContainerOverride or saveOverride(
+                    com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_LOADOUT,
+                    loadoutJson,
+                    container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_LOADOUT, "")
+                )
+                hasContainerOverride = hasContainerOverride or saveOverride(
+                    com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_MODE,
+                    if (loadoutJson.isEmpty()) "" else state.reshadeLoadout.mode,
+                    // "solo" is how launch resolves an unset mode; matching it avoids a spurious reshadeMode override
+                    if (loadoutJson.isEmpty()) "" else container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_MODE, "solo")
+                )
+                hasContainerOverride = hasContainerOverride or saveOverride(
+                    com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_PARAMS,
+                    if (loadoutJson.isEmpty()) "" else (state.reshadeLoadout.paramsJsonOrNull() ?: ""),
+                    container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_PARAMS, "")
+                )
+                hasContainerOverride = hasContainerOverride or saveOverride(
+                    com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_EFFECT,
+                    if (loadoutJson.isEmpty()) "" else state.reshadeLoadout.firstEffectName(),
+                    container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_EFFECT, "")
+                )
             }
 
             // Desktop Theme — stored as compound "THEME,TYPE,COLOR" string
@@ -2145,6 +2204,7 @@ class ShortcutSettingsComposeDialog private constructor(
         val wineVersionStr = newContainer.getWineVersion()
         val wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersionStr)
         isArm64EC = wineInfo.isArm64EC
+        state.isArm64EC.value = isArm64EC
         state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
         rebuildEmulatorLists()
 

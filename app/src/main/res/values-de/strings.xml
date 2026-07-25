@@ -326,6 +326,7 @@
     <string name="input_controls_editor_confirm_duplicate_profile">Möchtest du dieses Profil duplizieren?</string>
     <string name="input_controls_editor_title">Steuerungs-Editor</string>
     <string name="input_controls_editor_toggle_switch">Umschalter</string>
+    <string name="input_controls_editor_swipeable">Wischbar</string>
     <string name="input_controls_editor_profile_exported_to">Profil exportiert nach</string>
     <string name="input_controls_editor_unable_to_import">Profil kann nicht importiert werden</string>
     <string name="input_controls_editor_import_profile">Profil importieren</string>
@@ -512,6 +513,7 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Grafiktreiber</string>
+    <string name="container_zink_mode">Zink-Modus</string>
     <string name="container_graphics_transcoder">BCn-Transcoder</string>
     <string name="container_graphics_quality">BCn-Qualität</string>
     <string name="container_graphics_configuration">Grafiktreiber-Konfiguration</string>
@@ -1572,15 +1574,28 @@ Installierter Pfad:
     <string name="file_manager_paste">Einfügen</string>
     <string name="file_manager_paste_here">Hier einfügen</string>
     <string name="file_manager_new_folder">Neuer Ordner</string>
+    <string name="file_manager_new_folder_short">Ordner</string>
+    <string name="file_manager_multi_select">Wählen</string>
     <string name="file_manager_create">Erstellen</string>
     <string name="file_manager_delete">Löschen</string>
+    <string name="file_manager_copy_count">Kopieren (%1$d)</string>
+    <string name="file_manager_cut_count">Ausschneiden (%1$d)</string>
+    <string name="file_manager_delete_count">Löschen (%1$d)</string>
+    <string name="file_manager_extract">Entpacken</string>
+    <string name="file_manager_extract_here">Hier entpacken</string>
+    <string name="file_manager_extract_to">Entpacken nach…</string>
+    <string name="file_manager_extracting">%1$s wird entpackt</string>
+    <string name="file_manager_extract_failed">Entpacken fehlgeschlagen</string>
     <string name="file_manager_run_boot">Ausführen / Booten</string>
     <string name="file_manager_create_shortcut">Verknüpfung erstellen</string>
     <string name="file_manager_run_in_container">Im Container ausführen</string>
     <string name="file_manager_no_containers">Keine Container verfügbar</string>
     <string name="file_manager_delete_confirm">\"%1$s\" löschen? Dies kann nicht rückgängig gemacht werden.</string>
+    <string name="file_manager_delete_confirm_multi">%1$d Elemente löschen? Dies kann nicht rückgängig gemacht werden.</string>
     <string name="file_manager_copying">%1$s wird kopiert</string>
     <string name="file_manager_moving">%1$s wird verschoben</string>
+    <string name="file_manager_copying_count">%1$d Elemente werden kopiert</string>
+    <string name="file_manager_moving_count">%1$d Elemente werden verschoben</string>
     <string name="file_manager_paste_into_itself">Ein Ordner kann nicht in sich selbst eingefügt werden</string>
     <string name="file_manager_operation_failed">Vorgang fehlgeschlagen</string>
     <string name="file_manager_delete_failed">Löschen fehlgeschlagen</string>
@@ -1604,4 +1619,39 @@ Installierter Pfad:
     <string name="steam_chat_setting_stay_running">Im Hintergrund ausführen</string>
     <string name="steam_chat_setting_stay_running_desc">Chat nach dem Beenden von WinNative weiterlaufen lassen</string>
     <string name="settings_content_refresh">Aktualisieren</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">Wende über die integrierte vkBasalt-Ebene einen ReShade-Effekt (.fx) auf DXVK/VKD3D-Spiele (Vulkan) an. Lege jeden Effekt in einen eigenen Ordner unter Android/data/&lt;package&gt;/files/ReShade/. Live-Parameteranpassung und der In-Game-Schalter kommen mit dem Live-Reload-Ebenen-Update.</string>
+    <string name="reshade_catalog_title">ReShade-Effekte</string>
+    <string name="reshade_catalog_search">Effekte suchen…</string>
+    <string name="reshade_catalog_installed">Installiert (%1$d)</string>
+    <string name="reshade_catalog_available">Verfügbar (%1$d)</string>
+    <string name="reshade_catalog_downloading">Wird heruntergeladen</string>
+    <string name="reshade_catalog_installing">Wird installiert</string>
+    <string name="reshade_catalog_offline_cache">Offline — zwischengespeicherte Liste wird angezeigt. Verbinde dich, um neue Effekte herunterzuladen.</string>
+    <string name="reshade_catalog_offline_none">Offline — nur installierte Effekte werden angezeigt. Verbinde dich, um den Katalog zu durchsuchen.</string>
+    <string name="reshade_catalog_needs_connection">Stelle eine Internetverbindung her, um Effekte herunterzuladen.</string>
+    <string name="reshade_catalog_download_failed">%1$s konnte nicht heruntergeladen werden.</string>
+    <string name="reshade_catalog_empty_query">Keine Effekte passen zu \"%1$s\".</string>
+    <string name="reshade_catalog_empty">Keine Effekte verfügbar. Stelle eine Internetverbindung her, um den Katalog zu durchsuchen.</string>
+    <string name="reshade_catalog_done">Fertig</string>
+    <string name="reshade_catalog_delete_cd">%1$s löschen</string>
+    <string name="reshade_catalog_delete_title">%1$s löschen?</string>
+    <string name="reshade_catalog_delete_body">Dadurch wird der Effekt aus dem Speicher und aus jeder Zusammenstellung entfernt, die ihn verwendet. Du kannst ihn später erneut herunterladen.</string>
+    <string name="reshade_catalog_delete_confirm">Löschen</string>
+    <string name="reshade_catalog_delete_cancel">Abbrechen</string>
+    <string name="reshade_catalog_delete_failed">%1$s konnte nicht gelöscht werden.</string>
+    <string name="reshade_params_title">EFFEKTPARAMETER</string>
+    <string name="reshade_params_reset">Zurücksetzen</string>
+    <string name="reshade_loadout_empty">Noch keine Effekte. Füge einen oder mehrere Effekte hinzu, um eine Zusammenstellung zu erstellen.</string>
+    <string name="reshade_loadout_add">Effekt hinzufügen</string>
+    <string name="reshade_loadout_full">Zusammenstellung voll — entferne einen Effekt, um einen weiteren hinzuzufügen.</string>
+    <string name="reshade_effect_active">aktiv</string>
+    <string name="reshade_mode_solo">Solo</string>
+    <string name="reshade_mode_stack">Stapel</string>
+    <string name="reshade_mode_solo_hint">Ein Effekt gleichzeitig aktiv (A/B-Vergleich, live im Spiel umschalten).</string>
+    <string name="reshade_mode_stack_hint">Beliebige Teilmenge von Effekten übereinanderlegen, in Reihenfolge angewendet.</string>
+    <string name="reshade_drawer_enable">ReShade aktivieren</string>
+    <string name="reshade_drawer_empty">Keine ReShade-Effekte in dieser Zusammenstellung. Füge Effekte in den Einstellungen dieses Spiels (oder des Containers) hinzu, um sie hier zu wechseln und anzupassen.</string>
+    <string name="reshade_drawer_no_params">Dieser Effekt bietet keine einstellbaren Parameter.</string>
 </resources>

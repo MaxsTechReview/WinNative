@@ -1,3 +1,7 @@
 [submodule "app/src/main/cpp/adrenotools"]
 	path = app/src/main/cpp/adrenotools
 	url = https://github.com/Pipetto-crypto/libadrenotools.git
+[submodule "app/src/main/cpp/vkbasalt"]
+	path = app/src/main/cpp/vkbasalt
+	url = https://github.com/WinNative-Emu/vkBasalt.git
+	branch = Test

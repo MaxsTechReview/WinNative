@@ -83,6 +83,8 @@ import com.winlator.cmod.shared.android.AppUtils;
 import com.winlator.cmod.shared.android.AppTerminationHelper;
 import com.winlator.cmod.shared.ui.toast.WinToast;
 import com.winlator.cmod.runtime.wine.EnvVars;
+import com.winlator.cmod.runtime.reshade.ReshadeConfigWriter;
+import com.winlator.cmod.runtime.reshade.ReshadeManager;
 import com.winlator.cmod.runtime.wine.LocaleEnv;
 import com.winlator.cmod.shared.io.FileUtils;
 import com.winlator.cmod.runtime.system.CPUStatus;
@@ -204,6 +206,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private static final String STEAM_ROOT_PATH = "C:\\Program Files (x86)\\Steam";
     private static final String STEAM_EXE_PATH = STEAM_ROOT_PATH + "\\steam.exe";
     private static final String D8VK_ASSET_PATH = "dxwrapper/d8vk-1.0.tzst";
+    // bump when extra_libs.tzst is repacked so existing containers re-extract (marker usr/lib/.extra_libs_version)
+    private static final int EXTRA_LIBS_VERSION = 1;
     private static final String STEAM_USER_REGISTRY_BACKUP_FILE = "steam_registry_backup.reg";
     private static final String STEAM_SYSTEM_REGISTRY_BACKUP_FILE = "steam_system_registry_backup.reg";
     private static final String STEAM_CLIENT_STORE_RELATIVE_PATH = ".shared/steam-client-store";
@@ -281,10 +285,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private int runtimeFpsLimit = 0;
     private String lastRendererName = "Vulkan";
     private String lastGpuName = null;
+    private boolean gameWindowSeen;
+    private int rendererWindowId = -1;
+    private boolean rendererWindowPresented;
     private Runnable editInputControlsCallback;
     private Shortcut shortcut;
     private boolean launchedFromPinnedShortcut = false;
     private String graphicsDriver = Container.DEFAULT_GRAPHICS_DRIVER;
+    private String zinkMode = Container.DEFAULT_ZINK_MODE;
     private HashMap<String, String> graphicsDriverConfig;
     private String audioDriver = Container.DEFAULT_AUDIO_DRIVER;
     private String emulator = Container.DEFAULT_EMULATOR;
@@ -457,6 +465,47 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean pixelateEnabled = false;
     private int pixelateBlock = 6;
     private int colorBlind = 0;
+    // loadout membership is fixed at launch; toggling enabled only flips a live gate, no recompile
+    private boolean reshadeSessionAvailable = false;
+    private boolean reshadeMasterEnabled = true;
+    private String reshadeMode = com.winlator.cmod.runtime.reshade.ReshadeLoadout.MODE_SOLO;
+    private final java.util.ArrayList<ReshadeLiveEffect> reshadeLive = new java.util.ArrayList<>();
+
+    private static final long RESHADE_LIVE_DEBOUNCE_MS = 120;
+    private android.os.HandlerThread reshadeLiveThread;
+    private android.os.Handler reshadeLiveHandler;
+    private volatile ReshadeLiveSnapshot pendingReshadeWrite;
+
+    private static final class ReshadeLiveSnapshot {
+        final java.util.ArrayList<com.winlator.cmod.runtime.reshade.ReshadeLoadout.Entry> entries;
+        final String loadoutJson;
+        final String paramsJson;
+        final String firstEffect;
+        final String mode;
+        final boolean masterEnabled;
+
+        ReshadeLiveSnapshot(java.util.ArrayList<com.winlator.cmod.runtime.reshade.ReshadeLoadout.Entry> entries,
+                            String loadoutJson, String paramsJson, String firstEffect, String mode, boolean masterEnabled) {
+            this.entries = entries;
+            this.loadoutJson = loadoutJson;
+            this.paramsJson = paramsJson;
+            this.firstEffect = firstEffect;
+            this.mode = mode;
+            this.masterEnabled = masterEnabled;
+        }
+    }
+
+    // values keys follow ReshadeManager.seedValues: "<uniform>", or "<uniform>_<c>" for COLOR
+    private static class ReshadeLiveEffect {
+        final String name;
+        boolean enabled;
+        final java.util.List<ReshadeManager.ReshadeParam> defs;
+        final java.util.LinkedHashMap<String, Float> values;
+        ReshadeLiveEffect(String name, boolean enabled, java.util.List<ReshadeManager.ReshadeParam> defs,
+                          java.util.LinkedHashMap<String, Float> values) {
+            this.name = name; this.enabled = enabled; this.defs = defs; this.values = values;
+        }
+    }
     private boolean gyroscopeCardExpanded = false;
     private XServerDrawerStateHolder drawerStateHolder;
     private XServerDrawerActionListener drawerActionListener;
@@ -675,6 +724,160 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private String getShortcutSetting(String key, String containerValue) {
         return shortcut != null ? shortcut.getSettingExtra(key, containerValue) : containerValue;
     }
+
+    // paramsJson is nested {"<effect>":{uniform:value}} when nested, else the flat legacy map
+    private static class ResolvedReshade {
+        java.util.List<com.winlator.cmod.runtime.reshade.ReshadeLoadout.Entry> loadout;
+        String mode;
+        String paramsJson;
+        boolean nested;
+        String legacyEffect;
+        boolean masterEnabled = true;
+    }
+
+    // container config stays authoritative until the shortcut has both own-settings and a reshade extra,
+    // so a loadout is never mixed half-shortcut half-container
+    private boolean reshadeShortcutOwns() {
+        if (shortcut == null || shortcut.usesContainerDefaults()) return false;
+        return shortcut.getExtra(ReshadeConfigWriter.EXTRA_LOADOUT, null) != null
+                || shortcut.getExtra(ReshadeConfigWriter.EXTRA_EFFECT, null) != null;
+    }
+
+    // read as one unit from a single source; ReshadeLoadout.parse migrates legacy single-effect saves
+    private ResolvedReshade resolveReshade() {
+        ResolvedReshade r = new ResolvedReshade();
+        r.mode = com.winlator.cmod.runtime.reshade.ReshadeLoadout.MODE_SOLO;
+        r.legacyEffect = "None";
+        if (container == null) {
+            r.loadout = new java.util.ArrayList<>();
+            r.nested = false;
+            return r;
+        }
+        String loadoutJson, mode, paramsJson, legacyEffect;
+        if (reshadeShortcutOwns()) {
+            loadoutJson  = emptyToNull(shortcut.getExtra(ReshadeConfigWriter.EXTRA_LOADOUT, null));
+            mode         = shortcut.getExtra(ReshadeConfigWriter.EXTRA_MODE, "solo");
+            paramsJson   = emptyToNull(shortcut.getExtra(ReshadeConfigWriter.EXTRA_PARAMS, null));
+            legacyEffect = shortcut.getExtra(ReshadeConfigWriter.EXTRA_EFFECT, "None");
+            r.masterEnabled = !"0".equals(shortcut.getExtra(ReshadeConfigWriter.EXTRA_MASTER, "1"));
+        } else {
+            loadoutJson  = emptyToNull(container.getExtra(ReshadeConfigWriter.EXTRA_LOADOUT, null));
+            mode         = container.getExtra(ReshadeConfigWriter.EXTRA_MODE, "solo");
+            paramsJson   = emptyToNull(container.getExtra(ReshadeConfigWriter.EXTRA_PARAMS, null));
+            legacyEffect = container.getExtra(ReshadeConfigWriter.EXTRA_EFFECT, "None");
+            r.masterEnabled = !"0".equals(container.getExtra(ReshadeConfigWriter.EXTRA_MASTER, "1"));
+        }
+        r.nested = loadoutJson != null && !loadoutJson.isEmpty();
+        r.loadout = com.winlator.cmod.runtime.reshade.ReshadeLoadout.parse(loadoutJson, legacyEffect);
+        r.mode = com.winlator.cmod.runtime.reshade.ReshadeLoadout.normalizeMode(mode);
+        r.paramsJson = paramsJson;
+        r.legacyEffect = legacyEffect;
+        com.winlator.cmod.runtime.reshade.ReshadeLoadout.enforceSolo(r.loadout, r.mode);
+        return r;
+    }
+
+    private static String emptyToNull(String s) { return (s == null || s.isEmpty()) ? null : s; }
+
+    // swallowed: a reshade failure must never break a launch
+    private void applyReshadeEnv(EnvVars envVars) {
+        try {
+            if (container == null || imageFs == null) return;
+            ResolvedReshade rr = resolveReshade();
+            boolean vulkanWrapper = ReshadeConfigWriter.supportedFor(this.dxwrapper);
+            boolean applied = ReshadeConfigWriter.applyLoadout(this, imageFs, rr.loadout, rr.paramsJson,
+                    rr.nested, rr.legacyEffect, rr.masterEnabled, vulkanWrapper, envVars);
+            reshadeSessionAvailable = applied;
+            reshadeMasterEnabled = rr.masterEnabled;
+            reshadeMode = rr.mode;
+            if (applied) seedReshadeLive(rr);
+        } catch (Exception e) {
+            Log.e("XServerDisplayActivity", "ReShade env injection failed (ignored)", e);
+        }
+    }
+
+    // only effects present in the drop-in folder become tunable
+    private void seedReshadeLive(ResolvedReshade rr) {
+        reshadeLive.clear();
+        for (com.winlator.cmod.runtime.reshade.ReshadeLoadout.Entry entry : rr.loadout) {
+            ReshadeManager.ReshadeEffect effect = ReshadeManager.findEffect(this, entry.name);
+            if (effect == null) continue;
+            org.json.JSONObject saved = com.winlator.cmod.runtime.reshade.ReshadeLoadout.paramsForEffect(
+                    rr.paramsJson, effect.name, rr.nested, rr.legacyEffect);
+            java.util.LinkedHashMap<String, Float> values = new java.util.LinkedHashMap<>();
+            for (ReshadeManager.ReshadeParam p : effect.params) ReshadeManager.seedValues(p, saved, values);
+            reshadeLive.add(new ReshadeLiveEffect(effect.name, entry.enabled, effect.params, values));
+        }
+    }
+
+    private java.util.ArrayList<ReshadeLoadoutItem> buildReshadeItems() {
+        java.util.ArrayList<ReshadeLoadoutItem> items = new java.util.ArrayList<>();
+        for (ReshadeLiveEffect e : reshadeLive) {
+            items.add(new ReshadeLoadoutItem(e.name, e.enabled, e.defs, new java.util.LinkedHashMap<>(e.values)));
+        }
+        return items;
+    }
+
+    // conf rewrite bumps mtime -> live reload without restage; a defaults-following shortcut must persist
+    // to the container so use_container_defaults is not flipped mid-session
+    private void applyReshadeLive() {
+        try {
+            if (imageFs == null) return;
+            java.util.ArrayList<com.winlator.cmod.runtime.reshade.ReshadeLoadout.Entry> entries = new java.util.ArrayList<>();
+            org.json.JSONObject nestedParams = new org.json.JSONObject();
+            for (ReshadeLiveEffect e : reshadeLive) {
+                entries.add(new com.winlator.cmod.runtime.reshade.ReshadeLoadout.Entry(e.name, e.enabled));
+                if (!e.values.isEmpty()) {
+                    org.json.JSONObject eff = new org.json.JSONObject();
+                    for (java.util.Map.Entry<String, Float> v : e.values.entrySet()) eff.put(v.getKey(), v.getValue().doubleValue());
+                    nestedParams.put(e.name, eff);
+                }
+            }
+            String loadoutJson = com.winlator.cmod.runtime.reshade.ReshadeLoadout.serialize(entries);
+            String paramsJson = nestedParams.length() == 0 ? null : nestedParams.toString();
+            String firstEffect = entries.isEmpty() ? null : entries.get(0).name;
+
+            pendingReshadeWrite = new ReshadeLiveSnapshot(entries, loadoutJson, paramsJson, firstEffect,
+                    reshadeMode, reshadeMasterEnabled);
+
+            if (reshadeLiveHandler == null) {
+                reshadeLiveThread = new android.os.HandlerThread("reshade-live");
+                reshadeLiveThread.start();
+                reshadeLiveHandler = new android.os.Handler(reshadeLiveThread.getLooper());
+            }
+            reshadeLiveHandler.removeCallbacks(reshadeLiveWriteTask);
+            reshadeLiveHandler.postDelayed(reshadeLiveWriteTask, RESHADE_LIVE_DEBOUNCE_MS);
+        } catch (Exception e) {
+            Log.e("XServerDisplayActivity", "applyReshadeLive failed (ignored)", e);
+        }
+    }
+
+    private final Runnable reshadeLiveWriteTask = () -> {
+        ReshadeLiveSnapshot s = pendingReshadeWrite;
+        if (s == null || imageFs == null) return;
+        try {
+            if (shortcut != null && !shortcut.usesContainerDefaults()) {
+                shortcut.putExtra(ReshadeConfigWriter.EXTRA_LOADOUT, s.entries.isEmpty() ? null : s.loadoutJson);
+                shortcut.putExtra(ReshadeConfigWriter.EXTRA_MODE, s.mode);
+                shortcut.putExtra(ReshadeConfigWriter.EXTRA_PARAMS, s.paramsJson);
+                shortcut.putExtra(ReshadeConfigWriter.EXTRA_EFFECT, s.firstEffect);
+                shortcut.putExtra(ReshadeConfigWriter.EXTRA_MASTER, s.masterEnabled ? null : "0");
+                shortcut.saveData();
+            } else if (container != null) {
+                container.putExtra(ReshadeConfigWriter.EXTRA_LOADOUT, s.entries.isEmpty() ? null : s.loadoutJson);
+                container.putExtra(ReshadeConfigWriter.EXTRA_MODE, s.mode);
+                container.putExtra(ReshadeConfigWriter.EXTRA_PARAMS, s.paramsJson);
+                container.putExtra(ReshadeConfigWriter.EXTRA_EFFECT, s.firstEffect);
+                container.putExtra(ReshadeConfigWriter.EXTRA_MASTER, s.masterEnabled ? "1" : "0");
+                container.saveData();
+            }
+
+            // masterEnabled writes enableOnLaunch; per-effect flags ride each <ei>_enabled gate
+            ReshadeConfigWriter.writeMergedConfig(this, imageFs, s.entries, s.paramsJson, s.paramsJson != null,
+                    s.firstEffect, s.masterEnabled, false);
+        } catch (Exception e) {
+            Log.e("XServerDisplayActivity", "applyReshadeLive failed (ignored)", e);
+        }
+    };
 
     private boolean getBooleanSessionOption(String key, boolean defaultValue) {
         boolean fallback = preferences != null ? preferences.getBoolean(key, defaultValue) : defaultValue;
@@ -1324,6 +1527,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         graphicsDriver = container.getGraphicsDriver();
+        zinkMode = container.getZinkMode();
         String graphicsDriverConfig = container.getGraphicsDriverConfig();
         audioDriver = container.getAudioDriver();
         emulator = container.getEmulator();
@@ -1470,6 +1674,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             String rawShortcutDxwrapper = shortcutUsesDefaults ? "" : shortcut.getExtra("dxwrapper");
 
             graphicsDriver = getShortcutSetting("graphicsDriver", container.getGraphicsDriver());
+            zinkMode = getShortcutSetting("zinkMode", container.getZinkMode());
             graphicsDriverConfig = getShortcutSetting("graphicsDriverConfig", container.getGraphicsDriverConfig());
             audioDriver = getShortcutSetting("audioDriver", container.getAudioDriver());
             emulator = getShortcutSetting("emulator", container.getEmulator());
@@ -1627,6 +1832,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
             @Override
             public void onFramePresented(Window window, WindowManager.FrameSource source, int serial) {
+                if (window != null && window.id == rendererWindowId) rendererWindowPresented = true;
                 if (shouldRecordFpsFrame(window, source)) {
                     frameRating.recordGameFrame(source == WindowManager.FrameSource.PRESENT, serial);
                     if (mangoHud != null) mangoHud.recordGameFrame(source == WindowManager.FrameSource.PRESENT);
@@ -3715,6 +3921,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     @Override
     protected void onDestroy() {
         activityDestroyed.set(true);
+        if (reshadeLiveHandler != null) {
+            reshadeLiveHandler.removeCallbacks(reshadeLiveWriteTask);
+            reshadeLiveHandler.post(reshadeLiveWriteTask);
+            reshadeLiveThread.quitSafely();
+            reshadeLiveHandler = null;
+            reshadeLiveThread = null;
+        }
         com.winlator.cmod.feature.stores.steam.service.GameSessionState.setInGame(this, false);
         // Finalize any in-progress recording before the renderer tears down.
         if (screenRecorder != null && screenRecorder.isRecording()) {
@@ -4082,6 +4295,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         externalDisplayController.getVitureVolume(),
                         externalDisplayController.getVitureVolumeMax());
             }
+        }
+
+        if (reshadeSessionAvailable) {
+            state = XServerDrawerMenuKt.withReshadeState(
+                    state,
+                    reshadeMasterEnabled,
+                    reshadeMode,
+                    buildReshadeItems(),
+                    getString(R.string.reshade_section_title));
         }
 
         if (drawerActionListener == null) {
@@ -4591,6 +4813,58 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         colorBlind = 0;
                         saveScreenEffectsSettings();
                         applyScreenEffects();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onReshadeMasterEnabledChanged(boolean enabled) {
+                        // compiled loadout untouched; only enableOnLaunch flips
+                        reshadeMasterEnabled = enabled;
+                        applyReshadeLive();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onReshadeEffectEnabledChanged(int index, boolean enabled) {
+                        if (index < 0 || index >= reshadeLive.size()) return;
+                        if (com.winlator.cmod.runtime.reshade.ReshadeLoadout.MODE_SOLO.equals(reshadeMode) && enabled) {
+                            for (int i = 0; i < reshadeLive.size(); i++) reshadeLive.get(i).enabled = (i == index);
+                        } else {
+                            reshadeLive.get(index).enabled = enabled;
+                        }
+                        applyReshadeLive();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onReshadeModeChanged(String mode) {
+                        reshadeMode = com.winlator.cmod.runtime.reshade.ReshadeLoadout.normalizeMode(mode);
+                        if (com.winlator.cmod.runtime.reshade.ReshadeLoadout.MODE_SOLO.equals(reshadeMode)) {
+                            // Collapse to a single active effect (keep the first enabled one).
+                            boolean seen = false;
+                            for (ReshadeLiveEffect e : reshadeLive) {
+                                if (e.enabled && !seen) seen = true; else e.enabled = false;
+                            }
+                        }
+                        applyReshadeLive();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onReshadeParamChanged(int index, String key, float value) {
+                        if (index < 0 || index >= reshadeLive.size()) return;
+                        reshadeLive.get(index).values.put(key, value);
+                        applyReshadeLive();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onReshadeReset(int index) {
+                        if (index < 0 || index >= reshadeLive.size()) return;
+                        ReshadeLiveEffect e = reshadeLive.get(index);
+                        e.values.clear();
+                        for (ReshadeManager.ReshadeParam p : e.defs) ReshadeManager.seedValues(p, null, e.values);
+                        applyReshadeLive();
                         renderDrawerMenu();
                     }
 
@@ -6488,6 +6762,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     "' effective='" + effectiveCustomEnvVars + "'");
             envVars.putAll(effectiveCustomEnvVars);
 
+            // must run after custom env: a user-set ENABLE_VKBASALT wins and this backs off
+            applyReshadeEnv(envVars);
+
             // Steam-style launch options: KEY=VALUE tokens before %command% become env vars.
             String launchOptsForEnv = shortcut != null
                     ? getShortcutSetting("execArgs", container.getExecArgs())
@@ -7751,7 +8028,25 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             Log.d("XServerDisplayActivity", "First time container boot, re-extracting libs");
             TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/wrapper" + ".tzst", rootDir);
             TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "layers" + ".tzst", rootDir);
-            TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/extra_libs" + ".tzst", rootDir);
+            // extra_libs.tzst handled by the version-aware block below (covers first boot too).
+        }
+
+        // safe to re-extract: the tzst holds only usr/lib/*.so + usr/share/vulkan/*, no home/drive_c
+        try {
+            File extraLibsMarker = new File(rootDir, "usr/lib/.extra_libs_version");
+            int installedExtraLibsVer = -1;
+            if (extraLibsMarker.exists()) {
+                try { installedExtraLibsVer = Integer.parseInt(FileUtils.readString(extraLibsMarker).trim()); }
+                catch (Exception ignored) {}
+            }
+            if (installedExtraLibsVer != EXTRA_LIBS_VERSION) {
+                Log.i("XServerDisplayActivity", "extra_libs outdated (installed=" + installedExtraLibsVer
+                        + " bundled=" + EXTRA_LIBS_VERSION + ") — re-extracting");
+                TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/extra_libs.tzst", rootDir);
+                FileUtils.writeString(extraLibsMarker, String.valueOf(EXTRA_LIBS_VERSION));
+            }
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity", "extra_libs version check failed", e);
         }
 
         // FFmpeg 8 libs for Wine's winedmo media path (arm64ec native Wine only; these
@@ -7783,6 +8078,24 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "layers" + ".tzst", rootDir);
             leegaoMarker.delete();
             gamenativeMarker.delete();
+        }
+
+        // libgallium_wgl.dll is present only while Windows Zink is installed — use as marker.
+        if (wineInfo != null && wineInfo.isArm64EC()
+                && !GPUInformation.getRenderer(null, null).contains("Mali")) {
+            File winWindowsDir = new File(rootDir, ImageFs.WINEPREFIX + "/drive_c/windows");
+            File zinkMarker = new File(winWindowsDir, "system32/libgallium_wgl.dll");
+            if ("windows".equals(zinkMode)) {
+                if (!zinkMarker.exists()) {
+                    try {
+                        TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/zink_dlls.tzst", winWindowsDir);
+                    } catch (Exception e) {
+                        Log.w("XServerDisplayActivity", "zink_dlls.tzst extraction failed", e);
+                    }
+                }
+            } else if (zinkMarker.exists()) {
+                WinComponentSetup.restoreWineBuiltinDllFiles(imageFs, wineInfo, "opengl32.dll", "libgallium_wgl.dll");
+            }
         }
 
         if (adrenoToolsDriverId != null && !adrenoToolsDriverId.isEmpty()
@@ -11177,22 +11490,25 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 boolean isApp = window.isApplicationWindow();
                 boolean isMapped = window.attributes.isMapped();
                 int area = window.getWidth() * window.getHeight();
-                
+
                 int score = 0;
                 if (isApp) score += 100000000;
                 if (isMapped) score += 10000000;
-                
+
                 String rName = prop.toString().toLowerCase();
                 if (rName.contains("vkd3d")) {
                     score += 6000000;
                 } else if (rName.contains("dxvk")) {
                     score += 5000000;
+                } else if (rName.contains("zink")) {
+                    // Prefer the GL renderer window over a bare-Vulkan probe window.
+                    score += 4500000;
                 } else if (rName.contains("vulkan") || rName.contains("turnip")) {
                     score += 4000000;
                 }
-                
+
                 score += Math.min(area, 3000000);
-                
+
                 if (score > bestScore) {
                     bestScore = score;
                     bestWindow = window;
@@ -11203,14 +11519,26 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
         }
 
+        boolean hasApp = hasNonShellAppWindow();
+        if (hasApp) gameWindowSeen = true;
+
         boolean windowChanged = bestWindow != null && frameRatingWindowId != bestWindow.id;
         if (bestWindow != null) {
             lastRendererName = bestRenderer;
             lastGpuName = bestGpu;
+            if (bestWindow.id != rendererWindowId) {
+                rendererWindowId = bestWindow.id;
+                rendererWindowPresented = false;
+            }
             frameRatingWindowId = bestWindow.id;
         } else {
-            lastRendererName = "Vulkan";
-            lastGpuName = null;
+            if (rendererWindowPresented || (gameWindowSeen && !hasApp)) {
+                lastRendererName = "Vulkan";
+                lastGpuName = null;
+                gameWindowSeen = false;
+                rendererWindowId = -1;
+                rendererWindowPresented = false;
+            }
             frameRatingWindowId = -1;
         }
 
@@ -11224,6 +11552,18 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
             updateHUDRenderMode();
         });
+    }
+
+    /** True while an application window other than the desktop shell is mapped. */
+    private boolean hasNonShellAppWindow() {
+        if (xServer == null) return false;
+        for (Window w : xServer.windowManager.getWindows()) {
+            if (w.id == xServer.windowManager.rootWindow.id) continue;
+            if (!w.isApplicationWindow()) continue;
+            String cls = w.getClassName();
+            if (cls == null || !cls.toLowerCase().contains("explorer")) return true;
+        }
+        return false;
     }
 
     /** Engine label for the Mango HUD: renderer name plus the DXVK version when running DXVK. */

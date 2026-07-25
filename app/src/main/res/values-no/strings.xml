@@ -385,6 +385,7 @@
     <string name="input_controls_editor_reset_unavailable">Ingen opprinnelig øyeblikksbilde er tilgjengelig for denne profilen.</string>
     <string name="input_controls_editor_title">Kontrollredigering</string>
     <string name="input_controls_editor_toggle_switch">Vippebryter</string>
+    <string name="input_controls_editor_swipeable">Sveipbar</string>
     <string name="input_controls_editor_profile_exported_to">Profil eksportert til</string>
     <string name="input_controls_editor_unable_to_import">Kan ikke importere profil</string>
     <string name="input_controls_editor_import_profile">Importer profil</string>
@@ -594,6 +595,7 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Grafikkdriver</string>
+    <string name="container_zink_mode">Zink-modus</string>
     <string name="container_graphics_configuration">Konfigurasjon av grafikkdriver</string>
     <string name="container_graphics_version">Versjon av grafikkdriver</string>
     <string name="container_graphics_available_extensions">Tilgjengelige utvidelser</string>
@@ -1586,15 +1588,28 @@ Installert bane:
     <string name="file_manager_paste">Lim inn</string>
     <string name="file_manager_paste_here">Lim inn her</string>
     <string name="file_manager_new_folder">Ny mappe</string>
+    <string name="file_manager_new_folder_short">Mappe</string>
+    <string name="file_manager_multi_select">Velg</string>
     <string name="file_manager_create">Opprett</string>
     <string name="file_manager_delete">Slett</string>
+    <string name="file_manager_copy_count">Kopier (%1$d)</string>
+    <string name="file_manager_cut_count">Klipp ut (%1$d)</string>
+    <string name="file_manager_delete_count">Slett (%1$d)</string>
+    <string name="file_manager_extract">Pakk ut</string>
+    <string name="file_manager_extract_here">Pakk ut her</string>
+    <string name="file_manager_extract_to">Pakk ut til…</string>
+    <string name="file_manager_extracting">Pakker ut %1$s</string>
+    <string name="file_manager_extract_failed">Utpakking mislyktes</string>
     <string name="file_manager_run_boot">Kjør / Boot</string>
     <string name="file_manager_create_shortcut">Opprett snarvei</string>
     <string name="file_manager_run_in_container">Kjør i container</string>
     <string name="file_manager_no_containers">Ingen containere tilgjengelig</string>
     <string name="file_manager_delete_confirm">Slette \"%1$s\"? Dette kan ikke angres.</string>
+    <string name="file_manager_delete_confirm_multi">Slette %1$d elementer? Dette kan ikke angres.</string>
     <string name="file_manager_copying">Kopierer %1$s</string>
     <string name="file_manager_moving">Flytter %1$s</string>
+    <string name="file_manager_copying_count">Kopierer %1$d elementer</string>
+    <string name="file_manager_moving_count">Flytter %1$d elementer</string>
     <string name="file_manager_paste_into_itself">Kan ikke lime inn en mappe i seg selv</string>
     <string name="file_manager_operation_failed">Operasjonen mislyktes</string>
     <string name="file_manager_delete_failed">Sletting mislyktes</string>
@@ -1602,4 +1617,39 @@ Installert bane:
     <string name="file_manager_create_folder_failed">Oppretting av mappe mislyktes</string>
 
     <string name="settings_content_refresh">Oppdater</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">Bruk en ReShade-effekt (.fx) på DXVK/VKD3D-spill (Vulkan) via det innebygde vkBasalt-laget. Legg hver effekt i sin egen mappe under Android/data/&lt;package&gt;/files/ReShade/. Justering av parametere i sanntid og bryteren i spillet kommer med oppdateringen av live-reload-laget.</string>
+    <string name="reshade_catalog_title">ReShade-effekter</string>
+    <string name="reshade_catalog_search">Søk etter effekter…</string>
+    <string name="reshade_catalog_installed">Installert (%1$d)</string>
+    <string name="reshade_catalog_available">Tilgjengelige (%1$d)</string>
+    <string name="reshade_catalog_downloading">Laster ned</string>
+    <string name="reshade_catalog_installing">Installerer</string>
+    <string name="reshade_catalog_offline_cache">Frakoblet — viser en bufret liste. Koble til for å laste ned nye effekter.</string>
+    <string name="reshade_catalog_offline_none">Frakoblet — viser bare installerte effekter. Koble til for å bla gjennom katalogen.</string>
+    <string name="reshade_catalog_needs_connection">Koble til internett for å laste ned effekter.</string>
+    <string name="reshade_catalog_download_failed">Kunne ikke laste ned %1$s.</string>
+    <string name="reshade_catalog_empty_query">Ingen effekter samsvarer med \"%1$s\".</string>
+    <string name="reshade_catalog_empty">Ingen effekter tilgjengelige. Koble til internett for å bla gjennom katalogen.</string>
+    <string name="reshade_catalog_done">Ferdig</string>
+    <string name="reshade_catalog_delete_cd">Slett %1$s</string>
+    <string name="reshade_catalog_delete_title">Slette %1$s?</string>
+    <string name="reshade_catalog_delete_body">Dette fjerner effekten fra lagringen og fra alle sett som bruker den. Du kan laste den ned igjen senere.</string>
+    <string name="reshade_catalog_delete_confirm">Slett</string>
+    <string name="reshade_catalog_delete_cancel">Avbryt</string>
+    <string name="reshade_catalog_delete_failed">Kunne ikke slette %1$s.</string>
+    <string name="reshade_params_title">EFFEKTPARAMETERE</string>
+    <string name="reshade_params_reset">Tilbakestill</string>
+    <string name="reshade_loadout_empty">Ingen effekter ennå. Legg til én eller flere effekter for å lage et sett.</string>
+    <string name="reshade_loadout_add">Legg til effekt</string>
+    <string name="reshade_loadout_full">Settet er fullt — fjern en effekt for å legge til en annen.</string>
+    <string name="reshade_effect_active">aktiv</string>
+    <string name="reshade_mode_solo">Solo</string>
+    <string name="reshade_mode_stack">Stabel</string>
+    <string name="reshade_mode_solo_hint">Én effekt aktiv om gangen (A/B-sammenligning, bytt live i spillet).</string>
+    <string name="reshade_mode_stack_hint">Legg lag på lag med et vilkårlig utvalg effekter, brukt i rekkefølge.</string>
+    <string name="reshade_drawer_enable">Aktiver ReShade</string>
+    <string name="reshade_drawer_empty">Ingen ReShade-effekter i dette settet. Legg til effekter i dette spillets innstillinger (eller containerens) for å bytte og justere dem her.</string>
+    <string name="reshade_drawer_no_params">Denne effekten har ingen justerbare parametere.</string>
 </resources>

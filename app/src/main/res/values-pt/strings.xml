@@ -385,6 +385,7 @@
     <string name="input_controls_editor_reset_unavailable">Não existe nenhum instantâneo original disponível para este perfil.</string>
     <string name="input_controls_editor_title">Editor de controlos</string>
     <string name="input_controls_editor_toggle_switch">Interruptor de alternância</string>
+    <string name="input_controls_editor_swipeable">Deslizável</string>
     <string name="input_controls_editor_profile_exported_to">Perfil exportado para</string>
     <string name="input_controls_editor_unable_to_import">Não foi possível importar o perfil</string>
     <string name="input_controls_editor_import_profile">Importar perfil</string>
@@ -594,6 +595,7 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Controlador Gráfico</string>
+    <string name="container_zink_mode">Modo Zink</string>
     <string name="container_graphics_configuration">Configuração do Controlador Gráfico</string>
     <string name="container_graphics_version">Versão do Controlador Gráfico</string>
     <string name="container_graphics_available_extensions">Extensões Disponíveis</string>
@@ -1586,15 +1588,28 @@ Caminho instalado:
     <string name="file_manager_paste">Colar</string>
     <string name="file_manager_paste_here">Colar aqui</string>
     <string name="file_manager_new_folder">Nova pasta</string>
+    <string name="file_manager_new_folder_short">Pasta</string>
+    <string name="file_manager_multi_select">Marcar</string>
     <string name="file_manager_create">Criar</string>
     <string name="file_manager_delete">Eliminar</string>
+    <string name="file_manager_copy_count">Copiar (%1$d)</string>
+    <string name="file_manager_cut_count">Cortar (%1$d)</string>
+    <string name="file_manager_delete_count">Eliminar (%1$d)</string>
+    <string name="file_manager_extract">Extrair</string>
+    <string name="file_manager_extract_here">Extrair aqui</string>
+    <string name="file_manager_extract_to">Extrair para…</string>
+    <string name="file_manager_extracting">A extrair %1$s</string>
+    <string name="file_manager_extract_failed">Falha na extração</string>
     <string name="file_manager_run_boot">Executar / Arrancar</string>
     <string name="file_manager_create_shortcut">Criar atalho</string>
     <string name="file_manager_run_in_container">Executar no contentor</string>
     <string name="file_manager_no_containers">Não há contentores disponíveis</string>
     <string name="file_manager_delete_confirm">Eliminar \"%1$s\"? Isto não pode ser anulado.</string>
+    <string name="file_manager_delete_confirm_multi">Eliminar %1$d itens? Isto não pode ser anulado.</string>
     <string name="file_manager_copying">A copiar %1$s</string>
     <string name="file_manager_moving">A mover %1$s</string>
+    <string name="file_manager_copying_count">A copiar %1$d itens</string>
+    <string name="file_manager_moving_count">A mover %1$d itens</string>
     <string name="file_manager_paste_into_itself">Não é possível colar uma pasta dentro de si própria</string>
     <string name="file_manager_operation_failed">A operação falhou</string>
     <string name="file_manager_delete_failed">A eliminação falhou</string>
@@ -1602,4 +1617,39 @@ Caminho instalado:
     <string name="file_manager_create_folder_failed">A criação da pasta falhou</string>
 
     <string name="settings_content_refresh">Atualizar</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">Aplique um efeito ReShade (.fx) a jogos DXVK/VKD3D (Vulkan) através da camada vkBasalt integrada. Coloque cada efeito na sua própria pasta em Android/data/&lt;package&gt;/files/ReShade/. O ajuste de parâmetros em tempo real e o botão no jogo chegarão com a atualização da camada de recarregamento em tempo real.</string>
+    <string name="reshade_catalog_title">Efeitos ReShade</string>
+    <string name="reshade_catalog_search">Procurar efeitos…</string>
+    <string name="reshade_catalog_installed">Instalados (%1$d)</string>
+    <string name="reshade_catalog_available">Disponíveis (%1$d)</string>
+    <string name="reshade_catalog_downloading">A transferir</string>
+    <string name="reshade_catalog_installing">A instalar</string>
+    <string name="reshade_catalog_offline_cache">Offline — a mostrar uma lista em cache. Ligue-se para transferir novos efeitos.</string>
+    <string name="reshade_catalog_offline_none">Offline — a mostrar apenas os efeitos instalados. Ligue-se para explorar o catálogo.</string>
+    <string name="reshade_catalog_needs_connection">Ligue-se à internet para transferir efeitos.</string>
+    <string name="reshade_catalog_download_failed">Falha ao transferir %1$s.</string>
+    <string name="reshade_catalog_empty_query">Nenhum efeito corresponde a \"%1$s\".</string>
+    <string name="reshade_catalog_empty">Nenhum efeito disponível. Ligue-se à internet para explorar o catálogo.</string>
+    <string name="reshade_catalog_done">Concluído</string>
+    <string name="reshade_catalog_delete_cd">Eliminar %1$s</string>
+    <string name="reshade_catalog_delete_title">Eliminar %1$s?</string>
+    <string name="reshade_catalog_delete_body">Isto remove o efeito do armazenamento e de qualquer conjunto que o utilize. Pode transferi-lo novamente mais tarde.</string>
+    <string name="reshade_catalog_delete_confirm">Eliminar</string>
+    <string name="reshade_catalog_delete_cancel">Cancelar</string>
+    <string name="reshade_catalog_delete_failed">Não foi possível eliminar %1$s.</string>
+    <string name="reshade_params_title">PARÂMETROS DO EFEITO</string>
+    <string name="reshade_params_reset">Repor</string>
+    <string name="reshade_loadout_empty">Ainda não há efeitos. Adicione um ou mais efeitos para criar um conjunto.</string>
+    <string name="reshade_loadout_add">Adicionar efeito</string>
+    <string name="reshade_loadout_full">Conjunto cheio — remova um efeito para adicionar outro.</string>
+    <string name="reshade_effect_active">ativo</string>
+    <string name="reshade_mode_solo">Solo</string>
+    <string name="reshade_mode_stack">Pilha</string>
+    <string name="reshade_mode_solo_hint">Um efeito ativo de cada vez (comparação A/B, alterne em direto no jogo).</string>
+    <string name="reshade_mode_stack_hint">Sobreponha qualquer subconjunto de efeitos, aplicados por ordem.</string>
+    <string name="reshade_drawer_enable">Ativar ReShade</string>
+    <string name="reshade_drawer_empty">Não há efeitos ReShade neste conjunto. Adicione efeitos nas definições deste jogo (ou do contentor) para os alternar e ajustar aqui.</string>
+    <string name="reshade_drawer_no_params">Este efeito não expõe parâmetros ajustáveis.</string>
 </resources>

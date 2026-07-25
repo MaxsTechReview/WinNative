@@ -799,22 +799,7 @@ public class InputControlsView extends View {
                   eventHandled = true;
                   activeTouchElements.put(pointerId, element);
 
-                  // Trigger haptic feedback for input controls
-                  if (hapticsEnabled) {
-                    Vibrator vibrator;
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                      VibratorManager vibratorManager =
-                          getContext().getSystemService(VibratorManager.class);
-                      vibrator =
-                          vibratorManager != null ? vibratorManager.getDefaultVibrator() : null;
-                    } else {
-                      vibrator = getContext().getSystemService(Vibrator.class);
-                    }
-                    if (vibrator != null && vibrator.hasVibrator()) {
-                      vibrator.vibrate(
-                          VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE));
-                    }
-                  }
+                  if (hapticsEnabled) triggerTouchHaptic();
                   break;
                 }
               }
@@ -836,8 +821,49 @@ public class InputControlsView extends View {
               float y = event.getY(i);
 
               ControlElement activeElement = activeTouchElements.get(movePointerId);
-              boolean pointerHandled =
-                  activeElement != null && activeElement.handleTouchMove(movePointerId, x, y);
+              boolean swipeAllowed =
+                  touchpadView == null
+                      || touchpadView.getScreenTouchMode() != TouchpadView.MODE_MAP_TO_RIGHT_STICK;
+              boolean pointerHandled = false;
+
+              if (swipeAllowed
+                  && activeElement != null
+                  && activeElement.isCapturing(movePointerId)
+                  && (activeElement.getType() == ControlElement.Type.RADIAL_MENU
+                      || activeElement.getType() == ControlElement.Type.D_PAD)
+                  && !activeElement.containsPoint(x, y)) {
+                for (ControlElement element : profile.getElements()) {
+                  if (element.isSwipeTarget() && element.handleTouchDown(movePointerId, x, y)) {
+                    activeElement.handleTouchUp(movePointerId, x, y);
+                    activeTouchElements.put(movePointerId, element);
+                    activeElement = element;
+                    pointerHandled = true;
+                    capturesChanged = true;
+                    if (hapticsEnabled) triggerTouchHaptic();
+                    break;
+                  }
+                }
+              }
+
+              if (!pointerHandled) {
+                pointerHandled =
+                    activeElement != null && activeElement.handleTouchMove(movePointerId, x, y);
+              }
+
+              if (swipeAllowed
+                  && activeElement != null
+                  && activeElement.getType() == ControlElement.Type.BUTTON
+                  && !activeElement.isCapturing(movePointerId)) {
+                for (ControlElement element : profile.getElements()) {
+                  if (element.isSwipeTarget() && element.handleTouchDown(movePointerId, x, y)) {
+                    activeTouchElements.put(movePointerId, element);
+                    pointerHandled = true;
+                    capturesChanged = true;
+                    if (hapticsEnabled) triggerTouchHaptic();
+                    break;
+                  }
+                }
+              }
 
               if (!pointerHandled && activeElement == null) {
                 if (stickElement != null && stickElement.handleTouchMove(movePointerId, x, y)) {
@@ -910,6 +936,19 @@ public class InputControlsView extends View {
       releaseStaleCaptures(event);
     }
     return true;
+  }
+
+  private void triggerTouchHaptic() {
+    Vibrator vibrator;
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+      VibratorManager vibratorManager = getContext().getSystemService(VibratorManager.class);
+      vibrator = vibratorManager != null ? vibratorManager.getDefaultVibrator() : null;
+    } else {
+      vibrator = getContext().getSystemService(Vibrator.class);
+    }
+    if (vibrator != null && vibrator.hasVibrator()) {
+      vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE));
+    }
   }
 
   private void syncCapturedPointers() {

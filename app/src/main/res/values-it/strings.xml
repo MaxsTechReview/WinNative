@@ -326,6 +326,7 @@
     <string name="input_controls_editor_confirm_duplicate_profile">Vuoi duplicare questo profilo?</string>
     <string name="input_controls_editor_title">Editor controlli</string>
     <string name="input_controls_editor_toggle_switch">Interruttore a levetta</string>
+    <string name="input_controls_editor_swipeable">Attivabile con swipe</string>
     <string name="input_controls_editor_profile_exported_to">Profilo esportato in</string>
     <string name="input_controls_editor_unable_to_import">Impossibile importare il profilo</string>
     <string name="input_controls_editor_import_profile">Importa profilo</string>
@@ -512,6 +513,7 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Driver grafico</string>
+    <string name="container_zink_mode">Modalità Zink</string>
     <string name="container_graphics_transcoder">Transcodificatore BCn</string>
     <string name="container_graphics_quality">Qualità BCn</string>
     <string name="container_graphics_configuration">Configurazione driver grafico</string>
@@ -1571,15 +1573,28 @@ Percorso installato:
     <string name="file_manager_paste">Incolla</string>
     <string name="file_manager_paste_here">Incolla qui</string>
     <string name="file_manager_new_folder">Nuova cartella</string>
+    <string name="file_manager_new_folder_short">Cartella</string>
+    <string name="file_manager_multi_select">Scegli</string>
     <string name="file_manager_create">Crea</string>
     <string name="file_manager_delete">Elimina</string>
+    <string name="file_manager_copy_count">Copia (%1$d)</string>
+    <string name="file_manager_cut_count">Taglia (%1$d)</string>
+    <string name="file_manager_delete_count">Elimina (%1$d)</string>
+    <string name="file_manager_extract">Estrai</string>
+    <string name="file_manager_extract_here">Estrai qui</string>
+    <string name="file_manager_extract_to">Estrai in…</string>
+    <string name="file_manager_extracting">Estrazione di %1$s in corso</string>
+    <string name="file_manager_extract_failed">Estrazione non riuscita</string>
     <string name="file_manager_run_boot">Avvia / Boot</string>
     <string name="file_manager_create_shortcut">Crea scorciatoia</string>
     <string name="file_manager_run_in_container">Esegui nel contenitore</string>
     <string name="file_manager_no_containers">Nessun contenitore disponibile</string>
     <string name="file_manager_delete_confirm">Eliminare \"%1$s\"? L\'operazione non può essere annullata.</string>
+    <string name="file_manager_delete_confirm_multi">Eliminare %1$d elementi? L\'operazione non può essere annullata.</string>
     <string name="file_manager_copying">Copia di %1$s in corso</string>
     <string name="file_manager_moving">Spostamento di %1$s in corso</string>
+    <string name="file_manager_copying_count">Copia di %1$d elementi in corso</string>
+    <string name="file_manager_moving_count">Spostamento di %1$d elementi in corso</string>
     <string name="file_manager_paste_into_itself">Impossibile incollare una cartella in sé stessa</string>
     <string name="file_manager_operation_failed">Operazione non riuscita</string>
     <string name="file_manager_delete_failed">Eliminazione non riuscita</string>
@@ -1603,5 +1618,40 @@ Percorso installato:
     <string name="steam_chat_setting_stay_running">Esegui in background</string>
     <string name="steam_chat_setting_stay_running_desc">Mantieni la chat attiva dopo aver chiuso WinNative</string>
     <string name="settings_content_refresh">Aggiorna</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">Applica un effetto ReShade (.fx) ai giochi DXVK/VKD3D (Vulkan) tramite il livello vkBasalt integrato. Metti ogni effetto in una propria cartella in Android/data/&lt;package&gt;/files/ReShade/. La regolazione dei parametri in tempo reale e l\'interruttore in gioco arriveranno con l\'aggiornamento del livello a ricaricamento immediato.</string>
+    <string name="reshade_catalog_title">Effetti ReShade</string>
+    <string name="reshade_catalog_search">Cerca effetti…</string>
+    <string name="reshade_catalog_installed">Installati (%1$d)</string>
+    <string name="reshade_catalog_available">Disponibili (%1$d)</string>
+    <string name="reshade_catalog_downloading">Download in corso</string>
+    <string name="reshade_catalog_installing">Installazione in corso</string>
+    <string name="reshade_catalog_offline_cache">Offline — visualizzazione di un elenco memorizzato nella cache. Connettiti per scaricare nuovi effetti.</string>
+    <string name="reshade_catalog_offline_none">Offline — visualizzazione dei soli effetti installati. Connettiti per sfogliare il catalogo.</string>
+    <string name="reshade_catalog_needs_connection">Connettiti a Internet per scaricare effetti.</string>
+    <string name="reshade_catalog_download_failed">Impossibile scaricare %1$s.</string>
+    <string name="reshade_catalog_empty_query">Nessun effetto corrisponde a \"%1$s\".</string>
+    <string name="reshade_catalog_empty">Nessun effetto disponibile. Connettiti a Internet per sfogliare il catalogo.</string>
+    <string name="reshade_catalog_done">Fatto</string>
+    <string name="reshade_catalog_delete_cd">Elimina %1$s</string>
+    <string name="reshade_catalog_delete_title">Eliminare %1$s?</string>
+    <string name="reshade_catalog_delete_body">Questo rimuove l\'effetto dalla memoria e da qualsiasi configurazione che lo utilizza. Potrai scaricarlo di nuovo in seguito.</string>
+    <string name="reshade_catalog_delete_confirm">Elimina</string>
+    <string name="reshade_catalog_delete_cancel">Annulla</string>
+    <string name="reshade_catalog_delete_failed">Impossibile eliminare %1$s.</string>
+    <string name="reshade_params_title">PARAMETRI DELL\'EFFETTO</string>
+    <string name="reshade_params_reset">Ripristina</string>
+    <string name="reshade_loadout_empty">Ancora nessun effetto. Aggiungi uno o più effetti per creare una configurazione.</string>
+    <string name="reshade_loadout_add">Aggiungi effetto</string>
+    <string name="reshade_loadout_full">Configurazione piena — rimuovi un effetto per aggiungerne un altro.</string>
+    <string name="reshade_effect_active">attivo</string>
+    <string name="reshade_mode_solo">Solo</string>
+    <string name="reshade_mode_stack">Pila</string>
+    <string name="reshade_mode_solo_hint">Un effetto attivo alla volta (confronto A/B, cambia dal vivo nel gioco).</string>
+    <string name="reshade_mode_stack_hint">Sovrapponi qualsiasi sottoinsieme di effetti, applicati in ordine.</string>
+    <string name="reshade_drawer_enable">Abilita ReShade</string>
+    <string name="reshade_drawer_empty">Nessun effetto ReShade in questa configurazione. Aggiungi effetti nelle impostazioni di questo gioco (o del contenitore) per cambiarli e regolarli qui.</string>
+    <string name="reshade_drawer_no_params">Questo effetto non espone parametri regolabili.</string>
 </resources>
 

@@ -385,6 +385,7 @@
     <string name="input_controls_editor_reset_unavailable">Ingen ursprunglig ögonblicksbild finns tillgänglig för den här profilen.</string>
     <string name="input_controls_editor_title">Kontrollredigerare</string>
     <string name="input_controls_editor_toggle_switch">Växlingsknapp</string>
+    <string name="input_controls_editor_swipeable">Svepbar</string>
     <string name="input_controls_editor_profile_exported_to">Profil exporterad till</string>
     <string name="input_controls_editor_unable_to_import">Det gick inte att importera profilen</string>
     <string name="input_controls_editor_import_profile">Importera profil</string>
@@ -594,6 +595,7 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Grafikdrivrutin</string>
+    <string name="container_zink_mode">Zink-läge</string>
     <string name="container_graphics_configuration">Grafikdrivrutinskonfiguration</string>
     <string name="container_graphics_version">Grafikdrivrutinsversion</string>
     <string name="container_graphics_available_extensions">Tillgängliga tillägg</string>
@@ -1586,15 +1588,28 @@ Installerad sökväg:
     <string name="file_manager_paste">Klistra in</string>
     <string name="file_manager_paste_here">Klistra in här</string>
     <string name="file_manager_new_folder">Ny mapp</string>
+    <string name="file_manager_new_folder_short">Mapp</string>
+    <string name="file_manager_multi_select">Välj</string>
     <string name="file_manager_create">Skapa</string>
     <string name="file_manager_delete">Ta bort</string>
+    <string name="file_manager_copy_count">Kopiera (%1$d)</string>
+    <string name="file_manager_cut_count">Klipp ut (%1$d)</string>
+    <string name="file_manager_delete_count">Ta bort (%1$d)</string>
+    <string name="file_manager_extract">Packa upp</string>
+    <string name="file_manager_extract_here">Packa upp här</string>
+    <string name="file_manager_extract_to">Packa upp till…</string>
+    <string name="file_manager_extracting">Packar upp %1$s</string>
+    <string name="file_manager_extract_failed">Uppackningen misslyckades</string>
     <string name="file_manager_run_boot">Kör / Starta</string>
     <string name="file_manager_create_shortcut">Skapa genväg</string>
     <string name="file_manager_run_in_container">Kör i container</string>
     <string name="file_manager_no_containers">Inga containrar tillgängliga</string>
     <string name="file_manager_delete_confirm">Ta bort \"%1$s\"? Detta kan inte ångras.</string>
+    <string name="file_manager_delete_confirm_multi">Ta bort %1$d objekt? Detta kan inte ångras.</string>
     <string name="file_manager_copying">Kopierar %1$s</string>
     <string name="file_manager_moving">Flyttar %1$s</string>
+    <string name="file_manager_copying_count">Kopierar %1$d objekt</string>
+    <string name="file_manager_moving_count">Flyttar %1$d objekt</string>
     <string name="file_manager_paste_into_itself">Det går inte att klistra in en mapp i sig själv</string>
     <string name="file_manager_operation_failed">Åtgärden misslyckades</string>
     <string name="file_manager_delete_failed">Borttagning misslyckades</string>
@@ -1602,4 +1617,39 @@ Installerad sökväg:
     <string name="file_manager_create_folder_failed">Det gick inte att skapa mappen</string>
 
     <string name="settings_content_refresh">Uppdatera</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">Använd en ReShade-effekt (.fx) på DXVK/VKD3D-spel (Vulkan) via det inbyggda vkBasalt-lagret. Lägg varje effekt i sin egen mapp under Android/data/&lt;package&gt;/files/ReShade/. Justering av parametrar i realtid och växeln i spelet kommer med uppdateringen av live-reload-lagret.</string>
+    <string name="reshade_catalog_title">ReShade-effekter</string>
+    <string name="reshade_catalog_search">Sök effekter…</string>
+    <string name="reshade_catalog_installed">Installerade (%1$d)</string>
+    <string name="reshade_catalog_available">Tillgängliga (%1$d)</string>
+    <string name="reshade_catalog_downloading">Laddar ner</string>
+    <string name="reshade_catalog_installing">Installerar</string>
+    <string name="reshade_catalog_offline_cache">Offline — visar en cachad lista. Anslut för att ladda ner nya effekter.</string>
+    <string name="reshade_catalog_offline_none">Offline — visar endast installerade effekter. Anslut för att bläddra i katalogen.</string>
+    <string name="reshade_catalog_needs_connection">Anslut till internet för att ladda ner effekter.</string>
+    <string name="reshade_catalog_download_failed">Det gick inte att ladda ner %1$s.</string>
+    <string name="reshade_catalog_empty_query">Inga effekter matchar \"%1$s\".</string>
+    <string name="reshade_catalog_empty">Inga effekter tillgängliga. Anslut till internet för att bläddra i katalogen.</string>
+    <string name="reshade_catalog_done">Klar</string>
+    <string name="reshade_catalog_delete_cd">Ta bort %1$s</string>
+    <string name="reshade_catalog_delete_title">Ta bort %1$s?</string>
+    <string name="reshade_catalog_delete_body">Detta tar bort effekten från lagringen och från alla uppsättningar som använder den. Du kan ladda ner den igen senare.</string>
+    <string name="reshade_catalog_delete_confirm">Ta bort</string>
+    <string name="reshade_catalog_delete_cancel">Avbryt</string>
+    <string name="reshade_catalog_delete_failed">Det gick inte att ta bort %1$s.</string>
+    <string name="reshade_params_title">EFFEKTPARAMETRAR</string>
+    <string name="reshade_params_reset">Återställ</string>
+    <string name="reshade_loadout_empty">Inga effekter ännu. Lägg till en eller flera effekter för att skapa en uppsättning.</string>
+    <string name="reshade_loadout_add">Lägg till effekt</string>
+    <string name="reshade_loadout_full">Uppsättningen är full — ta bort en effekt för att lägga till en annan.</string>
+    <string name="reshade_effect_active">aktiv</string>
+    <string name="reshade_mode_solo">Solo</string>
+    <string name="reshade_mode_stack">Stapel</string>
+    <string name="reshade_mode_solo_hint">En effekt aktiv i taget (A/B-jämförelse, växla live i spelet).</string>
+    <string name="reshade_mode_stack_hint">Lägg valfri delmängd av effekter i lager, tillämpade i ordning.</string>
+    <string name="reshade_drawer_enable">Aktivera ReShade</string>
+    <string name="reshade_drawer_empty">Inga ReShade-effekter i den här uppsättningen. Lägg till effekter i det här spelets inställningar (eller containerns) för att växla och justera dem här.</string>
+    <string name="reshade_drawer_no_params">Den här effekten har inga justerbara parametrar.</string>
 </resources>

@@ -385,6 +385,7 @@
     <string name="input_controls_editor_reset_unavailable">Bu profil için orijinal anlık görüntü mevcut değil.</string>
     <string name="input_controls_editor_title">Kontrol Düzenleyicisi</string>
     <string name="input_controls_editor_toggle_switch">Açma/Kapama Anahtarı</string>
+    <string name="input_controls_editor_swipeable">Kaydırılabilir</string>
     <string name="input_controls_editor_profile_exported_to">Profil şuraya dışa aktarıldı</string>
     <string name="input_controls_editor_unable_to_import">Profil içe aktarılamıyor</string>
     <string name="input_controls_editor_import_profile">Profili İçe Aktar</string>
@@ -594,6 +595,7 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Grafik Sürücüsü</string>
+    <string name="container_zink_mode">Zink Modu</string>
     <string name="container_graphics_configuration">Grafik Sürücüsü Yapılandırması</string>
     <string name="container_graphics_version">Grafik Sürücüsü Sürümü</string>
     <string name="container_graphics_available_extensions">Kullanılabilir Uzantılar</string>
@@ -1586,15 +1588,28 @@ Yüklü konum:
     <string name="file_manager_paste">Yapıştır</string>
     <string name="file_manager_paste_here">Buraya yapıştır</string>
     <string name="file_manager_new_folder">Yeni Klasör</string>
+    <string name="file_manager_new_folder_short">Klasör</string>
+    <string name="file_manager_multi_select">Seç</string>
     <string name="file_manager_create">Oluştur</string>
     <string name="file_manager_delete">Sil</string>
+    <string name="file_manager_copy_count">Kopyala (%1$d)</string>
+    <string name="file_manager_cut_count">Kes (%1$d)</string>
+    <string name="file_manager_delete_count">Sil (%1$d)</string>
+    <string name="file_manager_extract">Çıkar</string>
+    <string name="file_manager_extract_here">Buraya çıkar</string>
+    <string name="file_manager_extract_to">Şuraya çıkar…</string>
+    <string name="file_manager_extracting">%1$s çıkarılıyor</string>
+    <string name="file_manager_extract_failed">Çıkarma başarısız</string>
     <string name="file_manager_run_boot">Çalıştır / Başlat</string>
     <string name="file_manager_create_shortcut">Kısayol Oluştur</string>
     <string name="file_manager_run_in_container">Kapsayıcıda çalıştır</string>
     <string name="file_manager_no_containers">Kullanılabilir kapsayıcı yok</string>
     <string name="file_manager_delete_confirm">\"%1$s\" silinsin mi? Bu geri alınamaz.</string>
+    <string name="file_manager_delete_confirm_multi">%1$d öğe silinsin mi? Bu geri alınamaz.</string>
     <string name="file_manager_copying">%1$s kopyalanıyor</string>
     <string name="file_manager_moving">%1$s taşınıyor</string>
+    <string name="file_manager_copying_count">%1$d öğe kopyalanıyor</string>
+    <string name="file_manager_moving_count">%1$d öğe taşınıyor</string>
     <string name="file_manager_paste_into_itself">Bir klasör kendi içine yapıştırılamaz</string>
     <string name="file_manager_operation_failed">İşlem başarısız oldu</string>
     <string name="file_manager_delete_failed">Silme başarısız oldu</string>
@@ -1602,4 +1617,39 @@ Yüklü konum:
     <string name="file_manager_create_folder_failed">Klasör oluşturma başarısız oldu</string>
 
     <string name="settings_content_refresh">Yenile</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">Yerleşik vkBasalt katmanı aracılığıyla DXVK/VKD3D (Vulkan) oyunlarına bir ReShade efekti (.fx) uygulayın. Her efekti Android/data/&lt;package&gt;/files/ReShade/ altında kendi klasörüne yerleştirin. Canlı parametre ayarı ve oyun içi anahtar, canlı yeniden yükleme katmanı güncellemesiyle gelecek.</string>
+    <string name="reshade_catalog_title">ReShade efektleri</string>
+    <string name="reshade_catalog_search">Efekt ara…</string>
+    <string name="reshade_catalog_installed">Yüklü (%1$d)</string>
+    <string name="reshade_catalog_available">Kullanılabilir (%1$d)</string>
+    <string name="reshade_catalog_downloading">İndiriliyor</string>
+    <string name="reshade_catalog_installing">Yükleniyor</string>
+    <string name="reshade_catalog_offline_cache">Çevrimdışı — önbelleğe alınmış bir liste gösteriliyor. Yeni efektler indirmek için bağlanın.</string>
+    <string name="reshade_catalog_offline_none">Çevrimdışı — yalnızca yüklü efektler gösteriliyor. Kataloğa göz atmak için bağlanın.</string>
+    <string name="reshade_catalog_needs_connection">Efekt indirmek için internete bağlanın.</string>
+    <string name="reshade_catalog_download_failed">%1$s indirilemedi.</string>
+    <string name="reshade_catalog_empty_query">\"%1$s\" ile eşleşen efekt yok.</string>
+    <string name="reshade_catalog_empty">Kullanılabilir efekt yok. Kataloğa göz atmak için internete bağlanın.</string>
+    <string name="reshade_catalog_done">Bitti</string>
+    <string name="reshade_catalog_delete_cd">%1$s sil</string>
+    <string name="reshade_catalog_delete_title">%1$s silinsin mi?</string>
+    <string name="reshade_catalog_delete_body">Bu, efekti depolamadan ve onu kullanan tüm setlerden kaldırır. Daha sonra tekrar indirebilirsiniz.</string>
+    <string name="reshade_catalog_delete_confirm">Sil</string>
+    <string name="reshade_catalog_delete_cancel">İptal</string>
+    <string name="reshade_catalog_delete_failed">%1$s silinemedi.</string>
+    <string name="reshade_params_title">EFEKT PARAMETRELERİ</string>
+    <string name="reshade_params_reset">Sıfırla</string>
+    <string name="reshade_loadout_empty">Henüz efekt yok. Bir set oluşturmak için bir veya daha fazla efekt ekleyin.</string>
+    <string name="reshade_loadout_add">Efekt ekle</string>
+    <string name="reshade_loadout_full">Set dolu — başka bir efekt eklemek için birini kaldırın.</string>
+    <string name="reshade_effect_active">etkin</string>
+    <string name="reshade_mode_solo">Solo</string>
+    <string name="reshade_mode_stack">Yığın</string>
+    <string name="reshade_mode_solo_hint">Aynı anda tek efekt etkin (A/B karşılaştırması, oyun içinde canlı geçiş yapın).</string>
+    <string name="reshade_mode_stack_hint">Herhangi bir efekt alt kümesini katmanlayın, sırayla uygulanır.</string>
+    <string name="reshade_drawer_enable">ReShade\'i etkinleştir</string>
+    <string name="reshade_drawer_empty">Bu sette ReShade efekti yok. Burada değiştirmek ve ayarlamak için bu oyunun (veya kapsayıcının) ayarlarına efekt ekleyin.</string>
+    <string name="reshade_drawer_no_params">Bu efektin ayarlanabilir parametresi yok.</string>
 </resources>

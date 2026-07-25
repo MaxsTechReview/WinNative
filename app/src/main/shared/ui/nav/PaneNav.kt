@@ -136,7 +136,10 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
 
     val rows: List<List<Int>>
         get() {
-            if (singleRow) return if (items.isEmpty()) emptyList() else listOf(items.keys.sorted())
+            if (singleRow) {
+                if (items.isEmpty()) return emptyList()
+                return listOf(items.entries.sortedBy { it.value.x }.map { it.key })
+            }
             val sorted = items.entries.sortedWith(compareBy({ it.value.y + it.value.h / 2f }, { it.value.x }))
             val result = mutableListOf<MutableList<Int>>()
             var prevCenterY = Float.NaN

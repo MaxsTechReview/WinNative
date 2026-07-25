@@ -23,6 +23,10 @@
         <item>Wrapper-Leegao</item>
         <item>Wrapper-Gamenative</item>
     </string-array>
+    <string-array name="zink_mode_entries">
+        <item>Unix Zink</item>
+        <item>Windows Zink</item>
+    </string-array>
     <string-array name="wrapper_graphics_driver_version_entries">
         <item>System</item>
     </string-array>
