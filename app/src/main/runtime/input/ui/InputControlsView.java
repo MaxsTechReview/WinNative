@@ -54,6 +54,8 @@ import java.util.TimerTask;
 public class InputControlsView extends View {
   public static final float DEFAULT_OVERLAY_OPACITY = 0.4f;
   private static final byte MOUSE_WHEEL_DELTA = 120;
+  private static final long SCROLL_REPEAT_DELAY = 350;
+  private static final long SCROLL_REPEAT_INTERVAL = 90;
   private boolean editMode = false;
   private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
   private final Path path = new Path();
@@ -74,6 +76,9 @@ public class InputControlsView extends View {
   private Timer mouseMoveTimer;
   private volatile float mouseMoveOffsetX = 0f;
   private volatile float mouseMoveOffsetY = 0f;
+  private Timer scrollRepeatTimer;
+  private volatile boolean scrollRepeatUp = false;
+  private volatile boolean scrollRepeatDown = false;
   private boolean showTouchscreenControls = false;
   private VisualStyle visualStyle = VisualStyle.SLATE;
   private AccentTheme accentTheme = AccentTheme.CYAN;
@@ -508,6 +513,7 @@ public class InputControlsView extends View {
   public synchronized void cancelActiveTouches() {
     releaseActiveTouchElements();
     cancelContinuousMouseMove();
+    cancelScrollRepeat();
   }
 
   public int getMaxWidth() {
@@ -517,6 +523,7 @@ public class InputControlsView extends View {
   @Override
   protected void onDetachedFromWindow() {
     cancelContinuousMouseMove();
+    cancelScrollRepeat();
     if (mouseMoveTimer != null) {
       mouseMoveTimer.cancel();
       mouseMoveTimer = null;
@@ -553,6 +560,46 @@ public class InputControlsView extends View {
           },
           0,
           1000 / 60); // 60 FPS
+    }
+  }
+
+  // A wheel notch is a click, not a hold: press and release together.
+  private void injectScrollClick(Pointer.Button button) {
+    if (xServer == null) return;
+    xServer.injectPointerButtonPress(button);
+    xServer.injectPointerButtonRelease(button);
+  }
+
+  private void startScrollRepeat(Pointer.Button button) {
+    if (button == Pointer.Button.BUTTON_SCROLL_UP) scrollRepeatUp = true;
+    else scrollRepeatDown = true;
+    if (scrollRepeatTimer != null) return;
+    scrollRepeatTimer = new Timer();
+    scrollRepeatTimer.schedule(
+        new TimerTask() {
+          @Override
+          public void run() {
+            if (getContext() instanceof XServerDisplayActivity && ((XServerDisplayActivity) getContext()).isInputSuspended()) return;
+            if (scrollRepeatUp) injectScrollClick(Pointer.Button.BUTTON_SCROLL_UP);
+            if (scrollRepeatDown) injectScrollClick(Pointer.Button.BUTTON_SCROLL_DOWN);
+          }
+        },
+        SCROLL_REPEAT_DELAY,
+        SCROLL_REPEAT_INTERVAL);
+  }
+
+  private void stopScrollRepeat(Pointer.Button button) {
+    if (button == Pointer.Button.BUTTON_SCROLL_UP) scrollRepeatUp = false;
+    else scrollRepeatDown = false;
+    if (!scrollRepeatUp && !scrollRepeatDown) cancelScrollRepeat();
+  }
+
+  private void cancelScrollRepeat() {
+    scrollRepeatUp = false;
+    scrollRepeatDown = false;
+    if (scrollRepeatTimer != null) {
+      scrollRepeatTimer.cancel();
+      scrollRepeatTimer = null;
     }
   }
 
@@ -1083,12 +1130,20 @@ public class InputControlsView extends View {
         if (isActionDown) createMouseMoveTimer();
       } else {
         Pointer.Button pointerButton = binding.getPointerButton();
+        boolean isScroll =
+            pointerButton == Pointer.Button.BUTTON_SCROLL_UP
+                || pointerButton == Pointer.Button.BUTTON_SCROLL_DOWN;
         if (isActionDown) {
-          if (pointerButton != null) {
+          if (isScroll) {
+            injectScrollClick(pointerButton);
+            startScrollRepeat(pointerButton);
+          } else if (pointerButton != null) {
             xServer.injectPointerButtonPress(pointerButton);
           } else xServer.injectKeyPress(binding.keycode);
         } else {
-          if (pointerButton != null) {
+          if (isScroll) {
+            stopScrollRepeat(pointerButton);
+          } else if (pointerButton != null) {
             xServer.injectPointerButtonRelease(pointerButton);
           } else xServer.injectKeyRelease(binding.keycode);
         }

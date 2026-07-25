@@ -198,6 +198,8 @@ public class InputDeviceManager
   @Override
   public void onPointerButtonRelease(Pointer.Button button) {
     if (xServer.isRelativeMouseMovement()) {
+      // The wheel notch is delivered entirely by the press; a release has no Windows equivalent.
+      if (button == Pointer.Button.BUTTON_SCROLL_UP || button == Pointer.Button.BUTTON_SCROLL_DOWN) return;
       WinHandler winHandler = xServer.getWinHandler();
       winHandler.mouseEvent(MouseEventFlags.getFlagFor(button, false), 0, 0, 0);
     } else {
