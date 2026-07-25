@@ -1594,6 +1594,9 @@ Asennuspolku:
     <string name="file_manager_copy_count">Kopioi (%1$d)</string>
     <string name="file_manager_cut_count">Leikkaa (%1$d)</string>
     <string name="file_manager_delete_count">Poista (%1$d)</string>
+    <string name="file_manager_extract_here">Pura tähän</string>
+    <string name="file_manager_extracting">Puretaan %1$s</string>
+    <string name="file_manager_extract_failed">Purkaminen epäonnistui</string>
     <string name="file_manager_run_boot">Suorita / käynnistä</string>
     <string name="file_manager_create_shortcut">Luo pikakuvake</string>
     <string name="file_manager_run_in_container">Suorita säilössä</string>

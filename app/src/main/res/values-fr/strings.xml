@@ -1579,6 +1579,9 @@ Chemin installé :
     <string name="file_manager_copy_count">Copier (%1$d)</string>
     <string name="file_manager_cut_count">Couper (%1$d)</string>
     <string name="file_manager_delete_count">Supprimer (%1$d)</string>
+    <string name="file_manager_extract_here">Extraire ici</string>
+    <string name="file_manager_extracting">Extraction de %1$s</string>
+    <string name="file_manager_extract_failed">Échec de l\'extraction</string>
     <string name="file_manager_run_boot">Lancer / Démarrer</string>
     <string name="file_manager_create_shortcut">Créer un raccourci</string>
     <string name="file_manager_run_in_container">Exécuter dans le conteneur</string>

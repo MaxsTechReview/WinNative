@@ -1594,6 +1594,9 @@
     <string name="file_manager_copy_count">คัดลอก (%1$d)</string>
     <string name="file_manager_cut_count">ตัด (%1$d)</string>
     <string name="file_manager_delete_count">ลบ (%1$d)</string>
+    <string name="file_manager_extract_here">แตกไฟล์ที่นี่</string>
+    <string name="file_manager_extracting">กำลังแตกไฟล์ %1$s</string>
+    <string name="file_manager_extract_failed">แตกไฟล์ไม่สำเร็จ</string>
     <string name="file_manager_run_boot">รัน / บูต</string>
     <string name="file_manager_create_shortcut">สร้างทางลัด</string>
     <string name="file_manager_run_in_container">รันในคอนเทนเนอร์</string>

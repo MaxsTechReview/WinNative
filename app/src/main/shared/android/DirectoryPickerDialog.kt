@@ -65,6 +65,7 @@ import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -111,6 +112,7 @@ import androidx.activity.ComponentActivity
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.winlator.cmod.R
+import com.winlator.cmod.shared.io.ArchiveExtractor
 import com.winlator.cmod.shared.theme.WinNativeAccent
 import com.winlator.cmod.shared.theme.WinNativeBackground
 import com.winlator.cmod.shared.theme.WinNativeFontFamily
@@ -528,6 +530,35 @@ object DirectoryPickerDialog {
             refreshEntries()
         }
 
+        fun extractArchive(archive: File) {
+            if (transferProgress != null) return
+            val destDir = uniqueChild(currentDir, ArchiveExtractor.baseName(archive))
+            transferLabel = context.getString(R.string.file_manager_extracting, archive.name)
+            transferProgress = 0f
+            transferJob = scope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        ArchiveExtractor.extract(
+                            source = archive,
+                            destDir = destDir,
+                            onProgress = { transferProgress = it },
+                            isActive = { isActive },
+                        )
+                    }
+                } catch (e: CancellationException) {
+                    withContext(NonCancellable + Dispatchers.IO) {
+                        runCatching { destDir.deleteRecursively() }
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(context, e.message ?: context.getString(R.string.file_manager_extract_failed), Toast.LENGTH_SHORT).show()
+                } finally {
+                    transferProgress = null
+                    transferJob = null
+                    refreshEntries()
+                }
+            }
+        }
+
         fun buildItemActions(entry: Entry): List<ItemAction> {
             val target = entry.target
             val batch = multiSelect && selectedPaths.isNotEmpty()
@@ -543,6 +574,12 @@ object DirectoryPickerDialog {
             if (!batch && target.isFile && onCreateShortcut != null) {
                 actions += ItemAction(Icons.Outlined.AddLink, context.getString(R.string.file_manager_create_shortcut)) {
                     onCreateShortcut.invoke(target.absolutePath)
+                    menuTarget = null
+                }
+            }
+            if (!batch && ArchiveExtractor.isSupported(target)) {
+                actions += ItemAction(Icons.Outlined.Unarchive, context.getString(R.string.file_manager_extract_here)) {
+                    extractArchive(target)
                     menuTarget = null
                 }
             }
@@ -1586,6 +1623,19 @@ object DirectoryPickerDialog {
         }
 
         return entries
+    }
+
+    private fun uniqueChild(
+        parent: File,
+        name: String,
+    ): File {
+        var candidate = File(parent, name)
+        var index = 2
+        while (candidate.exists()) {
+            candidate = File(parent, "$name ($index)")
+            index++
+        }
+        return candidate
     }
 
     private fun treeSize(file: File): Long =

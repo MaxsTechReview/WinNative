@@ -1578,6 +1578,9 @@
     <string name="file_manager_copy_count">複製 (%1$d)</string>
     <string name="file_manager_cut_count">剪下 (%1$d)</string>
     <string name="file_manager_delete_count">刪除 (%1$d)</string>
+    <string name="file_manager_extract_here">解壓縮至此</string>
+    <string name="file_manager_extracting">正在解壓縮 %1$s</string>
+    <string name="file_manager_extract_failed">解壓縮失敗</string>
     <string name="file_manager_run_boot">執行 / 啟動</string>
     <string name="file_manager_create_shortcut">建立捷徑</string>
     <string name="file_manager_run_in_container">在容器中執行</string>

@@ -1579,6 +1579,9 @@ Percorso installato:
     <string name="file_manager_copy_count">Copia (%1$d)</string>
     <string name="file_manager_cut_count">Taglia (%1$d)</string>
     <string name="file_manager_delete_count">Elimina (%1$d)</string>
+    <string name="file_manager_extract_here">Estrai qui</string>
+    <string name="file_manager_extracting">Estrazione di %1$s in corso</string>
+    <string name="file_manager_extract_failed">Estrazione non riuscita</string>
     <string name="file_manager_run_boot">Avvia / Boot</string>
     <string name="file_manager_create_shortcut">Crea scorciatoia</string>
     <string name="file_manager_run_in_container">Esegui nel contenitore</string>

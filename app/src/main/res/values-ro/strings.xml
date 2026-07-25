@@ -1578,6 +1578,9 @@ Cale instalata:
     <string name="file_manager_copy_count">Copiaza (%1$d)</string>
     <string name="file_manager_cut_count">Decupeaza (%1$d)</string>
     <string name="file_manager_delete_count">Sterge (%1$d)</string>
+    <string name="file_manager_extract_here">Extrage aici</string>
+    <string name="file_manager_extracting">Se extrage %1$s</string>
+    <string name="file_manager_extract_failed">Extragere esuata</string>
     <string name="file_manager_run_boot">Ruleaza / Porneste</string>
     <string name="file_manager_create_shortcut">Creeaza comanda rapida</string>
     <string name="file_manager_run_in_container">Ruleaza in container</string>

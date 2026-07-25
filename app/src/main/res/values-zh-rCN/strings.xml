@@ -1579,6 +1579,9 @@
     <string name="file_manager_copy_count">复制 (%1$d)</string>
     <string name="file_manager_cut_count">剪切 (%1$d)</string>
     <string name="file_manager_delete_count">删除 (%1$d)</string>
+    <string name="file_manager_extract_here">解压到此处</string>
+    <string name="file_manager_extracting">正在解压 %1$s</string>
+    <string name="file_manager_extract_failed">解压失败</string>
     <string name="file_manager_run_boot">运行 / 启动</string>
     <string name="file_manager_create_shortcut">创建快捷方式</string>
     <string name="file_manager_run_in_container">在容器中运行</string>
