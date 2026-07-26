@@ -215,6 +215,7 @@ import com.winlator.cmod.shared.ui.CarouselView
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.dialog.PopupTextAction
 import androidx.compose.foundation.focusGroup
+import com.winlator.cmod.feature.power.PerformanceManager
 import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
 import com.winlator.cmod.shared.ui.focus.controllerMenuInput
 import com.winlator.cmod.shared.ui.focus.controllerTextFieldEscape
@@ -931,6 +932,7 @@ class UnifiedActivity :
         com.winlator.cmod.runtime.display.GlassesManager.init(this)
         bootstrapStartupState()
         maybeAutoSignInGoogleOnLaunch()
+        PerformanceManager.checkForPossibleCrash()
 
         // Surface store-session events as toasts.
         lifecycleScope.launch {

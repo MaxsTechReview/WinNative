@@ -75,6 +75,7 @@ import com.winlator.cmod.shared.ui.dialog.ContainerProgressPopup
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.dialog.WinNativeComposeDialogs
 import android.os.Environment
+import com.winlator.cmod.feature.power.PerformanceManager
 
 /**
  * Compose replacement for the legacy `ContainerDetailFragment`. Reuses
@@ -455,6 +456,19 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         state.directXComponents.value = directX
         state.generalComponents.value = general
 
+        if (PerformanceManager.isDeviceSupported && c != null) {
+            state.cpuGovernor.value = c.getExtra("cpuGovernor")
+            state.cpuBoostState.value = c.getExtra("cpuBoostState").toBoolean()
+            state.cpuEditingMode.value = c.getExtra("cpuEditingMode").toBoolean()
+            state.cpuFanMode.value = c.getExtra("cpuFanMode")
+            val cpuPolicies = c.getExtra("cpuPolicies")
+            if (cpuPolicies.isNotEmpty()) {
+                val policies = PerformanceManager.parseRawPoliciesFromString(cpuPolicies)
+                if (policies != null)
+                    state.cpuPolicies.value = policies
+            }
+        }
+
         val envVarsStr = c?.getEnvVars() ?: Container.DEFAULT_ENV_VARS
         val items = parseEnvVarItems(envVarsStr)
         state.sdl2Compatibility.value = EnvVars(envVarsStr).get("SDL_XINPUT_ENABLED") == "1"
@@ -773,6 +787,15 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val emulator64 = getIdentifierFromEntries(
             state.emulator64Entries.value, state.selectedEmulator64.intValue
         )
+
+        if (PerformanceManager.isDeviceSupported && c != null) {
+            c.putExtra("cpuBoostState", state.cpuBoostState.value.toString())
+            if (state.cpuGovernor.value.isNotEmpty())
+                c.putExtra("cpuGovernor", state.cpuGovernor.value)
+            c.putExtra("cpuEditingMode", state.cpuEditingMode.value.toString())
+            c.putExtra("cpuPolicies", PerformanceManager.policiesToString(state.cpuPolicies.value))
+            c.putExtra("cpuFanMode", state.cpuFanMode.value)
+        }
 
         val midiSoundFontEntries = state.midiSoundFontEntries.value
         val midiIdx = state.selectedMidiSoundFont.intValue

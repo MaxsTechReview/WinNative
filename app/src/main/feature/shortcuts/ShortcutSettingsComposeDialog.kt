@@ -83,6 +83,7 @@ import com.winlator.cmod.runtime.input.controls.InputControlsManager
 import com.winlator.cmod.runtime.audio.midi.MidiManager
 import com.winlator.cmod.runtime.display.winhandler.WinHandler
 import com.winlator.cmod.feature.artwork.SteamArtworkScraper
+import com.winlator.cmod.feature.power.PerformanceManager
 import java.io.File
 import java.lang.reflect.Field
 import java.util.Arrays
@@ -455,6 +456,53 @@ class ShortcutSettingsComposeDialog private constructor(
         }
         state.cpuCheckedWoW64.value = checkedWoW64
 
+        CoroutineScope(Dispatchers.IO).launch {
+            if (PerformanceManager.isDeviceSupported) {
+                state.cpuGovernor.value = shortcut.getExtra("cpuGovernor")
+                state.cpuBoostState.value = shortcut.getExtra("cpuBoostState").toBoolean()
+                state.cpuEditingMode.value = shortcut.getExtra("cpuEditingMode").toBoolean()
+                state.cpuFanMode.value = shortcut.getExtra("cpuFanMode")
+
+                val cpuPolicies = shortcut.getExtra("cpuPolicies")
+                if (cpuPolicies.isNotEmpty()) {
+                    var policies = PerformanceManager.parseRawPoliciesFromString(cpuPolicies)
+                    if (!policies.isNullOrEmpty())
+                        state.cpuPolicies.value = policies
+                    else {
+                        policies = PerformanceManager.getDefaultSystemPolicies()
+                        if (policies != null)
+                            state.cpuPolicies.value = policies
+                    }
+                } else {
+                    val containerPolicies = shortcut.container.getExtra("cpuPolicies")
+                    state.cpuGovernor.value = shortcut.container.getExtra("cpuGovernor")
+                    state.cpuBoostState.value = shortcut.container.getExtra("cpuBoostState").toBoolean()
+                    state.cpuEditingMode.value = shortcut.container.getExtra("cpuEditingMode").toBoolean()
+                    state.cpuFanMode.value = shortcut.container.getExtra("cpuFanMode")
+
+                    if (containerPolicies.isNotEmpty()) {
+                        var policies = PerformanceManager.parseRawPoliciesFromString(containerPolicies)
+                        if (!policies.isNullOrEmpty()) {
+                            state.cpuPolicies.value = policies
+                            shortcut.putExtra("cpuPolicies", containerPolicies)
+                            shortcut.putExtra("cpuGovernor", state.cpuGovernor.value)
+                            shortcut.putExtra("cpuBoostState", state.cpuBoostState.value.toString())
+                            shortcut.putExtra("cpuEditingMode", state.cpuEditingMode.value.toString())
+                            shortcut.putExtra("cpuFanMode", state.cpuFanMode.value)
+                        }
+                        else {
+                            policies = PerformanceManager.getDefaultSystemPolicies()
+                            if (!policies.isNullOrEmpty())
+                                state.cpuPolicies.value = policies
+                        }
+                    } else {
+                        val policies = PerformanceManager.getDefaultSystemPolicies()
+                        if (policies != null)
+                            state.cpuPolicies.value = policies
+                    }
+                }
+            }
+        }
         // Win Components
         loadWinComponents()
 
@@ -1362,6 +1410,15 @@ class ShortcutSettingsComposeDialog private constructor(
                     if (state.runtimePatcher.value) "1" else "0",
                     if (container.isRuntimePatcher) "1" else "0"
                 )
+            }
+
+            if (PerformanceManager.isDeviceSupported) {
+                shortcut.putExtra("cpuBoostState", state.cpuBoostState.value.toString())
+                if (state.cpuGovernor.value.isNotEmpty())
+                    shortcut.putExtra("cpuGovernor", state.cpuGovernor.value)
+                shortcut.putExtra("cpuEditingMode", state.cpuEditingMode.value.toString())
+                shortcut.putExtra("cpuPolicies", PerformanceManager.policiesToString(state.cpuPolicies.value))
+                shortcut.putExtra("cpuFanMode", state.cpuFanMode.value)
             }
 
             // Container defaults flag

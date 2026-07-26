@@ -319,6 +319,16 @@
     <string name="shortcuts_list_readded_existing">Re-added existing shortcut</string>
     <string name="shortcuts_list_failed_add">Failed to add shortcut.</string>
 
+    <!-- Performance Menu > Properties -->
+    <string name="performance_cpu_editing_enabled">Enabled CPU Frequencies</string>
+    <string name="performance_cpu_enable_boost">Enabled CPU Boost</string>
+    <string name="performance_cpu_enabled_cluster">Enabled Cluster %s</string>
+    <string name="performance_cpu_cluster_min_label">Cluster %s Min</string>
+    <string name="performance_cpu_cluster_max_label">Cluster %s Max</string>
+    <string name="performance_cpu_governor_label">CPU Governor</string>
+    <string name="performance_cpu_fan_label">Fan Control</string>
+    <string name="performance_sidebar_label">Power Controls</string>
+
     <!-- Shortcuts > Properties -->
     <string name="shortcuts_properties_exec_arguments">Exec Arguments</string>
     <string name="shortcuts_properties_target_path">Target Path</string>

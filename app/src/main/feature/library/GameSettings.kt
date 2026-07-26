@@ -142,6 +142,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import androidx.compose.foundation.focusable
+import androidx.compose.material.icons.outlined.Power
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -150,6 +151,8 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import com.winlator.cmod.shared.ui.focus.controllerFocusBorder
 import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
+import com.winlator.cmod.feature.power.CpuPolicy
+import com.winlator.cmod.feature.power.PerformanceManager
 import com.winlator.cmod.shared.ui.focus.controllerSliderEscape
 import com.winlator.cmod.shared.ui.focus.controllerTextFieldEscape
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
@@ -575,6 +578,11 @@ class GameSettingsStateHolder {
     val drives = mutableStateOf("")
 
     val isLoaded = mutableStateOf(false)
+    val cpuFanMode = mutableStateOf("")
+    val cpuGovernor = mutableStateOf("")
+    val cpuEditingMode = mutableStateOf(false)
+    val cpuBoostState = mutableStateOf(true)
+    val cpuPolicies = mutableStateOf<List<CpuPolicy>>(emptyList())
 }
 
 interface GameSettingsCallbacks {
@@ -654,6 +662,7 @@ private const val SEC_INPUT = 7
 private const val SEC_ADVANCED = 8
 private const val SEC_DRIVES = 9
 private const val SEC_SAVES = 10
+private const val SEC_POWER = 11
 
 private fun buildSections(isSteam: Boolean, isContainer: Boolean): List<Pair<Int, SidebarSection>> {
     val list = mutableListOf<Pair<Int, SidebarSection>>()
@@ -671,6 +680,9 @@ private fun buildSections(isSteam: Boolean, isContainer: Boolean): List<Pair<Int
     list += SEC_WINE to SidebarSection(Icons.Outlined.Science, R.string.container_wine_title)
     if (isContainer) {
         list += SEC_SAVES to SidebarSection(Icons.Outlined.Inventory, R.string.saves_import_export_title)
+    }
+    if (PerformanceManager.isDeviceSupported) {
+        list += SEC_POWER to SidebarSection(Icons.Outlined.Power, R.string.performance_sidebar_label)
     }
     return list
 }
@@ -847,6 +859,7 @@ private fun SectionContent(
                     SEC_ADVANCED -> AdvancedSection(state, callbacks)
                     SEC_DRIVES -> DrivesSection(state, callbacks)
                     SEC_SAVES -> SavesSection(state, callbacks)
+                    SEC_POWER -> PerformanceControlSection(state, callbacks)
                 }
                 Spacer(Modifier.height(SettingSectionGap))
             }
@@ -1048,6 +1061,132 @@ private fun SidebarItem(
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                 maxLines = 1
             )
+        }
+    }
+}
+
+@Composable
+private fun PerformanceControlSection(
+    state: GameSettingsStateHolder,
+    callbacks: GameSettingsCallbacks
+) {
+    val governors = PerformanceManager.allCpuGovernors
+    val fanModes = PerformanceManager.getSupportedFanModes()
+    var fanModeIndex by remember { mutableStateOf(fanModes?.indexOf(state.cpuFanMode.value) ?: 0) }
+    var governorIndex by remember { mutableStateOf(governors?.indexOf(state.cpuGovernor.value) ?: 0) }
+
+    if (!governors.isNullOrEmpty()) {
+        SettingGroup {
+            Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                Box(Modifier.weight(1f)) {
+                    SettingDropdown(
+                        label = stringResource(R.string.performance_cpu_governor_label),
+                        entries = governors,
+                        selectedIndex = governorIndex,
+                        onSelected = {
+                            governorIndex = it
+                            state.cpuGovernor.value = governors[it]
+                        }
+                    )
+                }
+                if (PerformanceManager.isFanSupported && !fanModes.isNullOrEmpty()) {
+                    Box(Modifier.weight(1f)) {
+                        SettingDropdown(
+                            label = stringResource(R.string.performance_cpu_fan_label),
+                            entries = fanModes,
+                            selectedIndex = fanModeIndex,
+                            onSelected = {
+                                fanModeIndex = it
+                                state.cpuFanMode.value = fanModes[it]
+                            }
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(SettingSectionGap))
+    }
+
+    if (state.cpuPolicies.value.isNotEmpty()) {
+        SettingGroup {
+            Column {
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                    Box(Modifier.weight(1f)) {
+                        SettingCheckbox(stringResource(R.string.performance_cpu_editing_enabled), state.cpuEditingMode.value, onCheckedChange = {state.cpuEditingMode.value = it})
+                    }
+                    Box(Modifier.weight(1f)) {
+                        SettingCheckbox(stringResource(R.string.performance_cpu_enable_boost), state.cpuBoostState.value, onCheckedChange = {
+                            state.cpuBoostState.value = it
+                            if (state.cpuPolicies.value.isNotEmpty())
+                                state.cpuPolicies.value.forEach { policy -> policy.boostState = it }
+                        })
+                    }
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                    for (index in state.cpuPolicies.value.indices) {
+                        var checked by remember { mutableStateOf(state.cpuPolicies.value[index].enabled) }
+                        Box(Modifier.weight(1f)) {
+                            SettingCheckbox(
+                                stringResource(R.string.performance_cpu_enabled_cluster, state.cpuPolicies.value[index].policyId.toString()),
+                                checked,
+                                onCheckedChange = { it ->
+                                    val disabledClusterCount = state.cpuPolicies.value.count { !it.enabled }
+                                    if (!it && disabledClusterCount >= state.cpuPolicies.value.size - 1)
+                                        return@SettingCheckbox
+                                    checked = it
+                                    state.cpuPolicies.value[index].enabled = it
+                                }
+                            )
+                        }
+                    }
+                }
+
+                for (index in state.cpuPolicies.value.indices) {
+                    if (!state.cpuPolicies.value[index].enabled) continue
+                    val frequencies = state.cpuPolicies.value[index].availableFrequencies ?: return@SettingGroup
+                    var minIndex by remember { mutableStateOf(frequencies.indexOf(state.cpuPolicies.value[index].minFrequency)) }
+                    var maxIndex by remember { mutableStateOf(frequencies.indexOf(state.cpuPolicies.value[index].maxFrequency)) }
+
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                        Box(Modifier.weight(1f)) {
+                            SettingSlider(
+                                label = stringResource(R.string.performance_cpu_cluster_min_label, state.cpuPolicies.value[index].policyId.toString()),
+                                value = minIndex,
+                                range = frequencies.indices,
+                                valueText = PerformanceManager.formatFrequency(frequencies[minIndex].toInt()),
+                                steps = (frequencies.size-2).coerceAtLeast(0),
+                                enabled = true,
+                                onValueChange = {
+                                    if (minIndex >= maxIndex) {
+                                        maxIndex = if ((minIndex + 1) >= frequencies.size) frequencies.size - 1 else minIndex + 1
+                                    }
+                                    minIndex = it
+                                }
+                            )
+                        }
+                        Box(Modifier.weight(1f)) {
+                            SettingSlider(
+                                label = stringResource(R.string.performance_cpu_cluster_max_label, state.cpuPolicies.value[index].policyId.toString()),
+                                value = maxIndex,
+                                range = frequencies.indices,
+                                valueText = PerformanceManager.formatFrequency(frequencies[maxIndex].toInt(), state.cpuPolicies.value[index].boostState),
+                                steps = (frequencies.size-2).coerceAtLeast(0),
+                                enabled = true,
+                                onValueChange = {
+                                    if (maxIndex <= minIndex) {
+                                        minIndex = if ((maxIndex - 1) < 0) 0 else maxIndex - 1
+                                    }
+                                    maxIndex = it
+                                }
+                            )
+                        }
+                    }
+                    state.cpuPolicies.value[index].minFrequency = frequencies[minIndex]
+                    state.cpuPolicies.value[index].maxFrequency = frequencies[maxIndex]
+                }
+            }
         }
     }
 }

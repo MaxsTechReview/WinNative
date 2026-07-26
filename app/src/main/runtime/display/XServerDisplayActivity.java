@@ -50,6 +50,7 @@ import androidx.compose.ui.platform.ComposeView;
 import androidx.core.view.WindowInsetsCompat;
 import com.winlator.cmod.BuildConfig;
 import com.winlator.cmod.feature.leaderboard.SessionRecordingController;
+import com.winlator.cmod.feature.power.PerformanceManager;
 import com.winlator.cmod.feature.stores.steam.enums.Marker;
 import com.winlator.cmod.feature.stores.steam.utils.MarkerUtils;
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager;
@@ -1877,6 +1878,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         String controlsProfile = shortcut != null ? shortcut.getExtra("controlsProfile", "") : "";
 
         Runnable runnable = () -> {
+            startPerformanceManager();
             setupUI();
             if (controlsProfile.isEmpty()) {
                 simulateConfirmInputControlsDialog();
@@ -1981,6 +1983,47 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     configChangedCallback = null;
                 }
             }, 1000);
+        }
+    }
+
+    private void startPerformanceManager() {
+        //All wintoast are just for debug will remove later
+        var performanceManager = PerformanceManager.INSTANCE;
+        if (performanceManager.isDeviceSupported()) {
+            if (shortcut.getExtra("cpuPolicies").isEmpty() && !container.getExtra("cpuPolicies").isEmpty()) {
+                WinToast.show(this, "settings empty using container default");
+                String[] fields = {"cpuPolicies", "cpuEditingMode", "cpuBoostState", "cpuFanMode", "cpuGovernor"};
+                for (String field : fields) shortcut.putExtra(field, container.getExtra(field));
+            }
+            var cpuPolicies = shortcut.getExtra("cpuPolicies");
+            var cpuEditingMode = Boolean.parseBoolean(shortcut.getExtra("cpuEditingMode"));
+            var cpuBoostState = Boolean.parseBoolean(shortcut.getExtra("cpuBoostState"));
+            var cpuFanMode = shortcut.getExtra("cpuFanMode");
+            if (!cpuFanMode.isEmpty()) {
+                WinToast.show(this, String.format("CPU fan mode set: %s", cpuFanMode));
+                performanceManager.setFanMode(cpuFanMode);
+            }
+            if (cpuEditingMode && !cpuPolicies.isEmpty()) {
+                WinToast.show(this, "CPU policies set");
+                performanceManager.setCpuCorePolicies(cpuPolicies, false);
+            } else if (!cpuBoostState) {
+                performanceManager.setCpuBoostState(false);
+            }
+            if (!cpuEditingMode && !cpuPolicies.isEmpty()) {
+                var policies =  performanceManager.parseRawPoliciesFromString(cpuPolicies);
+                if (policies != null && !policies.isEmpty()) {
+                    policies.forEach(it -> {
+                        if (!it.getEnabled())
+                            performanceManager.setPolicyOnlineState(it, false);
+                    });
+                }
+            }
+            var cpuGovernor = shortcut.getExtra("cpuGovernor");
+            if (!cpuGovernor.isEmpty()) {
+                WinToast.show(this, String.format("CPU governor set: %s", cpuGovernor));
+                performanceManager.setAllCpuCoreGovernor(cpuGovernor);
+            }
+            WinToast.show(this, String.format("disabled cores %s: ", performanceManager.getDisabledCores()));
         }
     }
 
@@ -3292,6 +3335,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 }, "XServerExitCleanup").start();
             }, 1000);
         });
+        var performanceManager = PerformanceManager.INSTANCE;
+        if (performanceManager.isDeviceSupported()) {
+            performanceManager.resetSystemToDefault();
+        }
     }
 
     private void closeAfterSessionExit() {
