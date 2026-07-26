@@ -1075,6 +1075,11 @@ private fun PerformanceControlSection(
     var fanModeIndex by remember { mutableStateOf(fanModes?.indexOf(state.cpuFanMode.value) ?: 0) }
     var governorIndex by remember { mutableStateOf(governors?.indexOf(state.cpuGovernor.value) ?: 0) }
 
+    if (state.cpuPolicies.value.isEmpty()) {
+        val policies = PerformanceManager.getCpuPolicies()
+        if (!policies.isNullOrEmpty())
+            state.cpuPolicies.value = policies
+    }
     if (!governors.isNullOrEmpty()) {
         SettingGroup {
             Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
