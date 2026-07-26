@@ -19,6 +19,8 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import androidx.preference.PreferenceManager;
+
+import com.winlator.cmod.feature.power.PerformanceManager;
 import com.winlator.cmod.runtime.system.CPUStatus;
 import java.io.BufferedReader;
 import java.io.File;
@@ -1192,7 +1194,9 @@ public class MangoHudView extends View {
         y += rowH;
       }
       if (elements[EL_CORES]) {
+        var disabledCores = PerformanceManager.INSTANCE.getDisabledCores();
         for (int i = 0; i < coreCount; i++) {
+          if (disabledCores.contains(i)) continue;
           float x = drawLabel(canvas, coreLabels[i], C_CPU, y);
           x = drawStatCell(canvas, sbCorePct[i], "%", x, y, 3);
           drawStatCell(canvas, sbCoreMhz[i], "MHz", x, y, 4);
