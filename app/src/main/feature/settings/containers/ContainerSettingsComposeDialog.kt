@@ -1179,7 +1179,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
 
         loadGraphicsDriverVersions()
 
-        selectByValue(state.gfxVulkanVersionEntries.value, config.get("vulkanVersion") ?: "1.3", state.gfxSelectedVulkanVersion)
+        selectByValue(state.gfxVulkanVersionEntries.value, config.get("vulkanVersion") ?: "1.4", state.gfxSelectedVulkanVersion)
         selectByValue(state.gfxGpuNameEntries.value, config.get("gpuName") ?: "Device", state.gfxSelectedGpuName)
         selectByNumber(state.gfxMaxDeviceMemoryEntries.value, config.get("maxDeviceMemory") ?: "0", state.gfxSelectedMaxDeviceMemory)
         selectByValue(state.gfxPresentModeEntries.value, config.get("presentMode") ?: "mailbox", state.gfxSelectedPresentMode)
@@ -1336,7 +1336,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
     }
 
     private fun buildGraphicsDriverConfigFromState(): String {
-        val vulkanVersion = state.gfxVulkanVersionEntries.value.getOrElse(state.gfxSelectedVulkanVersion.intValue) { "1.3" }
+        val vulkanVersion = state.gfxVulkanVersionEntries.value.getOrElse(state.gfxSelectedVulkanVersion.intValue) { "1.4" }
         val version = state.gfxDriverVersionEntries.value.getOrElse(state.gfxSelectedDriverVersion.intValue) { "" }
         val blacklisted = state.gfxBlacklistedExtensions.value.joinToString(",")
         val gpuName = state.gfxGpuNameEntries.value.getOrElse(state.gfxSelectedGpuName.intValue) { "Device" }

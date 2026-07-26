@@ -8124,12 +8124,18 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         envVars.put("VK_ICD_FILENAMES", imageFs.getShareDir() + "/vulkan/icd.d/wrapper_icd.aarch64.json");
 
         String vulkanVersion = graphicsDriverConfig.get("vulkanVersion");
-        if (vulkanVersion == null) vulkanVersion = "1.3";
+        if (vulkanVersion == null) vulkanVersion = "1.4";
         try {
             String fullVkVersion = GPUInformation.getVulkanVersion(adrenoToolsDriverId, this);
             if (fullVkVersion != null && fullVkVersion.contains(".")) {
                 String[] parts = fullVkVersion.split("\\.");
                 if (parts.length >= 3) {
+                    // Never advertise a minor the driver does not implement.
+                    if (Integer.parseInt(parts[1]) < Integer.parseInt(vulkanVersion.split("\\.")[1])) {
+                        Log.i("GraphicsDriverExtraction", "Clamping Vulkan " + vulkanVersion
+                                + " to driver-supported " + parts[0] + "." + parts[1]);
+                        vulkanVersion = parts[0] + "." + parts[1];
+                    }
                     vulkanVersion = vulkanVersion + "." + parts[2];
                 }
             }
