@@ -72,6 +72,7 @@ public class VulkanRenderer
     private volatile long fgLastGameNs = 0;
     private volatile long fgPrevGameNs = 0;
     private volatile long fgCurrentVsyncNs = 0;
+    private long fgLastEmitVsyncNs = 0;
     private Drawable fgLastScanoutSrc = null;
     private Drawable fgFirstScanoutSrc = null;
     private boolean fgMultiBuffer = false;
@@ -487,6 +488,7 @@ public class VulkanRenderer
         fgLastPromoteNs = 0L;
         fgEngineFrames = 0;
         fgVblankSincePromote = 0;
+        fgLastEmitVsyncNs = 0;
         fgEffectiveMultiplier = fgMultiplier;
         fgBoundSecs = 0;
         fgNewScene.set(true);
@@ -536,7 +538,10 @@ public class VulkanRenderer
                 }
             }
         }
-        if (!promoted) fgVblankSincePromote++;
+        long vsync = fgCurrentVsyncNs;
+        boolean tick = vsync == 0L || vsync != fgLastEmitVsyncNs;
+        if (tick) fgLastEmitVsyncNs = vsync;
+        if (!promoted && tick) fgVblankSincePromote++;
 
         long period = fgContentPeriodNs;
         long target = fgPresentTargetNs();
@@ -559,6 +564,13 @@ public class VulkanRenderer
 
         int vi = fgVblankSincePromote;
         int lastSlot = fgSlotVblank(emits - 1, slots, emits);
+        if (!tick && !promoted) {
+            if (dirty && !newGame && vi > lastSlot) {
+                nativePresentLast(nativeHandle, 0f, fgPrevPromoteNs, fgLastPromoteNs, target);
+                return 2;
+            }
+            return 0;
+        }
         int k = -1;
         for (int i = 0; i < emits; i++) {
             if (fgSlotVblank(i, slots, emits) == vi) { k = i; break; }
@@ -1095,7 +1107,11 @@ public class VulkanRenderer
 
     public void requestCursorRender() {
         cursorActiveUntilNs = System.nanoTime() + CURSOR_ACTIVE_NS;
-        if (frameGenEnabled) fgSceneDirty.set(true);
+        if (frameGenEnabled) {
+            fgSceneDirty.set(true);
+            scheduleFgPump();
+            return;
+        }
         xServerView.requestTransientRender(100);
     }
 

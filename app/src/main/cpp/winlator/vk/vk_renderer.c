@@ -4089,8 +4089,6 @@ static void* fg_gen_loop(void* arg) {
         if (!r->fg_gen_running) break;
 
         bool need_recreate = false;
-        // Present the frame generated last iteration before recording this one: its GPU work has had a
-        // full vblank to finish, and recording first would push every present out by the record time.
         if (pending.valid && fg_worker_do_present(r, &pending)) need_recreate = true;
         pending.valid = false;
 
