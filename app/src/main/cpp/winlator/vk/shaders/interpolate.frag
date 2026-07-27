@@ -32,10 +32,12 @@ float valid(vec3 c, highp vec2 p) {
 void main() {
     float t = clamp(pc.phase, 0.0, 1.0);
     float steadier = clamp(pc.occlusionLo, 0.0, 1.0);
+    float tolScale = clamp(pc.occlusionHi, 0.05, 1.0) / 0.33;
     bool cnn = pc.mode >= 3.5;
     float imode = cnn ? pc.mode - 4.0 : pc.mode;
 
-    highp vec2 norm = 2.0 / pc.resolution;
+    highp vec2 texel = 1.0 / vec2(textureSize(currFrame, 0));
+    highp vec2 norm  = 1.0 / vec2(textureSize(motionField, 0));
     vec2 mvB  = texture(motionField, vUV).xy;
     vec2 mvBn = mvB * norm;
 
@@ -55,7 +57,7 @@ void main() {
 
         vec2 mvBsrc = texture(motionField, srcPos).xy;
         vec2 dv = mvB - mvBsrc;
-        float tolE = 0.05 * dot(mvB, mvB) + 2.0;
+        float tolE = (0.05 * dot(mvB, mvB) + 2.0) * tolScale;
         float occ  = smoothstep(tolE, 6.0 * tolE + 6.0, dot(dv, dv));
         float relTol   = 0.10 * dot(mvB, mvB) + 4.0;
         float reliable = (1.0 - smoothstep(relTol, 3.0 * relTol, dot(dv, dv))) * uniq * v;
@@ -63,7 +65,7 @@ void main() {
         vec3 cPred = mix(cCurrFlat, cWarp, reliable);
         vec3 col   = mix(cWarp, cPred, occ);
 
-        vec2 txE = norm * 0.5;
+        vec2 txE = texel;
         vec3 blurE = (texture(currFrame, srcPos + vec2(txE.x, 0.0)).rgb
                     + texture(currFrame, srcPos - vec2(txE.x, 0.0)).rgb
                     + texture(currFrame, srcPos + vec2(0.0, txE.y)).rgb
@@ -84,7 +86,7 @@ void main() {
     highp vec2 uvB = vUV - (1.0 - t) * mvBn;
     vec3 cA = texture(prevFrame, uvA).rgb;
     vec3 cB = texture(currFrame, uvB).rgb;
-    float tolE = 0.05 * dot(mvB, mvB) + 2.0;
+    float tolE = (0.05 * dot(mvB, mvB) + 2.0) * tolScale;
     float hiE  = 6.0 * tolE + 6.0;
     vec2  dA = bidir ? (mvB + texture(motionFieldFwd, vUV + mvBn).xy)
                      : (mvB - texture(motionField, uvA).xy);
@@ -104,7 +106,7 @@ void main() {
     vec3 repeat = (t < 0.5) ? cPrevFlat : cCurrFlat;
     col = mix(repeat, col, uniq * (1.0 - 0.30 * steadier));
 
-    vec2 tx = norm * 0.5;
+    vec2 tx = texel;
     vec3 blur = (texture(currFrame, uvB + vec2(tx.x, 0.0)).rgb
                + texture(currFrame, uvB - vec2(tx.x, 0.0)).rgb
                + texture(currFrame, uvB + vec2(0.0, tx.y)).rgb

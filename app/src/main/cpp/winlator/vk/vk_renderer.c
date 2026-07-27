@@ -4089,6 +4089,11 @@ static void* fg_gen_loop(void* arg) {
         if (!r->fg_gen_running) break;
 
         bool need_recreate = false;
+        // Present the frame generated last iteration before recording this one: its GPU work has had a
+        // full vblank to finish, and recording first would push every present out by the record time.
+        if (pending.valid && fg_worker_do_present(r, &pending)) need_recreate = true;
+        pending.valid = false;
+
         FgPending ready = {0};
         if (got_job) {
             uint32_t head = r->fg_job_head;
@@ -4097,7 +4102,9 @@ static void* fg_gen_loop(void* arg) {
                 __atomic_store_n(&r->fg_job_head, (head + 1u) % FG_JOB_RING, __ATOMIC_RELEASE);
                 // drop-late: skip an INTERP whose deadline already passed by >1 vsync; never drop a PRESENT_LAST.
                 uint64_t period = r->fg_display_period_ns ? r->fg_display_period_ns : 16666667ull;
-                if (job.mode == FG_MODE_INTERP && job.deadline_ns != 0u
+                if (need_recreate) {
+                    g_fg_dropped++;
+                } else if (job.mode == FG_MODE_INTERP && job.deadline_ns != 0u
                     && now_monotonic_ns() > job.deadline_ns + period) {
                     g_fg_dropped++;
                 } else {
@@ -4106,8 +4113,6 @@ static void* fg_gen_loop(void* arg) {
                 }
             }
         }
-        // Present the previously generated frame; the just-generated one's GPU runs during this deadline wait.
-        if (pending.valid && fg_worker_do_present(r, &pending)) need_recreate = true;
         pending = ready;
         if (need_recreate) {
             fg_worker_recreate(r);

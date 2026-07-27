@@ -285,6 +285,16 @@ internal fun ScreenEffectsPaneContent(
                                     )
                                 }
                             }
+                            NavSliderRow(
+                                label = stringResource(R.string.session_drawer_frame_generation_smoothness),
+                                valueText = "${(state.frameGenerationSmoothing * 100).roundToInt()}%",
+                                value = state.frameGenerationSmoothing,
+                                valueRange = 0f..1f,
+                                steps = 19,
+                                onValueChange = {
+                                    listener.onFrameGenerationSmoothingChanged(it.coerceIn(0f, 1f))
+                                },
+                            )
                         }
                     }
                 }
