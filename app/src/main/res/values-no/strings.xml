@@ -488,6 +488,10 @@
     <string name="container_box64_compatibility">Kompatibilitet</string>
     <string name="container_box64_intermediate">Middels</string>
     <string name="container_box64_performance">Ytelse</string>
+    <string name="container_fexcore_performance_tso">Ytelse TSO</string>
+    <string name="container_fexcore_extreme">Ekstrem</string>
+    <string name="container_fexcore_extreme_tso">Ekstrem TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec">Aktiverer eller deaktiverer Box64 dynamisk rekompilator.</string>
     <string name="box64_env_var_help__dynarec_safeflags">
         Håndtering av flagg på CALL/RET-opkoder&lt;br /&gt;&lt;br /&gt;

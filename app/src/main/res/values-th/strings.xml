@@ -488,6 +488,10 @@
     <string name="container_box64_compatibility">ความเข้ากันได้</string>
     <string name="container_box64_intermediate">ระดับกลาง</string>
     <string name="container_box64_performance">ประสิทธิภาพ</string>
+    <string name="container_fexcore_performance_tso">ประสิทธิภาพ TSO</string>
+    <string name="container_fexcore_extreme">สุดขีด</string>
+    <string name="container_fexcore_extreme_tso">สุดขีด TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec">เปิดหรือปิดใช้งานตัวรีคอมไพล์แบบไดนามิกของ Box64</string>
     <string name="box64_env_var_help__dynarec_safeflags">
         การจัดการแฟล็กบน opcode CALL/RET&lt;br /&gt;&lt;br /&gt;

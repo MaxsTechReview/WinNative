@@ -488,6 +488,10 @@
     <string name="container_box64_compatibility">Uyumluluk</string>
     <string name="container_box64_intermediate">Orta</string>
     <string name="container_box64_performance">Performans</string>
+    <string name="container_fexcore_performance_tso">Performans TSO</string>
+    <string name="container_fexcore_extreme">Ekstrem</string>
+    <string name="container_fexcore_extreme_tso">Ekstrem TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec">Box64 dinamik yeniden derleyicisini etkinleştirir veya devre dışı bırakır.</string>
     <string name="box64_env_var_help__dynarec_safeflags">
         CALL/RET opcode\'larında bayrakların işlenmesi&lt;br /&gt;&lt;br /&gt;

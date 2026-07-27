@@ -425,6 +425,10 @@
     <string name="container_box64_compatibility">Compatibilité</string>
     <string name="container_box64_intermediate">Intermédiaire</string>
     <string name="container_box64_performance">Performance</string>
+    <string name="container_fexcore_performance_tso">Performance TSO</string>
+    <string name="container_fexcore_extreme">Extrême</string>
+    <string name="container_fexcore_extreme_tso">Extrême TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec_safeflags">
         Gestion des drapeaux sur les opcodes CALL/RET&lt;br /&gt;&lt;br /&gt;
         &lt;b&gt;0&lt;/b&gt; : Traite CALL/RET comme s\'ils n\'avaient jamais besoin de drapeaux (plus rapide, instable)&lt;br /&gt;

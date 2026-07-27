@@ -425,6 +425,10 @@
     <string name="container_box64_compatibility">相容性</string>
     <string name="container_box64_intermediate">中等</string>
     <string name="container_box64_performance">效能</string>
+    <string name="container_fexcore_performance_tso">效能 TSO</string>
+    <string name="container_fexcore_extreme">極限</string>
+    <string name="container_fexcore_extreme_tso">極限 TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec_safeflags">
         CALL/RET 運算碼的旗標處理&lt;br /&gt;&lt;br /&gt;
         &lt;b&gt;0&lt;/b&gt;：將 CALL/RET 視為永遠不需要旗標（較快，不穩定）&lt;br /&gt;

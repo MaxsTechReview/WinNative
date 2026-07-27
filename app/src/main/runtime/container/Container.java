@@ -58,7 +58,7 @@ public class Container {
     private String cpuListWoW64;
     private String desktopTheme = WineThemeManager.DEFAULT_DESKTOP_THEME;
     private String fexcoreVersion = "";
-    private String fexcorePreset = FEXCorePreset.PERFORMANCE;
+    private String fexcorePreset = FEXCorePreset.PERFORMANCE_TSO;
     private String box64Preset = Box64Preset.PERFORMANCE;
     private File rootDir;
     private JSONObject extraData;

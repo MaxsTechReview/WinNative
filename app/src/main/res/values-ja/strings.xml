@@ -488,6 +488,10 @@
     <string name="container_box64_compatibility">互換性</string>
     <string name="container_box64_intermediate">中間</string>
     <string name="container_box64_performance">パフォーマンス</string>
+    <string name="container_fexcore_performance_tso">パフォーマンス TSO</string>
+    <string name="container_fexcore_extreme">エクストリーム</string>
+    <string name="container_fexcore_extreme_tso">エクストリーム TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec">Box64 の動的リコンパイラーを有効または無効にします。</string>
     <string name="box64_env_var_help__dynarec_safeflags">
         CALL/RET オペコードでのフラグの処理&lt;br /&gt;&lt;br /&gt;

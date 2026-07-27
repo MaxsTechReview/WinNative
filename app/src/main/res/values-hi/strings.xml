@@ -460,6 +460,10 @@
     <string name="container_box64_compatibility">संगतता</string>
     <string name="container_box64_intermediate">मध्यम</string>
     <string name="container_box64_performance">प्रदर्शन</string>
+    <string name="container_fexcore_performance_tso">प्रदर्शन TSO</string>
+    <string name="container_fexcore_extreme">चरम</string>
+    <string name="container_fexcore_extreme_tso">चरम TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec">Box64 डायनामिक रीकंपाइलर को सक्षम या अक्षम करता है।</string>
     <string name="box64_env_var_help__dynarec_safeflags">
         CALL/RET opcodes पर flags का व्यवहार&lt;br /&gt;&lt;br /&gt;

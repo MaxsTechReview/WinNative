@@ -464,6 +464,10 @@
     <string name="container_box64_compatibility">Совместимость</string>
     <string name="container_box64_intermediate">Средний</string>
     <string name="container_box64_performance">Производительность</string>
+    <string name="container_fexcore_performance_tso">Производительность TSO</string>
+    <string name="container_fexcore_extreme">Экстремальный</string>
+    <string name="container_fexcore_extreme_tso">Экстремальный TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec">Включает или отключает динамический рекомпилятор Box64.</string>
     <string name="box64_env_var_help__dynarec_safeflags">Обработка флагов в кодах операций CALL/RET&lt;br /&gt;&lt;br /&gt;\n &lt;b&gt;0&lt;/b&gt;: обрабатывает CALL/RET так, как будто ему никогда не нужны флаги (быстрее, нестабильнее)&lt;br /&gt;\n &lt;b&gt;1&lt;/b&gt;: Большинству RET потребуются флаги, большинству CALLS - нет.&lt;br /&gt;\n &lt;b&gt;2&lt;/b&gt;: для всех вызовов CALL/RET потребуются флаги (медленнее).</string>
     <string name="box64_env_var_help__dynarec_fastnan">Генерация -NAN как на x86</string>

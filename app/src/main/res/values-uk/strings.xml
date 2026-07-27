@@ -429,6 +429,10 @@
     <string name="container_box64_compatibility">Сумісність</string>
     <string name="container_box64_intermediate">Проміжний</string>
     <string name="container_box64_performance">Продуктивність</string>
+    <string name="container_fexcore_performance_tso">Продуктивність TSO</string>
+    <string name="container_fexcore_extreme">Екстремальний</string>
+    <string name="container_fexcore_extreme_tso">Екстремальний TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec_safeflags">
         Обробка прапорців для операцій CALL/RET&lt;br /&gt;&lt;br /&gt;
         &lt;b&gt;0&lt;/b&gt; : Вважає, що CALL/RET ніколи не потребують прапорців (швидше, нестабільно)&lt;br /&gt;

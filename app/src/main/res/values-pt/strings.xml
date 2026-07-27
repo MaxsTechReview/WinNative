@@ -488,6 +488,10 @@
     <string name="container_box64_compatibility">Compatibilidade</string>
     <string name="container_box64_intermediate">Intermédio</string>
     <string name="container_box64_performance">Desempenho</string>
+    <string name="container_fexcore_performance_tso">Desempenho TSO</string>
+    <string name="container_fexcore_extreme">Extremo</string>
+    <string name="container_fexcore_extreme_tso">Extremo TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec">Ativa ou desativa o recompilador dinâmico do Box64.</string>
     <string name="box64_env_var_help__dynarec_safeflags">
         Tratamento de flags nos opcodes CALL/RET&lt;br /&gt;&lt;br /&gt;

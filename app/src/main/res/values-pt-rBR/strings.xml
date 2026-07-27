@@ -425,6 +425,10 @@
     <string name="container_box64_compatibility">Compatibilidade</string>
     <string name="container_box64_intermediate">Intermediario</string>
     <string name="container_box64_performance">Desempenho</string>
+    <string name="container_fexcore_performance_tso">Desempenho TSO</string>
+    <string name="container_fexcore_extreme">Extremo</string>
+    <string name="container_fexcore_extreme_tso">Extremo TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec_safeflags">
         Tratamento de flags nas opcodes CALL/RET&lt;br /&gt;&lt;br /&gt;
         &lt;b&gt;0&lt;/b&gt; : Trata CALL/RET como se nunca precisasse de flags (mais rapido, instavel)&lt;br /&gt;

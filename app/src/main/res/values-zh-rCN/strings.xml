@@ -425,6 +425,10 @@
     <string name="container_box64_compatibility">兼容性</string>
     <string name="container_box64_intermediate">中等</string>
     <string name="container_box64_performance">性能</string>
+    <string name="container_fexcore_performance_tso">性能 TSO</string>
+    <string name="container_fexcore_extreme">极限</string>
+    <string name="container_fexcore_extreme_tso">极限 TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec_safeflags">
         CALL/RET 操作码的标志处理&lt;br /&gt;&lt;br /&gt;
         &lt;b&gt;0&lt;/b&gt;：将 CALL/RET 视为从不需要标志（更快，不稳定）&lt;br /&gt;

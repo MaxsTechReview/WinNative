@@ -488,6 +488,10 @@
     <string name="container_box64_compatibility">Yhteensopivuus</string>
     <string name="container_box64_intermediate">Keskitaso</string>
     <string name="container_box64_performance">Suorituskyky</string>
+    <string name="container_fexcore_performance_tso">Suorituskyky TSO</string>
+    <string name="container_fexcore_extreme">Äärimmäinen</string>
+    <string name="container_fexcore_extreme_tso">Äärimmäinen TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec">Ottaa käyttöön tai poistaa käytöstä Box64:n dynaamisen uudelleenkääntäjän.</string>
     <string name="box64_env_var_help__dynarec_safeflags">
         Lippujen käsittely CALL/RET-opkoodeissa&lt;br /&gt;&lt;br /&gt;

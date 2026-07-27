@@ -425,6 +425,10 @@
     <string name="container_box64_compatibility">호환성</string>
     <string name="container_box64_intermediate">중간</string>
     <string name="container_box64_performance">성능</string>
+    <string name="container_fexcore_performance_tso">성능 TSO</string>
+    <string name="container_fexcore_extreme">익스트림</string>
+    <string name="container_fexcore_extreme_tso">익스트림 TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec_safeflags">
         CALL/RET 옵코드의 플래그 처리&lt;br /&gt;&lt;br /&gt;
         &lt;b&gt;0&lt;/b&gt; : CALL/RET에 플래그가 필요하지 않은 것으로 처리 (빠르지만 불안정)&lt;br /&gt;
