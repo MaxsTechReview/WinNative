@@ -70,6 +70,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -105,6 +106,11 @@ import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.io.StorageUtils
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.paneNavHandlers
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 
 internal data class StoreDlcItem(
     val id: Int,
@@ -169,9 +175,19 @@ internal fun StoreGameDetailScreen(
     var dlcExpanded by remember { mutableStateOf(false) }
     var dlcHeaderHeightPx by remember { mutableIntStateOf(0) }
 
+    val mainRegistry = remember { PaneNavRegistry() }
+    val menuRegistry = remember { PaneNavRegistry() }
+    var sourceMenuOpen by remember { mutableStateOf(false) }
+
     StoreScreenCutoutMode()
 
-    Box(Modifier.fillMaxSize()) {
+    CompositionLocalProvider(LocalPaneNav provides mainRegistry) {
+        DialogPaneNav(
+            paneNavHandlers(
+                onDismiss = { if (sourceMenuOpen) sourceMenuOpen = false else onBack() },
+            ) { if (sourceMenuOpen) menuRegistry else mainRegistry },
+        )
+        Box(Modifier.fillMaxSize()) {
         val edgePadding = 22.dp
         val bottomPadding = 8.dp
         val actionIconSize = 48.dp
@@ -276,6 +292,7 @@ internal fun StoreGameDetailScreen(
                     Modifier
                         .size(44.dp)
                         .clip(CircleShape)
+                        .paneNavItem(cornerRadius = 22.dp, onActivate = onBack, navRow = 0, navCol = 0)
                         .background(StoreBlack.copy(alpha = 0.5f))
                         .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape),
             ) {
@@ -290,6 +307,9 @@ internal fun StoreGameDetailScreen(
             StoreSourceTag(
                 sourceLabel = sourceLabel,
                 menuEnabled = sourceMenuEnabled,
+                menuOpen = sourceMenuOpen,
+                onMenuOpenChange = { sourceMenuOpen = it },
+                menuRegistry = menuRegistry,
                 showCheckForUpdate = updateCheckAvailable,
                 showVerifyFiles = verifyFilesAvailable,
                 showWorkshop = workshopAvailable,
@@ -440,6 +460,9 @@ internal fun StoreGameDetailScreen(
                                             !isCheckingForUpdate,
                                     loading = false,
                                     onClick = onDownloadUpdate,
+                                    isEntry = true,
+                                    navRow = 1,
+                                    navCol = 3,
                                 )
                             }
 
@@ -486,6 +509,8 @@ internal fun StoreGameDetailScreen(
                                         contentDescription = stringResource(R.string.cloud_saves_title),
                                         size = actionIconSize,
                                         onClick = onCloudSync,
+                                        navRow = 1,
+                                        navCol = 1,
                                     )
                                 }
                                 if (showUninstall && isInstalled) {
@@ -495,6 +520,8 @@ internal fun StoreGameDetailScreen(
                                         size = actionIconSize,
                                         onClick = onUninstall,
                                         tint = StoreDanger,
+                                        navRow = 1,
+                                        navCol = 2,
                                     )
                                 }
                             }
@@ -507,6 +534,9 @@ internal fun StoreGameDetailScreen(
                                     enabled = !isLoading && isDownloadActionEnabled,
                                     loading = isLoading,
                                     onClick = onInstall,
+                                    isEntry = true,
+                                    navRow = 1,
+                                    navCol = 4,
                                 )
                             }
                         }
@@ -544,6 +574,7 @@ internal fun StoreGameDetailScreen(
             }
         }
     }
+    }
 }
 
 @Composable
@@ -579,6 +610,7 @@ private fun StoreDlcCard(
                     Modifier
                         .fillMaxWidth()
                         .onSizeChanged { onHeaderMeasured(it.height) }
+                        .paneNavItem(cornerRadius = 12.dp, onActivate = onToggleExpanded, navRow = 2, navCol = 0)
                         .clickable(onClick = onToggleExpanded)
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -636,6 +668,13 @@ private fun StoreDlcCard(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
+                                    .then(
+                                        if (selectionEnabled) {
+                                            Modifier.paneNavItem(cornerRadius = 8.dp, onActivate = onToggleSelectAll, navRow = 3, navCol = 0)
+                                        } else {
+                                            Modifier
+                                        },
+                                    )
                                     .clickable(enabled = selectionEnabled, onClick = onToggleSelectAll)
                                     .padding(horizontal = 6.dp, vertical = 0.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -682,7 +721,9 @@ private fun StoreDlcCard(
                                             if (dlc.isInstalled || !selectionEnabled) {
                                                 Modifier
                                             } else {
-                                                Modifier.clickable { onToggleDlc(dlc.id) }
+                                                Modifier
+                                                    .paneNavItem(cornerRadius = 8.dp, onActivate = { onToggleDlc(dlc.id) }, navRow = 4 + index, navCol = 0)
+                                                    .clickable { onToggleDlc(dlc.id) }
                                             },
                                         )
                                         .padding(horizontal = 6.dp, vertical = 0.dp),
@@ -777,6 +818,9 @@ private fun buildDlcSummary(
 private fun StoreSourceTag(
     sourceLabel: String,
     menuEnabled: Boolean = false,
+    menuOpen: Boolean = false,
+    onMenuOpenChange: (Boolean) -> Unit = {},
+    menuRegistry: PaneNavRegistry? = null,
     showCheckForUpdate: Boolean = false,
     showVerifyFiles: Boolean = false,
     showWorkshop: Boolean = false,
@@ -787,7 +831,6 @@ private fun StoreSourceTag(
     onCheckForUpdate: () -> Unit = {},
     onWorkshop: () -> Unit = {},
 ) {
-    var menuOpen by remember { mutableStateOf(false) }
     var anchorHeightPx by remember { mutableIntStateOf(0) }
     Box {
         Surface(
@@ -797,7 +840,15 @@ private fun StoreSourceTag(
             modifier =
                 Modifier
                     .onSizeChanged { anchorHeightPx = it.height }
-                    .then(if (menuEnabled) Modifier.clickable { menuOpen = true } else Modifier),
+                    .then(
+                        if (menuEnabled) {
+                            Modifier
+                                .paneNavItem(cornerRadius = 8.dp, onActivate = { onMenuOpenChange(!menuOpen) }, navRow = 0, navCol = 1)
+                                .clickable { onMenuOpenChange(!menuOpen) }
+                        } else {
+                            Modifier
+                        },
+                    ),
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -832,34 +883,36 @@ private fun StoreSourceTag(
             val gapPx = with(LocalDensity.current) { 6.dp.roundToPx() }
             StoreSourceActionPopup(
                 expanded = menuOpen,
-                onDismissRequest = { menuOpen = false },
+                onDismissRequest = { onMenuOpenChange(false) },
                 offset = IntOffset(0, anchorHeightPx + gapPx),
             ) {
-                if (showVerifyFiles) {
-                    StoreSourceMenuItem(
-                        icon = Icons.AutoMirrored.Outlined.FactCheck,
-                        label = stringResource(R.string.store_game_verify_files),
-                        enabled = areSteamActionsEnabled && !isCheckingForUpdate,
-                    ) { menuOpen = false; onVerifyFiles() }
-                }
-                if (showCheckForUpdate) {
-                    StoreSourceMenuItem(
-                        icon = Icons.Outlined.Refresh,
-                        label =
-                            if (isCheckingForUpdate) {
-                                stringResource(R.string.store_game_checking_for_update)
-                            } else {
-                                stringResource(R.string.store_game_check_for_update)
-                            },
-                        enabled = areSteamActionsEnabled && isUpdateCheckEnabled,
-                    ) { menuOpen = false; onCheckForUpdate() }
-                }
-                if (showWorkshop) {
-                    StoreSourceMenuItem(
-                        icon = Icons.Outlined.Construction,
-                        label = stringResource(R.string.store_game_workshop),
-                        enabled = areSteamActionsEnabled,
-                    ) { menuOpen = false; onWorkshop() }
+                CompositionLocalProvider(LocalPaneNav provides menuRegistry) {
+                    if (showVerifyFiles) {
+                        StoreSourceMenuItem(
+                            icon = Icons.AutoMirrored.Outlined.FactCheck,
+                            label = stringResource(R.string.store_game_verify_files),
+                            enabled = areSteamActionsEnabled && !isCheckingForUpdate,
+                        ) { onMenuOpenChange(false); onVerifyFiles() }
+                    }
+                    if (showCheckForUpdate) {
+                        StoreSourceMenuItem(
+                            icon = Icons.Outlined.Refresh,
+                            label =
+                                if (isCheckingForUpdate) {
+                                    stringResource(R.string.store_game_checking_for_update)
+                                } else {
+                                    stringResource(R.string.store_game_check_for_update)
+                                },
+                            enabled = areSteamActionsEnabled && isUpdateCheckEnabled,
+                        ) { onMenuOpenChange(false); onCheckForUpdate() }
+                    }
+                    if (showWorkshop) {
+                        StoreSourceMenuItem(
+                            icon = Icons.Outlined.Construction,
+                            label = stringResource(R.string.store_game_workshop),
+                            enabled = areSteamActionsEnabled,
+                        ) { onMenuOpenChange(false); onWorkshop() }
+                    }
                 }
             }
         }
@@ -881,7 +934,7 @@ private fun StoreSourceActionPopup(
         alignment = Alignment.TopEnd,
         offset = offset,
         onDismissRequest = onDismissRequest,
-        properties = PopupProperties(focusable = true),
+        properties = PopupProperties(focusable = false),
     ) {
         AnimatedVisibility(
             visibleState = transitionState,
@@ -928,7 +981,15 @@ private fun StoreSourceMenuItem(
     Row(
         modifier =
             Modifier
-                .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
+                .then(
+                    if (enabled) {
+                        Modifier
+                            .paneNavItem(cornerRadius = 8.dp, onActivate = onClick)
+                            .clickable(onClick = onClick)
+                    } else {
+                        Modifier
+                    },
+                )
                 .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -998,7 +1059,10 @@ private fun StoreActionChip(
         color = StoreBlack.copy(alpha = 0.44f),
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(1.dp, StoreAccentGlow.copy(alpha = 0.36f)),
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier =
+            Modifier
+                .paneNavItem(cornerRadius = 12.dp, onActivate = onClick, navRow = 1, navCol = 0)
+                .clickable(onClick = onClick),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -1026,6 +1090,9 @@ private fun StoreCtaButton(
     enabled: Boolean,
     loading: Boolean,
     onClick: () -> Unit,
+    isEntry: Boolean = false,
+    navRow: Int? = null,
+    navCol: Int? = null,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -1094,6 +1161,13 @@ private fun StoreCtaButton(
                     scaleX = scale
                     scaleY = scale
                 }.clip(shape)
+                .paneNavItem(
+                    cornerRadius = 14.dp,
+                    onActivate = { if (enabled && !loading) onClick() },
+                    isEntry = isEntry,
+                    navRow = navRow,
+                    navCol = navCol,
+                )
                 .background(if (enabled) activeBrush else disabledBrush)
                 .background(glassSheenBrush)
                 .border(1.dp, glassRimBrush, shape)
@@ -1141,12 +1215,15 @@ private fun StoreIconActionButton(
     size: Dp,
     onClick: () -> Unit,
     tint: Color = Color.White,
+    navRow: Int? = null,
+    navCol: Int? = null,
 ) {
     Surface(
         modifier =
             Modifier
                 .size(size)
                 .clip(RoundedCornerShape(8.dp))
+                .paneNavItem(cornerRadius = 8.dp, onActivate = onClick, navRow = navRow, navCol = navCol)
                 .clickable(onClick = onClick),
         color = StoreBlack.copy(alpha = 0.46f),
         shape = RoundedCornerShape(8.dp),

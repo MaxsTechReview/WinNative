@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
 import com.winlator.cmod.R
+import com.winlator.cmod.app.shell.UnifiedActivity
 import com.winlator.cmod.feature.settings.ContainerSettingsComposeDialog
 import com.winlator.cmod.feature.shortcuts.ShortcutsFragment
 import com.winlator.cmod.runtime.container.Container
@@ -68,6 +69,7 @@ class ContainersFragment : Fragment() {
                         onConfirmDuplicateDialog = ::performDuplicateContainer,
                         onConfirmRemoveDialog = ::performRemoveContainer,
                         onClearCacheDialog = ::clearContainerCache,
+                        bridge = (requireActivity() as? UnifiedActivity)?.settingsNavBridge,
                     )
                 }
             }
@@ -162,12 +164,19 @@ class ContainersFragment : Fragment() {
         duplicatingPopup.show()
         manager.duplicateContainerAsync(container, { progress ->
             duplicatingPopup.setProgress(progress)
-        }) {
-            duplicatingPopup.setProgress(100)
-            duplicatingPopup.closeWithDelay(600)
-            Handler(Looper.getMainLooper()).postDelayed({
-                loadContainersList()
-            }, 600)
+        }) { success ->
+            if (success) {
+                duplicatingPopup.setProgress(100)
+                duplicatingPopup.closeWithDelay(600)
+                Handler(Looper.getMainLooper()).postDelayed({
+                    loadContainersList()
+                }, 600)
+            } else {
+                duplicatingPopup.close()
+                context?.let {
+                    WinToast.show(it, R.string.containers_list_duplicate_failed, Toast.LENGTH_LONG)
+                }
+            }
         }
     }
 

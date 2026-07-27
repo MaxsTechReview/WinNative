@@ -7,6 +7,7 @@ import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.runtime.content.Downloader
 import com.winlator.cmod.runtime.display.XServerDisplayActivity
 import com.winlator.cmod.runtime.display.environment.ImageFs
+import com.winlator.cmod.runtime.system.SessionKeepAliveService
 import com.winlator.cmod.runtime.wine.WineRegistryEditor
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.io.TarCompressorUtils
@@ -405,6 +406,9 @@ class ComponentInstaller(
         bootExe: String,
         bootArgs: String,
     ): Int {
+        if (SessionKeepAliveService.isSessionActive() && SessionKeepAliveService.getActiveEnvironment() != null) {
+            throw InstallException("A session is still running — close it before installing components.")
+        }
         DependencyInstallBridge.begin()
         val intent =
             Intent(context, XServerDisplayActivity::class.java).apply {

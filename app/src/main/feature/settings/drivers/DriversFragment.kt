@@ -18,6 +18,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
 import com.winlator.cmod.R
+import com.winlator.cmod.app.shell.UnifiedActivity
 import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.runtime.content.AdrenotoolsManager
 import com.winlator.cmod.runtime.content.Downloader
@@ -127,6 +128,7 @@ class DriversFragment : Fragment() {
                             }
                         },
                         onRestoreDefaultRepos = { restoreDefaultRepos() },
+                        bridge = (requireActivity() as? UnifiedActivity)?.settingsNavBridge,
                     )
                 }
             }

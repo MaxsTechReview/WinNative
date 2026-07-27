@@ -85,7 +85,7 @@ android {
         applicationId "com.winnative.cmod"
         minSdk 26
         targetSdk 28
-        versionCode 1
+        versionCode 2
         versionName appVersionName
 
         externalNativeBuild {
@@ -101,9 +101,10 @@ android {
             abiFilters 'arm64-v8a'
         }
 
-        resConfigs "en", "da", "de", "es", "fr", "hi", "it", "ko", "pl", "pt-rBR", "ro", "ru", "uk", "zh-rCN", "zh-rTW"
+        resConfigs "en", "da", "de", "es", "b+es+419", "fi", "fr", "hi", "it", "ja", "ko", "no", "pl", "pt", "pt-rBR", "ro", "ru", "sv", "th", "tr", "uk", "zh-rCN", "zh-rTW"
 
         buildConfigField("String", "COLD_CLIENT_VERSION", "\"${coldClientVersion}\"")
+        buildConfigField "String", "RESHADE_CATALOG_URL", "\"https://raw.githubusercontent.com/nicholasx417/WinNative-Components/main/Reshade.json\""
     }
 
     androidResources {
@@ -167,6 +168,10 @@ android {
             dimension "branding"
             applicationId "com.tencent.ig"
         }
+        antutu {
+            dimension "branding"
+            applicationId "com.antutu.ABenchMark"
+        }
     }
 
     ndkVersion '27.3.13750724'
@@ -183,15 +188,10 @@ android {
             excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
         }
         jniLibs {
+            // PulseAudio runs libpulseaudio.so directly from nativeLibraryDir and loads
+            // libpulse*/libltdl/libsndfile as its dependencies, so these must be packaged
+            // and extracted to disk (useLegacyPackaging) rather than excluded.
             useLegacyPackaging = true
-            excludes += [
-                    "lib/arm64-v8a/libltdl.so",
-                    "lib/arm64-v8a/libpulseaudio.so",
-                    "lib/arm64-v8a/libpulse.so",
-                    "lib/arm64-v8a/libpulsecommon-13.0.so",
-                    "lib/arm64-v8a/libpulsecore-13.0.so",
-                    "lib/arm64-v8a/libsndfile.so"
-            ]
         }
     }
 

@@ -34,7 +34,7 @@ public class ContainerManager {
   private final File homeDir;
   private final Context context;
 
-  private boolean isInitialized = false; // New flag to track initialization
+  private boolean isInitialized = false;
 
   public ContainerManager(Context context) {
     this.context = context;
@@ -44,7 +44,6 @@ public class ContainerManager {
     isInitialized = true;
   }
 
-  // Check if the ContainerManager is fully initialized
   public boolean isInitialized() {
     return isInitialized;
   }
@@ -53,7 +52,6 @@ public class ContainerManager {
     return containers;
   }
 
-  // Load containers from the home directory
   public void loadContainers() {
     containers.clear();
     maxContainerId = 0;
@@ -71,9 +69,7 @@ public class ContainerManager {
               container.setRootDir(new File(homeDir, ImageFs.USER + "-" + container.id));
               String configStr = FileUtils.readString(container.getConfigFile());
               if (configStr == null || configStr.trim().isEmpty()) {
-                // Empty can transiently happen when another thread is mid-save
-                // (fopen("w") truncates before the new content lands). Skip
-                // without a stack trace — the next loadContainers will pick it up.
+                // Empty can happen transiently when another thread is mid-save (fopen("w") truncates first); skip quietly — the next loadContainers picks it up.
                 Log.w(
                     "ContainerManager",
                     "Skipping container " + container.id + ": config file empty or unreadable");
@@ -113,9 +109,7 @@ public class ContainerManager {
     } catch (Exception e) {
     }
 
-    // Replace the real "xuser" dir (from the imagefs archive) with a symlink to the active
-    // container. Migrate winhandler.exe/wfm.exe first since they aren't in container
-    // pattern archives. Only runs once — after that xuser is already a symlink.
+    // Replace the real "xuser" dir with a symlink to the active container, migrating winhandler.exe/wfm.exe first (not in container pattern archives). Runs once — after that xuser is already a symlink.
     if (file.exists() && !FileUtils.isSymlink(file)) {
       Log.w(
           "ContainerManager",
@@ -190,12 +184,8 @@ public class ContainerManager {
             });
   }
 
-  public void duplicateContainerAsync(Container container, Runnable callback) {
-    duplicateContainerAsync(container, null, callback);
-  }
-
   public void duplicateContainerAsync(
-      Container container, Callback<Integer> progressCallback, Runnable callback) {
+      Container container, Callback<Integer> progressCallback, Callback<Boolean> callback) {
     final Handler handler = new Handler(Looper.getMainLooper());
     Executors.newSingleThreadExecutor()
         .execute(
@@ -204,8 +194,8 @@ public class ContainerManager {
                   progressCallback != null
                       ? progress -> handler.post(() -> progressCallback.call(progress))
                       : null;
-              duplicateContainer(container, uiProgress);
-              handler.post(callback);
+              final boolean success = duplicateContainer(container, uiProgress);
+              handler.post(() -> callback.call(success));
             });
   }
 
@@ -239,7 +229,6 @@ public class ContainerManager {
         Log.e(
             "ContainerManager",
             "createContainer: FAILED to create dir: " + containerDir.getAbsolutePath());
-        // Try creating parent dirs first
         if (!homeDir.exists()) {
           Log.d("ContainerManager", "createContainer: homeDir does not exist, creating...");
           homeDir.mkdirs();
@@ -260,10 +249,7 @@ public class ContainerManager {
       Log.d("ContainerManager", "createContainer: wineVersion=" + wineVersion);
       container.setWineVersion(wineVersion);
 
-      // Set the correct emulators based on the wine architecture, unless the
-      // caller already specified them in the JSON data.  This ensures every
-      // creation path (manual, contents download, store integration) gets the
-      // right emulator: box64 for x86_64, fexcore for arm64ec.
+      // Pick emulators by wine arch unless the caller set them: box64 for x86_64, fexcore for arm64ec.
       if (!data.has("emulator") || !data.has("emulator64")) {
           WineInfo wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersion);
           if (wineInfo.isArm64EC()) {
@@ -278,12 +264,7 @@ public class ContainerManager {
               + " emulator64=" + container.getEmulator64());
       }
 
-      // Auto-fill emulator versions when the caller didn't provide them. The
-      // "Profiles -> Create Container" path passes only name+wineVersion, so
-      // without this the container ends up with empty FEXCore/WowBox64/Box64
-      // versions and GuestProgramLauncherComponent skips DLL extraction at
-      // launch ("No FEXCore version selected"), leaving libarm64ecfex.dll out
-      // of system32 and crashing wineboot.
+      // Auto-fill emulator versions when the caller omits them, or DLL extraction is skipped at launch ("No FEXCore version selected") and wineboot crashes.
       if (!data.has("fexcoreVersion") && container.getFEXCoreVersion().isEmpty()) {
           String v = pickNewestInstalledVersion(contentsManager, ContentProfile.ContentType.CONTENT_TYPE_FEXCORE);
           if (!v.isEmpty()) container.setFEXCoreVersion(v);
@@ -313,19 +294,9 @@ public class ContainerManager {
       container.putExtra("wineprefixArch", wineInfoForArch.getArch());
       container.putExtra("wineprefixNeedsUpdate", null);
 
-      // Record the VC++ 2015-2022 runtime as installed when the proton wcp has
-      // laid down the DLLs. Without this Burn-based vc_redist sees "not installed"
-      // and tries to run its installer UI, which crashes on Wine ARM64EC's theme
-      // init (and on x86_64 just wastes time). Game prereq checks pass too.
+      // Mark the VC++ 2015-2022 runtime installed once the DLLs are present, or vc_redist runs its installer UI (crashes on ARM64EC theme init, wastes time on x86_64).
       com.winlator.cmod.runtime.wine.WineUtils.seedVcRedistRegistryIfDllsPresent(
           containerDir, wineInfoForArch.isArm64EC());
-
-      //            // Extract the selected graphics driver files
-      //            String driverVersion = container.getGraphicsDriverVersion();
-      //            if (!extractGraphicsDriverFiles(driverVersion, containerDir, null)) {
-      //                FileUtils.delete(containerDir);
-      //                return null;
-      //            }
 
       container.saveData();
       maxContainerId++;
@@ -337,8 +308,7 @@ public class ContainerManager {
     return null;
   }
 
-  // Returns the saved container version suffix of the newest installed profile, or "" if none.
-  // The launcher reconstructs profile names as "<type>-<suffix>", so keep the version code.
+  // Newest installed profile's version suffix, or "" if none. The launcher rebuilds names as "<type>-<suffix>", so keep the version code.
   private String pickNewestInstalledVersion(ContentsManager contentsManager, ContentProfile.ContentType type) {
     if (contentsManager == null) return "";
     java.util.List<ContentProfile> profiles = contentsManager.getProfiles(type);
@@ -361,15 +331,22 @@ public class ContainerManager {
     return firstDash >= 0 ? entryName.substring(firstDash + 1) : entryName;
   }
 
-  private void duplicateContainer(Container srcContainer) {
-    duplicateContainer(srcContainer, null);
-  }
-
-  private void duplicateContainer(Container srcContainer, Callback<Integer> progressCallback) {
+  private boolean duplicateContainer(Container srcContainer, Callback<Integer> progressCallback) {
     int id = maxContainerId + 1;
-
     File dstDir = new File(homeDir, ImageFs.USER + "-" + id);
-    if (!dstDir.mkdirs()) return;
+
+    // A crashed create/duplicate can leave an unregistered dir behind; skip past it.
+    while (dstDir.exists()) {
+      id++;
+      dstDir = new File(homeDir, ImageFs.USER + "-" + id);
+    }
+
+    if (!dstDir.mkdirs()) {
+      Log.e(
+          "ContainerManager",
+          "duplicateContainer: failed to create dir " + dstDir.getAbsolutePath());
+      return false;
+    }
 
     final int totalFiles = FileUtils.countFiles(srcContainer.getRootDir());
     final int[] copiedFiles = {0};
@@ -385,35 +362,78 @@ public class ContainerManager {
             progressCallback.call(pct);
           }
         })) {
+      Log.e(
+          "ContainerManager",
+          "duplicateContainer: file copy failed for container " + srcContainer.id);
       FileUtils.delete(dstDir);
-      return;
+      return false;
     }
 
+    // Runtime socket dir; the copy's 0771 makes wineserver refuse to start ("accessible by other users").
+    FileUtils.delete(new File(dstDir, ".wine/.wineserver"));
+
+    // Load the source config wholesale; hand-picking fields reset the rest to defaults.
     Container dstContainer = new Container(id, this);
     dstContainer.setRootDir(dstDir);
+    String configStr = FileUtils.readString(srcContainer.getConfigFile());
+    if (configStr == null || configStr.trim().isEmpty()) {
+      Log.e(
+          "ContainerManager",
+          "duplicateContainer: config empty or unreadable for container " + srcContainer.id);
+      FileUtils.delete(dstDir);
+      return false;
+    }
+    try {
+      JSONObject data = new JSONObject(configStr);
+      data.put("id", id);
+      dstContainer.loadData(data);
+    } catch (JSONException e) {
+      Log.e(
+          "ContainerManager",
+          "duplicateContainer: bad config JSON for container " + srcContainer.id, e);
+      FileUtils.delete(dstDir);
+      return false;
+    }
     dstContainer.setName(
         srcContainer.getName() + " (" + context.getString(R.string.common_ui_copy) + ")");
-    dstContainer.setScreenSize(srcContainer.getScreenSize());
-    dstContainer.setEnvVars(srcContainer.getEnvVars());
-    dstContainer.setCPUList(srcContainer.getCPUList());
-    dstContainer.setCPUListWoW64(srcContainer.getCPUListWoW64());
-    dstContainer.setGraphicsDriver(srcContainer.getGraphicsDriver());
-    dstContainer.setDXWrapper(srcContainer.getDXWrapper());
-    dstContainer.setDXWrapperConfig(srcContainer.getDXWrapperConfig());
-    dstContainer.setAudioDriver(srcContainer.getAudioDriver());
-    dstContainer.setWinComponents(srcContainer.getWinComponents());
-    dstContainer.setDrives(srcContainer.getDrives());
-    dstContainer.setStartupSelection(srcContainer.getStartupSelection());
-    dstContainer.setBox64Preset(srcContainer.getBox64Preset());
-    dstContainer.setDesktopTheme(srcContainer.getDesktopTheme());
-    dstContainer.setWineVersion(srcContainer.getWineVersion());
     dstContainer.saveData();
+    rewriteShortcutContainerIds(dstContainer.getDesktopDir(), id);
 
-    maxContainerId++;
+    maxContainerId = id;
     containers.add(dstContainer);
+    return true;
+  }
+
+  // Copied shortcuts keep the source's container_id, which overrides the owning container at launch.
+  static void rewriteShortcutContainerIds(File desktopDir, int newId) {
+    File[] files = desktopDir.listFiles((dir, name) -> name.endsWith(".desktop"));
+    if (files == null) return;
+
+    for (File file : files) {
+      StringBuilder updated = new StringBuilder();
+      boolean changed = false;
+
+      for (String line : FileUtils.readLines(file)) {
+        String trimmed = line.trim();
+        boolean colon = trimmed.startsWith("container_id:");
+        if (colon || trimmed.startsWith("container_id=")) {
+          updated.append("container_id").append(colon ? ':' : '=').append(newId).append("\n");
+          changed = true;
+        } else updated.append(line).append("\n");
+      }
+
+      if (changed && !FileUtils.writeString(file, updated.toString())) {
+        Log.e("ContainerManager", "rewriteShortcutContainerIds: failed to write " + file);
+      }
+    }
   }
 
   private void removeContainer(Container container) {
+    // MN-2: deletes the whole container including in-prefix game saves (drive_c/users, Steam userdata); log here so the deletion is visible even on the non-interactive deleteContainer path.
+    Log.w(
+        "ContainerManager",
+        "removeContainer: deleting container " + container.id + " and ALL in-prefix saves at "
+            + container.getRootDir());
     if (FileUtils.delete(container.getRootDir())) containers.remove(container);
   }
 
@@ -483,10 +503,6 @@ public class ContainerManager {
     }, "ShortcutUpgrade").start();
   }
 
-  public int getNextContainerId() {
-    return maxContainerId + 1;
-  }
-
   public Container getContainerById(int id) {
     for (Container container : containers) if (container.id == id) return container;
     return null;
@@ -528,14 +544,7 @@ public class ContainerManager {
     }
   }
 
-  /**
-   * Reads the PE <code>Machine</code> field and logs a loud warning if it is not ARM64
-   * ({@code 0xAA64}) or ARM64EC ({@code 0xA641}). Missing files are treated as non-fatal.
-   *
-   * <p>Guardrail against mis-packaged tzsts like the Mar-2026 <code>xinput_virtual_arm64ec.tzst</code>,
-   * which carried AMD64 PE binaries under an arm64ec filename. Silent mismatch manifested as
-   * joy.cpl failing to load xinput and "Game Controllers" disappearing from the Start Menu.
-   */
+  /** Warn loudly if the PE Machine field isn't ARM64 (0xAA64) or ARM64EC (0xA641); missing files are non-fatal. Guards against mis-packaged arm64ec tzsts carrying AMD64 binaries (silent mismatch = joy.cpl fails to load xinput, "Game Controllers" vanishes). */
   private static void assertArm64PEMachine(File dir, String dllName) {
     File f = new File(dir, dllName);
     if (!f.isFile()) return;
@@ -581,8 +590,7 @@ public class ContainerManager {
             + " path="
             + (wineInfo != null ? wineInfo.path : "null"));
 
-    // Step 1: Try to extract the versioned container pattern from bundled assets
-    // e.g. "proton-9.0-x86_64_container_pattern.tzst"
+    // Step 1: try the versioned container pattern from bundled assets (e.g. "<wineVersion>_container_pattern.tzst").
     String containerPattern = wineVersion + "_container_pattern.tzst";
     boolean result = false;
     try {
@@ -614,8 +622,7 @@ public class ContainerManager {
               + (profile != null ? profile.verName : "null"));
 
       if (profile != null) {
-        // Use the ContentsManager's install dir directly — this is always correct
-        // for custom installed protons, unlike wineInfo.path which may fall back to default
+        // Use ContentsManager's install dir — always correct for custom installed protons, unlike wineInfo.path which may fall back to default.
         File profileInstallDir = ContentsManager.getInstallDir(context, profile);
         Log.d(
             "ContainerManager",
@@ -764,18 +771,48 @@ public class ContainerManager {
         return false;
       }
 
+      // Move the (possibly corrupt) prefix ASIDE, not delete — games store saves inside it and this repair auto-runs at launch, so deleting would destroy saves. Rename old->backup, copy in the repaired prefix, migrate saves across; one backup kept per container as a recovery copy.
       File targetPrefixDir = new File(containerDir, ".wine");
-      if (targetPrefixDir.exists() && !FileUtils.delete(targetPrefixDir)) {
-        Log.e(
-            "ContainerManager",
-            "repairContainerWinePrefix: failed to clear existing prefix "
-                + targetPrefixDir.getAbsolutePath());
-        return false;
+      File backupPrefixDir = new File(containerDir, ".wine.broken-backup");
+      boolean movedAside = false;
+      if (targetPrefixDir.exists()) {
+        if (backupPrefixDir.exists() && !FileUtils.delete(backupPrefixDir)) {
+          Log.e(
+              "ContainerManager",
+              "repairContainerWinePrefix: failed to clear previous prefix backup "
+                  + backupPrefixDir.getAbsolutePath());
+          return false;
+        }
+        if (!targetPrefixDir.renameTo(backupPrefixDir)) {
+          // Do NOT delete as a fallback — that would destroy in-prefix saves; abort the repair so the container keeps its original prefix (safer failure).
+          Log.e(
+              "ContainerManager",
+              "repairContainerWinePrefix: failed to move existing prefix aside; aborting "
+                  + "repair to avoid save-data loss " + targetPrefixDir.getAbsolutePath());
+          return false;
+        }
+        movedAside = true;
       }
 
       if (!copyWinePrefixTree(repairedPrefixDir, targetPrefixDir)) {
         Log.e("ContainerManager", "repairContainerWinePrefix: failed to copy repaired prefix");
+        // Roll back so the container keeps its original prefix rather than a half-written one.
+        if (movedAside) {
+          FileUtils.delete(targetPrefixDir);
+          if (!backupPrefixDir.renameTo(targetPrefixDir)) {
+            Log.e(
+                "ContainerManager",
+                "repairContainerWinePrefix: CRITICAL — failed to restore prefix after copy "
+                    + "failure; original prefix preserved at "
+                    + backupPrefixDir.getAbsolutePath());
+          }
+        }
         return false;
+      }
+
+      // Best-effort: carry in-prefix save data over to the repaired prefix so saves survive without manual recovery.
+      if (movedAside) {
+        migrateInPrefixSaveData(backupPrefixDir, targetPrefixDir);
       }
 
       WineInfo wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersion);
@@ -790,9 +827,36 @@ public class ContainerManager {
       container.putExtra("mono_installed", null);
       container.putExtra("mono_version", null);
       container.saveData();
+      if (movedAside) {
+        Log.i(
+            "ContainerManager",
+            "repairContainerWinePrefix: original prefix preserved for save recovery at "
+                + backupPrefixDir.getAbsolutePath());
+      }
       return true;
     } finally {
       FileUtils.delete(tempDir);
+    }
+  }
+
+  /** Copy in-prefix save data from the moved-aside old prefix into the repaired one. Best-effort/non-fatal — the old prefix is kept as backup, so failure means manual recovery, not data loss. */
+  private void migrateInPrefixSaveData(File oldPrefixDir, File newPrefixDir) {
+    String[] saveSubPaths = {
+      "drive_c/users",
+      "drive_c/ProgramData",
+      "drive_c/Program Files (x86)/Steam/userdata",
+    };
+    for (String sub : saveSubPaths) {
+      File src = new File(oldPrefixDir, sub);
+      if (!src.exists()) continue;
+      File dst = new File(newPrefixDir, sub);
+      try {
+        if (!copyWinePrefixTree(src, dst)) {
+          Log.w("ContainerManager", "migrateInPrefixSaveData: failed to migrate " + sub);
+        }
+      } catch (Exception e) {
+        Log.w("ContainerManager", "migrateInPrefixSaveData: error migrating " + sub, e);
+      }
     }
   }
 
@@ -820,16 +884,14 @@ public class ContainerManager {
   }
 
   public Container getContainerForShortcut(Shortcut shortcut) {
-    // Search for the container by its ID
     for (Container container : containers) {
       if (container.id == shortcut.getContainerId()) {
         return container;
       }
     }
-    return null; // Return null if no matching container is found
+    return null;
   }
 
-  // Utility method to run on UI thread
   private void runOnUiThread(Runnable action) {
     new Handler(Looper.getMainLooper()).post(action);
   }

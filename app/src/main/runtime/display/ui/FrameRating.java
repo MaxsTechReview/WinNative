@@ -85,6 +85,7 @@ public class FrameRating extends LinearLayout implements Runnable {
   private final int C_GPU;
   private final int C_RAM;
   private final int C_TEMP;
+  private final int C_CPU_TEMP;
   private final int C_VALUE;
   private int battFailCount;
   private BatteryManager batteryManager;
@@ -94,11 +95,15 @@ public class FrameRating extends LinearLayout implements Runnable {
   private boolean canReadGpu;
   private Context context;
   private int cpuFailCount;
+  private CPUStatus.AppCpuSample prevCpuSample;
+  private boolean cpuWarmedUp;
   private volatile int cpuPercent;
   private volatile int cpuTemp;
+  private volatile int cpuSensorTemp;
   private volatile float currentMs;
   private boolean enableBatt;
   private boolean enableTemp;
+  private boolean enableCpuTemp;
   private boolean enableCpu;
   private boolean enableRam;
   private boolean enableFps;
@@ -107,23 +112,15 @@ public class FrameRating extends LinearLayout implements Runnable {
   private boolean enableRenderer;
   private volatile FrameObserver frameObserver;
   private int gpuFailCount;
+  private int statsParity;
   private volatile int gpuLoad;
 
-  /**
-   * Listener for raw per-present frame events. Fires on the X server render thread on
-   * every call to {@link #update()} regardless of HUD visibility — that way perf
-   * recording and leaderboard stats still work when the HUD is hidden. Implementations
-   * must be cheap (a single atomic op + array write is the budget).
-   */
+  /** Raw per-present frame events on the render thread, fired regardless of HUD visibility so perf recording/leaderboard stats keep working when hidden. Must be cheap (atomic op + array write). */
   public interface FrameObserver {
     void onFramePresent(long nanoTime);
   }
 
-  /**
-   * Install or remove the frame observer. Passing null clears it. Replacing an
-   * existing observer is allowed (last-writer-wins); this is intentional for cases
-   * where the activity replaces the FrameRating instance mid-session.
-   */
+  /** Install/remove the frame observer (null clears it); replacing is allowed (last-writer-wins) for when the activity swaps the FrameRating instance mid-session. */
   public void setFrameObserver(FrameObserver observer) {
     this.frameObserver = observer;
   }
@@ -131,6 +128,8 @@ public class FrameRating extends LinearLayout implements Runnable {
   private boolean isNativeActive;
   private boolean isStatsRunning;
   private volatile boolean isCharging;
+  // When values are mirrored to the Compose overlay the on-screen view is GONE, but we must still compute FPS/frametime so the mirrored gauges stay live.
+  private volatile boolean hudMirrorActive;
   private volatile float lastFPS;
   // Frame generation: when set, supplies the cumulative display present count (real + generated).
   // 0 means FG is off, in which case the HUD shows the single engine FPS.
@@ -141,17 +140,17 @@ public class FrameRating extends LinearLayout implements Runnable {
   private volatile long lastFrameNano;
   private long lastPrimaryFrameNano;
   private long lastGraphRedraw;
-  private long lastHudRedraw;
   private volatile String ramText;
   private final long[] frameTimesNano = new long[MAX_FRAME_SAMPLES];
   private int frameTimesStart;
   private int frameTimesCount;
   private String rendererName;
   private String gpuName;
-  private final View sep0, sep1, sep2, sep3, sep4, sep5;
+  private final View sep0, sep1, sep2, sep3, sep4, sep5, sep6;
   private final TextView tvRenderer;
   private final TextView tvGpuLoad;
   private final TextView tvCpu;
+  private final TextView tvCpuTemp;
   private final TextView tvRam;
   private final TextView tvBat;
   private final TextView tvTemp;
@@ -167,19 +166,14 @@ public class FrameRating extends LinearLayout implements Runnable {
 
   // ── GPU load caching (prevents N/A flickering from transient sysfs failures)
   private int lastGoodGpuLoad = -1;
-  private long lastGoodGpuTime = 0;
-  private static final long GPU_CACHE_DURATION_MS = 5000;
   private static final long FALLBACK_SUPPRESSION_NS = 2000000000L;
   private static final long FPS_CALC_INTERVAL_NS = 1000000000L;
-  private static final long HUD_REFRESH_MS = 1000L;
-  private static final long MIN_FRAME_INTERVAL_NS = 1000000L;
+  private static final long HUD_REFRESH_MS = 500L;
+  private static final long CPU_WARMUP_POLL_MS = 500L;
   private static final int MAX_FRAME_SAMPLES = 1024;
 
   // ── Tap-cycle display modes ──────────────────────────────────────
-  // Mode 0: horizontal, no backdrop
-  // Mode 1: horizontal, 50% shadow backdrop
-  // Mode 2: vertical, 50% shadow backdrop
-  // Mode 3: vertical, no backdrop
+  // 0/1 horizontal (no-backdrop/backdrop), 2/3 vertical (no-backdrop/backdrop)
   private int displayMode = 0;
   private static final int MODE_COUNT = 4;
   private GradientDrawable backdropDrawable;
@@ -207,7 +201,6 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.lastGraphRedraw = 0L;
     this.lastFrameNano = 0L;
     this.lastPrimaryFrameNano = 0L;
-    this.lastHudRedraw = 0L;
     this.frameTimesStart = 0;
     this.frameTimesCount = 0;
     this.lastFPS = 0.0f;
@@ -216,14 +209,18 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.enableGraph = true;
     this.enableGpu = true;
     this.enableCpu = true;
+    this.enableCpuTemp = false;
     this.enableRam = true;
     this.enableBatt = true;
     this.enableTemp = true;
     this.enableRenderer = true;
     this.cpuPercent = -1;
+    this.prevCpuSample = null;
+    this.cpuWarmedUp = false;
     this.gpuLoad = -1;
     this.batteryWatts = -1.0f;
     this.cpuTemp = -1;
+    this.cpuSensorTemp = -1;
     this.ramText = "N/A";
     this.rendererName = "Vulkan";
     this.gpuName = null;
@@ -234,13 +231,13 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.cpuFailCount = 0;
     this.battFailCount = 0;
     this.lastGoodGpuLoad = -1;
-    this.lastGoodGpuTime = 0;
     this.isStatsRunning = false;
     this.C_VALUE = Color.parseColor("#FFFFFF");
     this.C_CPU = Color.parseColor("#FF8200");
     this.C_RAM = Color.parseColor("#26C6DA");
     this.C_BAT = Color.parseColor("#E03A94");
     this.C_TEMP = Color.parseColor("#E53935");
+    this.C_CPU_TEMP = Color.parseColor("#9E9E9E");
     this.C_GPU = Color.parseColor("#E040FB");
     this.C_FPS_OK = Color.parseColor("#76FF03");
     this.C_WARM = Color.parseColor("#FFC107"); // TMP value when battery is warm (40-44C)
@@ -260,6 +257,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.tvRenderer = view.findViewById(R.id.TVRenderer);
     this.tvGpuLoad = view.findViewById(R.id.TVGpuLoad);
     this.tvCpu = view.findViewById(R.id.TVCpu);
+    this.tvCpuTemp = view.findViewById(R.id.TVCpuTemp);
     this.tvRam = view.findViewById(R.id.TVRam);
     this.tvBat = view.findViewById(R.id.TVBat);
     this.tvTemp = view.findViewById(R.id.TVTemp);
@@ -272,6 +270,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.sep3 = view.findViewById(R.id.Sep3);
     this.sep4 = view.findViewById(R.id.Sep4);
     this.sep5 = view.findViewById(R.id.Sep5);
+    this.sep6 = view.findViewById(R.id.Sep6);
     this.graphView = new FrametimeGraphView(context);
     if (this.graphContainer != null) {
       this.graphContainer.addView(this.graphView);
@@ -283,7 +282,6 @@ public class FrameRating extends LinearLayout implements Runnable {
       this.tvFpsBig.setText("60");
     }
 
-    // Create backdrop drawable (rounded, semi-transparent black)
     this.backdropDrawable = new GradientDrawable();
     this.backdropDrawable.setColor(BACKDROP_BASE_COLOR);
     this.backdropDrawable.setCornerRadius(8f);
@@ -291,7 +289,6 @@ public class FrameRating extends LinearLayout implements Runnable {
     loadPersistedHudPreferences();
     applyDisplayMode();
 
-    // Detect GPU name from sysfs on init
     if (this.gpuName == null) {
       detectGpuNameFromSysfs();
     }
@@ -308,7 +305,8 @@ public class FrameRating extends LinearLayout implements Runnable {
             if (isStatsRunning) {
               calculateStats();
               if (statsHandler != null) {
-                statsHandler.postDelayed(this, 1000L);
+                long next = (prevCpuSample != null && !cpuWarmedUp) ? CPU_WARMUP_POLL_MS : 500L;
+                statsHandler.postDelayed(this, next);
               }
             }
           }
@@ -320,13 +318,14 @@ public class FrameRating extends LinearLayout implements Runnable {
       return;
     }
     this.isStatsRunning = true;
+    this.prevCpuSample = null;
+    this.cpuWarmedUp = false;
     this.statsThread = new HandlerThread("HardwareStatsThread");
     this.statsThread.start();
     this.statsHandler = new Handler(this.statsThread.getLooper());
     this.statsHandler.post(this.statsRunnable);
 
-    // Independent UI refresh timer — ensures hardware stats always refresh
-    // on screen even if update() is not called (e.g. frameRatingWindowId mismatch).
+    // Independent UI refresh timer so hardware stats refresh on screen even if update() is never called (e.g. frameRatingWindowId mismatch).
     this.uiRefreshHandler = new Handler(android.os.Looper.getMainLooper());
     this.uiRefreshRunnable =
         new Runnable() {
@@ -361,7 +360,10 @@ public class FrameRating extends LinearLayout implements Runnable {
   @Override
   protected void onAttachedToWindow() {
     super.onAttachedToWindow();
-    bringToFront();
+    // Deferred: bringToFront() reorders the parent's child array; called inside the parent's
+    // attach walk it makes the walker skip the sibling that shifts into this view's old slot,
+    // leaving that sibling permanently unattached. Z-order is held by the elevation either way.
+    post(this::bringToFront);
     setElevation(1000.0f);
     restorePersistedPosition();
     installParentLayoutListener();
@@ -865,8 +867,7 @@ public class FrameRating extends LinearLayout implements Runnable {
           lp.width = LayoutParams.WRAP_CONTENT;
           lp.height = LayoutParams.WRAP_CONTENT;
           lp.setMargins(0, 0, 0, 0);
-          // Centre the big FPS number across the HUD width when stacked
-          // vertically; inherit the container gravity when horizontal (-1).
+          // Centre the big FPS number when stacked vertically; inherit container gravity when horizontal (-1).
           lp.gravity = horizontal ? -1 : Gravity.CENTER_HORIZONTAL;
         } else {
           lp.width = LayoutParams.WRAP_CONTENT;
@@ -1006,7 +1007,6 @@ public class FrameRating extends LinearLayout implements Runnable {
   public synchronized void reset() {
     this.lastFrameNano = 0L;
     this.lastPrimaryFrameNano = 0L;
-    this.lastHudRedraw = 0L;
     this.frameTimesStart = 0;
     this.frameTimesCount = 0;
     this.lastFPS = 0.0f;
@@ -1131,13 +1131,17 @@ public class FrameRating extends LinearLayout implements Runnable {
         this.enableGraph = visible;
         applyFrametimeDisplayVisibility();
         break;
+      case 8:
+        this.enableCpuTemp = visible;
+        if (this.tvCpuTemp != null) this.tvCpuTemp.setVisibility(v);
+        break;
     }
     updateSeparators(getOrientation() == LinearLayout.HORIZONTAL);
   }
 
   private void updateSeparators(boolean horizontal) {
     if (!horizontal) {
-      View[] seps = {sep0, sep1, sep2, sep3, sep4, sep5};
+      View[] seps = {sep0, sep1, sep2, sep3, sep4, sep5, sep6};
       for (View s : seps) if (s != null) s.setVisibility(View.GONE);
       return;
     }
@@ -1145,6 +1149,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     boolean vRen = tvRenderer != null && tvRenderer.getVisibility() == View.VISIBLE;
     boolean vGpu = tvGpuLoad != null && tvGpuLoad.getVisibility() == View.VISIBLE;
     boolean vCpu = tvCpu != null && tvCpu.getVisibility() == View.VISIBLE;
+    boolean vCTmp = tvCpuTemp != null && tvCpuTemp.getVisibility() == View.VISIBLE;
     boolean vRam = tvRam != null && tvRam.getVisibility() == View.VISIBLE;
     boolean vBat = tvBat != null && tvBat.getVisibility() == View.VISIBLE;
     boolean vTmp = tvTemp != null && tvTemp.getVisibility() == View.VISIBLE;
@@ -1152,26 +1157,32 @@ public class FrameRating extends LinearLayout implements Runnable {
 
     if (sep0 != null)
       sep0.setVisibility(
-          vRen && (vGpu || vCpu || vRam || vBat || vTmp || vFps) ? View.VISIBLE : View.GONE);
+          vRen && (vGpu || vCpu || vCTmp || vRam || vBat || vTmp || vFps) ? View.VISIBLE : View.GONE);
     if (sep1 != null)
-      sep1.setVisibility(vGpu && (vCpu || vRam || vBat || vTmp || vFps) ? View.VISIBLE : View.GONE);
+      sep1.setVisibility(
+          vGpu && (vCpu || vCTmp || vRam || vBat || vTmp || vFps) ? View.VISIBLE : View.GONE);
     if (sep2 != null)
-      sep2.setVisibility(vCpu && (vRam || vBat || vTmp || vFps) ? View.VISIBLE : View.GONE);
+      sep2.setVisibility(
+          vCpu && (vCTmp || vRam || vBat || vTmp || vFps) ? View.VISIBLE : View.GONE);
+    if (sep6 != null)
+      sep6.setVisibility(vCTmp && (vRam || vBat || vTmp || vFps) ? View.VISIBLE : View.GONE);
     if (sep3 != null) sep3.setVisibility(vRam && (vBat || vTmp || vFps) ? View.VISIBLE : View.GONE);
     if (sep4 != null) sep4.setVisibility(vBat && (vTmp || vFps) ? View.VISIBLE : View.GONE);
     if (sep5 != null) sep5.setVisibility(vTmp && vFps ? View.VISIBLE : View.GONE);
   }
 
   /** Called when the guest submits a new frame to the X presentation path. */
+  public void setHudMirrorActive(boolean active) {
+    this.hudMirrorActive = active;
+  }
+
   public void recordGameFrame(boolean primarySource, int serial) {
-    // Notify observer before any visibility gating so perf recording / leaderboard stats keep
-    // working when the HUD is hidden. Cheap path; observer is typically a single AtomicLong
-    // increment plus an ArrayList add.
+    // Notify the observer before visibility gating so perf recording/leaderboard stats keep working when the HUD is hidden.
     FrameObserver obs = this.frameObserver;
     if (obs != null) {
       obs.onFramePresent(System.nanoTime());
     }
-    if (getVisibility() != View.VISIBLE) {
+    if (getVisibility() != View.VISIBLE && !this.hudMirrorActive) {
       return;
     }
     long nowNano = System.nanoTime();
@@ -1190,45 +1201,27 @@ public class FrameRating extends LinearLayout implements Runnable {
         return;
       }
 
-      if (this.lastFrameNano > 0 && nowNano - this.lastFrameNano < MIN_FRAME_INTERVAL_NS) {
-        return;
-      }
       if (this.lastFrameNano == 0) {
         this.lastFrameNano = nowNano;
       }
       float ms = (nowNano - this.lastFrameNano) / 1000000.0f;
       this.lastFrameNano = nowNano;
 
-      long time = SystemClock.elapsedRealtime();
+      // Ring write only; window trimming, FPS math, and text refresh run on the 1s UI tick.
       appendFrameTimeLocked(nowNano);
-      trimFrameTimesLocked(nowNano - FPS_CALC_INTERVAL_NS);
-      updateRollingFpsLocked();
-      boolean shouldRedrawHud = false;
-      if (time - this.lastHudRedraw >= HUD_REFRESH_MS) shouldRedrawHud = true;
-
       if (ms > 0.0f && ms < 500.0f) {
         this.currentMs = ms;
       }
-      long frametimeRedrawInterval = this.frametimeNumericMode ? 500L : 50L;
-      if (this.enableGraph && ms > 0.0f && ms < 500.0f
-          && time - this.lastGraphRedraw >= frametimeRedrawInterval) {
-        if (!this.frametimeNumericMode && this.graphView != null) {
+      if (this.enableGraph && !this.frametimeNumericMode && this.graphView != null
+          && ms > 0.0f && ms < 500.0f) {
+        long time = SystemClock.elapsedRealtime();
+        if (time - this.lastGraphRedraw >= 50L) {
           this.graphView.addFrame(ms);
           this.graphView.postInvalidate();
-        } else if (this.frametimeNumericMode && this.tvFrametime != null) {
-          final float msSnapshot = ms;
-          this.tvFrametime.post(
-              () -> this.tvFrametime.setText(String.format(Locale.US, "%.1f ms", msSnapshot)));
+          this.lastGraphRedraw = time;
         }
-        this.lastGraphRedraw = time;
       }
-
-      if (!shouldRedrawHud && time - this.lastHudRedraw < HUD_REFRESH_MS) {
-        return;
-      }
-      this.lastHudRedraw = time;
     }
-    post(this);
   }
 
   public void recordGameFrame() {
@@ -1307,10 +1300,27 @@ public class FrameRating extends LinearLayout implements Runnable {
   }
 
   private int calculateGPULoad() throws Exception {
+    File gpubusy = new File("/sys/class/kgsl/kgsl-3d0/gpubusy");
+    if (gpubusy.exists() && gpubusy.canRead()) {
+      try (BufferedReader reader = new BufferedReader(new FileReader(gpubusy))) {
+        String line = reader.readLine();
+        if (line != null) {
+          String[] parts = line.trim().split("\\s+");
+          if (parts.length >= 2) {
+            long busy = Long.parseLong(parts[0]);
+            long total = Long.parseLong(parts[1]);
+            if (total > 0) return (int) ((100 * busy) / total);
+          }
+        }
+      } catch (Exception ignored) {
+      }
+    }
+
     File[] gpuFiles = {
       new File("/sys/class/kgsl/kgsl-3d0/gpu_busy_percentage"),
       new File("/sys/class/kgsl/kgsl-3d0/devfreq/gpu_load"),
-      new File("/sys/class/misc/mali0/device/utilisation")
+      new File("/sys/class/misc/mali0/device/utilisation"),
+      new File("/sys/kernel/gpu/gpu_busy")
     };
 
     for (File f : gpuFiles) {
@@ -1325,64 +1335,75 @@ public class FrameRating extends LinearLayout implements Runnable {
       }
     }
 
-    File gpubusy = new File("/sys/class/kgsl/kgsl-3d0/gpubusy");
-    if (gpubusy.exists() && gpubusy.canRead()) {
-      try (BufferedReader reader = new BufferedReader(new FileReader(gpubusy))) {
-        String line = reader.readLine();
-        if (line != null) {
-          String[] parts = line.trim().split("\\s+");
-          if (parts.length >= 2) {
-            long busy = Long.parseLong(parts[0]);
-            long total = Long.parseLong(parts[1]);
-            if (total != 0) return (int) ((100 * busy) / total);
+    File mtkMali = new File("/proc/mtk_mali/utilization");
+    if (mtkMali.exists() && mtkMali.canRead()) {
+      try (BufferedReader reader = new BufferedReader(new FileReader(mtkMali))) {
+        String line;
+        while ((line = reader.readLine()) != null) {
+          int idx = line.indexOf("ACTIVE=");
+          if (idx >= 0) {
+            int start = idx + 7;
+            int end = line.indexOf(' ', start);
+            String num = (end > start ? line.substring(start, end) : line.substring(start))
+                .replaceAll("[^0-9]", "");
+            if (!num.isEmpty()) return Integer.parseInt(num);
           }
         }
       } catch (Exception ignored) {
       }
     }
+
     throw new Exception("Failed to read GPU usage.");
   }
 
   private void calculateStats() {
+    // Loads sample every 500ms (matching the Mango HUD window); heavier reads alternate at 1s.
+    boolean slow = (this.statsParity++ & 1) == 0;
     if (this.enableGpu && this.canReadGpu) {
       try {
         int load = calculateGPULoad();
         this.gpuLoad = load;
         this.lastGoodGpuLoad = load;
-        this.lastGoodGpuTime = SystemClock.elapsedRealtime();
         this.gpuFailCount = 0;
       } catch (Exception e) {
-        // Use cached value if recent enough, otherwise show -1
-        long elapsed = SystemClock.elapsedRealtime() - this.lastGoodGpuTime;
-        if (this.lastGoodGpuLoad >= 0 && elapsed < GPU_CACHE_DURATION_MS) {
-          this.gpuLoad = this.lastGoodGpuLoad;
-        } else {
-          this.gpuLoad = -1;
-        }
+        // Hold the last good reading through transient sysfs failures, like the Mango HUD.
+        if (this.lastGoodGpuLoad >= 0) this.gpuLoad = this.lastGoodGpuLoad;
         this.gpuFailCount++;
       }
     }
     if (this.enableCpu && this.canReadCpu) {
       try {
-        short[] clocks = CPUStatus.getCurrentClockSpeeds();
-        if (clocks != null && clocks.length > 0) {
-          long cur = 0;
-          long max = 0;
-          for (int i = 0; i < clocks.length; i++) {
-            cur += clocks[i];
-            max += CPUStatus.getMaxClockSpeed(i);
+        CPUStatus.AppCpuSample sample = CPUStatus.readAppCpuSample();
+        int pct = -1;
+        if (sample != null) {
+          if (this.prevCpuSample != null) pct = sample.percentSince(this.prevCpuSample);
+          this.prevCpuSample = sample;
+        }
+        if (pct >= 0) {
+          this.cpuPercent = pct;
+          this.cpuFailCount = 0;
+          if (!this.cpuWarmedUp) {
+            this.cpuWarmedUp = true;
+            Handler refresh = this.uiRefreshHandler;
+            if (refresh != null) refresh.post(this);
           }
-          if (max > 0) {
-            this.cpuPercent = (int) ((cur * 100) / max);
-            this.cpuFailCount = 0;
-          }
+        } else if (!this.cpuWarmedUp) {
+          int freq = CPUStatus.getClockFreqLoadPercent();
+          if (freq >= 0) this.cpuPercent = freq;
         }
       } catch (Exception e) {
         this.cpuPercent = -1;
         this.cpuFailCount++;
       }
     }
-    if (this.enableRam) {
+    if (slow && this.enableCpuTemp) {
+      try {
+        this.cpuSensorTemp = CPUStatus.getCpuTempC();
+      } catch (Exception e) {
+        this.cpuSensorTemp = -1;
+      }
+    }
+    if (slow && this.enableRam) {
       try {
         ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
         ((ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE)).getMemoryInfo(mi);
@@ -1392,7 +1413,7 @@ public class FrameRating extends LinearLayout implements Runnable {
         this.ramText = "N/A";
       }
     }
-    if ((this.enableBatt || this.enableTemp) && this.canReadBatt) {
+    if (slow && (this.enableBatt || this.enableTemp) && this.canReadBatt) {
       try {
         float amps = getBatteryCurrentAmps();
         Intent intent =
@@ -1417,12 +1438,23 @@ public class FrameRating extends LinearLayout implements Runnable {
     }
   }
 
+  private int ramPercentValue() {
+    try {
+      return Integer.parseInt(this.ramText.replace("%", "").trim());
+    } catch (Exception e) {
+      return -1;
+    }
+  }
+
   @Override
   public void run() {
-    if (getVisibility() != View.VISIBLE) return;
-
-    // Watchdog: reset FPS if no frames arrived for > 1.5s
+    // Watchdog first so a stalled game drops to 0 on the mirrored HUD too: reset FPS if no frame arrived for > 1.5s, then publish.
     long nowNano = System.nanoTime();
+    synchronized (this) {
+      // Moved off the present path: maintain the 1s rolling window at display cadence.
+      trimFrameTimesLocked(nowNano - FPS_CALC_INTERVAL_NS);
+      updateRollingFpsLocked();
+    }
     if (this.lastFrameNano > 0 && nowNano - this.lastFrameNano > 1500000000L) {
       synchronized (this) {
         this.lastFPS = 0.0f;
@@ -1431,6 +1463,12 @@ public class FrameRating extends LinearLayout implements Runnable {
         this.frameTimesCount = 0;
       }
     }
+    // Feed the phone gauge HUD (single source of truth) even while the on-screen overlay is hidden.
+    com.winlator.cmod.runtime.display.PerformanceHudState.updateValues(
+        this.lastFPS, this.currentMs, this.gpuLoad, this.cpuPercent, ramPercentValue(),
+        (this.dualSeriesBattery && this.batteryWatts >= 0.0f) ? this.batteryWatts * 2.0f : this.batteryWatts,
+        this.cpuTemp, this.rendererName != null ? this.rendererName : "");
+    if (getVisibility() != View.VISIBLE) return;
 
     if (this.enableGpu && this.tvGpuLoad != null) {
       SpannableStringBuilder b = new SpannableStringBuilder();
@@ -1443,11 +1481,30 @@ public class FrameRating extends LinearLayout implements Runnable {
     if (this.enableCpu && this.tvCpu != null) {
       SpannableStringBuilder b = new SpannableStringBuilder();
       append(b, "CPU ", this.C_CPU);
-      append(b, this.cpuPercent >= 0 ? this.cpuPercent + "%" : "N/A", this.C_VALUE);
+      append(b, Math.max(this.cpuPercent, 0) + "%", this.C_VALUE);
       this.tvCpu.setText(b);
       this.tvCpu.setVisibility(View.VISIBLE);
     } else if (this.tvCpu != null) {
       this.tvCpu.setVisibility(View.GONE);
+    }
+
+    if (this.enableCpuTemp && this.tvCpuTemp != null) {
+      SpannableStringBuilder b = new SpannableStringBuilder();
+      append(b, "C.TMP ", this.C_CPU_TEMP);
+      if (this.cpuSensorTemp >= 0) {
+        int tempColor =
+            this.cpuSensorTemp >= 90
+                ? this.C_HOT
+                : this.cpuSensorTemp >= 80 ? this.C_WARM : this.C_VALUE;
+        append(b, this.cpuSensorTemp + "°", tempColor);
+        appendSmall(b, "C", tempColor, 0.7f);
+      } else {
+        append(b, "N/A", this.C_VALUE);
+      }
+      this.tvCpuTemp.setText(b);
+      this.tvCpuTemp.setVisibility(View.VISIBLE);
+    } else if (this.tvCpuTemp != null) {
+      this.tvCpuTemp.setVisibility(View.GONE);
     }
 
     if (this.enableRam && this.tvRam != null) {
@@ -1484,7 +1541,7 @@ public class FrameRating extends LinearLayout implements Runnable {
 
     if (this.enableTemp && this.tvTemp != null) {
       SpannableStringBuilder b = new SpannableStringBuilder();
-      append(b, "TMP ", this.C_TEMP);
+      append(b, "B.TMP ", this.C_TEMP);
       if (this.cpuTemp >= 0) {
         int tempColor =
             this.cpuTemp >= 45 ? this.C_HOT : this.cpuTemp >= 40 ? this.C_WARM : this.C_VALUE;
@@ -1540,10 +1597,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     b.setSpan(new ForegroundColorSpan(c), start, b.length(), 33);
   }
 
-  /**
-   * Like {@link #append} but renders the text at {@code scale} of the surrounding size and raises
-   * it so the smaller glyph's top lines up with the full-size text (used for the "C" unit).
-   */
+  /** Like {@link #append} but renders text at {@code scale} of the surrounding size, raised so the smaller glyph's top lines up with the full-size text (used for the "C" unit). */
   private void appendSmall(SpannableStringBuilder b, String t, int c, float scale) {
     int start = b.length();
     b.append(t);
@@ -1551,10 +1605,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     b.setSpan(new SmallRaisedSpan(scale), start, b.length(), 33);
   }
 
-  /**
-   * Renders text at a reduced size, shifted up so its top aligns with the cap height of the
-   * surrounding full-size text instead of resting on the shared baseline.
-   */
+  /** Renders text at a reduced size, shifted up so its top aligns with the surrounding cap height instead of resting on the shared baseline. */
   private static class SmallRaisedSpan extends MetricAffectingSpan {
     private final float scale;
 
@@ -1580,12 +1631,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     }
   }
 
-  /**
-   * Append the outlined plug glyph (tinted to the charging colour) followed by a small gap.
-   * The glyph rides on a single placeholder space that the {@link ImageSpan} draws over; a
-   * second visible space separates it from the wattage that follows. Falls back to a textual
-   * "⚡" marker if the drawable can't be loaded.
-   */
+  /** Append the tinted plug glyph then a gap: it rides on a placeholder space the {@link ImageSpan} draws over, with a second space before the wattage. Falls back to a textual "⚡" if the drawable can't load. */
   private void appendPlugIcon(SpannableStringBuilder b) {
     Drawable plug = getPlugIcon();
     if (plug == null) {

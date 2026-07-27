@@ -4,6 +4,7 @@ import android.content.Context;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
+import com.winlator.cmod.runtime.display.recording.GameRecorder;
 import com.winlator.cmod.runtime.wine.EnvVars;
 import com.winlator.cmod.sharedmemory.SysVSharedMemory;
 import java.nio.ByteBuffer;
@@ -58,25 +59,36 @@ public class ALSAClient {
 
       options.latencyMillis =
           parseInt(
-              firstNonEmpty(envVars.get("ANDROID_ALSA_LATENCY_MS"), envVars.get("WINNATIVE_ALSA_LATENCY_MS")),
+              firstNonEmpty(
+                  envVars.get("ALSA_LATENCY_MS"),
+                  envVars.get("ANDROID_ALSA_LATENCY_MS"),
+                  envVars.get("WINNATIVE_ALSA_LATENCY_MS")),
               DEFAULT_LATENCY_MILLIS);
       options.latencyMillis = Math.max(0, options.latencyMillis);
 
       options.volume =
           parseFloat(
-              firstNonEmpty(envVars.get("ANDROID_ALSA_VOLUME"), envVars.get("WINNATIVE_ALSA_VOLUME")),
+              firstNonEmpty(
+                  envVars.get("ALSA_VOLUME"),
+                  envVars.get("ANDROID_ALSA_VOLUME"),
+                  envVars.get("WINNATIVE_ALSA_VOLUME")),
               DEFAULT_VOLUME);
       options.volume = Math.max(0.0f, Math.min(options.volume, MAX_VOLUME));
 
       options.bassBoost =
           parseFloat(
-              firstNonEmpty(envVars.get("ANDROID_ALSA_BASS_BOOST"), envVars.get("WINNATIVE_ALSA_BASS_BOOST")),
+              firstNonEmpty(
+                  envVars.get("ALSA_BASS_BOOST"),
+                  envVars.get("ANDROID_ALSA_BASS_BOOST"),
+                  envVars.get("WINNATIVE_ALSA_BASS_BOOST")),
               DEFAULT_BASS_BOOST);
       options.bassBoost = Math.max(0.0f, Math.min(options.bassBoost, MAX_BASS_BOOST));
 
       String performanceMode =
           firstNonEmpty(
-              envVars.get("ANDROID_ALSA_PERFORMANCE_MODE"), envVars.get("WINNATIVE_ALSA_PERFORMANCE_MODE"));
+              envVars.get("ALSA_PERFORMANCE_MODE"),
+              envVars.get("ANDROID_ALSA_PERFORMANCE_MODE"),
+              envVars.get("WINNATIVE_ALSA_PERFORMANCE_MODE"));
       if (performanceMode.equalsIgnoreCase("low_latency") || performanceMode.equals("1")) {
         options.performanceMode = AudioTrack.PERFORMANCE_MODE_LOW_LATENCY;
       } else if (performanceMode.equalsIgnoreCase("power_saving") || performanceMode.equals("2")) {
@@ -88,8 +100,11 @@ public class ALSAClient {
       return options;
     }
 
-    private static String firstNonEmpty(String first, String second) {
-      return first != null && !first.isEmpty() ? first : (second != null ? second : "");
+    private static String firstNonEmpty(String... values) {
+      for (String value : values) {
+        if (value != null && !value.isEmpty()) return value;
+      }
+      return "";
     }
 
     private static int parseInt(String value, int fallback) {
@@ -232,6 +247,16 @@ public class ALSAClient {
         for (int i = data.position(); i < data.limit(); i++) data.put(i, (byte) 0);
       } else {
         applyAudioProcessing(data);
+      }
+
+      // Tee the post-processed PCM into an active screen recording (a duplicate, no-op when idle).
+      GameRecorder recorder = GameRecorder.active();
+      if (recorder != null) {
+        ByteBuffer tee = data.duplicate();
+        tee.order(data.order());
+        tee.position(0);
+        tee.limit(data.limit());
+        recorder.onPcm(tee, sampleRate, channelCount, getPCMEncoding(dataType));
       }
 
       while (data.position() != data.limit()) {

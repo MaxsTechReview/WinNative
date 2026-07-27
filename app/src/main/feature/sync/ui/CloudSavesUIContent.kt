@@ -24,8 +24,11 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -87,7 +90,9 @@ import com.winlator.cmod.feature.steamcloudsync.SteamCloudHistoryProvider
 import com.winlator.cmod.feature.steamcloudsync.SteamCloudSyncHelper
 import com.winlator.cmod.feature.steamcloudsync.SteamSaveSnapshotManager
 import com.winlator.cmod.feature.sync.google.GameSaveBackupManager
+import com.winlator.cmod.feature.sync.google.GoogleAuthMode
 import com.winlator.cmod.feature.sync.google.WinePathUtils
+import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.container.Shortcut
 import com.winlator.cmod.shared.android.DirectoryPickerDialog
 import com.winlator.cmod.shared.theme.WinNativeAccent
@@ -97,6 +102,7 @@ import com.winlator.cmod.shared.theme.WinNativeTextPrimary
 import com.winlator.cmod.shared.theme.WinNativeTextSecondary
 import com.winlator.cmod.shared.ui.dialog.WinNativeDialogButton
 import com.winlator.cmod.shared.ui.dialog.WinNativeDialogShell
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import com.winlator.cmod.shared.ui.toast.WinToast
 import kotlinx.coroutines.Dispatchers
@@ -156,7 +162,45 @@ internal fun CloudSavesContent(
             ?.toIntOrNull()
             ?.takeIf { it > 0 }
             ?: shortcut?.container?.id?.takeIf { it > 0 }
+    // Resolve the game's REAL container: the `container_id` override wins over shortcut.container (stale once a game is reassigned), or cloud ops hit the wrong wineprefix → "No save files found".
+    val targetContainer =
+        remember(shortcut, targetContainerId) {
+            targetContainerId?.let { ContainerManager(context).getContainerById(it) } ?: shortcut?.container
+        }
     var gogZipBusy by remember { mutableStateOf(false) }
+    var googleBackupBusy by remember { mutableStateOf(false) }
+    var pendingCloudFileDownload by remember {
+        mutableStateOf<GameSaveBackupManager.BackupHistoryEntry?>(null)
+    }
+    val cloudFileDownloadLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+            val entry = pendingCloudFileDownload
+            pendingCloudFileDownload = null
+            if (uri == null || entry == null) return@rememberLauncherForActivityResult
+            val appId = gameId.toIntOrNull() ?: return@rememberLauncherForActivityResult
+            scope.launch {
+                val ok =
+                    withContext(Dispatchers.IO) {
+                        runCatching {
+                            val bytes = SteamCloudHistoryProvider.downloadFileBytes(appId, entry.fileId)
+                            if (bytes == null) {
+                                false
+                            } else {
+                                context.contentResolver.openOutputStream(uri)?.use { output ->
+                                    output.write(bytes)
+                                    true
+                                } ?: false
+                            }
+                        }.getOrDefault(false)
+                    }
+                notify(
+                    context.getString(
+                        if (ok) R.string.cloud_saves_history_download_success else R.string.cloud_saves_history_download_failed,
+                    ),
+                    Toast.LENGTH_SHORT,
+                )
+            }
+        }
     val gogZipLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
             if (uri == null) return@rememberLauncherForActivityResult
@@ -209,6 +253,8 @@ internal fun CloudSavesContent(
                                     emptyList()
                                 }
                             }
+                        // Surface the local rolling snapshots — STEAM_LOCAL entries are the only ones supporting true per-entry rollback (restoreFromEntry), so without them the user couldn't recover those saves.
+                        val localSnapshots = SteamSaveSnapshotManager.listHistory(context, appId)
                         // Surface Google-mirrored "keep a copy" saves in the same list (silent no-op when not signed in).
                         val google =
                             GameSaveBackupManager.listGoogleHistory(
@@ -216,24 +262,32 @@ internal fun CloudSavesContent(
                                 GameSaveBackupManager.GameSource.STEAM,
                                 gameId,
                             )
-                        (cloud + google).sortedByDescending { it.timestampMs }
+                        (cloud + localSnapshots + google).sortedByDescending { it.timestampMs }
                     } else {
                         emptyList()
                     }
                 }
                 GameSaveBackupManager.GameSource.EPIC -> {
                     val appId = gameId.toIntOrNull()
-                    if (appId != null) {
-                        EpicCloudHistoryProvider
-                            .listCloudSaveGroups(context, appId)
-                    } else {
-                        emptyList()
-                    }
+                    val epic =
+                        if (appId != null) {
+                            EpicCloudHistoryProvider.listCloudSaveGroups(context, appId)
+                        } else {
+                            emptyList()
+                        }
+                    // Surface "Backup To Google" copies alongside the provider history.
+                    val google = GameSaveBackupManager.listGoogleHistory(activity, gameSource, gameId)
+                    (epic + google).sortedByDescending { it.timestampMs }
                 }
                 GameSaveBackupManager.GameSource.GOG -> {
-                    GOGCloudHistoryProvider.listCloudSaveGroups(context, gameId, targetContainerId)
+                    val gog = GOGCloudHistoryProvider.listCloudSaveGroups(context, gameId, targetContainerId)
+                    val google = GameSaveBackupManager.listGoogleHistory(activity, gameSource, gameId)
+                    (gog + google).sortedByDescending { it.timestampMs }
                 }
-                GameSaveBackupManager.GameSource.CUSTOM -> emptyList()
+                GameSaveBackupManager.GameSource.CUSTOM ->
+                    GameSaveBackupManager
+                        .listGoogleHistory(activity, gameSource, gameId)
+                        .sortedByDescending { it.timestampMs }
             }
         historyLoading = false
     }
@@ -515,6 +569,41 @@ internal fun CloudSavesContent(
 
         }
 
+        // "Backup To Google" — manual backup of the local save to Google Play Games (every store). Passes the game's container so the save resolves against the correct wineprefix.
+        val backupToGoogleAction: @Composable (Modifier) -> Unit = { mod ->
+            ActionWithHelper(
+                icon = Icons.Outlined.CloudUpload,
+                label = stringResource(R.string.cloud_saves_google_backup_label),
+                tint = CloudSuccess,
+                modifier = mod,
+                enabled = !isWorking && !googleBackupBusy && gameId.isNotEmpty(),
+                onClick = {
+                    if (googleBackupBusy) return@ActionWithHelper
+                    scope.launch {
+                        googleBackupBusy = true
+                        try {
+                            val result =
+                                withContext(Dispatchers.IO) {
+                                    GameSaveBackupManager.backupSaveToGoogle(
+                                        activity = activity,
+                                        gameSource = gameSource,
+                                        gameId = gameId,
+                                        gameName = gameName,
+                                        origin = GameSaveBackupManager.BackupOrigin.MANUAL,
+                                        authMode = GoogleAuthMode.INTERACTIVE,
+                                        containerHint = targetContainer,
+                                    )
+                                }
+                            notify(result.message, Toast.LENGTH_LONG)
+                        } finally {
+                            googleBackupBusy = false
+                            historyRefreshKey++
+                        }
+                    }
+                },
+            )
+        }
+
         if (steamManagedCloud) {
             val steamAppIdInt = gameId.toIntOrNull()
             var steamBusy by remember { mutableStateOf(false) }
@@ -529,7 +618,7 @@ internal fun CloudSavesContent(
                         try {
                             val result =
                                 SteamSaveSnapshotManager
-                                    .importSnapshotFromFiles(activity, steamAppIdInt, uris, sc.container)
+                                    .importSnapshotFromFiles(activity, steamAppIdInt, uris, targetContainer)
                             notify(
                                 result.message,
                                 Toast.LENGTH_LONG,
@@ -541,7 +630,7 @@ internal fun CloudSavesContent(
                     }
                 }
 
-            if (steamBusy) {
+            if (steamBusy || googleBackupBusy) {
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth(),
                     color = Accent,
@@ -555,7 +644,6 @@ internal fun CloudSavesContent(
             val steamPushSuccess = stringResource(R.string.cloud_saves_steam_push_success)
             val steamPushFailed = stringResource(R.string.cloud_saves_steam_push_failed)
             BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                val compact = maxWidth < 520.dp
                 val syncAction: @Composable (Modifier) -> Unit = { mod ->
                     ActionWithHelper(
                         icon = Icons.Outlined.CloudSync,
@@ -572,7 +660,7 @@ internal fun CloudSavesContent(
                                     val ok =
                                         withContext(Dispatchers.IO) {
                                             SteamCloudSyncHelper
-                                                .forceDownloadById(activity, appId, shortcut?.container)
+                                                .forceDownloadById(activity, appId, targetContainer)
                                         }
                                     notify(
                                         if (ok) steamSyncSuccess else steamSyncFailed,
@@ -635,31 +723,39 @@ internal fun CloudSavesContent(
                         },
                     )
                 }
-                if (compact) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            syncAction(Modifier.weight(1f))
-                            pushAction(Modifier.weight(1f))
-                        }
-                        importAction(Modifier.fillMaxWidth())
-                    }
-                } else {
+                // 2x2 grid: Sync / Push on top, Import / Backup To Google below — equal-width cells so columns line up.
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         syncAction(Modifier.weight(1f))
                         pushAction(Modifier.weight(1f))
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         importAction(Modifier.weight(1f))
+                        backupToGoogleAction(Modifier.weight(1f))
                     }
                 }
             }
+        }
+
+        // For non-Steam stores, "Backup To Google" is its own full-width button (Steam puts it in the action grid above).
+        if (!steamManagedCloud) {
+            if (googleBackupBusy) {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Accent,
+                    trackColor = CardBorder,
+                )
+            }
+            backupToGoogleAction(Modifier.fillMaxWidth())
         }
 
         SaveHistorySection(
@@ -671,11 +767,20 @@ internal fun CloudSavesContent(
             },
             onRestore = { entry -> entryPendingRestore = entry },
             onRename = { entry -> entryPendingRename = entry },
+            onDownload = { entry ->
+                pendingCloudFileDownload = entry
+                runCatching {
+                    cloudFileDownloadLauncher.launch(entry.fileName.substringAfterLast('/'))
+                }.onFailure {
+                    pendingCloudFileDownload = null
+                    notify(context.getString(R.string.cloud_saves_history_download_failed), Toast.LENGTH_SHORT)
+                }
+            },
         )
 
         if (showBottomBack) {
             Spacer(Modifier.height(4.dp))
-            TextButton(onClick = onBack) {
+            TextButton(onClick = onBack, modifier = Modifier.paneNavItem(cornerRadius = 8.dp, onActivate = onBack)) {
                 Icon(
                     Icons.AutoMirrored.Outlined.ArrowBack,
                     contentDescription = null,
@@ -729,7 +834,7 @@ internal fun CloudSavesContent(
                                             activity,
                                             appId,
                                             target.fileId,
-                                            shortcut?.container,
+                                            targetContainer,
                                         )
                                 } else {
                                     GameSaveBackupManager.BackupResult(false, context.getString(R.string.cloud_saves_invalid_app_id))
@@ -743,7 +848,7 @@ internal fun CloudSavesContent(
                                             activity,
                                             appId,
                                             target.fileId,
-                                            shortcut?.container,
+                                            targetContainer,
                                         )
                                 } else {
                                     GameSaveBackupManager.BackupResult(false, context.getString(R.string.cloud_saves_invalid_app_id))
@@ -763,8 +868,7 @@ internal fun CloudSavesContent(
                                 }
                             }
                             GameSaveBackupManager.BackupStorage.GOG_CLOUD -> {
-                                // GOG has no per-file snapshot rollback; restoring any entry
-                                // re-pulls the full cloud state for the game.
+                                // GOG has no per-file rollback; restoring any entry re-pulls the full cloud state.
                                 GOGCloudHistoryProvider.restoreSaveGroup(context, gameId, targetContainerId)
                             }
                             GameSaveBackupManager.BackupStorage.GOOGLE -> {
@@ -773,7 +877,7 @@ internal fun CloudSavesContent(
                                     target,
                                     gameSource,
                                     gameId,
-                                    containerHint = shortcut?.container,
+                                    containerHint = targetContainer,
                                 )
                             }
                             else -> GameSaveBackupManager.BackupResult(false, context.getString(R.string.cloud_saves_history_restore_failed))
@@ -1002,6 +1106,7 @@ private fun SaveHistorySection(
     onRefresh: () -> Unit,
     onRestore: (GameSaveBackupManager.BackupHistoryEntry) -> Unit,
     onRename: (GameSaveBackupManager.BackupHistoryEntry) -> Unit,
+    onDownload: (GameSaveBackupManager.BackupHistoryEntry) -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
@@ -1015,7 +1120,10 @@ private fun SaveHistorySection(
             letterSpacing = 1.1.sp,
             modifier = Modifier.weight(1f),
         )
-        IconButton(onClick = onRefresh, modifier = Modifier.size(28.dp)) {
+        IconButton(
+            onClick = onRefresh,
+            modifier = Modifier.size(28.dp).paneNavItem(cornerRadius = 6.dp, onActivate = onRefresh),
+        ) {
             Icon(
                 Icons.Outlined.Refresh,
                 contentDescription = stringResource(R.string.cloud_saves_history_refresh),
@@ -1061,17 +1169,27 @@ private fun SaveHistorySection(
                 }
 
                 else -> {
-                    entries.forEachIndexed { index, entry ->
-                        SaveHistoryRow(
-                            entry = entry,
-                            onRestore = { onRestore(entry) },
-                            onRename = { onRename(entry) },
-                        )
-                        if (index < entries.lastIndex) {
-                            HorizontalDivider(
-                                color = CloudBorder.copy(alpha = 0.7f),
-                                modifier = Modifier.padding(horizontal = 10.dp),
+                    // Scrolls within a bounded panel so long histories aren't cut off on hosts without their own scrolling.
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 360.dp)
+                                .verticalScroll(rememberScrollState()),
+                    ) {
+                        entries.forEachIndexed { index, entry ->
+                            SaveHistoryRow(
+                                entry = entry,
+                                onRestore = { onRestore(entry) },
+                                onRename = { onRename(entry) },
+                                onDownload = { onDownload(entry) },
                             )
+                            if (index < entries.lastIndex) {
+                                HorizontalDivider(
+                                    color = CloudBorder.copy(alpha = 0.7f),
+                                    modifier = Modifier.padding(horizontal = 10.dp),
+                                )
+                            }
                         }
                     }
                 }
@@ -1085,6 +1203,7 @@ private fun SaveHistoryRow(
     entry: GameSaveBackupManager.BackupHistoryEntry,
     onRestore: () -> Unit,
     onRename: () -> Unit,
+    onDownload: () -> Unit,
 ) {
     val whenLabel =
         remember(entry.timestampMs) {
@@ -1105,7 +1224,11 @@ private fun SaveHistoryRow(
             GameSaveBackupManager.BackupStorage.EPIC_CLOUD -> stringResource(R.string.cloud_saves_history_storage_epic)
             GameSaveBackupManager.BackupStorage.GOG_CLOUD -> stringResource(R.string.cloud_saves_history_storage_gog)
         }
-    val canRestore = entry.storage != GameSaveBackupManager.BackupStorage.GOG_CLOUD
+    // STEAM_CLOUD entries mirror Steam's remote-storage website: one row per current cloud file, downloadable — no fake version history. Per-entry rollback lives in STEAM_LOCAL snapshots.
+    val canRestore =
+        entry.storage != GameSaveBackupManager.BackupStorage.GOG_CLOUD &&
+            entry.storage != GameSaveBackupManager.BackupStorage.STEAM_CLOUD
+    val canDownload = entry.storage == GameSaveBackupManager.BackupStorage.STEAM_CLOUD
     Row(
         modifier =
             Modifier
@@ -1194,6 +1317,14 @@ private fun SaveHistoryRow(
                     onClick = onRestore,
                 )
                 Spacer(Modifier.width(6.dp))
+            } else if (canDownload) {
+                HistoryActionChip(
+                    icon = Icons.Outlined.Download,
+                    label = stringResource(R.string.cloud_saves_history_download),
+                    tint = CloudAccent,
+                    onClick = onDownload,
+                )
+                Spacer(Modifier.width(6.dp))
             }
             HistoryIconButton(
                 icon = Icons.Outlined.Edit,
@@ -1216,6 +1347,7 @@ private fun HistoryActionChip(
         modifier =
             Modifier
                 .height(28.dp)
+                .paneNavItem(cornerRadius = 6.dp, onActivate = onClick)
                 .clip(RoundedCornerShape(6.dp))
                 .background(tint.copy(alpha = 0.14f))
                 .border(1.dp, tint.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
@@ -1251,6 +1383,7 @@ private fun HistoryIconButton(
         modifier =
             Modifier
                 .size(28.dp)
+                .paneNavItem(cornerRadius = 6.dp, onActivate = onClick)
                 .clip(RoundedCornerShape(6.dp))
                 .border(1.dp, CloudBorder, RoundedCornerShape(6.dp))
                 .clickable(onClick = onClick),
@@ -1292,6 +1425,7 @@ private fun CompactRenameDialogButton(
         modifier =
             Modifier
                 .height(32.dp)
+                .paneNavItem(cornerRadius = 8.dp, onActivate = onClick)
                 .clip(RoundedCornerShape(8.dp))
                 .background(backgroundColor)
                 .border(1.dp, borderColor, RoundedCornerShape(8.dp))
@@ -1408,6 +1542,11 @@ private fun TogglePaneCell(
     Column(
         modifier =
             modifier
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onActivate = { if (enabled) onCheckedChange(!checked) },
+                    onAdjust = { d -> if (enabled) onCheckedChange(d > 0) },
+                )
                 .clip(RoundedCornerShape(8.dp))
                 .background(CloudPanel)
                 .border(1.dp, CloudBorder, RoundedCornerShape(8.dp))
@@ -1462,6 +1601,7 @@ private fun ActionWithHelper(
     tint: Color = CloudAccent,
     modifier: Modifier = Modifier.fillMaxWidth(),
     enabled: Boolean = true,
+    isEntry: Boolean = false,
     onClick: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -1475,6 +1615,11 @@ private fun ActionWithHelper(
         modifier =
             modifier
                 .height(56.dp)
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onActivate = { if (enabled) onClick() },
+                    isEntry = isEntry,
+                )
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale

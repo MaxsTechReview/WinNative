@@ -157,6 +157,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">Obter arte</string>
+    <string name="library_games_scraping_artwork">Obtendo…</string>
     <string name="library_games_shortcut_created">Atalho criado</string>
     <string name="library_games_failed_to_create_shortcut">Falha ao criar atalho: %s</string>
     <string name="library_games_install_path">Caminho de Instalacao</string>
@@ -268,6 +270,7 @@
     <string name="containers_list_duplicate_title">Duplicar container</string>
     <string name="containers_list_confirm_remove">Deseja remover este container?</string>
     <string name="containers_list_confirm_duplicate">Deseja duplicar este container?</string>
+    <string name="containers_list_duplicate_failed">Falha ao duplicar o container</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">Deseja remover este atalho?</string>
@@ -323,6 +326,7 @@
     <string name="input_controls_editor_confirm_duplicate_profile">Deseja duplicar este perfil?</string>
     <string name="input_controls_editor_title">Editor de Controles</string>
     <string name="input_controls_editor_toggle_switch">Interruptor</string>
+    <string name="input_controls_editor_swipeable">Deslizável</string>
     <string name="input_controls_editor_profile_exported_to">Perfil exportado para</string>
     <string name="input_controls_editor_unable_to_import">Nao foi possivel importar o perfil</string>
     <string name="input_controls_editor_import_profile">Importar Perfil</string>
@@ -421,6 +425,10 @@
     <string name="container_box64_compatibility">Compatibilidade</string>
     <string name="container_box64_intermediate">Intermediario</string>
     <string name="container_box64_performance">Desempenho</string>
+    <string name="container_fexcore_performance_tso">Desempenho TSO</string>
+    <string name="container_fexcore_extreme">Extremo</string>
+    <string name="container_fexcore_extreme_tso">Extremo TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec_safeflags">
         Tratamento de flags nas opcodes CALL/RET&lt;br /&gt;&lt;br /&gt;
         &lt;b&gt;0&lt;/b&gt; : Trata CALL/RET como se nunca precisasse de flags (mais rapido, instavel)&lt;br /&gt;
@@ -505,9 +513,13 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">Predefinicao FEXCore</string>
     <string name="container_fexcore_version">Versao do FEXCore</string>
+    <string name="use_unix_libs">Usar UnixLibs</string>
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Driver Grafico</string>
+    <string name="container_zink_mode">Modo Zink</string>
+    <string name="container_graphics_transcoder">Transcodificador BCn</string>
+    <string name="container_graphics_quality">Qualidade BCn</string>
     <string name="container_graphics_configuration">Configuracao do Driver Grafico</string>
     <string name="container_graphics_version">Versao do Driver Grafico</string>
     <string name="container_graphics_available_extensions">Extensoes Disponiveis</string>
@@ -588,6 +600,33 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Bat.</string>
     <string name="session_drawer_hud_element_graph">Graf.</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">HUD estilo Mango</string>
+    <string name="session_drawer_hud_mango_settings">Configurações do HUD Mango</string>
+    <string name="mango_hud_element_gpu_load">Carga da GPU</string>
+    <string name="mango_hud_element_gpu_temp">Temp. da GPU</string>
+    <string name="mango_hud_element_cpu_load">Carga da CPU</string>
+    <string name="mango_hud_element_cpu_temp">Temp. da CPU</string>
+    <string name="mango_hud_element_ram">RAM</string>
+    <string name="mango_hud_element_battery">Bateria</string>
+    <string name="mango_hud_element_lows" formatted="false">Mínimos de 1%</string>
+    <string name="mango_hud_element_graph">Gráfico de frametime</string>
+    <string name="mango_hud_element_engine">Motor</string>
+    <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">Clock da CPU</string>
+    <string name="mango_hud_element_gpu_clock">Clock da GPU</string>
+    <string name="mango_hud_element_cores">Por núcleo</string>
+    <string name="mango_hud_element_network">Rede</string>
+    <string name="mango_hud_element_swap">Swap</string>
+    <string name="mango_hud_element_resolution">Resolução</string>
+    <string name="mango_hud_element_wine">Versão do Wine</string>
+    <string name="mango_hud_element_duration">Tempo de sessão</string>
+    <string name="mango_hud_element_clock">Relógio</string>
+    <string name="mango_hud_element_throttle">Estado térmico</string>
+    <string name="mango_hud_group_memory">Memória</string>
+    <string name="mango_hud_group_system">Sistema</string>
+    <string name="mango_hud_lock">Bloquear HUD</string>
+    <string name="mango_hud_lock_subtitle">Permite que os toques cheguem aos controles atrás do HUD. Segure o HUD para bloqueá-lo. (5s)</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Deseja encerrar este processo?</string>
@@ -730,6 +769,7 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="settings_general_select_wallpaper">Selecionar papel de parede</string>
     <string name="settings_general_title">Geral</string>
     <string name="settings_general_enable_file_provider">Ativar Provedor de Arquivos</string>
+    <string name="settings_general_enable_auto_scraping">Ativar obtenção automática de arte</string>
     <string name="settings_general_take_effect_next_startup">Esta opcao tera efeito na proxima inicializacao.</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Reinstalar Imagefs</string>
@@ -751,7 +791,9 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="settings_general_cursor_lock_summary">Mantem a captura direta do mouse ativada para jogos que precisam de entrada bruta do ponteiro. Desative com Volume Baixo.</string>
     <string name="settings_general_xinput_toggle_title">Desativar XInput</string>
     <string name="settings_general_xinput_toggle_summary">Desliga o tratamento XInput quando voce quer controle exclusivo de mouse e teclado.</string>
+    <string name="settings_external_display_output_summary">Move o jogo para um monitor externo conectado em vez de espelhar esta tela. Os óculos sempre usam a própria tela.</string>
     <string name="settings_general_file_provider_summary">Expor arquivos do WinNative para seletores de documentos e gerenciadores de arquivos do Android.</string>
+    <string name="settings_general_auto_scraping_summary">Permite que o WinNative obtenha automaticamente a arte de jogos personalizados.</string>
     <string name="settings_general_open_browser_summary">Abrir links da web compativeis no navegador Android em vez de dentro do Wine.</string>
     <string name="settings_general_clipboard_summary">Permitir copiar e colar entre o Android e sessoes do Wine.</string>
     <string name="settings_general_imagefs_summary">Restaurar arquivos do sistema inclusos sem remover seus containers existentes.</string>
@@ -780,10 +822,14 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="settings_debug_box_logs_subtitle">Gravar saida de depuracao do Box86 &amp; Box64 em arquivo</string>
     <string name="settings_debug_fex_logs_title">Ativar Logs do FEXCore</string>
     <string name="settings_debug_fex_logs_subtitle">Gravar saida de depuracao do FEXCore em arquivo</string>
+    <string name="settings_debug_emulator_logs_title">Logs de emulação Box64/FEX</string>
+    <string name="settings_debug_emulator_logs_subtitle">Registra em arquivo o emulador que seu contêiner usa.</string>
     <string name="settings_debug_steam_logs_title">Ativar Logs do Steam</string>
     <string name="settings_debug_steam_logs_subtitle">Registrar eventos de autenticacao e sessao do Steam para depuracao.</string>
     <string name="settings_debug_wine_channels_title">Canais de Depuracao do Wine</string>
     <string name="settings_debug_wine_channels_summary">Escolher quais canais do Wine sao incluidos quando o log de depuracao do Wine esta ativado.</string>
+    <string name="settings_debug_wine_classes_title">Níveis de log do Wine</string>
+    <string name="settings_debug_wine_classes_summary">Escolha quais tipos de mensagem são registrados. Trace é extremamente detalhado.</string>
     <string name="settings_debug_input_logs">Logs de Entrada</string>
     <string name="settings_debug_input_logs_description">Registrar eventos de entrada do gamepad, toque e teclado</string>
     <string name="settings_debug_download_logs">Logs de Download</string>
@@ -817,6 +863,8 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
 
     <string name="settings_other_language_title">Idioma</string>
     <string name="settings_other_language_summary">Escolher o idioma de exibição</string>
+    <string name="settings_other_game_language_title">Idioma do jogo</string>
+    <string name="settings_other_game_language_summary">Idioma preferido para downloads da Steam/Epic/GOG</string>
     <string name="settings_other_language_system_default">Padrão do sistema</string>
 
     <string name="settings_other_section_integration">Integração</string>
@@ -1059,7 +1107,10 @@ Caminho instalado:
     <!-- Missing translations -->
     <string name="common_ui_graphics">Gráficos</string>
     <string name="steam_section_title">Steam</string>
+    <string name="binding_primary">Vinculação primária</string>
     <string name="binding_secondary">Vinculação secundária</string>
+    <string name="binding_third">Vinculação terciária</string>
+    <string name="binding_fourth">Vinculação quaternária</string>
     <string name="input_controls_editor_tap_to_switch">Toque para alternar</string>
     <string name="input_controls_editor_download_profile">Baixar perfil</string>
     <string name="container_config_emulator_section">Emulador</string>
@@ -1168,6 +1219,9 @@ Caminho instalado:
     <string name="cloud_saves_history_restore_success">Save restaurado do backup.</string>
     <string name="cloud_saves_history_sign_in">Faça login no Google para ver seu histórico de saves.</string>
     <string name="cloud_saves_history_title">Histórico de Saves</string>
+    <string name="cloud_saves_history_download">Baixar</string>
+    <string name="cloud_saves_history_download_success">Arquivo baixado.</string>
+    <string name="cloud_saves_history_download_failed">Falha no download.</string>
     <string name="cloud_saves_keep_replaced_backup">Manter backup do save substituído</string>
     <string name="cloud_saves_keep_replaced_backup_summary">Se mudar de ideia, você pode restaurá-lo pelo Histórico de Saves.</string>
     <string name="cloud_saves_no_backups">Nenhum backup ainda para este jogo.</string>
@@ -1220,6 +1274,7 @@ Caminho instalado:
     <string name="input_controls_editor_radial_menu">Menu Radial</string>
     <string name="input_controls_editor_radial_menu_options">Opções do Menu Radial</string>
     <string name="input_controls_tap_to_click">Toque para Clicar</string>
+    <string name="input_controls_reverse_binding_order">Inverter ordem das associações</string>
     <string name="num_controllers">Número de Controles</string>
     <string name="session_drawer_controls_section">Controles</string>
     <string name="session_drawer_header_subtitle">Acesso rápido a controles, sobreposições e ferramentas de sessão</string>
@@ -1240,16 +1295,12 @@ Caminho instalado:
     <string name="session_gyroscope_mouse_sensitivity_format">Escala do Mouse: %1$d%%</string>
     <string name="settings_other_setup_wizard_summary">Abra o assistente de configuração novamente para revisar permissões, arquivos do sistema e contêineres padrão.</string>
     <string name="settings_other_setup_wizard_title">Assistente de Configuração</string>
-    <string name="shortcuts_library_artwork_carousel_title">Imagem do Carrossel</string>
-    <string name="shortcuts_library_artwork_change">Alterar imagem</string>
     <string name="shortcuts_library_artwork_failed">Falha ao carregar a imagem selecionada.</string>
-    <string name="shortcuts_library_artwork_game_card_title">Imagem do Card do Jogo</string>
-    <string name="shortcuts_library_artwork_grid_title">Imagem da Grade</string>
-    <string name="shortcuts_library_artwork_list_title">Imagem da Lista</string>
     <string name="shortcuts_library_artwork_open_source">Abrir SteamGridDB</string>
-    <string name="shortcuts_library_artwork_selected">Selecionada: %1$s</string>
     <string name="shortcuts_library_artwork_set">Definir imagem</string>
     <string name="shortcuts_library_artwork_title">Arte da Biblioteca</string>
+    <string name="shortcuts_library_artwork_icon_title">Arte do Ícone</string>
+    <string name="shortcuts_library_artwork_hero_title">Plano de Fundo</string>
     <string name="shortcuts_list_readded_existing">Atalho existente readicionado</string>
     <string name="shortcuts_properties_runtime_patcher">Patcher DRM em Tempo de Execução</string>
     <string name="shortcuts_properties_runtime_patcher_description">Injeta uma DLL de patch DRM ao iniciar. Reduz FPS — use apenas se o inicializador legado sozinho falhar.</string>
@@ -1287,12 +1338,16 @@ Caminho instalado:
     <string name="steam_section_emulator">Emulador Steam legado</string>
     <string name="shortcuts_properties_steam_offline_mode_description">Faz o cliente Steam emulado informar que está offline, para que o jogo não tente conexões online. Use em jogos que travam na verificação de rede do Steam.</string>
     <string name="input_controls_select_style">Selecionar estilo</string>
-    <string name="input_controls_select_label_theme">Rótulos dos botões</string>
     <string name="input_controls_style_original">Original</string>
     <string name="input_controls_style_gamehub">Glass</string>
-    <string name="input_controls_label_theme_default">Original</string>
-    <string name="input_controls_label_theme_xbox">Xbox</string>
-    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_style_slate">Ardósia</string>
+    <string name="input_controls_style_halo">Halo</string>
+    <string name="input_controls_style_glint">Brilho</string>
+    <string name="input_controls_style_shadow">Sombra</string>
+    <string name="input_controls_style_reticle">Retícula</string>
+    <string name="input_controls_style_neon">Neon</string>
+    <string name="input_controls_style_lumina">Lumina</string>
+    <string name="input_controls_accent_theme">Tema de cores</string>
     <string name="input_controls_edit_duplicating_builtin">Perfil integrado - uma cópia editável foi criada.</string>
     <string name="input_controls_editor_confirm_reset_profile">Redefinir este perfil para o layout original? Todas as alterações feitas serão perdidas.</string>
     <string name="input_controls_editor_profile_reset">Perfil redefinido para o layout original.</string>
@@ -1306,7 +1361,7 @@ Caminho instalado:
     <string name="cloud_saves_history_steam_unreachable">Steam Cloud está inacessível no momento. Reconectando em segundo plano toque em atualizar quando estiver online novamente.</string>
     <string name="steam_session_refused_event">Steam recusou a sessão em cache (EResult=%1$d). Entre novamente.</string>
     <string name="settings_hud_record_to_file_title">Gravar desempenho em arquivo</string>
-    <string name="settings_hud_record_to_file_summary">Grava métricas por segundo de FPS, CPU, GPU, temperatura e bateria em /WinNative/logs/ durante o jogo.</string>
+    <string name="settings_hud_record_to_file_summary">Exporta métricas por segundo de FPS, CPU, GPU, temperatura e bateria para /WinNative/logs/ durante o jogo.</string>
     <string name="settings_leaderboard_category">Desempenho</string>
     <!-- Preloader > Launch Screen -->
     <string name="preloader_preparing_steam_environment">Preparando ambiente Steam</string>
@@ -1333,7 +1388,110 @@ Caminho instalado:
     <!-- Workshop -->
     <string name="workshop_loading_items">Carregando itens do Workshop</string>
     <string name="workshop_search_items">Buscar itens do Workshop</string>
+    <string name="workshop_title">STEAM WORKSHOP</string>
+    <string name="workshop_loading_subtitle">Obtendo seus itens inscritos da Steam.</string>
+    <string name="workshop_error_title">Não foi possível carregar os itens do Workshop</string>
+    <string name="workshop_error_subtitle">Algo deu errado. Tente novamente.</string>
+    <string name="workshop_empty_title">Nenhum item do Workshop inscrito</string>
+    <string name="workshop_empty_subtitle">Inscreva-se em itens no Steam Workshop e reabra esta janela.</string>
+    <string name="workshop_search_empty_title">Nenhum item corresponde a \"%1$s\"</string>
+    <string name="workshop_search_empty_subtitle">Tente outro termo de pesquisa.</string>
+    <string name="workshop_clear_search">Limpar pesquisa</string>
+    <string name="workshop_item_fallback">Item do Workshop</string>
     <string name="common_ui_failed">Falhou</string>
+    <string name="steam_presence_snooze">Soneca</string>
+    <string name="steam_presence_busy">Ocupado</string>
+    <string name="steam_presence_looking_to_trade">Quer trocar</string>
+    <string name="steam_presence_looking_to_play">Quer jogar</string>
+    <string name="steam_friends_count">Amigos — %1$d online</string>
+    <string name="steam_friends_section_in_game">Em jogo (%1$d)</string>
+    <string name="steam_friends_section_online">Online (%1$d)</string>
+    <string name="steam_friends_section_offline">Offline (%1$d)</string>
+    <string name="steam_friends_none_loaded">Nenhum amigo carregado ainda.</string>
+    <string name="steam_friends_chat_off">O chat está desativado. Reative o Serviço de Chat para ver seus amigos.</string>
+    <string name="steam_friends_self_you">Você</string>
+    <string name="steam_friends_in_game">Em jogo</string>
+    <string name="steam_friends_join">Entrar</string>
+    <string name="steam_friends_play">Jogar</string>
+    <string name="steam_chat_image_failed">(falha ao enviar imagem)</string>
+    <string name="steam_chat_empty">Sem mensagens ainda. Diga oi!</string>
+    <string name="steam_chat_uploading_image">Enviando imagem…</string>
+    <string name="steam_chat_send_image">Enviar imagem</string>
+    <string name="steam_chat_message_hint">Mensagem…</string>
+    <string name="steam_chat_send">Enviar</string>
+    <string name="steam_chat_image">Imagem</string>
+    <string name="steam_common_back">Voltar</string>
+    <string name="steam_achievements_title">Conquistas</string>
+    <string name="steam_achievements_empty">Nenhuma conquista encontrada para este jogo,\nou entre no Steam para carregá-las.</string>
+    <string name="steam_achievements_hidden">Conquista oculta</string>
+    <string name="steam_achievements_hidden_desc">Continue jogando para revelar esta conquista.</string>
+    <string name="steam_achievements_unlocked_on">Desbloqueada %1$s</string>
+    <string name="steam_achievements_unlocked">Desbloqueada</string>
+    <string name="steam_join_joining">Entrando com %1$s em %2$s…</string>
+    <string name="steam_join_install">Instale %1$s para entrar com %2$s</string>
+    <string name="steam_join_not_owned">Você não possui %1$s</string>
+    <string name="steam_chat_not_sent">(não enviado)</string>
+    <string name="steam_join_the_game">o jogo</string>
+    <string name="steam_friends_settings">Settings</string>
+    <string name="steam_chat_settings_title">Chat Settings</string>
+    <string name="steam_chat_setting_service">Serviço de Chat</string>
+    <string name="steam_chat_setting_service_desc">Entre para ver amigos e conversar; desative para ficar offline</string>
+    <string name="steam_chat_setting_notifications">Chat Notifications</string>
+    <string name="steam_chat_setting_notifications_desc">Show a notification when you receive a message</string>
+    <string name="steam_chat_setting_heads">Chat Heads</string>
+    <string name="steam_chat_setting_heads_desc">Floating bubbles to read and reply to messages</string>
+    <string name="steam_chat_setting_ingame">Enable Chat in Game</string>
+    <string name="steam_chat_setting_ingame_desc">Receive and send messages while playing</string>
+    <string name="steam_chat_settings_overlay_needed">Allow display over other apps to use chat heads</string>
+    <string name="steam_chat_heads_title">Messages</string>
+    <string name="steam_chat_heads_recent_title">Recent</string>
+    <string name="steam_chat_heads_online_title">Online</string>
+    <string name="steam_chat_heads_new_chat">New message</string>
+    <string name="steam_chat_setting_autohide">Auto-Hide</string>
+    <string name="steam_chat_setting_autohide_desc">Fade the chat head after 10s of inactivity</string>
+    <string name="steam_chat_heads_friends_title">Friends</string>
+    <!-- Display output / external display -->
+    <string name="session_drawer_rail_label_output">Saída</string>
+    <string name="display_output_prompt_title">Tela externa detectada</string>
+    <string name="display_output_prompt_message">Enviar o jogo para a tela conectada? Seus controles na tela e o menu permanecem neste telefone.</string>
+    <string name="display_output_prompt_swap">Trocar telas</string>
+    <string name="display_output_prompt_mirror">Espelhar</string>
+    <string name="display_output_swapped_toast">Jogo movido para a tela externa. Os controles permanecem no seu telefone.</string>
+    <string name="display_output_cast_unavailable">As configurações de tela sem fio não estão disponíveis neste dispositivo.</string>
+    <string name="display_output_restored_toast">Tela externa desconectada — o jogo voltou para o telefone.</string>
+    <string name="session_drawer_output_title">Saída de tela</string>
+    <string name="session_drawer_output_subtitle">O jogo está sendo exibido na tela externa.</string>
+    <string name="session_drawer_output_device">Tela conectada</string>
+    <string name="session_drawer_output_resolution">Resolução</string>
+    <string name="session_drawer_output_refresh_rate">Taxa de atualização</string>
+    <string name="session_drawer_output_aspect_ratio">Proporção</string>
+    <string name="session_drawer_output_aspect_fit">Ajustar (proporção)</string>
+    <string name="session_drawer_output_aspect_stretch">Esticar (preencher)</string>
+    <string name="session_drawer_output_aspect_zoom">Zoom (cortar)</string>
+    <string name="session_drawer_output_return_to_phone">Voltar ao telefone</string>
+    <string name="session_drawer_output_refresh_hz">%1$d Hz</string>
+    <string name="session_drawer_output_cast_title">Transmitir para uma TV</string>
+    <string name="session_drawer_output_cast_body">Conecte um adaptador USB-C / HDMI ou toque abaixo para conectar uma tela sem fio (Miracast / Wi-Fi Direct). O jogo aparece na TV enquanto estes controles permanecem no seu telefone.</string>
+    <string name="session_drawer_output_cast_button">Conectar tela sem fio</string>
+    <string name="session_drawer_output_cast_note">TVs apenas com Chromecast não conseguem exibir o jogo ao vivo com controles privados — use uma tela sem fio ou um adaptador USB‑C/HDMI para o melhor resultado.</string>
+    <string name="session_drawer_output_render_note">Os modos que sua tela informa mudam a saída real dela (pode ficar preta por um instante enquanto reinicializa). Outras resoluções são renderizadas nesse tamanho e escalonadas por hardware para o painel — acima da nativa fica mais nítido (supersampling), abaixo fica mais rápido.</string>
+    <string name="session_drawer_output_scaling_note">Este telefone exibe a tela na resolução nativa %1$s e não troca de modo, então isto define a resolução de renderização — ela é escalada por hardware para o painel (acima da nativa deixa mais nítido, abaixo roda mais rápido).</string>
+    <string name="session_drawer_output_game_mode">Modo jogo (baixa latência)</string>
+    <string name="session_drawer_output_game_mode_on">Ligado</string>
+    <string name="session_drawer_output_game_mode_off">Desligado</string>
+    <string name="session_drawer_output_game_mode_note">Solicita o modo jogo / baixa latência da TV (HDMI ALLM) para minimizar o atraso de entrada. Exibido apenas quando a tela conectada é compatível.</string>
+    <string name="session_drawer_output_send_to_display">Enviar jogo para a tela</string>
+    <string name="session_drawer_output_to_display">Saída para tela externa</string>
+    <string name="session_drawer_output_send_note">Uma tela está conectada. Envie o jogo para ela — seus controles e o menu permanecem neste telefone. Você pode trazê-lo de volta aqui a qualquer momento.</string>
+    <string name="session_drawer_output_display">Tela</string>
+    <string name="session_drawer_output_glasses">Óculos</string>
+    <string name="session_drawer_output_brightness">Brilho</string>
+    <string name="session_drawer_output_shade">Sombra (escurecimento)</string>
+    <string name="session_drawer_output_3d">3D (lado a lado)</string>
+    <string name="glasses_panel_refresh">Taxa de atualização</string>
+    <string name="glasses_panel_sunblock">Bloqueio solar</string>
+    <string name="session_drawer_output_volume">Volume</string>
+    <string name="session_drawer_output_glasses_note">Enviado diretamente para seus óculos Viture via USB.</string>
     <string name="session_drawer_rail_label_frame_generation">Geração de Quadros</string>
     <string name="session_drawer_frame_generation_multiplier">Multiplicador</string>
     <string name="session_drawer_frame_generation_quality">Predefinição de qualidade</string>
@@ -1416,7 +1574,7 @@ Caminho instalado:
     <string name="session_drawer_hud_background">Fundo</string>
     <string name="session_drawer_hud_background_alpha">Alfa do fundo</string>
     <string name="session_drawer_hud_background_alpha_input_title">Definir alfa do fundo</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">Ajustar tamanho</string>
     <string name="session_task_bring_to_front">Trazer para frente</string>
     <string name="session_task_custom_value">Valor personalizado</string>
@@ -1428,19 +1586,85 @@ Caminho instalado:
     <string name="file_manager_paste">Colar</string>
     <string name="file_manager_paste_here">Colar aqui</string>
     <string name="file_manager_new_folder">Nova Pasta</string>
+    <string name="file_manager_new_folder_short">Pasta</string>
+    <string name="file_manager_multi_select">Marcar</string>
     <string name="file_manager_create">Criar</string>
     <string name="file_manager_delete">Excluir</string>
+    <string name="file_manager_copy_count">Copiar (%1$d)</string>
+    <string name="file_manager_cut_count">Recortar (%1$d)</string>
+    <string name="file_manager_delete_count">Excluir (%1$d)</string>
+    <string name="file_manager_extract">Extrair</string>
+    <string name="file_manager_extract_here">Extrair aqui</string>
+    <string name="file_manager_extract_to">Extrair para…</string>
+    <string name="file_manager_extracting">Extraindo %1$s</string>
+    <string name="file_manager_extract_failed">Falha na extração</string>
     <string name="file_manager_run_boot">Executar / Inicializar</string>
     <string name="file_manager_create_shortcut">Criar Atalho</string>
     <string name="file_manager_run_in_container">Executar no container</string>
     <string name="file_manager_no_containers">Nenhum container disponivel</string>
     <string name="file_manager_delete_confirm">Excluir \"%1$s\"? Isso nao pode ser desfeito.</string>
+    <string name="file_manager_delete_confirm_multi">Excluir %1$d itens? Isso nao pode ser desfeito.</string>
     <string name="file_manager_copying">Copiando %1$s</string>
     <string name="file_manager_moving">Movendo %1$s</string>
+    <string name="file_manager_copying_count">Copiando %1$d itens</string>
+    <string name="file_manager_moving_count">Movendo %1$d itens</string>
     <string name="file_manager_paste_into_itself">Nao e possivel colar uma pasta dentro dela mesma</string>
     <string name="file_manager_operation_failed">Falha na operacao</string>
     <string name="file_manager_delete_failed">Falha ao excluir</string>
     <string name="file_manager_rename_failed">Falha ao renomear</string>
     <string name="file_manager_create_folder_failed">Falha ao criar pasta</string>
+    <string name="cloud_saves_google_backup_helper">Salvar uma cópia no Google Play Games</string>
+    <string name="cloud_saves_google_backup_label">Backup no Google</string>
+    <string name="cloud_saves_google_backup_no_save">Nenhum arquivo de salvamento encontrado para backup.</string>
+    <string name="cloud_saves_history_cloud_readonly">Somente leitura</string>
+    <string name="session_drawer_rail_label_record">Gravar</string>
+    <string name="session_record_failed">Não foi possível iniciar a gravação</string>
+    <string name="session_record_fps">Taxa de Quadros</string>
+    <string name="session_record_include_ui">Gravar interface</string>
+    <string name="session_record_include_ui_subtitle">Incluir HUD e controles na tela</string>
+    <string name="session_record_now">Gravar agora</string>
+    <string name="session_record_quality">Qualidade</string>
+    <string name="session_record_resolution">Resolução</string>
+    <string name="session_record_saved">Gravação salva em WinNative/Recordings</string>
+    <string name="session_record_settings_title">Configurações de gravação</string>
+    <string name="session_record_started">Gravação iniciada</string>
+    <string name="steam_chat_setting_stay_running">Executar em segundo plano</string>
+    <string name="steam_chat_setting_stay_running_desc">Manter o chat ativo após sair do WinNative</string>
+    <string name="settings_content_refresh">Atualizar</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">Aplique um efeito ReShade (.fx) a jogos DXVK/VKD3D (Vulkan) por meio da camada vkBasalt integrada. Coloque cada efeito em sua própria pasta em Android/data/&lt;package&gt;/files/ReShade/. O ajuste de parâmetros ao vivo e o botão no jogo chegarão com a atualização da camada de recarregamento ao vivo.</string>
+    <string name="reshade_catalog_title">Efeitos ReShade</string>
+    <string name="reshade_catalog_search">Pesquisar efeitos…</string>
+    <string name="reshade_catalog_installed">Instalados (%1$d)</string>
+    <string name="reshade_catalog_available">Disponíveis (%1$d)</string>
+    <string name="reshade_catalog_downloading">Baixando</string>
+    <string name="reshade_catalog_installing">Instalando</string>
+    <string name="reshade_catalog_offline_cache">Offline — mostrando uma lista em cache. Conecte-se para baixar novos efeitos.</string>
+    <string name="reshade_catalog_offline_none">Offline — mostrando apenas os efeitos instalados. Conecte-se para explorar o catálogo.</string>
+    <string name="reshade_catalog_needs_connection">Conecte-se à internet para baixar efeitos.</string>
+    <string name="reshade_catalog_download_failed">Falha ao baixar %1$s.</string>
+    <string name="reshade_catalog_empty_query">Nenhum efeito corresponde a \"%1$s\".</string>
+    <string name="reshade_catalog_empty">Nenhum efeito disponível. Conecte-se à internet para explorar o catálogo.</string>
+    <string name="reshade_catalog_done">Concluído</string>
+    <string name="reshade_catalog_delete_cd">Excluir %1$s</string>
+    <string name="reshade_catalog_delete_title">Excluir %1$s?</string>
+    <string name="reshade_catalog_delete_body">Isso remove o efeito do armazenamento e de qualquer conjunto que o utilize. Você pode baixá-lo novamente mais tarde.</string>
+    <string name="reshade_catalog_delete_confirm">Excluir</string>
+    <string name="reshade_catalog_delete_cancel">Cancelar</string>
+    <string name="reshade_catalog_delete_failed">Não foi possível excluir %1$s.</string>
+    <string name="reshade_params_title">PARÂMETROS DO EFEITO</string>
+    <string name="reshade_params_reset">Redefinir</string>
+    <string name="reshade_loadout_empty">Ainda não há efeitos. Adicione um ou mais efeitos para criar um conjunto.</string>
+    <string name="reshade_loadout_add">Adicionar efeito</string>
+    <string name="reshade_loadout_full">Conjunto cheio — remova um efeito para adicionar outro.</string>
+    <string name="reshade_effect_active">ativo</string>
+    <string name="reshade_mode_solo">Solo</string>
+    <string name="reshade_mode_stack">Pilha</string>
+    <string name="reshade_mode_solo_hint">Um efeito ativo por vez (comparação A/B, alterne ao vivo no jogo).</string>
+    <string name="reshade_mode_stack_hint">Sobreponha qualquer subconjunto de efeitos, aplicados em ordem.</string>
+    <string name="reshade_drawer_enable">Ativar ReShade</string>
+    <string name="reshade_drawer_empty">Nenhum efeito ReShade neste conjunto. Adicione efeitos nas configurações deste jogo (ou do contêiner) para alterná-los e ajustá-los aqui.</string>
+    <string name="reshade_drawer_no_params">Este efeito não expõe parâmetros ajustáveis.</string>
 </resources>
 

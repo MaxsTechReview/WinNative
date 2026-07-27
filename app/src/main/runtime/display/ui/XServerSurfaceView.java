@@ -12,14 +12,7 @@ import com.winlator.cmod.runtime.display.xserver.XServer;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
-/**
- * SurfaceView that drives a {@link VulkanRenderer} on a dedicated render thread.
- *
- * <p>This is the Vulkan replacement for the previous {@code GLSurfaceView}-backed
- * {@code XServerView}. It preserves the public API the rest of the codebase relies on:
- * {@link #queueEvent(Runnable)}, {@link #requestRender()}, {@link #setRenderMode(int)},
- * {@link #onResume()}, {@link #onPause()}, {@link #getRenderer()}.
- */
+/** SurfaceView that drives a {@link VulkanRenderer} on a dedicated render thread, preserving the public API: {@link #queueEvent(Runnable)}, {@link #requestRender()}, {@link #setRenderMode(int)}, {@link #onResume()}, {@link #onPause()}, {@link #getRenderer()}. */
 @SuppressLint("ViewConstructor")
 public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Callback {
     public static final int RENDERMODE_WHEN_DIRTY  = 0;
@@ -31,6 +24,8 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
     private final Object renderLock = new Object();
     private final Deque<Runnable> eventQueue = new ArrayDeque<>();
     private Thread renderThread;
+    // Outgoing render thread finishing teardown; the next surfaceCreated joins it first so a stale destroy() can't free the handle the new surface re-attaches to.
+    private Thread retiringRenderThread;
     private volatile boolean running;
     private volatile boolean renderRequested;
     private volatile boolean transientRenderRequested;
@@ -114,6 +109,8 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
+        // Let any retiring render thread finish freeing the renderer before attaching the new surface.
+        joinRetiringRenderThread();
         synchronized (renderLock) {
             surfaceReady = false;
             width = 0;
@@ -121,6 +118,17 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
         }
         renderer.attachSurface(holder.getSurface());
         startRenderThreadIfNeeded();
+    }
+
+    private void joinRetiringRenderThread() {
+        Thread t;
+        synchronized (renderLock) {
+            t = retiringRenderThread;
+            retiringRenderThread = null;
+        }
+        if (t != null && t != Thread.currentThread() && t.isAlive()) {
+            try { t.join(3000); } catch (InterruptedException ignore) {}
+        }
     }
 
     @Override
@@ -172,6 +180,7 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
         synchronized (renderLock) {
             running = false;
             renderLock.notifyAll();
+            if (renderThread != null) retiringRenderThread = renderThread;
             renderThread = null;
         }
     }

@@ -31,10 +31,17 @@ public class DRI3Extension implements Extension {
   private static final String TAG = "DRI3Extension";
   public static final byte MAJOR_OPCODE = -102;
   private static final int MAX_BUFFERS = 4;
-  // Mesa's Android WSI path uses this private modifier to pass an AHardwareBuffer socket.
+  // Mesa's Android WSI path uses these private modifiers to pass an AHardwareBuffer socket.
+  // Both variants carry a single AHB fd; treat them identically for zero-copy scanout.
   private static final long ANDROID_NATIVE_BUFFER_MODIFIER = 1255L;
+  private static final long ANDROID_NATIVE_BUFFER_MODIFIER_2 = 1256L;
   // Standard DRM modifier for plain linear buffers (CPU-shm fallback path).
   private static final long DRM_FORMAT_MOD_LINEAR = 0L;
+
+  private static boolean isHardwareBufferModifier(long modifier) {
+    return modifier == ANDROID_NATIVE_BUFFER_MODIFIER
+        || modifier == ANDROID_NATIVE_BUFFER_MODIFIER_2;
+  }
   private final Callback<Drawable> onDestroyDrawableListener =
       (drawable) -> {
         ByteBuffer data = drawable.getData();
@@ -193,7 +200,7 @@ public class DRI3Extension implements Extension {
     long size = (long) stride * height;
 
     try {
-      if (modifier == ANDROID_NATIVE_BUFFER_MODIFIER
+      if (isHardwareBufferModifier(modifier)
           && numBuffers == 1
           && tryPixmapFromHardwareBuffer(client, pixmapId, width, height, depth, fds[0])) {
         // fds[0] stays non-negative so the finally block closes the AHB socket.
@@ -202,7 +209,7 @@ public class DRI3Extension implements Extension {
         return;
       }
 
-      if (modifier == ANDROID_NATIVE_BUFFER_MODIFIER) {
+      if (isHardwareBufferModifier(modifier)) {
         Log.w(
             TAG,
             "AHB pixmap import failed; falling back to linear SHM path: pixmap="

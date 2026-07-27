@@ -66,6 +66,29 @@
     <TextView
         android:textSize="10sp"
         android:textStyle="bold"
+        android:textColor="#9e9e9e"
+        android:id="@+id/TVCpuTemp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:text="C.TMP"
+        android:shadowColor="#ff000000"
+        android:shadowDx="1"
+        android:shadowDy="1"
+        android:shadowRadius="1"
+        android:fontFamily="monospace"/>
+    <TextView
+        android:textSize="10sp"
+        android:textStyle="bold"
+        android:textColor="#616161"
+        android:id="@+id/Sep6"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:text=" | "/>
+    <TextView
+        android:textSize="10sp"
+        android:textStyle="bold"
         android:textColor="#90caf9"
         android:id="@+id/TVRam"
         android:layout_width="wrap_content"
@@ -112,7 +135,7 @@
         android:id="@+id/TVTemp"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="TMP"
+        android:text="B.TMP"
         android:shadowColor="#ff000000"
         android:shadowDx="1"
         android:shadowDy="1"

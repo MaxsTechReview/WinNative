@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -38,8 +37,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -74,6 +72,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -83,9 +82,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
@@ -108,6 +113,14 @@ import com.winlator.cmod.runtime.input.ui.InputControlsView
 import com.winlator.cmod.runtime.input.ui.PanAction
 import com.winlator.cmod.runtime.input.ui.TouchGestureConfig
 import com.winlator.cmod.runtime.input.ui.ZoomAction
+import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
+import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.paneNavItem
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.key
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import kotlin.math.roundToInt
 
@@ -118,6 +131,7 @@ private val InputField = Color(0xFF14141E)
 private val InputOutline = Color(0xFF2A2A3A)
 private val InputIconBox = Color(0xFF242434)
 private val InputAccent = Color(0xFF1A9FFF)
+private val InputNavHighlight = Color(0xFF4FC3F7)
 private val InputTextPrimary = Color(0xFFF0F4FF)
 private val InputTextSecondary = Color(0xFF7A8FA8)
 private val InputDanger = Color(0xFFFF7A88)
@@ -281,12 +295,14 @@ data class InputControlsScreenActions(
 fun InputControlsScreen(
     state: InputControlsScreenState,
     actions: InputControlsScreenActions,
+    bridge: SettingsNavBridge? = null,
 ) {
     val layoutDirection = LocalLayoutDirection.current
     val navBarPadding = WindowInsets.navigationBars.asPaddingValues()
     val navBarStartPadding = navBarPadding.calculateStartPadding(layoutDirection)
     val navBarEndPadding = navBarPadding.calculateEndPadding(layoutDirection)
     val navBarBottomPadding = navBarPadding.calculateBottomPadding()
+    val contentNav = rememberSettingsContentNav(bridge)
 
     Box(
         modifier =
@@ -294,80 +310,72 @@ fun InputControlsScreen(
                 .fillMaxSize()
                 .background(InputBg),
     ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding =
-                PaddingValues(
-                    start = 12.dp + navBarStartPadding,
-                    top = 12.dp,
-                    end = 12.dp + navBarEndPadding,
-                    bottom = 16.dp + navBarBottomPadding,
-                ),
-            verticalArrangement = Arrangement.spacedBy(InputCompactGap),
-        ) {
-            item("auto-hide-label") { SectionLabel(stringResource(R.string.input_controls_auto_hide_section)) }
-            item("auto-hide-card") { AutoHideTouchCard(state, actions) }
-            item("profile-card") { ProfileCard(state, actions) }
-            item("actions-label") { SectionLabel(stringResource(R.string.input_controls_editor_input_profiles_section)) }
-            item("import-card") {
+        CompositionLocalProvider(LocalPaneNav provides contentNav) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(
+                            start = 12.dp + navBarStartPadding,
+                            top = 12.dp,
+                            end = 12.dp + navBarEndPadding,
+                        ),
+                verticalArrangement = Arrangement.spacedBy(InputCompactGap),
+            ) {
+                SectionLabel(stringResource(R.string.input_controls_auto_hide_section))
+                AutoHideTouchCard(state, actions)
+                ProfileCard(state, actions)
+                SectionLabel(stringResource(R.string.input_controls_editor_input_profiles_section))
                 ActionCard(
                     icon = Icons.Outlined.FileDownload,
                     title = stringResource(R.string.input_controls_editor_import_profile),
                     onClick = actions.onImportProfile,
                 )
-            }
-            item("download-card") {
                 ActionCard(
                     icon = Icons.Outlined.Download,
                     title = stringResource(R.string.common_ui_download),
                     onClick = actions.onDownloadProfile,
                 )
-            }
-            item("export-card") {
                 ActionCard(
                     icon = Icons.Outlined.FileUpload,
                     title = stringResource(R.string.input_controls_editor_export_profile),
                     onClick = actions.onExportProfile,
                 )
-            }
-            item("overlay-label") { SectionLabel(stringResource(R.string.input_controls_editor_overlay_opacity)) }
-            item("overlay-card") { OverlayOpacityCard(state, actions) }
-            item("trigger-label") { SectionLabel(stringResource(R.string.session_gamepad_trigger_type)) }
-            item("trigger-card") { TriggerTypeCard(state, actions) }
-            item("gyro-label") { SectionLabel(stringResource(R.string.session_gyroscope_title)) }
-            item("gyro-card") { GyroscopeCard(state, actions) }
-            item("gesture-profiles-label") { SectionLabel(stringResource(R.string.session_gesture_profile_section)) }
-            item("gesture-profile-card") { GestureProfileCard(state, actions) }
-            if (state.gestureEditorExpanded) {
-                item("gesture-editor-card") {
+                SectionLabel(stringResource(R.string.input_controls_editor_overlay_opacity))
+                OverlayOpacityCard(state, actions)
+                SectionLabel(stringResource(R.string.session_gamepad_trigger_type))
+                TriggerTypeCard(state, actions)
+                SectionLabel(stringResource(R.string.session_gyroscope_title))
+                GyroscopeCard(state, actions)
+                SectionLabel(stringResource(R.string.session_gesture_profile_section))
+                GestureProfileCard(state, actions)
+                if (state.gestureEditorExpanded) {
                     CardShell {
                         GestureEditorBody(state.selectedGestureConfig) { actions.onGestureConfigChanged(it) }
                     }
                 }
-            }
-            item("gesture-import-card") {
                 ActionCard(
                     icon = Icons.Outlined.FileDownload,
                     title = stringResource(R.string.gesture_profile_import),
                     onClick = actions.onImportGestureProfile,
                 )
-            }
-            item("gesture-export-card") {
                 ActionCard(
                     icon = Icons.Outlined.FileUpload,
                     title = stringResource(R.string.gesture_profile_export),
                     onClick = actions.onExportGestureProfile,
                 )
-            }
-            item("controllers-label") { SectionLabel(stringResource(R.string.session_gamepad_external_controllers)) }
-            if (state.controllerCards.isEmpty()) {
-                item("controllers-empty") {
+                SectionLabel(stringResource(R.string.session_gamepad_external_controllers))
+                if (state.controllerCards.isEmpty()) {
                     EmptyStateCard(stringResource(R.string.common_ui_no_items_to_display))
+                } else {
+                    state.controllerCards.forEach { controller ->
+                        key(controller.controllerId) {
+                            ControllerCard(controller, actions)
+                        }
+                    }
                 }
-            } else {
-                items(state.controllerCards, key = { it.controllerId }) { controller ->
-                    ControllerCard(controller, actions)
-                }
+                Spacer(Modifier.height(16.dp + navBarBottomPadding))
             }
         }
 
@@ -442,10 +450,11 @@ private fun CardShell(
 ) {
     val clickableModifier =
         if (onClick != null) {
-            Modifier.clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
+            Modifier.paneNavItem(
+                cornerRadius = InputCardCorner,
+                onActivate = onClick,
+                highlightColor = InputNavHighlight,
+                tapToSelect = true,
             )
         } else {
             Modifier
@@ -503,10 +512,11 @@ private fun IconActionButton(
                 .clip(RoundedCornerShape(InputFieldCorner))
                 .background(InputSubcard)
                 .border(1.dp, InputOutline, RoundedCornerShape(InputFieldCorner))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
+                .paneNavItem(
+                    cornerRadius = InputFieldCorner,
+                    onActivate = onClick,
+                    highlightColor = InputNavHighlight,
+                    tapToSelect = true,
                 ),
         contentAlignment = Alignment.Center,
     ) {
@@ -520,12 +530,33 @@ private fun IconActionButton(
 }
 
 @Composable
+private fun DecorativeChevronBox() {
+    Box(
+        modifier =
+            Modifier
+                .size(InputActionSize)
+                .clip(RoundedCornerShape(InputFieldCorner))
+                .background(InputSubcard)
+                .border(1.dp, InputOutline, RoundedCornerShape(InputFieldCorner)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+            contentDescription = null,
+            tint = InputTextSecondary,
+            modifier = Modifier.size(16.dp),
+        )
+    }
+}
+
+@Composable
 private fun AppSwitch(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Switch(
-        modifier = Modifier.scale(0.78f),
+        modifier = modifier.scale(0.78f).focusProperties { canFocus = false },
         checked = checked,
         onCheckedChange = onCheckedChange,
         colors =
@@ -569,10 +600,11 @@ private fun Chip(
                     1.dp,
                     if (selected) InputAccent.copy(alpha = 0.35f) else InputOutline,
                     RoundedCornerShape(InputFieldCorner),
-                ).clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
+                ).paneNavItem(
+                    cornerRadius = InputFieldCorner,
+                    onActivate = onClick,
+                    highlightColor = InputNavHighlight,
+                    tapToSelect = true,
                 ).padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -597,10 +629,11 @@ private fun SelectionPill(
                 .clip(RoundedCornerShape(InputFieldCorner))
                 .background(InputField)
                 .border(1.dp, InputOutline, RoundedCornerShape(InputFieldCorner))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
+                .paneNavItem(
+                    cornerRadius = InputFieldCorner,
+                    onActivate = onClick,
+                    highlightColor = InputNavHighlight,
+                    tapToSelect = true,
                 ).padding(start = 12.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -650,6 +683,7 @@ private fun InputDialogShell(
     maxWidth: Dp = 440.dp,
     content: @Composable () -> Unit,
 ) {
+    val registry = remember { PaneNavRegistry() }
     Dialog(
         onDismissRequest = onDismiss,
         properties =
@@ -658,50 +692,53 @@ private fun InputDialogShell(
                 decorFitsSystemWindows = false,
             ),
     ) {
-        BoxWithConstraints(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .safeDrawingPadding()
-                    .imePadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(
+        DialogPaneNav(registry, onDismiss = onDismiss)
+        CompositionLocalProvider(LocalPaneNav provides registry) {
+            BoxWithConstraints(
                 modifier =
                     Modifier
-                        .widthIn(max = maxWidth)
-                        .fillMaxWidth()
-                        .heightIn(max = maxHeight)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(InputCard)
-                        .border(1.dp, InputOutline, RoundedCornerShape(16.dp))
-                        .padding(horizontal = 18.dp, vertical = 16.dp),
+                        .fillMaxSize()
+                        .safeDrawingPadding()
+                        .imePadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                Column(
+                Box(
                     modifier =
                         Modifier
+                            .widthIn(max = maxWidth)
                             .fillMaxWidth()
-                            .verticalScroll(rememberScrollState()),
+                            .heightIn(max = maxHeight)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(InputCard)
+                            .border(1.dp, InputOutline, RoundedCornerShape(16.dp))
+                            .padding(horizontal = 18.dp, vertical = 16.dp),
                 ) {
-                    if (title != null) {
-                        Text(
-                            text = title,
-                            color = InputTextPrimary,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(1.dp)
-                                    .background(InputOutline),
-                        )
-                        Spacer(Modifier.height(14.dp))
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState()),
+                    ) {
+                        if (title != null) {
+                            Text(
+                                text = title,
+                                color = InputTextPrimary,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .height(1.dp)
+                                        .background(InputOutline),
+                            )
+                            Spacer(Modifier.height(14.dp))
+                        }
+                        content()
                     }
-                    content()
                 }
             }
         }
@@ -756,6 +793,7 @@ private fun InputFixedFooterDialogShell(
     footer: @Composable () -> Unit,
     content: @Composable () -> Unit,
 ) {
+    val registry = remember { PaneNavRegistry() }
     Dialog(
         onDismissRequest = onDismiss,
         properties =
@@ -764,41 +802,85 @@ private fun InputFixedFooterDialogShell(
                 decorFitsSystemWindows = false,
             ),
     ) {
-        BoxWithConstraints(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .safeDrawingPadding()
-                    .imePadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            val responsiveBodyMaxHeight =
-                minOf(
-                    maxBodyHeight,
-                    (maxHeight - 176.dp).coerceAtLeast(140.dp),
-                )
-
-            Box(
+        DialogPaneNav(registry, onDismiss = onDismiss)
+        CompositionLocalProvider(LocalPaneNav provides registry) {
+            BoxWithConstraints(
                 modifier =
                     Modifier
-                        .widthIn(max = maxWidth)
-                        .fillMaxWidth()
-                        .heightIn(max = maxHeight)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(InputCard)
-                        .border(1.dp, InputOutline, RoundedCornerShape(16.dp))
-                        .padding(horizontal = 18.dp, vertical = 16.dp),
+                        .fillMaxSize()
+                        .safeDrawingPadding()
+                        .imePadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    if (title != null) {
-                        Text(
-                            text = title,
-                            color = InputTextPrimary,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Spacer(Modifier.height(12.dp))
+                val responsiveBodyMaxHeight =
+                    minOf(
+                        maxBodyHeight,
+                        (maxHeight - 176.dp).coerceAtLeast(140.dp),
+                    )
+
+                Box(
+                    modifier =
+                        Modifier
+                            .widthIn(max = maxWidth)
+                            .fillMaxWidth()
+                            .heightIn(max = maxHeight)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(InputCard)
+                            .border(1.dp, InputOutline, RoundedCornerShape(16.dp))
+                            .padding(horizontal = 18.dp, vertical = 16.dp),
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        if (title != null) {
+                            Text(
+                                text = title,
+                                color = InputTextPrimary,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .height(1.dp)
+                                        .background(InputOutline),
+                            )
+                            Spacer(Modifier.height(14.dp))
+                        }
+
+                        val scrollState = rememberScrollState()
+                        val density = LocalDensity.current
+                        var viewportTop by remember { mutableStateOf(0f) }
+                        var viewportHeight by remember { mutableStateOf(0) }
+                        LaunchedEffect(registry.activeRow, registry.activeCol, viewportHeight) {
+                            if (!registry.controllerActive) return@LaunchedEffect
+                            val bounds = registry.activeItemBounds() ?: return@LaunchedEffect
+                            val margin = with(density) { 16.dp.toPx() }
+                            val vpBottom = viewportTop + viewportHeight
+                            val delta =
+                                when {
+                                    bounds.second + margin > vpBottom -> bounds.second + margin - vpBottom
+                                    bounds.first - margin < viewportTop -> bounds.first - margin - viewportTop
+                                    else -> 0f
+                                }
+                            if (delta != 0f) runCatching { scrollState.animateScrollBy(delta) }
+                        }
+                        Column(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = responsiveBodyMaxHeight)
+                                    .onGloballyPositioned {
+                                        viewportTop = it.positionInWindow().y
+                                        viewportHeight = it.size.height
+                                    }
+                                    .verticalScroll(scrollState),
+                        ) {
+                            content()
+                        }
+
+                        Spacer(Modifier.height(14.dp))
                         Box(
                             modifier =
                                 Modifier
@@ -807,28 +889,8 @@ private fun InputFixedFooterDialogShell(
                                     .background(InputOutline),
                         )
                         Spacer(Modifier.height(14.dp))
+                        footer()
                     }
-
-                    Column(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = responsiveBodyMaxHeight)
-                                .verticalScroll(rememberScrollState()),
-                    ) {
-                        content()
-                    }
-
-                    Spacer(Modifier.height(14.dp))
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(1.dp)
-                                .background(InputOutline),
-                    )
-                    Spacer(Modifier.height(14.dp))
-                    footer()
                 }
             }
         }
@@ -849,15 +911,25 @@ private fun InputDialogButton(
     val resolvedBorder = borderColor ?: if (primary) InputAccent.copy(alpha = 0.5f) else InputOutline
     val disabledBackground = InputSubcard.copy(alpha = 0.96f)
     val disabledBorder = InputOutline.copy(alpha = 0.9f)
+    val nav = LocalPaneNav.current
     val clickModifier =
-        if (enabled) {
-            Modifier.clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            )
-        } else {
-            Modifier
+        when {
+            !enabled -> Modifier
+            nav != null ->
+                Modifier.paneNavItem(
+                    cornerRadius = 10.dp,
+                    onActivate = onClick,
+                    highlightColor = InputNavHighlight,
+                    tapToSelect = true,
+                )
+            else ->
+                Modifier
+                    .paneNavItem(cornerRadius = 10.dp, onActivate = onClick)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onClick,
+                    )
         }
 
     Box(
@@ -943,6 +1015,7 @@ private fun InputPromptDialog(
     val focusManager = LocalFocusManager.current
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
+    val fieldFocus = remember { FocusRequester() }
 
     InputDialogShell(
         onDismiss = onDismiss,
@@ -960,6 +1033,11 @@ private fun InputPromptDialog(
                         if (focused) 1.5.dp else 1.dp,
                         if (focused) InputAccent else InputOutline,
                         RoundedCornerShape(12.dp),
+                    ).paneNavItem(
+                        cornerRadius = 12.dp,
+                        onActivate = { runCatching { fieldFocus.requestFocus() } },
+                        highlightColor = InputNavHighlight,
+                        isEntry = true,
                     ).padding(horizontal = 14.dp, vertical = 12.dp),
             contentAlignment = Alignment.CenterStart,
         ) {
@@ -978,7 +1056,7 @@ private fun InputPromptDialog(
                             onConfirm(text.trim())
                         },
                     ),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().focusRequester(fieldFocus),
             )
         }
         Spacer(Modifier.height(16.dp))
@@ -1038,6 +1116,7 @@ private fun InputChoiceDialog(
             }
         },
     ) {
+        val focusTarget = selectedIndex.coerceIn(0, (options.size - 1).coerceAtLeast(0))
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -1049,15 +1128,17 @@ private fun InputChoiceDialog(
                         Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(if (selected) InputAccent.copy(alpha = 0.08f) else InputField)
+                            .background(InputField)
                             .border(
                                 1.dp,
-                                if (selected) InputAccent.copy(alpha = 0.24f) else InputOutline,
+                                InputOutline,
                                 RoundedCornerShape(12.dp),
-                            ).clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = { onSelected(index) },
+                            ).paneNavItem(
+                                cornerRadius = 12.dp,
+                                onActivate = { onSelected(index) },
+                                highlightColor = InputNavHighlight,
+                                tapToSelect = true,
+                                isEntry = index == focusTarget,
                             ).padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -1148,6 +1229,7 @@ private fun InputMultiChoiceDialog(
             }
         },
     ) {
+        val focusTarget = options.indices.firstOrNull { it !in disabledIndices } ?: -1
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -1159,10 +1241,9 @@ private fun InputMultiChoiceDialog(
                     if (disabled) {
                         Modifier
                     } else {
-                        Modifier.clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = {
+                        Modifier.paneNavItem(
+                            cornerRadius = 12.dp,
+                            onActivate = {
                                 currentSelection =
                                     if (selected) {
                                         currentSelection - index
@@ -1170,6 +1251,9 @@ private fun InputMultiChoiceDialog(
                                         currentSelection + index
                                     }
                             },
+                            highlightColor = InputNavHighlight,
+                            tapToSelect = true,
+                            isEntry = index == focusTarget,
                         )
                     }
                 Row(
@@ -1361,6 +1445,11 @@ private fun ProfileSelectorRow(
                     ),
                     RoundedCornerShape(InputCardCorner),
                 )
+                .paneNavItem(
+                    cornerRadius = InputCardCorner,
+                    onActivate = onClick,
+                    highlightColor = InputNavHighlight,
+                )
                 .clickable(
                     interactionSource = selectionInteraction,
                     indication = null,
@@ -1486,10 +1575,11 @@ private fun ProfileEditButton(
             modifier
                 .size(InputProfileActionSize)
                 .clip(RoundedCornerShape(InputFieldCorner))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
+                .paneNavItem(
+                    cornerRadius = InputFieldCorner,
+                    onActivate = onClick,
+                    highlightColor = InputNavHighlight,
+                    tapToSelect = true,
                 ),
         contentAlignment = Alignment.Center,
     ) {
@@ -1509,10 +1599,11 @@ private fun ProfileOverflowButton(onClick: () -> Unit) {
             Modifier
                 .size(InputProfileActionSize)
                 .clip(RoundedCornerShape(InputFieldCorner))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
+                .paneNavItem(
+                    cornerRadius = InputFieldCorner,
+                    onActivate = onClick,
+                    highlightColor = InputNavHighlight,
+                    tapToSelect = true,
                 ),
         contentAlignment = Alignment.Center,
     ) {
@@ -1557,7 +1648,16 @@ private fun AutoHideTouchCard(
 ) {
     CardShell {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .paneNavItem(
+                        cornerRadius = InputCardCorner,
+                        onActivate = {
+                            actions.onAutoHideTouchOnControllerChanged(!state.autoHideTouchOnController)
+                        },
+                        highlightColor = InputNavHighlight,
+                    ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconBox(Icons.Outlined.SportsEsports, InputTextSecondary)
@@ -1621,7 +1721,16 @@ private fun OverlayOpacityCard(
                 },
                 valueRange = 10f..100f,
                 steps = 17,
-                modifier = Modifier.height(InputSliderHeight),
+                modifier =
+                    Modifier
+                        .height(InputSliderHeight)
+                        .paneNavItem(
+                            cornerRadius = InputFieldCorner,
+                            onAdjust = { dir ->
+                                actions.onOverlayOpacityChanged((state.overlayOpacity + dir * 5).coerceIn(10, 100))
+                            },
+                            highlightColor = InputNavHighlight,
+                        ),
                 colors = sliderColors(),
                 track = { InputSliderTrack(it) },
             )
@@ -1663,11 +1772,7 @@ private fun ActionCard(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f),
             )
-            IconActionButton(
-                image = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
-                contentDescription = title,
-                onClick = onClick,
-            )
+            DecorativeChevronBox()
         }
     }
 }
@@ -1698,10 +1803,11 @@ private fun Subcard(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onToggleExpanded,
+                    .paneNavItem(
+                        cornerRadius = InputCardCorner,
+                        onActivate = onToggleExpanded,
+                        highlightColor = InputNavHighlight,
+                        tapToSelect = true,
                     )
                     .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -1760,7 +1866,21 @@ private fun SliderField(
     steps: Int,
     onValueChange: (Float) -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    val stepSize = if (steps > 0) (valueRange.endInclusive - valueRange.start) / (steps + 1) else 1f
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .paneNavItem(
+                    cornerRadius = InputFieldCorner,
+                    onAdjust = { dir ->
+                        onValueChange(
+                            (value + dir * stepSize).coerceIn(valueRange.start, valueRange.endInclusive),
+                        )
+                    },
+                    highlightColor = InputNavHighlight,
+                ),
+    ) {
         Text(
             text = label,
             color = InputTextSecondary,
@@ -1785,7 +1905,14 @@ private fun SwitchRow(
     onCheckedChange: (Boolean) -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .paneNavItem(
+                    cornerRadius = InputFieldCorner,
+                    onActivate = { onCheckedChange(!checked) },
+                    highlightColor = InputNavHighlight,
+                ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -1811,10 +1938,11 @@ private fun CenteredPillButton(
                 .clip(RoundedCornerShape(InputFieldCorner))
                 .background(InputSubcard)
                 .border(1.dp, InputOutline, RoundedCornerShape(InputFieldCorner))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
+                .paneNavItem(
+                    cornerRadius = InputFieldCorner,
+                    onActivate = onClick,
+                    highlightColor = InputNavHighlight,
+                    tapToSelect = true,
                 ).padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -1872,7 +2000,7 @@ private fun <T> OptionDropdown(
         Text(label, color = InputTextSecondary, fontSize = InputPrimaryTextSize, modifier = Modifier.weight(1f))
         Box {
             SelectionPill(text = optionLabel(current), onClick = { expanded = true })
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = InputCard) {
                 options.forEach { option ->
                     DropdownMenuItem(text = { Text(optionLabel(option)) }, onClick = { onSelect(option); expanded = false })
                 }
@@ -1892,7 +2020,7 @@ private fun <T> PillDropdown(
     var expanded by remember { mutableStateOf(false) }
     Box(modifier) {
         SelectionPill(text = optionLabel(current), onClick = { expanded = true })
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = InputCard) {
             options.forEach { option ->
                 DropdownMenuItem(text = { Text(optionLabel(option)) }, onClick = { onSelect(option); expanded = false })
             }
@@ -2064,6 +2192,11 @@ private fun GestureSelectorRow(
                     ),
                     RoundedCornerShape(InputCardCorner),
                 )
+                .paneNavItem(
+                    cornerRadius = InputCardCorner,
+                    onActivate = onClick,
+                    highlightColor = InputNavHighlight,
+                )
                 .clickable(
                     interactionSource = selectionInteraction,
                     indication = null,
@@ -2214,7 +2347,14 @@ private fun GyroscopeCard(
     CardShell {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .paneNavItem(
+                            cornerRadius = InputFieldCorner,
+                            onActivate = { actions.onGyroscopeEnabledChanged(!state.gyroscopeEnabled) },
+                            highlightColor = InputNavHighlight,
+                        ),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconBox(Icons.Outlined.ScreenRotationAlt, InputTextSecondary)
@@ -2257,7 +2397,14 @@ private fun GyroscopeCard(
 
                 Spacer(Modifier.height(InputItemGap))
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .paneNavItem(
+                                cornerRadius = InputFieldCorner,
+                                onActivate = { actions.onGyroOrientationModeChanged(!state.gyroOrientationEnabled) },
+                                highlightColor = InputNavHighlight,
+                            ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
@@ -2291,7 +2438,14 @@ private fun GyroscopeCard(
 
                 Spacer(Modifier.height(InputItemGap))
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .paneNavItem(
+                                cornerRadius = InputFieldCorner,
+                                onActivate = { actions.onRightStickGyroChanged(!state.rightStickGyroEnabled) },
+                                highlightColor = InputNavHighlight,
+                            ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
@@ -2315,7 +2469,14 @@ private fun GyroscopeCard(
 
                 Spacer(Modifier.height(InputItemGap))
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .paneNavItem(
+                                cornerRadius = InputFieldCorner,
+                                onActivate = { actions.onGyroMouseEnabledChanged(!state.gyroMouseEnabled) },
+                                highlightColor = InputNavHighlight,
+                            ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
@@ -2628,10 +2789,11 @@ private fun BindingSelectionButton(
                 .clip(RoundedCornerShape(InputFieldCorner))
                 .background(InputField)
                 .border(1.dp, InputOutline, RoundedCornerShape(InputFieldCorner))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
+                .paneNavItem(
+                    cornerRadius = InputFieldCorner,
+                    onActivate = onClick,
+                    highlightColor = InputNavHighlight,
+                    tapToSelect = true,
                 ).padding(horizontal = 7.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

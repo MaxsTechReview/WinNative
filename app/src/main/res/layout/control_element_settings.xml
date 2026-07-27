@@ -226,13 +226,29 @@
                 android:spinnerMode="dropdown" />
         </LinearLayout>
 
-        <CheckBox
-            android:id="@+id/CBToggleSwitch"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:textColor="@color/settings_text_primary"
-            android:text="@string/input_controls_editor_toggle_switch" />
+            android:orientation="horizontal">
+
+            <CheckBox
+                android:id="@+id/CBToggleSwitch"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:textColor="@color/settings_text_primary"
+                android:text="@string/input_controls_editor_toggle_switch" />
+
+            <CheckBox
+                android:id="@+id/CBSwipeable"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:textColor="@color/settings_text_primary"
+                android:text="@string/input_controls_editor_swipeable" />
+        </LinearLayout>
 
         <LinearLayout
             android:id="@+id/LLCustomTextIcon"

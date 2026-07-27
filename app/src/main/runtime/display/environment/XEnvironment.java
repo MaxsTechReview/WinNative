@@ -140,8 +140,8 @@ public class XEnvironment implements Iterable<EnvironmentComponent> {
   }
 
   public void onResume() {
-    ALSAClient.setOutputSuspended(false);
     PulseAudioComponent pulseAudio = getComponent(PulseAudioComponent.class);
     if (pulseAudio != null) pulseAudio.resume();
+    ALSAClient.setOutputSuspended(false);
   }
 }

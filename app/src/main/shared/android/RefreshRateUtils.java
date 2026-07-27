@@ -135,9 +135,6 @@ public final class RefreshRateUtils {
 
     Display.Mode currentMode = display.getMode();
 
-    // Two independent passes (order-independent): an exact round-Hz match always wins over a
-    // closest match. The single-pass version mis-selected when a higher-rate mode preceded the
-    // exact match in enumeration order (e.g. requestedHz=60 picked the 90Hz mode).
     Display.Mode exact = null, closest = null;
     float exactRate = 0f, closestDelta = Float.MAX_VALUE, closestRate = 0f;
 
@@ -167,7 +164,8 @@ public final class RefreshRateUtils {
   }
 
   public static int resolveFramePacedRefreshRate(Activity activity, int requestedHz, int fpsLimit) {
-    if (fpsLimit <= 0) {
+    // An explicit rate is the user's choice; only auto is steered to fit the cap's cadence.
+    if (fpsLimit <= 0 || requestedHz > 0) {
       return requestedHz;
     }
 
@@ -281,6 +279,11 @@ public final class RefreshRateUtils {
   public static void applyPreferredRefreshRate(Activity activity, int requestedHz, int fpsLimit) {
     if (activity.isFinishing() || activity.isDestroyed()) return;
 
+    // The window has no display until it is attached; applying here resolves to a
+    // bogus fallback (mode 0 / default rate) that briefly overrides the real choice.
+    // Skip and let the next apply (resume / focus / display-change) set it once ready.
+    if (getDisplay(activity) == null) return;
+
     int effectiveRequestedHz = resolveFramePacedRefreshRate(activity, requestedHz, fpsLimit);
     WindowManager.LayoutParams params = activity.getWindow().getAttributes();
     int modeId = resolvePreferredDisplayModeId(activity, effectiveRequestedHz);
@@ -292,7 +295,8 @@ public final class RefreshRateUtils {
       return;
     }
     params.preferredDisplayModeId = modeId;
-    params.preferredRefreshRate = refreshRate;
+    // Must be 0 when a modeId is set.
+    params.preferredRefreshRate = modeId != 0 ? 0f : refreshRate;
     activity.getWindow().setAttributes(params);
     Log.d(
         TAG,
@@ -307,5 +311,13 @@ public final class RefreshRateUtils {
             + modeId
             + " refreshRate="
             + refreshRate);
+  }
+
+  /** Current active refresh rate of the activity's display in Hz (0 if unavailable). */
+  public static float getActiveRefreshRate(Activity activity) {
+    Display display = getDisplay(activity);
+    if (display == null) return 0f;
+    Display.Mode mode = display.getMode();
+    return mode != null ? mode.getRefreshRate() : 0f;
   }
 }
