@@ -2000,6 +2000,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             var cpuEditingMode = Boolean.parseBoolean(shortcut.getExtra("cpuEditingMode"));
             var cpuBoostState = Boolean.parseBoolean(shortcut.getExtra("cpuBoostState"));
             var cpuFanMode = shortcut.getExtra("cpuFanMode");
+            var gpuFrequency = shortcut.getExtra("gpuFrequency");
             if (!cpuFanMode.isEmpty()) {
                 WinToast.show(this, String.format("CPU fan mode set: %s", cpuFanMode));
                 performanceManager.setFanMode(cpuFanMode);
@@ -2043,6 +2044,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 }
             }
             WinToast.show(this, String.format("disabled cores %s: ", performanceManager.getDisabledCores()));
+            if (!gpuFrequency.isEmpty()) {
+                try {
+                    var gpuIndex = Integer.parseInt(gpuFrequency);
+                    performanceManager.setGpuFrequency(gpuIndex, true);
+                    var freqs = performanceManager.getGpuFrequencies();
+                    if (freqs != null) {
+                        WinToast.show(this, String.format("GPU SET: %s", freqs.get(gpuIndex)));
+                    }
+
+                } catch (Exception ignored) {}
+            }
         }
     }
 

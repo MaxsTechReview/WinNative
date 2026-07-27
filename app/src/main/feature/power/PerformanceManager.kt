@@ -5,6 +5,7 @@ import com.winlator.cmod.shared.util.RootManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlin.let
 
 data class CpuPolicy(
     var enabled: Boolean,
@@ -21,6 +22,7 @@ data class CpuPolicy(
 object PerformanceManager {
     private const val IDLE_TIMEOUT_NS = 1500000000L
     private const val CPU_PATH = "/sys/devices/system/cpu"
+    private const val GPU_PATH = "/sys/class/kgsl/kgsl-3d0"
     private const val CPU_BOOST_PATH = "/sys/devices/system/cpu/cpufreq/boost"
     private const val CPU_POLICY_BASE_PATH = "/sys/devices/system/cpu/cpufreq/"
 
@@ -40,7 +42,9 @@ object PerformanceManager {
 
     val isFanSupported = checkForFanSupport()
 
-    val isGpuSupported = false
+    val isGpuSupported = checkForGpuSupport()
+    var gpuFrequencyIndex: Int? = 0
+    var gpuFrequencies: List<Int>? = null
     var targetFPS: Float = 0f
     var fpsAvgFrameCount = 0
     var useAutoTargeting: Boolean = false
@@ -49,6 +53,19 @@ object PerformanceManager {
     private var autoTargetSetup: Boolean = false
     private var autoTargetPolicies: List<CpuPolicy>? = null
     private var fpsPastFrames: MutableList<Float> = mutableListOf()
+
+
+    fun checkForGpuSupport(): Boolean {
+        if (!isDeviceSupported) return false
+        val gpuDirectorySymlink = File(GPU_PATH)
+        if (!gpuDirectorySymlink.isDirectory) return false
+        val frequencies = RootManager.readSysfsFile("${gpuDirectorySymlink.canonicalPath}/gpu_available_frequencies")
+        if (frequencies.isNullOrEmpty()) return false
+        val availableFrequencies = frequencies.split(" ").reversed().map { it -> runCatching { (it.toLong()/1_000_000).toInt() }.getOrDefault(0) }
+        if (availableFrequencies.size < 2 || availableFrequencies.contains(0)) return false
+        gpuFrequencies = availableFrequencies
+        return availableFrequencies.size >= 2
+    }
 
     fun checkForFanSupport(): Boolean {
         if (!isDeviceSupported) return false
@@ -190,17 +207,22 @@ object PerformanceManager {
                 policy.maxFrequency = policy.availableFrequencies[policy.availableFrequencies.size-1]
                 policy.minFrequency = policy.availableFrequencies[policy.availableFrequencies.size-1]
             }
+            gpuFrequencies?.let {
+                if (it.size > 2)
+                    gpuFrequencyIndex = it.size-1
+            }
             autoTargetSetup = true
             autoTargetPolicies = policies
             return
         }
         ticks++
+        var fps = calculateFPS()
+        if (fps == 0f) return
+        fpsPastFrames.add(fps)
+        if (fpsPastFrames.size < fpsAvgFrameCount) return
+        fps = fpsPastFrames.sum() / fpsPastFrames.size
+
         if (ticks%targetFPS==0f && !autoTargetPolicies.isNullOrEmpty()) {
-            var fps = calculateFPS() * targetFPS
-            if (fps == 0f) return
-            fpsPastFrames.add(fps)
-            if (fpsAvgFrameCount >= fpsPastFrames.size) return
-            fps = fpsPastFrames.sum() / fpsPastFrames.size
             var shouldUpdate = false
             if (fps > targetFPS*1.1) {
                 for (policy in autoTargetPolicies) {
@@ -230,6 +252,10 @@ object PerformanceManager {
                         shouldUpdate = true
                     }
                 }
+                gpuFrequencyIndex?.let {
+                    if (it > 0)
+                        gpuFrequencyIndex = it-1
+                }
             }else if (fps < targetFPS*0.98) {
                 for (policy in autoTargetPolicies) {
                     if (policy.availableFrequencies.isNullOrEmpty()) continue
@@ -246,10 +272,19 @@ object PerformanceManager {
                         shouldUpdate = true
                     }
                 }
+                gpuFrequencyIndex?.let { it ->
+                    gpuFrequencies?.let { it1 ->
+                        if (it+1 < it1.size)
+                            gpuFrequencyIndex = it+1
+                    }
+                }
             }
             fpsPastFrames.clear()
             if (shouldUpdate) {
                 CoroutineScope(Dispatchers.IO).launch {
+                    gpuFrequencyIndex?.let {
+                        setGpuFrequency(it)
+                    }
                     autoTargetPolicies?.let {
                         setCpuCorePolicies(it)
                     }
@@ -272,6 +307,20 @@ object PerformanceManager {
         if (!isDeviceSupported) return null
         val onlineState = RootManager.readSysfsFile("${CPU_PATH}/cpu${cpuCore}/online")
         return onlineState == "1"
+    }
+
+    fun setGpuFrequency(gpuIndex: Int, lockfile: Boolean=true): Boolean? {
+        if (!isDeviceSupported || !isGpuSupported) return null
+        if (gpuFrequencies.isNullOrEmpty()) return null
+        gpuFrequencies?.let {
+            if (gpuIndex < 0 || gpuIndex > it.size) return false
+            if (lockfile) gpuFrequencyIndex = gpuIndex
+            RootManager.writeSysfsFile("${GPU_PATH}/max_pwrlevel", "0", lockfile)
+            RootManager.writeSysfsFile("${GPU_PATH}/max_clock_mhz", it[gpuIndex].toString(), lockfile)
+            RootManager.writeSysfsFile("${GPU_PATH}/min_clock_mhz", it[gpuIndex].toString(), lockfile)
+            return true
+        }
+        return false
     }
 
     fun setCpuCoreGovernor(cpuCore: Int, governor: String): Boolean? {
@@ -421,6 +470,12 @@ object PerformanceManager {
             defautlSystemFanMode?.let { setFanMode(it) }
         if (defaultSystemPolicies.isNullOrEmpty()) return null
         defaultSystemPolicies?.let { setCpuCorePolicies(it, true) }
+        gpuFrequencies?.let {
+            if (it.size > 1) {
+                setGpuFrequency(0, false)
+                gpuFrequencyIndex = 0
+            }
+        }
         return true
     }
 }

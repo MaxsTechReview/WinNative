@@ -586,6 +586,7 @@ class GameSettingsStateHolder {
     val cpuTargetFPS =  mutableStateOf(0)
     val cpuAutoTargetFPS =  mutableStateOf(false)
     val cpuAvgFrameCount = mutableStateOf(3)
+    val gpuFrequency =  mutableStateOf(0)
 }
 
 interface GameSettingsCallbacks {
@@ -1075,6 +1076,7 @@ private fun PerformanceControlSection(
 ) {
     val governors = PerformanceManager.allCpuGovernors
     val fanModes = PerformanceManager.getSupportedFanModes()
+    val gpuFrequencies = PerformanceManager.gpuFrequencies
     var fanModeIndex by remember { mutableStateOf(fanModes?.indexOf(state.cpuFanMode.value) ?: 0) }
     var governorIndex by remember { mutableStateOf(governors?.indexOf(state.cpuGovernor.value) ?: 0) }
 
@@ -1250,6 +1252,22 @@ private fun PerformanceControlSection(
                     }
                     state.cpuPolicies.value[index].minFrequency = frequencies[minIndex]
                     state.cpuPolicies.value[index].maxFrequency = frequencies[maxIndex]
+                }
+                if (!PerformanceManager.isGpuSupported || gpuFrequencies.isNullOrEmpty()) return@SettingGroup
+                Spacer(Modifier.height(SettingSectionGap))
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                    Box(Modifier.weight(1f)) {
+                        SettingSlider(
+                            label = stringResource(R.string.performance_gpu_frequencies_label),
+                            value = state.gpuFrequency.value,
+                            range = 0..gpuFrequencies.size-1,
+                            valueText = "${gpuFrequencies[state.gpuFrequency.value].toString()}MHz",
+                            steps = (0 - gpuFrequencies.size - 1).coerceAtLeast(0),
+                            onValueChange = {
+                                state.gpuFrequency.value = it
+                            }
+                        )
+                    }
                 }
             }
         }

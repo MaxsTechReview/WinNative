@@ -465,6 +465,7 @@ class ShortcutSettingsComposeDialog private constructor(
                 state.cpuTargetFPS.value = shortcut.getExtra("cpuTargetFPS").toIntOrNull() ?: 0
                 state.cpuAvgFrameCount.value = shortcut.getExtra("cpuAvgFrameCount").toIntOrNull() ?: 3
                 state.cpuAutoTargetFPS.value = shortcut.getExtra("cpuAutoTargetFPS").toBoolean()
+                state.gpuFrequency.value = shortcut.getExtra("gpuFrequency").toIntOrNull() ?: 0
 
                 val cpuPolicies = shortcut.getExtra("cpuPolicies")
                 if (cpuPolicies.isNotEmpty()) {
@@ -485,6 +486,7 @@ class ShortcutSettingsComposeDialog private constructor(
                     state.cpuTargetFPS.value = shortcut.container.getExtra("cpuTargetFPS").toIntOrNull() ?: 0
                     state.cpuAvgFrameCount.value = shortcut.container.getExtra("cpuAvgFrameCount").toIntOrNull() ?: 3
                     state.cpuAutoTargetFPS.value = shortcut.container.getExtra("cpuAutoTargetFPS").toBoolean()
+                    state.gpuFrequency.value = shortcut.container.getExtra("gpuFrequency").toIntOrNull() ?: 0
 
                     if (containerPolicies.isNotEmpty()) {
                         var policies = PerformanceManager.parseRawPoliciesFromString(containerPolicies)
@@ -498,6 +500,7 @@ class ShortcutSettingsComposeDialog private constructor(
                             shortcut.putExtra("cpuTargetFPS", state.cpuTargetFPS.toString())
                             shortcut.putExtra("cpuAvgFrameCount", state.cpuAvgFrameCount.toString())
                             shortcut.putExtra("cpuAutoTargetFPS", state.cpuAutoTargetFPS.toString())
+                            shortcut.putExtra("gpuFrequency", state.gpuFrequency.toString())
                         }
                         else {
                             policies = PerformanceManager.getDefaultSystemPolicies()
@@ -1431,6 +1434,7 @@ class ShortcutSettingsComposeDialog private constructor(
                 shortcut.putExtra("cpuTargetFPS", state.cpuTargetFPS.value.toString())
                 shortcut.putExtra("cpuAvgFrameCount", state.cpuAvgFrameCount.value.toString())
                 shortcut.putExtra("cpuAutoTargetFPS", state.cpuAutoTargetFPS.value.toString())
+                shortcut.putExtra("gpuFrequency", state.gpuFrequency.value.toString())
             }
 
             // Container defaults flag
