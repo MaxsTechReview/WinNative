@@ -65,15 +65,9 @@ public class VulkanRenderer
     private final AtomicBoolean fgNewScene = new AtomicBoolean(false);
     private final AtomicBoolean fgSceneDirty = new AtomicBoolean(false);
     private final AtomicBoolean fgPumpScheduled = new AtomicBoolean(false);
-    private boolean fgPendingReal = false;
-    private int fgPendingInterps = 0;
-    private int fgInterpTotal = 0;
-    private int fgSlotIdx = 0;
     private long fgEngineFrames = 0;
     private volatile long fgDisplayPeriodNs = 0;
-    private volatile long fgGamePeriodNs = 0;
     private volatile double fgLockedGameHz = 0.0;
-    private int fgGameDriftFrames = 0;
     private long fgLastPumpNs = 0;
     private volatile long fgLastGameNs = 0;
     private volatile long fgPrevGameNs = 0;
@@ -256,9 +250,6 @@ public class VulkanRenderer
             synchronized (this) {
                 if (nativeHandle != 0) nativeSetFrameGenDeepMode(nativeHandle, fgDeepMode);
             }
-            fgPendingReal = false;
-            fgPendingInterps = 0;
-            fgInterpTotal = 0;
             fgEngineFrames = 0;
             fgCurrentVsyncNs = 0;
             fgLastScanoutSrc = null;
@@ -267,7 +258,6 @@ public class VulkanRenderer
             fgLastAcceptNs = 0L;
             fgRenderPrioritySet = false;
             fgLockedGameHz = 0.0;
-            fgGameDriftFrames = 0;
             fgNewScene.set(true);
             startFgPumpThread();
             scheduleFgPump();
@@ -484,9 +474,6 @@ public class VulkanRenderer
     private long fgPromoteSeen = 0;
     private long fgLastPromoteNs = 0, fgPrevPromoteNs = 0;  // times of the last two distinct content frames
     private long fgContentPeriodNs = 0;      // EMA of the interval between distinct content frames
-    private int fgFillHolds = 1;             // debug.winnative.fgfill: complete motion to curr on late holds (0=off)
-    private int fgFillCtr = 0;
-    private int  fgPromoteSlotIdx = 0;       // display ticks since the last promote
     private int  fgVblankSincePromote = 0;   // vblanks since the last real frame — drives the steady output gate
     private volatile int fgCadenceM = 2;     // divisor-snapped multiplier actually used by the cadence
     private volatile boolean fgResyncPending = false;
@@ -496,12 +483,9 @@ public class VulkanRenderer
     private void doFgResync() {
         fgLockedGameHz = 0.0;
         fgContentPeriodNs = 0L;
-        fgGamePeriodNs = 0L;
-        fgGameDriftFrames = 0;
         fgPrevPromoteNs = 0L;
         fgLastPromoteNs = 0L;
         fgEngineFrames = 0;
-        fgPromoteSlotIdx = 0;
         fgVblankSincePromote = 0;
         fgEffectiveMultiplier = fgMultiplier;
         fgBoundSecs = 0;
@@ -522,7 +506,6 @@ public class VulkanRenderer
 
     private int fgEmitOne() {
         if (fgResyncPending) { fgResyncPending = false; doFgResync(); }
-        if ((fgFillCtr++ & 63) == 0) fgFillHolds = nativeGetFillHolds();
         boolean newGame = fgNewScene.getAndSet(false);
         boolean dirty   = fgSceneDirty.getAndSet(false);
         fgEmitWasHold = newGame || dirty;
@@ -544,59 +527,70 @@ public class VulkanRenderer
                             double inst = 1.0e9 / (double) fgContentPeriodNs;
                             fgLockedGameHz = fgLockedGameHz <= 0.0 ? inst
                                     : fgLockedGameHz + (inst - fgLockedGameHz) * 0.25;
-                            fgGameDriftFrames = 0;
-                            fgGamePeriodNs = fgContentPeriodNs;
-                        }
+                                        }
                     }
                     fgPrevPromoteNs = fgLastPromoteNs;
                     fgLastPromoteNs = pNs;
                     fgEngineFrames++;
-                    fgPromoteSlotIdx = 0;
-                    fgVblankSincePromote = 0;  // new content interval — restart the output gate at the real frame
+                    fgVblankSincePromote = 0;
                 }
             }
         }
-        if (!promoted) fgPromoteSlotIdx++;
+        if (!promoted) fgVblankSincePromote++;
 
         long period = fgContentPeriodNs;
+        long target = fgPresentTargetNs();
         boolean canInterp = fgMultiplier > 1 && fgEngineFrames >= 2 && period > 0L
                             && fgLastPromoteNs != 0L && fgPrevPromoteNs != 0L;
         if (!canInterp) {
-            if (newGame || dirty) { nativePresentLast(nativeHandle, 0f, fgPrevPromoteNs, fgLastPromoteNs); return 2; }
+            if (newGame || dirty) {
+                nativePresentLast(nativeHandle, 0f, fgPrevPromoteNs, fgLastPromoteNs, target);
+                return 2;
+            }
             return 0;
         }
 
-        if (promoted) {
-            nativePresentLast(nativeHandle, 0f, fgPrevPromoteNs, fgLastPromoteNs);
-            return 2;
-        }
-        if (period <= 0L) return 0;
         int eff = Math.max(2, fgEffectiveMultiplier);
         long disp = fgDisplayPeriodNs;
         int slots = eff;
-        if (disp > 0L) {
-            int s = (int) Math.round((double) period / (double) disp);
-            if (s >= 2) slots = s;
-        }
-        int emits = Math.min(eff, slots);   // can't show more unique frames than panel refreshes per interval
+        if (disp > 0L) slots = Math.max(1, (int) Math.round((double) period / (double) disp));
+        int emits = Math.max(1, Math.min(eff, slots));
         fgCadenceM = emits;
-        fgVblankSincePromote++;
-        int vi = fgVblankSincePromote;                             // vblanks since the real frame (1..slots-1)
-        if (vi >= slots) {                                         // interval fully spanned (content static)
-            // Now a UI-only recomposite (cursor) warrants a sharp redraw; otherwise hold.
-            if (dirty && !newGame) { nativePresentLast(nativeHandle, 0f, fgPrevPromoteNs, fgLastPromoteNs); return 2; }
-            if (fgFillHolds > 0 && vi < slots + fgFillHolds) {     // next real frame late: carry the motion
-                double phase = (double) vi / (double) slots;        // >=1.0 -> reach curr then extrapolate forward
-                nativeRenderInterp(nativeHandle, (float) phase, fgPrevPromoteNs, fgLastPromoteNs);
-                return 1;
-            }
-            return 0;                                              // hold for the next promote
+
+        int vi = fgVblankSincePromote;
+        int lastSlot = fgSlotVblank(emits - 1, slots, emits);
+        int k = -1;
+        for (int i = 0; i < emits; i++) {
+            if (fgSlotVblank(i, slots, emits) == vi) { k = i; break; }
         }
-        boolean emit = (int) ((long) vi * emits / slots) != (int) ((long) (vi - 1) * emits / slots);
-        if (!emit) return 0;                                       // between gates — hold the current frame
-        double phase = (double) vi / (double) slots;               // deterministic slot phase, jitter-free
-        nativeRenderInterp(nativeHandle, (float) phase, fgPrevPromoteNs, fgLastPromoteNs);
+        if (k < 0) {
+            if (dirty && !newGame && vi > lastSlot) {
+                nativePresentLast(nativeHandle, 0f, fgPrevPromoteNs, fgLastPromoteNs, target);
+                return 2;
+            }
+            return 0;
+        }
+
+        int realSlot = fgExtrapolate ? 0 : emits - 1;
+        if (k == realSlot) {
+            nativePresentLast(nativeHandle, 0f, fgPrevPromoteNs, fgLastPromoteNs, target);
+            return 2;
+        }
+        int v = fgSlotVblank(k, slots, emits);
+        double phase = fgExtrapolate
+                ? (double) v / (double) slots
+                : 1.0 - (double) (lastSlot - v) / (double) slots;
+        nativeRenderInterp(nativeHandle, (float) phase, fgPrevPromoteNs, fgLastPromoteNs, target);
         return 1;
+    }
+
+    private static int fgSlotVblank(int k, int slots, int emits) {
+        return (int) (((long) k * (long) slots + (long) (emits / 2)) / (long) emits);
+    }
+
+    private long fgPresentTargetNs() {
+        long v = fgCurrentVsyncNs, d = fgDisplayPeriodNs;
+        return (v > 0L && d > 0L) ? v + d : 0L;
     }
 
     // Target FG post rate (Hz): multiplier × locked game rate, capped to the panel max. 0 if not measured.
@@ -606,19 +600,6 @@ public class VulkanRenderer
         double target = Math.max(1, fgCadenceM) * g;
         if (fgDisplayCapHz > 0) target = Math.min(target, (double) fgDisplayCapHz);
         return target;
-    }
-
-    private int fgComputeInterps() {
-        int maxInterps = Math.max(1, fgEffectiveMultiplier) - 1;
-        long disp = fgDisplayPeriodNs, game = fgGamePeriodNs;
-        if (disp <= 0L || game <= 0L) return 0;
-        if (fgActivePresentMode == PRESENT_MODE_FIFO) {
-            int slots = (int) Math.floor((double) game / (double) disp + 1e-3);
-            return Math.max(0, Math.min(maxInterps, slots - 1));
-        }
-        double gameHz = fgLockedGameHz > 0.0 ? fgLockedGameHz : 1.0e9 / (double) game;
-        int interps = (int) Math.round(fgTargetHz() / gameHz) - 1;
-        return Math.max(0, Math.min(maxInterps, interps));
     }
 
     private int fgComputePerTick() {
@@ -706,10 +687,7 @@ public class VulkanRenderer
                 fgActivePresentMode = nativeGetActivePresentMode(nativeHandle);
                 pushFrameGenParams();
                 nativeSetFrameGenDeepMode(nativeHandle, fgDeepMode);
-                fgPendingReal = false;
-                fgPendingInterps = 0;
-                fgInterpTotal = 0;
-                fgEngineFrames = 0;
+                            fgEngineFrames = 0;
                 fgNewScene.set(true);
                 startFgPumpThread();
                 scheduleFgPump();
@@ -1468,16 +1446,15 @@ public class VulkanRenderer
     private static native boolean nativeFrameGenerationSupported(long handle);
     private static native long nativeGetDisplayFrameCount(long handle);
     private static native boolean nativeRenderHold(long handle);
-    private static native boolean nativeRenderInterp(long handle, float phase, long prevNs, long currNs);
+    private static native boolean nativeRenderInterp(long handle, float phase, long prevNs, long currNs, long targetNs);
     private static native void nativeFgPromoteInfo(long handle, long[] out);
-    private static native boolean nativePresentLast(long handle, float phase, long prevNs, long currNs);
+    private static native boolean nativePresentLast(long handle, float phase, long prevNs, long currNs, long targetNs);
     private static native void nativeSetFrameGenParams(long handle, float occLo, float occHi, int minStep);
     private static native void nativeSetFrameGenFlowScale(long handle, float flowScale);
     private static native void nativeSetFrameGenDeepMode(long handle, boolean deep);
     private static native void nativeSetFrameGenExtrapolate(long handle, boolean extrapolate);
     private static native void nativeSetFrameGenFramesInFlight(long handle, int framesInFlight);
     private static native int nativeGetActivePresentMode(long handle);
-    private static native int nativeGetFillHolds();
     private static native void nativeSetVsyncTiming(long handle, long periodNs, long displayPeriodNs, long contentPeriodNs, long vsyncNs);
     private static native void nativeFgPumpStart(Object renderer);
     private static native void nativeFgPumpStop();

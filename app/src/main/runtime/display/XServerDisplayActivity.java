@@ -487,6 +487,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private int frameGenerationFramesInFlight = 3;
     private int frameGenerationPreset = 2;   // Eco/Flow/Bal/Boost/Clear/Max
     private int frameGenerationModel = 0;     // 0 = standard, 1 = steadier
+    private static final int[] FG_PRESET_QUALITY      = {0, 1, 1, 2, 1, 2};
+    private static final int[] FG_PRESET_MODEL        = {0, 0, 0, 0, 1, 1};
+    private static final float[] FG_PRESET_FLOW_SCALE = {0.2f, 0.4f, 0.6f, 0.8f, 0.6f, 0.8f};
+    private static final boolean[] FG_PRESET_DEEP     = {false, false, false, false, false, true};
     private boolean sgsrEnabled = false;
     private boolean sgsrRuntimeEnabled = false;
     private int sgsrUpscaleMode = 1;
@@ -4678,15 +4682,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
                     @Override
                     public void onFrameGenerationPresetSelected(int preset) {
-                        final int[] presetQuality     = {0, 1, 1, 2, 1, 2};
-                        final int[] presetModel       = {0, 0, 0, 0, 1, 1};
-                        final float[] presetFlowScale = {0.2f, 0.4f, 0.6f, 0.8f, 0.6f, 0.8f};
-                        int idx = Math.max(0, Math.min(preset, presetQuality.length - 1));
+                        int idx = Math.max(0, Math.min(preset, FG_PRESET_QUALITY.length - 1));
                         frameGenerationPreset = idx;
-                        frameGenerationQuality = presetQuality[idx];
-                        frameGenerationModel = presetModel[idx];
+                        frameGenerationQuality = FG_PRESET_QUALITY[idx];
+                        frameGenerationModel = FG_PRESET_MODEL[idx];
                         frameGenerationExtrapolate = false;
-                        frameGenerationDeepMode = (idx == 5);   // Max engages the bidirectional (deep) flow
+                        frameGenerationDeepMode = FG_PRESET_DEEP[idx];
                         preferences.edit()
                                 .putInt(fgKey("frame_generation_preset"), idx)
                                 .putInt(fgKey("frame_generation_quality"), frameGenerationQuality)
@@ -4695,7 +4696,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                                 .apply();
                         VulkanRenderer r = xServerView != null ? xServerView.getRenderer() : null;
                         if (r != null) {
-                            r.setFrameGenerationPreset(frameGenerationQuality, frameGenerationModel, presetFlowScale[idx]);
+                            r.setFrameGenerationPreset(frameGenerationQuality, frameGenerationModel, FG_PRESET_FLOW_SCALE[idx]);
                             r.setFrameGenerationExtrapolate(false);
                             r.setFrameGenerationDeepMode(frameGenerationDeepMode);
                         }
@@ -7594,19 +7595,18 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 graphicsDriverConfig != null ? graphicsDriverConfig.get("compositorPresentMode") : null));
         frameGenerationEnabled = fgPrefBool("native_frame_generation", false);
         frameGenerationMultiplier = fgPrefInt("frame_generation_multiplier", 2);
-        frameGenerationQuality = fgPrefInt("frame_generation_quality", 1);
         frameGenerationSmoothing = fgPrefFloat("frame_generation_smoothing", 0.75f);
-        frameGenerationDeepMode = fgPrefBool("frame_generation_deep_mode", true);
         frameGenerationAdvanced = fgPrefBool("frame_generation_advanced", false);
         frameGenerationExtrapolate = fgPrefBool("frame_generation_extrapolate", false);
         frameGenerationFramesInFlight = fgPrefInt("frame_generation_fif", 3);
-        frameGenerationPreset = fgPrefInt("frame_generation_preset", 2);
-        frameGenerationModel = (frameGenerationPreset == 4 || frameGenerationPreset == 5) ? 1 : 0;
-        frameGenerationDeepMode = (frameGenerationPreset == 5);   // Max uses the bidirectional (deep) flow; others single-flow
-        final float[] startupPresetFlowScale = {0.2f, 0.4f, 0.6f, 0.8f, 0.6f, 0.8f};
-        float startupFlowScale = startupPresetFlowScale[Math.max(0, Math.min(frameGenerationPreset, 5))];
+        frameGenerationPreset = Math.max(0, Math.min(fgPrefInt("frame_generation_preset", 2),
+                FG_PRESET_QUALITY.length - 1));
+        frameGenerationQuality = FG_PRESET_QUALITY[frameGenerationPreset];
+        frameGenerationModel = FG_PRESET_MODEL[frameGenerationPreset];
+        frameGenerationDeepMode = FG_PRESET_DEEP[frameGenerationPreset];
         renderer.setFrameGenerationMultiplier(frameGenerationMultiplier);
-        renderer.setFrameGenerationPreset(frameGenerationQuality, frameGenerationModel, startupFlowScale);
+        renderer.setFrameGenerationPreset(frameGenerationQuality, frameGenerationModel,
+                FG_PRESET_FLOW_SCALE[frameGenerationPreset]);
         renderer.setFrameGenerationSmoothness(frameGenerationSmoothing);
         renderer.setFrameGenerationDeepMode(frameGenerationDeepMode);
         renderer.setFrameGenerationExtrapolate(frameGenerationExtrapolate);
@@ -7614,6 +7614,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         // Re-pin the window's preferred display mode whenever the measured FG target moves.
         renderer.setFrameGenRateChangedListener(this::scheduleFgRefreshRepin);
         renderer.setFrameGeneration(frameGenerationEnabled);
+        if (frameGenerationEnabled) applyPreferredRefreshRate();
 
         String containerSwapRB = container != null ? container.getExtra("swapRB", "0") : "0";
         renderer.setSwapRB("1".equals(getShortcutSetting("swapRB", containerSwapRB)));

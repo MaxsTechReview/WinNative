@@ -3325,30 +3325,15 @@ static uint64_t g_fg_dropped = 0;
 
 #define FG_PRESENT_LEAD_NS 150000ull
 
-static uint64_t fg_compute_deadline(VkRenderer* r, float phase) {
+static uint64_t fg_compute_deadline(VkRenderer* r, uint64_t target) {
     uint64_t now = now_monotonic_ns();
-    uint64_t ca = r->fg_curr_arrival_ns, pa = r->fg_prev_arrival_ns;
-    // disp = the vblank period Java derives slots from, so the snap matches the slot cadence
-    uint64_t disp = r->fg_display_period_ns ? r->fg_display_period_ns : r->refresh_duration_ns;
     uint64_t period = r->fg_present_period_ns ? r->fg_present_period_ns : r->refresh_duration_ns;
-    uint64_t deadline;
-    if (ca != 0 && pa != 0 && ca > pa) {
-        if (phase < 0.0f) phase = 0.0f;
-        // snap the content period to whole vblanks (same EMA as slots) -> presents on the even grid
-        uint64_t cp = ca - pa;
-        uint64_t ema = r->fg_content_period_ns ? r->fg_content_period_ns : cp;
-        if (disp != 0) {
-            uint64_t k = (uint64_t)(((double)ema / (double)disp) + 0.5);   // == fgEmitOne slots
-            if (k < 1u) k = 1u;
-            cp = k * disp;
-        }
-        deadline = ca + (uint64_t)((double)phase * (double)cp);
-    } else if (period != 0) {
-        deadline = r->fg_present_deadline_ns + period;      // pre-lock fallback: even period grid
-    } else {
-        r->fg_present_deadline_ns = 0; r->fg_present_target_ns = 0; return 0;
+    uint64_t deadline = target;
+    if (deadline == 0) {
+        if (period == 0) { r->fg_present_deadline_ns = 0; r->fg_present_target_ns = 0; return 0; }
+        deadline = r->fg_present_deadline_ns + period;
     }
-    if (deadline < now) deadline = now;                     // never schedule in the past
+    if (deadline < now) deadline = now;
     if (period != 0 && deadline > now + 4u * period) deadline = now + period;
     r->fg_present_deadline_ns = deadline;
     r->fg_present_target_ns = deadline;
@@ -3387,7 +3372,7 @@ static void fg_collect_present_timing(VkRenderer* r) {
     }
 }
 
-static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
+static bool fg_submit(VkRenderer* r, FgMode mode, float phase, uint64_t target_ns) {
     if (!r->surface_ready || !r->swapchain) return false;
     pthread_mutex_lock(&r->render_mutex);
     if (!r->surface_ready || !r->swapchain || r->swapchain_image_count == 0
@@ -3529,7 +3514,7 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
     VkFgImage* curr = &r->fg_history[curr_idx];
 
     // Advance the present deadline for the pacer (fg_sleep_to_deadline).
-    fg_compute_deadline(r, phase);
+    fg_compute_deadline(r, target_ns);
     if (do_interp) {
         if (r->fg_curr_arrival_ns != r->fg_dbg_last_curr) {
             r->fg_dbg_done_n = r->fg_dbg_n;
@@ -4041,7 +4026,7 @@ static bool fg_worker_do_present(VkRenderer* r, const FgPending* p) {
 }
 
 // Producer (GL thread): snapshot the cadence decision into a job + enqueue + wake the worker. O(1).
-static void fg_enqueue(VkRenderer* r, uint8_t mode, float phase) {
+static void fg_enqueue(VkRenderer* r, uint8_t mode, float phase, uint64_t target_ns) {
     pthread_mutex_lock(&r->render_mutex);
     if (!r->fg_gen_started) { pthread_mutex_unlock(&r->render_mutex); return; }  // re-check UNDER the lock: stop sets it false here too, so no sem_post races sem_destroy
     uint32_t curr = r->fg_history_curr;
@@ -4053,7 +4038,7 @@ static void fg_enqueue(VkRenderer* r, uint8_t mode, float phase) {
     job.curr_idx = curr;
     job.prev_idx = (curr + 2u) % 3u;
     job.seq = r->fg_promote_seq;
-    fg_compute_deadline(r, phase);
+    fg_compute_deadline(r, target_ns);
     job.deadline_ns = r->fg_present_target_ns ? r->fg_present_target_ns : r->fg_present_deadline_ns;
 
     if (mode == FG_MODE_INTERP && r->fg_use_cnn && r->fg_cnn_capable
@@ -4698,7 +4683,7 @@ JNIEXPORT jboolean JNICALL JNI_FN(nativeRenderHold)(JNIEnv* env, jclass clazz, j
     (void)env; (void)clazz;
     VkRenderer* r = (VkRenderer*)(intptr_t)handle;
     if (!r || !r->surface_ready) return JNI_FALSE;
-    return fg_submit(r, FG_MODE_HOLD, 0.5f) ? JNI_TRUE : JNI_FALSE;
+    return fg_submit(r, FG_MODE_HOLD, 0.5f, 0u) ? JNI_TRUE : JNI_FALSE;
 }
 
 // out[0]=promote count, out[1]=last promote time (ns), out[2]=duplicates dropped, out[3]=distinct total.
@@ -4716,23 +4701,23 @@ JNIEXPORT void JNICALL JNI_FN(nativeFgPromoteInfo)(JNIEnv* env, jclass clazz, jl
     (*env)->SetLongArrayRegion(env, out, 0, 4, vals);
 }
 
-JNIEXPORT jboolean JNICALL JNI_FN(nativeRenderInterp)(JNIEnv* env, jclass clazz, jlong handle, jfloat phase, jlong prevNs, jlong currNs) {
+JNIEXPORT jboolean JNICALL JNI_FN(nativeRenderInterp)(JNIEnv* env, jclass clazz, jlong handle, jfloat phase, jlong prevNs, jlong currNs, jlong targetNs) {
     (void)env; (void)clazz;
     VkRenderer* r = (VkRenderer*)(intptr_t)handle;
     if (!r || !r->surface_ready) return JNI_FALSE;
     r->fg_prev_arrival_ns = prevNs > 0 ? (uint64_t)prevNs : 0;
     r->fg_curr_arrival_ns = currNs > 0 ? (uint64_t)currNs : 0;
-    fg_enqueue(r, FG_MODE_INTERP, (float)phase);   // O(1) producer; the worker generates+presents
+    fg_enqueue(r, FG_MODE_INTERP, (float)phase, targetNs > 0 ? (uint64_t)targetNs : 0u);
     return JNI_TRUE;
 }
 
-JNIEXPORT jboolean JNICALL JNI_FN(nativePresentLast)(JNIEnv* env, jclass clazz, jlong handle, jfloat phase, jlong prevNs, jlong currNs) {
+JNIEXPORT jboolean JNICALL JNI_FN(nativePresentLast)(JNIEnv* env, jclass clazz, jlong handle, jfloat phase, jlong prevNs, jlong currNs, jlong targetNs) {
     (void)env; (void)clazz;
     VkRenderer* r = (VkRenderer*)(intptr_t)handle;
     if (!r || !r->surface_ready) return JNI_FALSE;
     r->fg_prev_arrival_ns = prevNs > 0 ? (uint64_t)prevNs : 0;
     r->fg_curr_arrival_ns = currNs > 0 ? (uint64_t)currNs : 0;
-    fg_enqueue(r, FG_MODE_PRESENT_LAST, phase);
+    fg_enqueue(r, FG_MODE_PRESENT_LAST, phase, targetNs > 0 ? (uint64_t)targetNs : 0u);
     return JNI_TRUE;
 }
 
@@ -4822,13 +4807,6 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetVsyncTiming)(JNIEnv* env, jclass clazz, j
     r->fg_display_period_ns = displayPeriodNs > 0 ? (uint64_t)displayPeriodNs : 0;
     r->fg_content_period_ns = contentPeriodNs > 0 ? (uint64_t)contentPeriodNs : 0;
     r->fg_vsync_anchor_ns = vsyncNs > 0 ? (uint64_t)vsyncNs : 0;
-}
-
-JNIEXPORT jint JNICALL JNI_FN(nativeGetFillHolds)(JNIEnv* env, jclass clazz) {
-    (void)env; (void)clazz;
-    char v[PROP_VALUE_MAX] = {0};
-    __system_property_get("debug.winnative.fgfill", v);
-    return v[0] ? (jint)atoi(v) : 1;   // default: complete the motion to curr on a late-frame hold
 }
 
 // Scene byte buffer layout (must mirror VulkanRenderer.java offsets). Native-endian, packed.

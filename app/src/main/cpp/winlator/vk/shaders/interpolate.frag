@@ -76,14 +76,20 @@ void main() {
         return;
     }
 
-    highp vec2 uvA = vUV + t * mvBn;
+    bool bidir = imode > 0.5;
+    vec2 mvF  = bidir ? texture(motionFieldFwd, vUV).xy : -mvB;
+    vec2 mvFn = mvF * norm;
+
+    highp vec2 uvA = bidir ? (vUV - t * mvFn) : (vUV + t * mvBn);
     highp vec2 uvB = vUV - (1.0 - t) * mvBn;
     vec3 cA = texture(prevFrame, uvA).rgb;
     vec3 cB = texture(currFrame, uvB).rgb;
     float tolE = 0.05 * dot(mvB, mvB) + 2.0;
     float hiE  = 6.0 * tolE + 6.0;
-    vec2  dA = mvB - texture(motionField, uvA).xy;
-    vec2  dB = mvB - texture(motionField, uvB).xy;
+    vec2  dA = bidir ? (mvB + texture(motionFieldFwd, vUV + mvBn).xy)
+                     : (mvB - texture(motionField, uvA).xy);
+    vec2  dB = bidir ? (mvF + texture(motionField, vUV + mvFn).xy)
+                     : (mvB - texture(motionField, uvB).xy);
     float occA = 1.0 - smoothstep(tolE, hiE, dot(dA, dA));
     float occB = 1.0 - smoothstep(tolE, hiE, dot(dB, dB));
     float lA = (occA - 1.0) * 16.0 + (valid(cA, uvA) - 1.0) * 24.0;

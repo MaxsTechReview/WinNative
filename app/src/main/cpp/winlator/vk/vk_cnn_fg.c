@@ -856,9 +856,9 @@ static void cnn_generate_frame(VkRenderer* r, VkCommandBuffer cmd, uint32_t pari
 
     float t = phase < 0.0f ? 0.0f : (phase > 1.0f ? 1.0f : phase);
     char m0s[16] = {0}; __system_property_get("debug.winnative.fgm0", m0s);
-    float m0 = m0s[0] ? (float)atof(m0s) : -0.25f;   // SIGNED: midpoint gather needs flB=-0.5*flow; +0.25 was wrong-sign (ghosting)
+    float m0 = m0s[0] ? (float)atof(m0s) : 1.0f;
     char f2s[16] = {0}; __system_property_get("debug.winnative.fgflow2", f2s);
-    int flow2 = f2s[0] ? atoi(f2s) : 0;                 // 1 = feed distinct backward flow to s35
+    int flow2 = f2s[0] ? atoi(f2s) : 1;
     char flgs[16] = {0}; __system_property_get("debug.winnative.fgflags", flgs);
     int genflags = flgs[0] ? atoi(flgs) : 16;           // default R=1 bilateral flow denoise (bits4-6); bit0 negate flF; bit1 scale flF 0.5
 
