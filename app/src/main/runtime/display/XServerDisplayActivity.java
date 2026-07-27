@@ -1836,6 +1836,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             @Override
             public void onFramePresented(Window window, WindowManager.FrameSource source, int serial) {
                 if (window != null && window.id == rendererWindowId) rendererWindowPresented = true;
+                PerformanceManager.INSTANCE.onTick();
                 if (shouldRecordFpsFrame(window, source)) {
                     frameRating.recordGameFrame(source == WindowManager.FrameSource.PRESENT, serial);
                     if (mangoHud != null) mangoHud.recordGameFrame(source == WindowManager.FrameSource.PRESENT);
@@ -1992,7 +1993,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (performanceManager.isDeviceSupported()) {
             if (shortcut.getExtra("cpuPolicies").isEmpty() && !container.getExtra("cpuPolicies").isEmpty()) {
                 WinToast.show(this, "settings empty using container default");
-                String[] fields = {"cpuPolicies", "cpuEditingMode", "cpuBoostState", "cpuFanMode", "cpuGovernor"};
+                String[] fields = {"cpuPolicies", "cpuEditingMode", "cpuBoostState", "cpuFanMode", "cpuGovernor", "cpuAutoTargetFPS", "cpuTargetFPS", "cpuAvgFrameCount"};
                 for (String field : fields) shortcut.putExtra(field, container.getExtra(field));
             }
             var cpuPolicies = shortcut.getExtra("cpuPolicies");
@@ -2002,6 +2003,29 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (!cpuFanMode.isEmpty()) {
                 WinToast.show(this, String.format("CPU fan mode set: %s", cpuFanMode));
                 performanceManager.setFanMode(cpuFanMode);
+            }
+            var cpuGovernor = shortcut.getExtra("cpuGovernor");
+            if (!cpuGovernor.isEmpty()) {
+                WinToast.show(this, String.format("CPU governor set: %s", cpuGovernor));
+                performanceManager.setAllCpuCoreGovernor(cpuGovernor);
+            }
+            if (Boolean.parseBoolean(shortcut.getExtra("cpuAutoTargetFPS"))) {
+                var cpuTargetFPS = shortcut.getExtra("cpuTargetFPS");
+                var cpuAvgFrameCount = shortcut.getExtra("cpuAvgFrameCount");
+                if (!cpuTargetFPS.isEmpty() && !cpuAvgFrameCount.isEmpty()) {
+                    try {
+                        var targetFPS = Integer.parseInt(cpuTargetFPS);
+                        var frameCountPerCheck = Integer.parseInt(cpuAvgFrameCount);
+
+                        if (targetFPS > 0) {
+                            performanceManager.setUseAutoTargeting(true);
+                            performanceManager.setFpsAvgFrameCount(frameCountPerCheck);
+                            performanceManager.setTargetFPS(targetFPS);
+                        }
+                    }catch (Exception ignored) {}
+                    WinToast.show(this, "Auto FPS enabled");
+                    return;
+                }
             }
             if (cpuEditingMode && !cpuPolicies.isEmpty()) {
                 WinToast.show(this, "CPU policies set");
@@ -2017,11 +2041,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             performanceManager.setPolicyOnlineState(it, false);
                     });
                 }
-            }
-            var cpuGovernor = shortcut.getExtra("cpuGovernor");
-            if (!cpuGovernor.isEmpty()) {
-                WinToast.show(this, String.format("CPU governor set: %s", cpuGovernor));
-                performanceManager.setAllCpuCoreGovernor(cpuGovernor);
             }
             WinToast.show(this, String.format("disabled cores %s: ", performanceManager.getDisabledCores()));
         }

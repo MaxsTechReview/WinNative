@@ -461,6 +461,9 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             state.cpuBoostState.value = c.getExtra("cpuBoostState").toBoolean()
             state.cpuEditingMode.value = c.getExtra("cpuEditingMode").toBoolean()
             state.cpuFanMode.value = c.getExtra("cpuFanMode")
+            state.cpuTargetFPS.value = c.getExtra("cpuTargetFPS").toIntOrNull() ?: 0
+            state.cpuAvgFrameCount.value = c.getExtra("cpuAvgFrameCount").toIntOrNull() ?: 3
+            state.cpuAutoTargetFPS.value = c.getExtra("cpuAutoTargetFPS").toBoolean()
             val cpuPolicies = c.getExtra("cpuPolicies")
             if (cpuPolicies.isNotEmpty()) {
                 val policies = PerformanceManager.parseRawPoliciesFromString(cpuPolicies)
@@ -795,6 +798,9 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             c.putExtra("cpuEditingMode", state.cpuEditingMode.value.toString())
             c.putExtra("cpuPolicies", PerformanceManager.policiesToString(state.cpuPolicies.value))
             c.putExtra("cpuFanMode", state.cpuFanMode.value)
+            c.putExtra("cpuTargetFPS", state.cpuTargetFPS.value.toString())
+            c.putExtra("cpuAvgFrameCount", state.cpuAvgFrameCount.value.toString())
+            c.putExtra("cpuAutoTargetFPS", state.cpuAutoTargetFPS.value.toString())
         }
 
         val midiSoundFontEntries = state.midiSoundFontEntries.value

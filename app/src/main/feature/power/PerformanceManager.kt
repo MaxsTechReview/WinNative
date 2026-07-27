@@ -2,7 +2,9 @@ package com.winlator.cmod.feature.power
 
 import java.io.File
 import com.winlator.cmod.shared.util.RootManager
-import org.apache.commons.lang3.mutable.Mutable
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 data class CpuPolicy(
     var enabled: Boolean,
@@ -17,6 +19,7 @@ data class CpuPolicy(
 )
 
 object PerformanceManager {
+    private const val IDLE_TIMEOUT_NS = 1500000000L
     private const val CPU_PATH = "/sys/devices/system/cpu"
     private const val CPU_BOOST_PATH = "/sys/devices/system/cpu/cpufreq/boost"
     private const val CPU_POLICY_BASE_PATH = "/sys/devices/system/cpu/cpufreq/"
@@ -38,8 +41,14 @@ object PerformanceManager {
     val isFanSupported = checkForFanSupport()
 
     val isGpuSupported = false
-
-    private var running = false
+    var targetFPS: Float = 0f
+    var fpsAvgFrameCount = 0
+    var useAutoTargeting: Boolean = false
+    private var ticks: Long = 0L
+    private var fpsLastFrameNano = 0L
+    private var autoTargetSetup: Boolean = false
+    private var autoTargetPolicies: List<CpuPolicy>? = null
+    private var fpsPastFrames: MutableList<Float> = mutableListOf()
 
     fun checkForFanSupport(): Boolean {
         if (!isDeviceSupported) return false
@@ -156,6 +165,96 @@ object PerformanceManager {
                 availableFrequencies = frequencies,
                 boostFrequency = boostFrequency
             )
+        }
+    }
+
+    private fun calculateFPS(): Float {
+        val nowNano = System.nanoTime()
+        if (fpsLastFrameNano == 0L || nowNano - fpsLastFrameNano > IDLE_TIMEOUT_NS) {
+            fpsLastFrameNano = nowNano
+            return 0f
+        }
+        val fps = 1000000000.0f / (nowNano - fpsLastFrameNano)
+        fpsLastFrameNano = nowNano
+        return fps
+    }
+
+    fun onTick() {
+        if (!isDeviceSupported || targetFPS == 0f || !useAutoTargeting) return
+        if (!autoTargetSetup) {
+            val policies = getCpuPolicies() ?: return
+            for (policy in policies) {
+                policy.enabled = true
+                policy.boostState = true
+                if (policy.availableFrequencies.isNullOrEmpty()) continue
+                policy.maxFrequency = policy.availableFrequencies[policy.availableFrequencies.size-1]
+                policy.minFrequency = policy.availableFrequencies[policy.availableFrequencies.size-1]
+            }
+            autoTargetSetup = true
+            autoTargetPolicies = policies
+            return
+        }
+        ticks++
+        if (ticks%targetFPS==0f && !autoTargetPolicies.isNullOrEmpty()) {
+            var fps = calculateFPS() * targetFPS
+            if (fps == 0f) return
+            fpsPastFrames.add(fps)
+            if (fpsAvgFrameCount >= fpsPastFrames.size) return
+            fps = fpsPastFrames.sum() / fpsPastFrames.size
+            var shouldUpdate = false
+            if (fps > targetFPS*1.1) {
+                for (policy in autoTargetPolicies) {
+                    if (policy.availableFrequencies.isNullOrEmpty()) continue
+                    val coreHasBoost = policy.availableFrequencies.last() != policy.boostFrequency
+                    if (coreHasBoost && policy.maxFrequency == policy.boostFrequency) {
+                        policy.maxFrequency = policy.availableFrequencies.last()
+                        shouldUpdate = true
+                    }
+                    else if (policy.maxFrequency == policy.boostFrequency){
+                        policy.maxFrequency = policy.availableFrequencies.takeLast(2).first()
+                        shouldUpdate = true
+                    } else {
+                        val maxIndex = policy.availableFrequencies.indexOf(policy.maxFrequency)
+                        if (maxIndex > 1) {
+                            policy.maxFrequency = policy.availableFrequencies[maxIndex - 1]
+                            shouldUpdate = true
+                        }
+                    }
+                    if (coreHasBoost && policy.maxFrequency == policy.boostFrequency) {
+                        policy.minFrequency = policy.availableFrequencies.last()
+                        shouldUpdate = true
+                    } else {
+                        val maxIndex = policy.availableFrequencies.indexOf(policy.maxFrequency)
+                        if (maxIndex-1 <= 0) continue
+                        policy.minFrequency = policy.availableFrequencies[maxIndex-1]
+                        shouldUpdate = true
+                    }
+                }
+            }else if (fps < targetFPS*0.98) {
+                for (policy in autoTargetPolicies) {
+                    if (policy.availableFrequencies.isNullOrEmpty()) continue
+                    val maxIndex = policy.availableFrequencies.indexOf(policy.maxFrequency)
+                    if (maxIndex == -1) {
+                        policy.minFrequency = policy.availableFrequencies.last()
+                        shouldUpdate = true
+                    } else {
+                        if (maxIndex + 1 >= policy.availableFrequencies.size && policy.boostFrequency != null)
+                            policy.maxFrequency = policy.boostFrequency
+                        else
+                            policy.maxFrequency = policy.availableFrequencies[maxIndex + 1]
+                        policy.minFrequency = policy.availableFrequencies[maxIndex]
+                        shouldUpdate = true
+                    }
+                }
+            }
+            fpsPastFrames.clear()
+            if (shouldUpdate) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    autoTargetPolicies?.let {
+                        setCpuCorePolicies(it)
+                    }
+                }
+            }
         }
     }
 
@@ -319,9 +418,9 @@ object PerformanceManager {
         if (!defaultSystemGovernor.isNullOrEmpty())
             setAllCpuCoreGovernor(defaultSystemGovernor)
         if (isFanSupported && defautlSystemFanMode != null)
-            setFanMode(defautlSystemFanMode!!)
+            defautlSystemFanMode?.let { setFanMode(it) }
         if (defaultSystemPolicies.isNullOrEmpty()) return null
-        setCpuCorePolicies(defaultSystemPolicies!!, true)
+        defaultSystemPolicies?.let { setCpuCorePolicies(it, true) }
         return true
     }
 }

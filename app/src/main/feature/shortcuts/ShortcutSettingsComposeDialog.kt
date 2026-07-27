@@ -462,6 +462,9 @@ class ShortcutSettingsComposeDialog private constructor(
                 state.cpuBoostState.value = shortcut.getExtra("cpuBoostState").toBoolean()
                 state.cpuEditingMode.value = shortcut.getExtra("cpuEditingMode").toBoolean()
                 state.cpuFanMode.value = shortcut.getExtra("cpuFanMode")
+                state.cpuTargetFPS.value = shortcut.getExtra("cpuTargetFPS").toIntOrNull() ?: 0
+                state.cpuAvgFrameCount.value = shortcut.getExtra("cpuAvgFrameCount").toIntOrNull() ?: 3
+                state.cpuAutoTargetFPS.value = shortcut.getExtra("cpuAutoTargetFPS").toBoolean()
 
                 val cpuPolicies = shortcut.getExtra("cpuPolicies")
                 if (cpuPolicies.isNotEmpty()) {
@@ -479,6 +482,9 @@ class ShortcutSettingsComposeDialog private constructor(
                     state.cpuBoostState.value = shortcut.container.getExtra("cpuBoostState").toBoolean()
                     state.cpuEditingMode.value = shortcut.container.getExtra("cpuEditingMode").toBoolean()
                     state.cpuFanMode.value = shortcut.container.getExtra("cpuFanMode")
+                    state.cpuTargetFPS.value = shortcut.container.getExtra("cpuTargetFPS").toIntOrNull() ?: 0
+                    state.cpuAvgFrameCount.value = shortcut.container.getExtra("cpuAvgFrameCount").toIntOrNull() ?: 3
+                    state.cpuAutoTargetFPS.value = shortcut.container.getExtra("cpuAutoTargetFPS").toBoolean()
 
                     if (containerPolicies.isNotEmpty()) {
                         var policies = PerformanceManager.parseRawPoliciesFromString(containerPolicies)
@@ -489,6 +495,9 @@ class ShortcutSettingsComposeDialog private constructor(
                             shortcut.putExtra("cpuBoostState", state.cpuBoostState.value.toString())
                             shortcut.putExtra("cpuEditingMode", state.cpuEditingMode.value.toString())
                             shortcut.putExtra("cpuFanMode", state.cpuFanMode.value)
+                            shortcut.putExtra("cpuTargetFPS", state.cpuTargetFPS.toString())
+                            shortcut.putExtra("cpuAvgFrameCount", state.cpuAvgFrameCount.toString())
+                            shortcut.putExtra("cpuAutoTargetFPS", state.cpuAutoTargetFPS.toString())
                         }
                         else {
                             policies = PerformanceManager.getDefaultSystemPolicies()
@@ -1419,6 +1428,9 @@ class ShortcutSettingsComposeDialog private constructor(
                 shortcut.putExtra("cpuEditingMode", state.cpuEditingMode.value.toString())
                 shortcut.putExtra("cpuPolicies", PerformanceManager.policiesToString(state.cpuPolicies.value))
                 shortcut.putExtra("cpuFanMode", state.cpuFanMode.value)
+                shortcut.putExtra("cpuTargetFPS", state.cpuTargetFPS.value.toString())
+                shortcut.putExtra("cpuAvgFrameCount", state.cpuAvgFrameCount.value.toString())
+                shortcut.putExtra("cpuAutoTargetFPS", state.cpuAutoTargetFPS.value.toString())
             }
 
             // Container defaults flag

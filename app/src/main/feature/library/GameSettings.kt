@@ -583,6 +583,9 @@ class GameSettingsStateHolder {
     val cpuEditingMode = mutableStateOf(false)
     val cpuBoostState = mutableStateOf(true)
     val cpuPolicies = mutableStateOf<List<CpuPolicy>>(emptyList())
+    val cpuTargetFPS =  mutableStateOf(0)
+    val cpuAutoTargetFPS =  mutableStateOf(false)
+    val cpuAvgFrameCount = mutableStateOf(3)
 }
 
 interface GameSettingsCallbacks {
@@ -1112,22 +1115,79 @@ private fun PerformanceControlSection(
         Spacer(Modifier.height(SettingSectionGap))
     }
 
-    if (state.cpuPolicies.value.isNotEmpty()) {
-        SettingGroup {
-            Column {
-                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+    SettingGroup {
+        Column {
+            Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                if (!state.cpuAutoTargetFPS.value) {
                     Box(Modifier.weight(1f)) {
-                        SettingCheckbox(stringResource(R.string.performance_cpu_editing_enabled), state.cpuEditingMode.value, onCheckedChange = {state.cpuEditingMode.value = it})
+                        SettingCheckbox(
+                            stringResource(R.string.performance_cpu_editing_enabled),
+                            state.cpuEditingMode.value,
+                            onCheckedChange = { state.cpuEditingMode.value = it })
                     }
                     Box(Modifier.weight(1f)) {
-                        SettingCheckbox(stringResource(R.string.performance_cpu_enable_boost), state.cpuBoostState.value, onCheckedChange = {
-                            state.cpuBoostState.value = it
-                            if (state.cpuPolicies.value.isNotEmpty())
-                                state.cpuPolicies.value.forEach { policy -> policy.boostState = it }
-                        })
+                        SettingCheckbox(
+                            stringResource(R.string.performance_cpu_enable_boost),
+                            state.cpuBoostState.value,
+                            onCheckedChange = {
+                                state.cpuBoostState.value = it
+                                if (state.cpuPolicies.value.isNotEmpty())
+                                    state.cpuPolicies.value.forEach { policy ->
+                                        policy.boostState = it
+                                    }
+                            }
+                        )
                     }
                 }
+                Box(Modifier.weight(1f)) {
+                    SettingCheckbox(
+                        "AutoFPS",
+                        state.cpuAutoTargetFPS.value,
+                        onCheckedChange = { state.cpuAutoTargetFPS.value = it })
+                }
+            }
+            if (state.cpuAutoTargetFPS.value) {
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                    Box(Modifier.weight(1f)) {
+                        val fpsMin = 30
+                        val supportedMax = state.refreshRateEntries.value
+                            .mapNotNull { it.trim().substringBefore(" ").toIntOrNull() }
+                            .maxOrNull() ?: 60
+                        val maxFps = supportedMax.coerceAtLeast(fpsMin)
+                        var lastFps by remember(maxFps) {
+                            mutableStateOf(
+                                (if (state.cpuTargetFPS.value > 0) state.cpuTargetFPS.value else 60)
+                                    .coerceIn(fpsMin, maxFps)
+                            )
+                        }
+                        SettingSlider(
+                            label = stringResource(R.string.performance_fps_target_label),
+                            value = lastFps,
+                            range = fpsMin..maxFps,
+                            valueText = "$lastFps FPS",
+                            steps = (maxFps - fpsMin - 1).coerceAtLeast(0),
+                            onValueChange = {
+                                val v = it.coerceIn(fpsMin, maxFps)
+                                lastFps = v
+                                state.cpuTargetFPS.value = v
+                            }
+                        )
+                    }
 
+                    Box(Modifier.weight(1f)) {
+                        SettingSlider(
+                            label = stringResource(R.string.performance_frames_per_check_label),
+                            value = state.cpuAvgFrameCount.value,
+                            range = 1..5,
+                            valueText = stringResource(R.string.performance_frames_label, state.cpuAvgFrameCount.value),
+                            steps = (0 - 5 - 1).coerceAtLeast(0),
+                            onValueChange = {
+                                state.cpuAvgFrameCount.value = it
+                            }
+                        )
+                    }
+                }
+            } else if (state.cpuPolicies.value.isNotEmpty()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                     for (index in state.cpuPolicies.value.indices) {
                         var checked by remember { mutableStateOf(state.cpuPolicies.value[index].enabled) }

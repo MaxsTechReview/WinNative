@@ -328,6 +328,9 @@
     <string name="performance_cpu_governor_label">CPU Governor</string>
     <string name="performance_cpu_fan_label">Fan Control</string>
     <string name="performance_sidebar_label">Power Controls</string>
+    <string name="performance_fps_target_label">FPS Target</string>
+    <string name="performance_frames_per_check_label">Frames per update.</string>
+    <string name="performance_frames_label">%s Frames</string>
 
     <!-- Shortcuts > Properties -->
     <string name="shortcuts_properties_exec_arguments">Exec Arguments</string>
