@@ -303,6 +303,7 @@ private fun graphicsCardExpandExit() =
 private val SettingSliderThumbSize = 18.dp
 private const val SettingSliderTrackScaleY = 0.5f
 private val SettingLabelSize = 11.sp
+private val SettingLabelRowHeight = 22.dp
 private val SettingValueSize = 12.sp
 private val SettingSectionLabelSize = 12.sp
 private val SmartDropdownPressStartInset = 28.dp
@@ -5190,31 +5191,27 @@ private fun SettingDropdown(
     }
 
     Column(modifier = Modifier.fillMaxWidth().alpha(alpha)) {
-        if (labelTrailing != null) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = SettingTightGap),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    label,
-                    color = TextSecondary,
-                    fontSize = SettingLabelSize,
-                    fontWeight = FontWeight.Medium,
-                    letterSpacing = 0.3.sp
-                )
-                Spacer(Modifier.weight(1f))
-                labelTrailing()
-            }
-        } else {
+        // Fixed height keeps side-by-side dropdown fields on the same controller nav row.
+        Row(
+            modifier = Modifier.fillMaxWidth().height(SettingLabelRowHeight),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
                 label,
                 color = TextSecondary,
                 fontSize = SettingLabelSize,
                 fontWeight = FontWeight.Medium,
                 letterSpacing = 0.3.sp,
-                modifier = Modifier.padding(bottom = SettingTightGap)
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false)
             )
+            if (labelTrailing != null) {
+                Spacer(Modifier.weight(1f))
+                labelTrailing()
+            }
         }
+        Spacer(Modifier.height(SettingTightGap))
         Box {
             Row(
                 modifier = Modifier

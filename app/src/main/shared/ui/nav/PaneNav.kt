@@ -262,7 +262,14 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
                     onEdgeLeft?.invoke()
                 }
             PANE_DIR_RIGHT ->
-                if (r[row].size <= 1) items[r[row][0]]?.onAdjust?.invoke(1) else if (col < r[row].size - 1) col++ else onEdgeRight?.invoke()
+                if (r[row].size <= 1) {
+                    val adjust = items[r[row][0]]?.onAdjust
+                    if (adjust != null) adjust(1) else onEdgeRight?.invoke()
+                } else if (col < r[row].size - 1) {
+                    col++
+                } else {
+                    onEdgeRight?.invoke()
+                }
             PANE_DIR_ACTIVATE -> items[r[row][col]]?.onActivate?.invoke()
             PANE_DIR_SECONDARY -> items[r[row][col]]?.onSecondary?.invoke()
         }
