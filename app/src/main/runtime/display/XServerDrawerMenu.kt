@@ -168,12 +168,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import com.winlator.cmod.R
-import com.winlator.cmod.shared.theme.WinNativeBackground
-import com.winlator.cmod.shared.theme.WinNativeOutline
-import com.winlator.cmod.shared.theme.WinNativePanel
-import com.winlator.cmod.shared.theme.WinNativeSurface
-import com.winlator.cmod.shared.theme.WinNativeTextPrimary
-import com.winlator.cmod.shared.theme.WinNativeTextSecondary
+import com.winlator.cmod.shared.theme.SessionDrawerStyle
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import com.winlator.cmod.shared.ui.dialog.WinNativeDialogButton
 import com.winlator.cmod.shared.ui.dialog.WinNativeDialogShell
@@ -185,35 +180,31 @@ import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import com.winlator.cmod.shared.ui.widget.chasingBorder
 import kotlin.math.roundToInt
 
-// Drawer-local colors.
-private const val DrawerSheetAlpha = 0.86f
-private const val DrawerSurfaceAlpha = 0.72f
-private const val DrawerPressedAlpha = 0.88f
-private const val DrawerGradientLift = 0.014f
+private const val DrawerGradientLift = SessionDrawerStyle.GradientLift
 
-internal val DrawerAccent = Color(0xFF2196F3)
-private val DrawerActiveAccent = Color(0xFF29B6F6)
-private val DrawerFocusFill = Color(0xFF0E2438)
-internal val DrawerTextPrimary = WinNativeTextPrimary.copy(alpha = 0.88f)
-internal val DrawerTextSecondary = WinNativeTextSecondary.copy(alpha = 0.82f)
-internal val DrawerOutline = WinNativeOutline
-internal val DrawerBackground = WinNativeBackground.copy(alpha = DrawerSheetAlpha)
+internal val DrawerAccent = SessionDrawerStyle.Accent
+private val DrawerActiveAccent = SessionDrawerStyle.ActiveAccent
+private val DrawerFocusFill = SessionDrawerStyle.FocusFill
+internal val DrawerTextPrimary = SessionDrawerStyle.TextPrimary
+internal val DrawerTextSecondary = SessionDrawerStyle.TextSecondary
+internal val DrawerOutline = SessionDrawerStyle.Outline
+internal val DrawerBackground = SessionDrawerStyle.Background
 
-internal val PaneSurfaceColor = WinNativeBackground.copy(alpha = DrawerSheetAlpha)
-private val PaneSurfacePressed = Color(0xFF232B3A).copy(alpha = DrawerPressedAlpha)
+internal val PaneSurfaceColor = SessionDrawerStyle.PaneSurface
+private val PaneSurfacePressed = SessionDrawerStyle.PaneSurfacePressed
 
-private val TopRailSurfaceColor = WinNativeSurface.copy(alpha = DrawerSheetAlpha)
+private val TopRailSurfaceColor = SessionDrawerStyle.TopRailSurface
 
-private val TileResting = Color(0xFF20283A).copy(alpha = DrawerSurfaceAlpha)
-internal val TileExitResting = Color(0xFF3A2125).copy(alpha = DrawerSurfaceAlpha)
-internal val TileExitPressed = Color(0xFF4A2A30).copy(alpha = DrawerPressedAlpha)
-internal val PaneInnerResting = WinNativePanel.copy(alpha = DrawerSurfaceAlpha)
-internal val PaneInnerPressed = Color(0xFF242B3A).copy(alpha = DrawerPressedAlpha)
-internal val RestingCardBorder = WinNativeOutline.copy(alpha = 0.72f)
-private val DisabledCardBorder = Color(0xFF202033).copy(alpha = 0.58f)
-internal val ActiveCardBorder = DrawerActiveAccent
-private val BottomDividerColor = WinNativeOutline
-internal val GlassExitTint = Color(0xFFE07B6B)
+private val TileResting = SessionDrawerStyle.TileResting
+internal val TileExitResting = SessionDrawerStyle.TileExitResting
+internal val TileExitPressed = SessionDrawerStyle.TileExitPressed
+internal val PaneInnerResting = SessionDrawerStyle.PaneInnerResting
+internal val PaneInnerPressed = SessionDrawerStyle.PaneInnerPressed
+internal val RestingCardBorder = SessionDrawerStyle.RestingCardBorder
+private val DisabledCardBorder = SessionDrawerStyle.DisabledCardBorder
+internal val ActiveCardBorder = SessionDrawerStyle.ActiveCardBorder
+private val BottomDividerColor = SessionDrawerStyle.Outline
+internal val GlassExitTint = SessionDrawerStyle.GlassExitTint
 internal val RecordRed = Color(0xFFE53935)
 
 // Pane content scales down on short displays.
@@ -459,9 +450,9 @@ internal fun NavSliderRow(
     }
 }
 
-private const val PaneScaleMin = 0.78f
+private const val PaneScaleMin = SessionDrawerStyle.PaneScaleMin
 internal const val ControlsPaneScaleMin = 0.62f
-private const val PaneScaleReferenceHeightDp = 520f
+private const val PaneScaleReferenceHeightDp = SessionDrawerStyle.PaneScaleReferenceHeightDp
 internal const val PendingTaskAffinityTimeoutMs = 2500L
 
 internal fun computePaneScale(availableHeight: Dp, minScale: Float = PaneScaleMin): Float =

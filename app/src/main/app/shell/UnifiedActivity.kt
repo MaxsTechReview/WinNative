@@ -430,6 +430,7 @@ class UnifiedActivity :
 
     private var dpadHeld = false
     private var joystickActive = false
+    @Volatile private var retroCloudUploadBusy = false
 
     internal val settingsNavBridge = SettingsNavBridge()
     internal val downloadsNavBridge = DownloadsNavBridge()
@@ -628,6 +629,7 @@ class UnifiedActivity :
         }
 
         UpdateChecker.startBackgroundLoop(this)
+        processPendingRetroCloudBackup()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -911,6 +913,74 @@ class UnifiedActivity :
         handleSettingsIntent(intent)
     }
 
+    internal fun retryPendingRetroCloudBackup() = processPendingRetroCloudBackup()
+
+    private fun processPendingRetroCloudBackup() {
+        val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+        val hasLegacy = prefs.getString("retro_pending_backup_id", null) != null
+        val hasDolphin = com.winlator.cmod.feature.retro.DolphinCloudSync.peekPending(this) != null
+        if (!hasLegacy && !hasDolphin) return
+        if (!com.winlator.cmod.feature.sync.google.GameSaveBackupManager.isDriveConnected(this)) return
+        runCatching {
+            com.winlator.cmod.feature.sync.google.PlayGamesBootstrap.ensureInitialized(this)
+            com.google.android.gms.games.PlayGames
+                .getGamesSignInClient(this)
+                .signIn()
+                .addOnCompleteListener { runPendingRetroUploads() }
+        }.onFailure { runPendingRetroUploads() }
+    }
+
+    private fun runPendingRetroUploads() {
+        if (retroCloudUploadBusy) return
+        val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+        val pendingId = prefs.getString("retro_pending_backup_id", null)
+        val pendingName = prefs.getString("retro_pending_backup_name", null)
+        val dolphinPending = com.winlator.cmod.feature.retro.DolphinCloudSync.peekPending(this)
+        if ((pendingId == null || pendingName == null) && dolphinPending == null) return
+        retroCloudUploadBusy = true
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                dolphinPending?.let { p ->
+                    if (uploadRetroCloudBackup(p.cloudId, p.gameName)) {
+                        com.winlator.cmod.feature.retro.DolphinCloudSync.clearPending(this@UnifiedActivity)
+                        if (p.fingerprint.isNotEmpty()) {
+                            prefs.edit().putString("retro_cloud_fp_${p.cloudId}", p.fingerprint).apply()
+                        }
+                    }
+                }
+                if (pendingId != null && pendingName != null &&
+                    uploadRetroCloudBackup(pendingId, pendingName)
+                ) {
+                    prefs.edit().remove("retro_pending_backup_id").remove("retro_pending_backup_name").apply()
+                }
+            } finally {
+                retroCloudUploadBusy = false
+            }
+        }
+    }
+
+    private suspend fun uploadRetroCloudBackup(cloudId: String, gameName: String): Boolean {
+        val result =
+            runCatching {
+                GameSaveBackupManager.backupSaveToGoogle(
+                    this@UnifiedActivity,
+                    GameSaveBackupManager.GameSource.CUSTOM,
+                    cloudId,
+                    gameName,
+                    GameSaveBackupManager.BackupOrigin.AUTO,
+                    com.winlator.cmod.feature.sync.google.GoogleAuthMode.RESUME,
+                    customSaveDir = com.winlator.cmod.feature.retro.RetroSaveStates.gameDir(this, gameName),
+                )
+            }.getOrNull()
+        android.util.Log.i("WnDolphin", "upload id=$cloudId success=${result?.success} msg=${result?.message}")
+        if (result?.success == true) {
+            androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+                .edit().putLong("retro_cloud_mark_$cloudId", System.currentTimeMillis()).apply()
+            return true
+        }
+        return false
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         instance = this
         super.onCreate(savedInstanceState)
@@ -931,6 +1001,7 @@ class UnifiedActivity :
         com.winlator.cmod.runtime.display.GlassesManager.init(this)
         bootstrapStartupState()
         maybeAutoSignInGoogleOnLaunch()
+        processPendingRetroCloudBackup()
 
         // Surface store-session events as toasts.
         lifecycleScope.launch {
@@ -1191,6 +1262,7 @@ class UnifiedActivity :
     internal data class HomeShortcutUiState(
         val shortcut: Shortcut? = null,
         val isPinned: Boolean = false,
+        val loaded: Boolean = false,
     )
 
     internal data class ArtworkCacheId(

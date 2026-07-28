@@ -74,6 +74,10 @@ public class FrameRating extends LinearLayout implements Runnable {
   private static final int ANCHOR_LEFT_CENTER = 6;
   private static final int ANCHOR_RIGHT_CENTER = 7;
   private int currentAnchor = ANCHOR_NONE;
+
+  public static final float DEFAULT_HUD_ELEVATION = 1000.0f;
+
+  private float hudElevation = DEFAULT_HUD_ELEVATION;
   private PopupWindow positionPopup;
   private ViewTreeObserver.OnGlobalLayoutListener parentLayoutListener;
   private final int C_BAT;
@@ -180,6 +184,12 @@ public class FrameRating extends LinearLayout implements Runnable {
   private Drawable plugIcon;
   private boolean dualSeriesBattery;
   private boolean frametimeNumericMode;
+  private final java.util.ArrayList<View> hudOrderedViews = new java.util.ArrayList<>();
+  private LinearLayout wrapRowTop;
+  private LinearLayout wrapRowBottom;
+  private boolean hudWrapped = false;
+  private View wrapHiddenSeparator;
+  private int wrapHiddenSeparatorVisibility = View.VISIBLE;
 
   public FrameRating(Context context, HashMap graphicsDriverConfig) {
     this(context, graphicsDriverConfig, null);
@@ -265,6 +275,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.sep4 = view.findViewById(R.id.Sep4);
     this.sep5 = view.findViewById(R.id.Sep5);
     this.sep6 = view.findViewById(R.id.Sep6);
+    for (int i = 0; i < getChildCount(); i++) hudOrderedViews.add(getChildAt(i));
     this.graphView = new FrametimeGraphView(context);
     if (this.graphContainer != null) {
       this.graphContainer.addView(this.graphView);
@@ -358,7 +369,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     // attach walk it makes the walker skip the sibling that shifts into this view's old slot,
     // leaving that sibling permanently unattached. Z-order is held by the elevation either way.
     post(this::bringToFront);
-    setElevation(1000.0f);
+    setElevation(this.hudElevation);
     restorePersistedPosition();
     installParentLayoutListener();
     removeCallbacks(this);
@@ -416,6 +427,11 @@ public class FrameRating extends LinearLayout implements Runnable {
       parentView.getViewTreeObserver().removeOnGlobalLayoutListener(this.parentLayoutListener);
     }
     this.parentLayoutListener = null;
+  }
+
+  public void setHudElevation(float elevation) {
+    this.hudElevation = elevation;
+    setElevation(elevation);
   }
 
   // ── Touch: tap cycles display mode, drag moves HUD, long-press shows menu ──
@@ -796,6 +812,7 @@ public class FrameRating extends LinearLayout implements Runnable {
   }
 
   private void applyDisplayMode() {
+    if (hudWrapped) unwrapStructure();
     boolean horizontal;
     boolean showBackdrop;
     switch (displayMode) {
@@ -875,6 +892,177 @@ public class FrameRating extends LinearLayout implements Runnable {
     applyFrametimeDisplayVisibility();
     updateSeparators(horizontal);
     requestLayout();
+    post(this::updateWrapState);
+  }
+
+  private boolean isHorizontalDisplayMode() {
+    return displayMode != 2 && displayMode != 3;
+  }
+
+  private boolean isSeparatorView(View v) {
+    return v == sep0 || v == sep1 || v == sep2 || v == sep3 || v == sep4 || v == sep5 || v == sep6;
+  }
+
+  private int measureViewRowWidth(View v) {
+    ViewGroup.LayoutParams lp = v.getLayoutParams();
+    int wSpec =
+        lp != null && lp.width > 0
+            ? MeasureSpec.makeMeasureSpec(lp.width, MeasureSpec.EXACTLY)
+            : MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED);
+    int hSpec =
+        lp != null && lp.height > 0
+            ? MeasureSpec.makeMeasureSpec(lp.height, MeasureSpec.EXACTLY)
+            : MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED);
+    v.measure(wSpec, hSpec);
+    int margins = 0;
+    if (lp instanceof MarginLayoutParams) {
+      margins = ((MarginLayoutParams) lp).leftMargin + ((MarginLayoutParams) lp).rightMargin;
+    }
+    return v.getMeasuredWidth() + margins;
+  }
+
+  private int measureNaturalRowWidth() {
+    int total = getPaddingLeft() + getPaddingRight();
+    for (View v : hudOrderedViews) {
+      if (v == null || v.getVisibility() == View.GONE) continue;
+      total += measureViewRowWidth(v);
+    }
+    return total;
+  }
+
+  public void updateWrapState() {
+    if (!(getParent() instanceof View)) return;
+    int limit = ((View) getParent()).getWidth();
+    if (limit <= 0) return;
+    float scale = Math.max(getScaleX(), 0.01f);
+    int natural = (int) (measureNaturalRowWidth() * scale);
+    boolean shouldWrap;
+    if (hudWrapped) {
+      shouldWrap = natural >= (int) (limit * 0.95f);
+    } else {
+      shouldWrap = natural > limit;
+    }
+    if (!isHorizontalDisplayMode()) shouldWrap = false;
+    if (shouldWrap == hudWrapped) return;
+    if (shouldWrap) {
+      wrapStructure();
+    } else {
+      unwrapStructure();
+      setOrientation(LinearLayout.HORIZONTAL);
+      setGravity(android.view.Gravity.CENTER_VERTICAL);
+      requestLayout();
+    }
+  }
+
+  private void rewrap() {
+    if (hudWrapped) {
+      unwrapStructure();
+      setOrientation(LinearLayout.HORIZONTAL);
+      setGravity(android.view.Gravity.CENTER_VERTICAL);
+    }
+    updateWrapState();
+  }
+
+  private void wrapStructure() {
+    java.util.ArrayList<java.util.ArrayList<View>> groups = new java.util.ArrayList<>();
+    java.util.ArrayList<View> pendingSeps = new java.util.ArrayList<>();
+    for (View v : hudOrderedViews) {
+      if (v == null) continue;
+      if (isSeparatorView(v)) {
+        pendingSeps.add(v);
+        continue;
+      }
+      java.util.ArrayList<View> group = new java.util.ArrayList<>(pendingSeps);
+      pendingSeps.clear();
+      group.add(v);
+      groups.add(group);
+    }
+    if (!pendingSeps.isEmpty()) {
+      if (groups.isEmpty()) groups.add(new java.util.ArrayList<>());
+      groups.get(groups.size() - 1).addAll(pendingSeps);
+    }
+    if (groups.size() < 2) return;
+
+    int totalWidth = 0;
+    int[] groupWidths = new int[groups.size()];
+    for (int i = 0; i < groups.size(); i++) {
+      int w = 0;
+      for (View v : groups.get(i)) {
+        if (v.getVisibility() == View.GONE) continue;
+        w += measureViewRowWidth(v);
+      }
+      groupWidths[i] = w;
+      totalWidth += w;
+    }
+
+    int firstRowWidth = 0;
+    int splitIndex = groups.size() - 1;
+    for (int i = 0; i < groups.size() - 1; i++) {
+      if (firstRowWidth + groupWidths[i] * 0.5f > totalWidth * 0.5f && i > 0) {
+        splitIndex = i;
+        break;
+      }
+      firstRowWidth += groupWidths[i];
+    }
+
+    removeAllViews();
+    wrapRowTop = new LinearLayout(getContext());
+    wrapRowTop.setOrientation(LinearLayout.HORIZONTAL);
+    wrapRowTop.setGravity(android.view.Gravity.CENTER_VERTICAL);
+    wrapRowBottom = new LinearLayout(getContext());
+    wrapRowBottom.setOrientation(LinearLayout.HORIZONTAL);
+    wrapRowBottom.setGravity(android.view.Gravity.CENTER_VERTICAL);
+    for (int i = 0; i < groups.size(); i++) {
+      LinearLayout row = i < splitIndex ? wrapRowTop : wrapRowBottom;
+      for (View v : groups.get(i)) row.addView(v);
+    }
+
+    restoreWrapHiddenSeparator();
+    for (int i = 0; i < wrapRowBottom.getChildCount(); i++) {
+      View child = wrapRowBottom.getChildAt(i);
+      if (!isSeparatorView(child)) break;
+      if (child.getVisibility() != View.GONE) {
+        wrapHiddenSeparator = child;
+        wrapHiddenSeparatorVisibility = child.getVisibility();
+        child.setVisibility(View.GONE);
+        break;
+      }
+    }
+
+    setOrientation(LinearLayout.VERTICAL);
+    setGravity(android.view.Gravity.CENTER_HORIZONTAL);
+    LinearLayout.LayoutParams topLp =
+        new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+    topLp.gravity = android.view.Gravity.CENTER_HORIZONTAL;
+    LinearLayout.LayoutParams bottomLp =
+        new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+    bottomLp.gravity = android.view.Gravity.CENTER_HORIZONTAL;
+    bottomLp.topMargin = 2;
+    addView(wrapRowTop, topLp);
+    addView(wrapRowBottom, bottomLp);
+    hudWrapped = true;
+    requestLayout();
+  }
+
+  private void restoreWrapHiddenSeparator() {
+    if (wrapHiddenSeparator != null) {
+      wrapHiddenSeparator.setVisibility(wrapHiddenSeparatorVisibility);
+      wrapHiddenSeparator = null;
+    }
+  }
+
+  private void unwrapStructure() {
+    if (!hudWrapped) return;
+    restoreWrapHiddenSeparator();
+    if (wrapRowTop != null) wrapRowTop.removeAllViews();
+    if (wrapRowBottom != null) wrapRowBottom.removeAllViews();
+    removeAllViews();
+    for (View v : hudOrderedViews) {
+      if (v != null) addView(v);
+    }
+    wrapRowTop = null;
+    wrapRowBottom = null;
+    hudWrapped = false;
   }
 
   public void setRenderer(String renderer) {
@@ -1052,6 +1240,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     setPivotX(0);
     setPivotY(0);
     this.preferences.edit().putFloat(PREF_HUD_SCALE, scale).apply();
+    post(this::rewrap);
   }
 
   public void setDualSeriesBattery(boolean dualSeriesBattery) {
@@ -1124,7 +1313,8 @@ public class FrameRating extends LinearLayout implements Runnable {
         if (this.tvCpuTemp != null) this.tvCpuTemp.setVisibility(v);
         break;
     }
-    updateSeparators(getOrientation() == LinearLayout.HORIZONTAL);
+    updateSeparators(isHorizontalDisplayMode());
+    post(this::rewrap);
   }
 
   private void updateSeparators(boolean horizontal) {
@@ -1157,6 +1347,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     if (sep3 != null) sep3.setVisibility(vRam && (vBat || vTmp || vFps) ? View.VISIBLE : View.GONE);
     if (sep4 != null) sep4.setVisibility(vBat && (vTmp || vFps) ? View.VISIBLE : View.GONE);
     if (sep5 != null) sep5.setVisibility(vTmp && vFps ? View.VISIBLE : View.GONE);
+    if (hudWrapped && wrapHiddenSeparator != null) wrapHiddenSeparator.setVisibility(View.GONE);
   }
 
   /** Called when the guest submits a new frame to the X presentation path. */
@@ -1558,7 +1749,8 @@ public class FrameRating extends LinearLayout implements Runnable {
       this.tvFrametime.setVisibility(View.GONE);
     }
 
-    if (getOrientation() == LinearLayout.HORIZONTAL) updateSeparators(true);
+    if (isHorizontalDisplayMode()) updateSeparators(true);
+    updateWrapState();
   }
 
   private void append(SpannableStringBuilder b, String t, int c) {

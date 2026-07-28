@@ -43,7 +43,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.FactCheck
 import androidx.compose.material.icons.outlined.ArrowDropDown
+import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.CloudSync
+import androidx.compose.material.icons.outlined.SaveAlt
 import androidx.compose.material.icons.outlined.Construction
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DesktopWindows
@@ -134,6 +136,9 @@ internal fun LibraryGameLaunchScreen(
     lastPlayedMillis: Long,
     installSizeText: String?,
     isCustom: Boolean,
+    isRetro: Boolean = false,
+    showBootToDesktop: Boolean = !isRetro,
+    showSaveTransfer: Boolean = false,
     hasPinnedShortcut: Boolean,
     steamMenuEnabled: Boolean = false,
     areSteamActionsEnabled: Boolean = true,
@@ -147,8 +152,11 @@ internal fun LibraryGameLaunchScreen(
     onSettings: () -> Unit,
     onBootToDesktop: () -> Unit,
     onAchievements: (() -> Unit)? = null,
+    onCheats: (() -> Unit)? = null,
+    cheatsEnabled: Boolean = true,
     onShortcut: () -> Unit,
     onCloudSaves: () -> Unit,
+    onSaveTransfer: (() -> Unit)? = null,
     onUninstall: () -> Unit,
     onVerifyFiles: () -> Unit = {},
     onCheckForUpdate: () -> Unit = {},
@@ -156,6 +164,15 @@ internal fun LibraryGameLaunchScreen(
 ) {
     val context = LocalContext.current
     var uninstallMenuOpen by remember { mutableStateOf(false) }
+    val saveTransferVisible = showSaveTransfer && onSaveTransfer != null
+    val bootVisible = showBootToDesktop
+    val actionIconCount =
+        1 +
+            (if (saveTransferVisible) 1 else 0) +
+            1 +
+            (if (bootVisible) 1 else 0) +
+            1 +
+            1
 
     LaunchScreenCutoutMode()
 
@@ -164,9 +181,7 @@ internal fun LibraryGameLaunchScreen(
         val bottomPadding = 20.dp
         val actionIconSize = 46.dp
         val actionIconSpacing = 8.dp
-        // Action icons: Settings, Boot, CloudSync, Shortcut, Delete.
-        val actionIconCount = 5
-        val actionWidth = actionIconSize * actionIconCount + actionIconSpacing * (actionIconCount - 1)
+        val actionWidth = actionIconSize * actionIconCount + actionIconSpacing * (actionIconCount - 1).coerceAtLeast(0)
         val playHeight = 56.dp
         val contentGap = 18.dp
         val horizontalNavInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
@@ -278,11 +293,14 @@ internal fun LibraryGameLaunchScreen(
                 showCheckForUpdate = showCheckForUpdate,
                 showWorkshop = showWorkshop,
                 showAchievements = onAchievements != null,
+                showCheats = onCheats != null,
+                cheatsEnabled = cheatsEnabled,
                 areSteamActionsEnabled = areSteamActionsEnabled,
                 onVerifyFiles = onVerifyFiles,
                 onCheckForUpdate = onCheckForUpdate,
                 onWorkshop = onWorkshop,
                 onAchievements = { onAchievements?.invoke() },
+                onCheats = { onCheats?.invoke() },
             )
         }
 
@@ -391,18 +409,28 @@ internal fun LibraryGameLaunchScreen(
                             size = actionIconSize,
                             onClick = onSettings,
                         )
-                        LaunchIconActionButton(
-                            icon = Icons.Outlined.DesktopWindows,
-                            contentDescription = stringResource(R.string.hero_boot_to_desktop_title),
-                            size = actionIconSize,
-                            onClick = onBootToDesktop,
-                        )
+                        if (saveTransferVisible) {
+                            LaunchIconActionButton(
+                                icon = Icons.Outlined.SaveAlt,
+                                contentDescription = stringResource(R.string.retro_save_transfer_title),
+                                size = actionIconSize,
+                                onClick = { onSaveTransfer?.invoke() },
+                            )
+                        }
                         LaunchIconActionButton(
                             icon = Icons.Outlined.CloudSync,
                             contentDescription = stringResource(R.string.cloud_saves_title),
                             size = actionIconSize,
                             onClick = onCloudSaves,
                         )
+                        if (bootVisible) {
+                            LaunchIconActionButton(
+                                icon = Icons.Outlined.DesktopWindows,
+                                contentDescription = stringResource(R.string.hero_boot_to_desktop_title),
+                                size = actionIconSize,
+                                onClick = onBootToDesktop,
+                            )
+                        }
                         LaunchIconActionButton(
                             icon = Icons.Outlined.Home,
                             contentDescription =
@@ -821,14 +849,18 @@ private fun SourceTag(
     showCheckForUpdate: Boolean = true,
     showWorkshop: Boolean = true,
     showAchievements: Boolean = false,
+    showCheats: Boolean = false,
+    cheatsEnabled: Boolean = true,
     areSteamActionsEnabled: Boolean = true,
     onVerifyFiles: () -> Unit = {},
     onCheckForUpdate: () -> Unit = {},
     onWorkshop: () -> Unit = {},
     onAchievements: () -> Unit = {},
+    onCheats: () -> Unit = {},
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     var anchorHeightPx by remember { mutableStateOf(0) }
+    val menuInteractive = menuEnabled || showAchievements || showCheats
     Box {
         Surface(
             color = Color.White.copy(alpha = 0.1f),
@@ -837,7 +869,7 @@ private fun SourceTag(
             modifier =
                 Modifier
                     .onSizeChanged { anchorHeightPx = it.height }
-                    .then(if (menuEnabled) Modifier.clickable { menuOpen = true } else Modifier),
+                    .then(if (menuInteractive) Modifier.clickable { menuOpen = true } else Modifier),
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -858,7 +890,7 @@ private fun SourceTag(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (menuEnabled) {
+                if (menuInteractive) {
                     Icon(
                         Icons.Outlined.ArrowDropDown,
                         contentDescription = stringResource(R.string.store_game_steam_options),
@@ -868,28 +900,28 @@ private fun SourceTag(
                 }
             }
         }
-        if (menuEnabled) {
+        if (menuInteractive) {
             val gapPx = with(LocalDensity.current) { 6.dp.roundToPx() }
             LaunchSourceActionPopup(
                 expanded = menuOpen,
                 onDismissRequest = { menuOpen = false },
                 offset = IntOffset(0, anchorHeightPx + gapPx),
             ) {
-                if (showVerifyFiles) {
+                if (menuEnabled && showVerifyFiles) {
                     LaunchSourceMenuItem(
                         icon = Icons.AutoMirrored.Outlined.FactCheck,
                         label = stringResource(R.string.store_game_verify_files),
                         enabled = areSteamActionsEnabled,
                     ) { menuOpen = false; onVerifyFiles() }
                 }
-                if (showCheckForUpdate) {
+                if (menuEnabled && showCheckForUpdate) {
                     LaunchSourceMenuItem(
                         icon = Icons.Outlined.Refresh,
                         label = stringResource(R.string.store_game_check_for_update),
                         enabled = areSteamActionsEnabled,
                     ) { menuOpen = false; onCheckForUpdate() }
                 }
-                if (showWorkshop) {
+                if (menuEnabled && showWorkshop) {
                     LaunchSourceMenuItem(
                         icon = Icons.Outlined.Construction,
                         label = stringResource(R.string.store_game_workshop),
@@ -901,6 +933,13 @@ private fun SourceTag(
                         icon = Icons.Outlined.EmojiEvents,
                         label = stringResource(R.string.steam_achievements_title),
                     ) { menuOpen = false; onAchievements() }
+                }
+                if (showCheats) {
+                    LaunchSourceMenuItem(
+                        icon = Icons.Outlined.Bolt,
+                        label = stringResource(R.string.retro_cheats_title),
+                        enabled = cheatsEnabled,
+                    ) { menuOpen = false; onCheats() }
                 }
             }
         }

@@ -127,6 +127,26 @@
             android:screenOrientation="sensorLandscape"
             android:exported="false" />
 
+        <activity
+            android:name="com.winlator.cmod.feature.retro.RetroActivity"
+            android:theme="@style/AppThemeFullscreen"
+            android:launchMode="singleTask"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation"
+            android:exported="false" />
+
+        <activity
+            android:name="com.winlator.cmod.feature.retro.RetroAchievementsActivity"
+            android:theme="@style/AppThemeTranslucent"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation"
+            android:exported="false" />
+
+        <activity
+            android:name="com.winlator.cmod.feature.retro.RetroCheatsActivity"
+            android:theme="@style/AppThemeTranslucent"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation"
+            android:exported="false" />
+
         <receiver
             android:name="com.winlator.cmod.feature.shortcuts.ShortcutBroadcastReceiver"
             android:exported="true">

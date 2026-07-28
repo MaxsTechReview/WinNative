@@ -285,6 +285,10 @@ dependencies {
     implementation libs.playServicesGamesV2
 
     implementation libs.workRuntimeKtx
+
+    implementation project(':libretrodroid')
+    implementation project(':armsx2')
+    implementation project(':dolphin')
 }
 
 spotless {

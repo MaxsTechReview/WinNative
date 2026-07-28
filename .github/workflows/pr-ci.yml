@@ -91,10 +91,15 @@ jobs:
     - name: Install Rust Android target
       run: rustup target add aarch64-linux-android
 
+    - name: Validate Gradle wrappers
+      uses: gradle/actions/wrapper-validation@v6
+      with:
+        allow-checksums: e2b82129ab64751fd40437007bd2f7f2afb3c6e41a9198e628650b22d5824a14
+
     - name: Set up Gradle
       uses: gradle/actions/setup-gradle@v6
       with:
-        validate-wrappers: true
+        validate-wrappers: false
         cache-cleanup: 'on-success'
         # PRs restore the Gradle cache read-only; only main pushes write it.
         cache-read-only: ${{ github.event_name == 'pull_request' }}

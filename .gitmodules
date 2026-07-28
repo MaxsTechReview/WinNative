@@ -5,3 +5,9 @@
 	path = app/src/main/cpp/vkbasalt
 	url = https://github.com/WinNative-Emu/vkBasalt.git
 	branch = Test
+[submodule "libretrodroid/src/main/cpp/oboe"]
+	path = libretrodroid/src/main/cpp/oboe
+	url = https://github.com/google/oboe
+[submodule "libretrodroid/src/main/cpp/libretro/libretro-common"]
+	path = libretrodroid/src/main/cpp/libretro/libretro-common
+	url = https://github.com/libretro/libretro-common
