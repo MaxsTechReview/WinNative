@@ -35,7 +35,7 @@ float valid(highp vec2 p) {
 #define FM_MNMX5(a, b, c, d, e)    FM_S2(a, b); FM_S2(c, d); FM_MN3(a, c, e); FM_MX3(b, d, e);
 #define FM_MNMX6(a, b, c, d, e, f) FM_S2(a, d); FM_S2(b, e); FM_S2(c, f); FM_MN3(a, b, c); FM_MX3(d, e, f);
 
-vec2 flowMedian(highp vec2 uv, highp vec2 n) {
+vec2 flowMedian(highp vec2 uv, highp vec2 n, out float spread) {
     vec2 v0 = texture(motionField, uv + vec2(-n.x, -n.y)).xy;
     vec2 v1 = texture(motionField, uv + vec2( 0.0, -n.y)).xy;
     vec2 v2 = texture(motionField, uv + vec2( n.x, -n.y)).xy;
@@ -45,6 +45,9 @@ vec2 flowMedian(highp vec2 uv, highp vec2 n) {
     vec2 v6 = texture(motionField, uv + vec2(-n.x,  n.y)).xy;
     vec2 v7 = texture(motionField, uv + vec2( 0.0,  n.y)).xy;
     vec2 v8 = texture(motionField, uv + vec2( n.x,  n.y)).xy;
+    vec2 lo = min(min(min(v0, v1), min(v2, v3)), min(min(v4, v5), min(v6, v7)));
+    vec2 hi = max(max(max(v0, v1), max(v2, v3)), max(max(v4, v5), max(v6, v7)));
+    spread = length(max(hi, v8) - min(lo, v8));
     FM_MNMX6(v0, v1, v2, v3, v4, v5);
     FM_MNMX5(v1, v2, v3, v4, v6);
     FM_MNMX4(v2, v3, v4, v7);
@@ -64,8 +67,13 @@ void main() {
     // A single wrong flow texel drags a patch of the frame in from the wrong place and
     // reads as a blocky smear. A 3x3 median drops isolated outliers while keeping
     // motion boundaries, which a blur would round off.
-    vec2 mvB = flowMedian(vUV, norm);
+    float flowSpread;
+    vec2 mvB = flowMedian(vUV, norm, flowSpread);
     vec2 mvBn = mvB * norm;
+    // Neighbouring flow texels disagreeing by this much means the warp is about to pull
+    // the object apart. A soft region reads far better than a shredded one, so hand
+    // those pixels back to the temporal blend.
+    float flowOk = 1.0 - smoothstep(3.0, 10.0, flowSpread);
 
     vec3 cCurrFlat = texture(currFrame, vUV).rgb;
     vec3 cPrevFlat = texture(prevFrame, vUV).rgb;
@@ -129,7 +137,7 @@ void main() {
     vec3 col = (cA * wA + cB * wB) / wsum;
 
     vec3 repeat = mix(cPrevFlat, cCurrFlat, t);
-    col = mix(repeat, col, uniq * (1.0 - 0.30 * steadier));
+    col = mix(repeat, col, uniq * flowOk * (1.0 - 0.30 * steadier));
 
     vec2 tx = texel;
     vec3 blur = (texture(currFrame, uvB + vec2(tx.x, 0.0)).rgb
