@@ -2667,11 +2667,11 @@ return boundingBox;
               ? Color.argb((int) (250 * a), 255, 255, 255)
               : ColorUtils.setAlphaComponent(accent, (int) (160 * a)));
           if (dy != 0) {
-            canvas.drawLine(ax - chev, ay + dy * chev, ax, ay - dy * chev * 0.4f, paint);
-            canvas.drawLine(ax + chev, ay + dy * chev, ax, ay - dy * chev * 0.4f, paint);
+            canvas.drawLine(ax - chev, ay - dy * chev * 0.4f, ax, ay + dy * chev, paint);
+            canvas.drawLine(ax + chev, ay - dy * chev * 0.4f, ax, ay + dy * chev, paint);
           } else {
-            canvas.drawLine(ax + dx * chev, ay - chev, ax - dx * chev * 0.4f, ay, paint);
-            canvas.drawLine(ax + dx * chev, ay + chev, ax - dx * chev * 0.4f, ay, paint);
+            canvas.drawLine(ax - dx * chev * 0.4f, ay - chev, ax + dx * chev, ay, paint);
+            canvas.drawLine(ax - dx * chev * 0.4f, ay + chev, ax + dx * chev, ay, paint);
           }
         }
         paint.setStrokeCap(Paint.Cap.BUTT);
