@@ -53,6 +53,12 @@ private class PaneNavEntry(
 @Stable
 internal class PaneNavRegistry(initialSignal: Int = -1) {
     private val items = mutableStateMapOf<Int, PaneNavEntry>()
+    // Row layout is derived from every item's geometry, so it is cached per change instead of
+    // being re-sorted on each isActive() call.
+    private var layoutVersion by mutableStateOf(0)
+    private var cachedRows: List<List<Int>> = emptyList()
+    private var cachedRowsVersion = -1
+    private var cachedRowsSingleRow = false
     private var slotCounter = 0
     private var lastSignal = initialSignal
     var controllerActive by mutableStateOf(false)
@@ -91,6 +97,7 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
         val e = items[slot]
         if (e == null) {
             items[slot] = PaneNavEntry(0f, 0f, 0f, onActivate, onAdjust, onSecondary)
+            layoutVersion++
         } else {
             e.onActivate = onActivate
             e.onAdjust = onAdjust
@@ -101,7 +108,10 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
     fun reportPosition(slot: Int, x: Float, y: Float, h: Float) {
         val e = items[slot] ?: return
         if (e.x != x || e.y != y || e.h != h) {
-            items[slot] = PaneNavEntry(x, y, h, e.onActivate, e.onAdjust, e.onSecondary, e.gx, e.gy)
+            e.x = x
+            e.y = y
+            e.h = h
+            layoutVersion++
             if (pendingEntry) entrySlot?.let { selectSlot(it) }
         }
     }
@@ -111,8 +121,11 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
         val e = items[slot]
         if (e == null) {
             items[slot] = PaneNavEntry(0f, 0f, 0f, {}, null, {}, gx, gy)
+            layoutVersion++
         } else if (e.gx != gx || e.gy != gy) {
-            items[slot] = PaneNavEntry(e.x, e.y, e.h, e.onActivate, e.onAdjust, e.onSecondary, gx, gy)
+            e.gx = gx
+            e.gy = gy
+            layoutVersion++
         }
         if (pendingEntry) entrySlot?.let { selectSlot(it) }
     }
@@ -132,28 +145,39 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
         return e.y to (e.y + e.h)
     }
 
-    fun unregister(slot: Int) { items.remove(slot) }
+    fun unregister(slot: Int) {
+        if (items.remove(slot) != null) layoutVersion++
+    }
 
     val rows: List<List<Int>>
         get() {
-            if (singleRow) {
-                if (items.isEmpty()) return emptyList()
-                return listOf(items.entries.sortedBy { it.value.x }.map { it.key })
-            }
-            val sorted = items.entries.sortedWith(compareBy({ it.value.y + it.value.h / 2f }, { it.value.x }))
-            val result = mutableListOf<MutableList<Int>>()
-            var prevCenterY = Float.NaN
-            for (entry in sorted) {
-                val centerY = entry.value.y + entry.value.h / 2f
-                if (result.isEmpty() || kotlin.math.abs(centerY - prevCenterY) > PANE_ROW_Y_THRESHOLD) {
-                    result.add(mutableListOf(entry.key))
-                } else {
-                    result.last().add(entry.key)
-                }
-                prevCenterY = centerY
-            }
-            return result
+            val version = layoutVersion
+            if (cachedRowsVersion == version && cachedRowsSingleRow == singleRow) return cachedRows
+            cachedRows = computeRows()
+            cachedRowsVersion = version
+            cachedRowsSingleRow = singleRow
+            return cachedRows
         }
+
+    private fun computeRows(): List<List<Int>> {
+        if (singleRow) {
+            if (items.isEmpty()) return emptyList()
+            return listOf(items.entries.sortedBy { it.value.x }.map { it.key })
+        }
+        val sorted = items.entries.sortedWith(compareBy({ it.value.y + it.value.h / 2f }, { it.value.x }))
+        val result = mutableListOf<MutableList<Int>>()
+        var prevCenterY = Float.NaN
+        for (entry in sorted) {
+            val centerY = entry.value.y + entry.value.h / 2f
+            if (result.isEmpty() || kotlin.math.abs(centerY - prevCenterY) > PANE_ROW_Y_THRESHOLD) {
+                result.add(mutableListOf(entry.key))
+            } else {
+                result.last().add(entry.key)
+            }
+            prevCenterY = centerY
+        }
+        return result
+    }
 
     fun isActive(slot: Int): Boolean {
         if (!controllerActive) return false
