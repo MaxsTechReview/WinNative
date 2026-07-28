@@ -136,7 +136,18 @@ void main() {
     float wsum = wA + wB + 1e-6;
     vec3 col = (cA * wA + cB * wB) / wsum;
 
-    vec3 repeat = mix(cPrevFlat, cCurrFlat, t);
+    // Where the warp is not trusted the output used to cross-dissolve the two real
+    // frames. Wherever they differ that is a double image, and it covers a large part of
+    // the frame - it is where most of the softness came from. Take the nearer warped
+    // side there instead, which is sharp and still motion-compensated, and keep the
+    // dissolve only where the two frames are close enough that it cannot be seen.
+    vec3 xfade  = mix(cPrevFlat, cCurrFlat, t);
+    float sdis  = length(cCurrFlat - cPrevFlat);
+    // ...but only where the flow is coherent. Taking a single warped sample on an
+    // incoherent vector puts a sharp wrong patch on screen, which is worse than the soft
+    // one it replaced, so those pixels keep the dissolve.
+    float sharp = smoothstep(0.04, 0.20, sdis) * flowOk;
+    vec3 repeat = mix(xfade, (t < 0.5) ? cA : cB, sharp);
     col = mix(repeat, col, uniq * flowOk * (1.0 - 0.30 * steadier));
 
     vec2 tx = texel;
