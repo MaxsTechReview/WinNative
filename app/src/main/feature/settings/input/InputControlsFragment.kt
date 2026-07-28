@@ -28,6 +28,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
 import com.winlator.cmod.app.shell.UnifiedActivity
 import com.winlator.cmod.R
+import com.winlator.cmod.runtime.display.winhandler.WinHandler
 import com.winlator.cmod.runtime.input.ControllerHelper
 import com.winlator.cmod.runtime.input.ControlsEditorActivity
 import com.winlator.cmod.runtime.input.controls.Binding
@@ -926,6 +927,9 @@ class InputControlsFragment : Fragment() {
     }
 
     private fun currentGyroActivatorLabel(): String {
+        if (preferences.getBoolean("mouse_gyro_enabled", false)) {
+            return WinHandler.getGyroMouseActivator(preferences).toString()
+        }
         val names = resources.getStringArray(R.array.button_options)
         val keycodes = resources.getIntArray(R.array.button_keycodes)
         val currentKeycode = preferences.getInt("gyro_trigger_button", KeyEvent.KEYCODE_BUTTON_L1)
@@ -934,6 +938,10 @@ class InputControlsFragment : Fragment() {
     }
 
     private fun showActivatorPicker() {
+        if (preferences.getBoolean("mouse_gyro_enabled", false)) {
+            showMouseGyroActivatorPicker()
+            return
+        }
         val names = resources.getStringArray(R.array.button_options)
         val keycodes = resources.getIntArray(R.array.button_keycodes)
         val currentKeycode = preferences.getInt("gyro_trigger_button", KeyEvent.KEYCODE_BUTTON_L1)
@@ -944,6 +952,19 @@ class InputControlsFragment : Fragment() {
             checkedIndex = checkedIndex,
         ) { which ->
             preferences.edit().putInt("gyro_trigger_button", keycodes[which]).apply()
+            publishUiState()
+        }
+    }
+
+    private fun showMouseGyroActivatorPicker() {
+        val bindings = Binding.activatorBindingValues()
+        val current = WinHandler.getGyroMouseActivator(preferences)
+        showSingleChoiceDialog(
+            title = getString(R.string.session_gyroscope_activator_button),
+            items = bindings.map { it.toString() }.toTypedArray(),
+            checkedIndex = bindings.indexOf(current).coerceAtLeast(0),
+        ) { which ->
+            preferences.edit().putString("gyro_mouse_trigger_binding", bindings[which].name).apply()
             publishUiState()
         }
     }

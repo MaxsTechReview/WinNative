@@ -4112,6 +4112,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private String currentGyroActivatorLabel() {
+        if (preferences.getBoolean("mouse_gyro_enabled", false)) {
+            return WinHandler.getGyroMouseActivator(preferences).toString();
+        }
         String[] names = getResources().getStringArray(R.array.button_options);
         int[] keycodes = getResources().getIntArray(R.array.button_keycodes);
         int currentKeycode = preferences.getInt("gyro_trigger_button", KeyEvent.KEYCODE_BUTTON_L1);
@@ -4460,6 +4463,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onGyroscopeActivatorSelected(int keycode) {
                         preferences.edit().putInt("gyro_trigger_button", keycode).apply();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onGyroscopeActivatorBindingSelected(String bindingName) {
+                        preferences.edit().putString("gyro_mouse_trigger_binding", bindingName).apply();
                         renderDrawerMenu();
                     }
 
