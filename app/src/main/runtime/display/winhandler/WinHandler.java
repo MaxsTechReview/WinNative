@@ -1704,6 +1704,7 @@ public class WinHandler {
     int dy = (int) this.accumulatedGyroY;
     if (dx != 0 || dy != 0) {
       mouseMoveDelta(dx, dy);
+      this.activity.notifyPointerActivity();
       this.accumulatedGyroX -= dx;
       this.accumulatedGyroY -= dy;
     }

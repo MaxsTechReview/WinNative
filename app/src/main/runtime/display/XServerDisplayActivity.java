@@ -546,6 +546,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private static final long EXIT_CLOUD_UPLOAD_RETRY_DELAY_MS = 1000L;
 
     private Handler  timeoutHandler = new Handler(Looper.getMainLooper());
+    private static final long POINTER_ACTIVITY_REARM_MS = 1000L;
+    private long lastPointerActivityAt = 0L;
     private Runnable hideControlsRunnable;
 
     private volatile boolean startFullscreenStretched;
@@ -6143,6 +6145,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private void cancelMousePointerTimeout() {
         if (timeoutHandler != null && hideControlsRunnable != null) {
             timeoutHandler.removeCallbacks(hideControlsRunnable);
+        }
+    }
+
+    // Pointer movement that bypasses touch/mouse events (gyro) still counts as activity.
+    public void notifyPointerActivity() {
+        if (isMouseDisabled || xServer == null || xServer.getRenderer() == null) return;
+        boolean hidden = !xServer.getRenderer().isCursorVisible();
+        long now = SystemClock.uptimeMillis();
+        if (!hidden && now - lastPointerActivityAt < POINTER_ACTIVITY_REARM_MS) return;
+        lastPointerActivityAt = now;
+        if (hidden) xServer.getRenderer().setCursorVisible(true);
+        if (timeoutHandler != null && hideControlsRunnable != null) {
+            timeoutHandler.removeCallbacks(hideControlsRunnable);
+            timeoutHandler.postDelayed(hideControlsRunnable, 5000);
         }
     }
 
