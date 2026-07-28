@@ -3795,7 +3795,9 @@ static FgPending fg_worker_generate(VkRenderer* r, const FgJob* job) {
     if (f->in_flight) vkWaitForFences(r->device, 1, &f->in_flight, VK_TRUE, UINT64_MAX);
 
     bool want_interp = (job->mode == FG_MODE_INTERP);
-    uint64_t acq_timeout = (want_interp && r->active_present_mode != VK_PRESENT_MODE_FIFO_KHR) ? 0u : 100000000ull;
+    uint64_t disp_ns = r->fg_display_period_ns ? r->fg_display_period_ns : 16666667ull;
+    uint64_t acq_timeout = (want_interp && r->active_present_mode != VK_PRESENT_MODE_FIFO_KHR)
+        ? 2u * disp_ns : 100000000ull;
     uint32_t image_index = 0;
     VkResult acq = vkAcquireNextImageKHR(r->device, r->swapchain, acq_timeout,
                                          f->image_available, VK_NULL_HANDLE, &image_index);
@@ -3870,11 +3872,27 @@ static FgPending fg_worker_generate(VkRenderer* r, const FgJob* job) {
                 }
             }
         } else {
-            fg_motion_pass(r, f->cmd, r->fg_coarse_set[parity], &r->fg_coarse[parity],
-                           r->fg_motion_set[parity], &r->fg_motion[parity], (float)r->fg_min_step);
+            if (!r->fg_motion_valid) {
+                fg_motion_pass(r, f->cmd, r->fg_coarse_set[parity], &r->fg_coarse[parity],
+                               r->fg_motion_set[parity], &r->fg_motion[parity], (float)r->fg_min_step);
+                r->fg_motion_valid = true;
+            } else {
+                vkr_image_barrier(f->cmd, r->fg_motion[parity].image,
+                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                    VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+            }
             if (compute_fwd) {
-                fg_motion_pass(r, f->cmd, r->fg_coarse_set_fwd[parity], &r->fg_coarse_fwd[parity],
-                               r->fg_motion_set_fwd[parity], &r->fg_motion_fwd[parity], (float)r->fg_min_step);
+                if (!r->fg_motion_fwd_valid) {
+                    fg_motion_pass(r, f->cmd, r->fg_coarse_set_fwd[parity], &r->fg_coarse_fwd[parity],
+                                   r->fg_motion_set_fwd[parity], &r->fg_motion_fwd[parity], (float)r->fg_min_step);
+                    r->fg_motion_fwd_valid = true;
+                } else {
+                    vkr_image_barrier(f->cmd, r->fg_motion_fwd[parity].image,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                        VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+                }
             }
         }
     }
@@ -4081,46 +4099,30 @@ static void* fg_gen_loop(void* arg) {
     setpriority(PRIO_PROCESS, 0, -8);
     FgPending pending = {0};
     while (r->fg_gen_running) {
-        bool got_job;
         if (pending.valid) {
-            uint64_t wait_ns = (r->fg_display_period_ns ? r->fg_display_period_ns : 16666667ull) * 2u;
-            struct timespec ts; clock_gettime(CLOCK_REALTIME, &ts);
-            ts.tv_sec += (time_t)(wait_ns / 1000000000ull);
-            ts.tv_nsec += (long)(wait_ns % 1000000000ull);
-            if (ts.tv_nsec >= 1000000000L) { ts.tv_nsec -= 1000000000L; ts.tv_sec++; }
-            got_job = (sem_timedwait(&r->fg_gen_sem, &ts) == 0);
-        } else {
-            got_job = (sem_wait(&r->fg_gen_sem) == 0);
+            bool recreate = fg_worker_do_present(r, &pending);
+            pending.valid = false;
+            if (recreate) fg_worker_recreate(r);
         }
         if (!r->fg_gen_running) break;
+        if (sem_wait(&r->fg_gen_sem) != 0) continue;
+        if (!r->fg_gen_running) break;
 
-        bool need_recreate = false;
-        if (pending.valid && fg_worker_do_present(r, &pending)) need_recreate = true;
-        pending.valid = false;
-
-        FgPending ready = {0};
-        if (got_job) {
-            uint32_t head = r->fg_job_head;
-            if (head != __atomic_load_n(&r->fg_job_tail, __ATOMIC_ACQUIRE)) {
-                FgJob job = r->fg_job_ring[head];
-                __atomic_store_n(&r->fg_job_head, (head + 1u) % FG_JOB_RING, __ATOMIC_RELEASE);
-                // drop-late: skip an INTERP whose deadline already passed by >1 vsync; never drop a PRESENT_LAST.
-                uint64_t period = r->fg_display_period_ns ? r->fg_display_period_ns : 16666667ull;
-                if (need_recreate) {
-                    g_fg_dropped++;
-                } else if (job.mode == FG_MODE_INTERP && job.deadline_ns != 0u
-                    && now_monotonic_ns() > job.deadline_ns + period) {
-                    g_fg_dropped++;
-                } else {
-                    ready = fg_worker_generate(r, &job);
-                    if (ready.need_recreate) need_recreate = true;
-                }
-            }
+        uint32_t head = r->fg_job_head;
+        if (head == __atomic_load_n(&r->fg_job_tail, __ATOMIC_ACQUIRE)) continue;
+        FgJob job = r->fg_job_ring[head];
+        __atomic_store_n(&r->fg_job_head, (head + 1u) % FG_JOB_RING, __ATOMIC_RELEASE);
+        // drop-late: skip an INTERP whose deadline already passed by >1 vsync; never drop a PRESENT_LAST.
+        uint64_t period = r->fg_display_period_ns ? r->fg_display_period_ns : 16666667ull;
+        if (job.mode == FG_MODE_INTERP && job.deadline_ns != 0u
+            && now_monotonic_ns() > job.deadline_ns + period) {
+            g_fg_dropped++;
+            continue;
         }
-        pending = ready;
-        if (need_recreate) {
+        pending = fg_worker_generate(r, &job);
+        if (pending.need_recreate) {
             fg_worker_recreate(r);
-            pending.valid = false;   // anything acquired before the recreate is now stale
+            pending.valid = false;
         }
     }
     if (pending.valid) fg_worker_do_present(r, &pending);   // flush the trailing frame on stop

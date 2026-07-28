@@ -73,6 +73,8 @@ public class VulkanRenderer
     private volatile long fgPrevGameNs = 0;
     private volatile long fgCurrentVsyncNs = 0;
     private long fgLastEmitVsyncNs = 0;
+    private long fgPromoteVsyncNs = 0;
+    private int fgSlotsLocked = 0;
     private boolean fgForcePromote = false;
     private Drawable fgLastScanoutSrc = null;
     private Drawable fgFirstScanoutSrc = null;
@@ -490,6 +492,8 @@ public class VulkanRenderer
         fgEngineFrames = 0;
         fgVblankSincePromote = 0;
         fgLastEmitVsyncNs = 0;
+        fgPromoteVsyncNs = 0;
+        fgSlotsLocked = 0;
         fgEffectiveMultiplier = fgMultiplier;
         fgBoundSecs = 0;
         fgNewScene.set(true);
@@ -519,8 +523,15 @@ public class VulkanRenderer
         int eff = Math.max(2, fgEffectiveMultiplier);
         long disp = fgDisplayPeriodNs;
         long period = fgContentPeriodNs;
-        int slots = eff;
-        if (disp > 0L && period > 0L) slots = Math.max(1, (int) Math.round((double) period / (double) disp));
+        int slots = fgSlotsLocked;
+        if (disp > 0L && period > 0L) {
+            double ratio = (double) period / (double) disp;
+            if (slots < 1 || Math.abs(ratio - slots) > 0.65) {
+                slots = Math.max(1, (int) Math.round(ratio));
+            }
+            fgSlotsLocked = slots;
+        }
+        if (slots < 1) slots = eff;
         int emits = Math.max(1, Math.min(eff, slots));
         fgCadenceM = emits;
         int lastSlot = fgSlotVblank(emits - 1, slots, emits);
@@ -557,12 +568,20 @@ public class VulkanRenderer
                     fgLastPromoteNs = pNs;
                     fgEngineFrames++;
                     fgVblankSincePromote = 0;
+                    fgPromoteVsyncNs = vsync;
                 } else {
                     uiPromote = true;
                 }
             }
         }
-        if (!promoted && tick) fgVblankSincePromote++;
+        if (!promoted) {
+            if (vsync > 0L && disp > 0L && fgPromoteVsyncNs > 0L) {
+                long d = vsync - fgPromoteVsyncNs;
+                fgVblankSincePromote = d <= 0L ? 0 : (int) ((d + disp / 2L) / disp);
+            } else if (tick) {
+                fgVblankSincePromote++;
+            }
+        }
 
         long target = fgPresentTargetNs();
         boolean canInterp = fgMultiplier > 1 && fgEngineFrames >= 2 && period > 0L

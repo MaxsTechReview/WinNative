@@ -23,10 +23,8 @@ bool offFrame(highp vec2 uv) {
     return uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0;
 }
 
-float luma1(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
-
-float valid(vec3 c, highp vec2 p) {
-    return (dot(c, c) > 1e-4 && !offFrame(p)) ? 1.0 : 0.0;
+float valid(highp vec2 p) {
+    return offFrame(p) ? 0.0 : 1.0;
 }
 
 void main() {
@@ -52,7 +50,7 @@ void main() {
     if (imode > 1.5) {
         highp vec2 srcPos = vUV + t * mvBn;
         vec3 cWarp = texture(currFrame, srcPos).rgb;
-        float v = valid(cWarp, srcPos);
+        float v = valid(srcPos);
         cWarp = mix(cCurrFlat, cWarp, v);
 
         vec2 mvBsrc = texture(motionField, srcPos).xy;
@@ -94,26 +92,30 @@ void main() {
                      : (mvB - texture(motionField, uvB).xy);
     float occA = 1.0 - smoothstep(tolE, hiE, dot(dA, dA));
     float occB = 1.0 - smoothstep(tolE, hiE, dot(dB, dB));
-    float lA = (occA - 1.0) * 16.0 + (valid(cA, uvA) - 1.0) * 24.0;
-    float lB = (occB - 1.0) * 16.0 + (valid(cB, uvB) - 1.0) * 24.0;
+    float lA = (occA - 1.0) * 16.0 + (valid(uvA) - 1.0) * 24.0;
+    float lB = (occB - 1.0) * 16.0 + (valid(uvB) - 1.0) * 24.0;
     float mE = max(lA, lB);
     float wA = (1.0 - t) * exp(lA - mE);
     float wB = t * exp(lB - mE);
     float wsum = wA + wB + 1e-6;
-    float selB = wB / wsum;
     vec3 col = (cA * wA + cB * wB) / wsum;
 
-    vec3 repeat = (t < 0.5) ? cPrevFlat : cCurrFlat;
+    vec3 repeat = mix(cPrevFlat, cCurrFlat, t);
     col = mix(repeat, col, uniq * (1.0 - 0.30 * steadier));
 
     vec2 tx = texel;
-    vec3 blur = (texture(currFrame, uvB + vec2(tx.x, 0.0)).rgb
-               + texture(currFrame, uvB - vec2(tx.x, 0.0)).rgb
-               + texture(currFrame, uvB + vec2(0.0, tx.y)).rgb
-               + texture(currFrame, uvB - vec2(0.0, tx.y)).rgb) * 0.25;
+    vec3 blurA = (texture(prevFrame, uvA + vec2(tx.x, 0.0)).rgb
+                + texture(prevFrame, uvA - vec2(tx.x, 0.0)).rgb
+                + texture(prevFrame, uvA + vec2(0.0, tx.y)).rgb
+                + texture(prevFrame, uvA - vec2(0.0, tx.y)).rgb) * 0.25;
+    vec3 blurB = (texture(currFrame, uvB + vec2(tx.x, 0.0)).rgb
+                + texture(currFrame, uvB - vec2(tx.x, 0.0)).rgb
+                + texture(currFrame, uvB + vec2(0.0, tx.y)).rgb
+                + texture(currFrame, uvB - vec2(0.0, tx.y)).rgb) * 0.25;
+    vec3 det = ((cA - blurA) * wA + (cB - blurB) * wB) / wsum;
     float kdet = cnn ? (0.30 - 0.15 * steadier)
-                     : (0.55 - 0.30 * steadier) * selB * (1.0 - smoothstep(9.0, 64.0, dot(mvB, mvB)));
-    col += kdet * clamp(cB - blur, -0.25, 0.25);
+                     : (0.55 - 0.30 * steadier) * (1.0 - smoothstep(9.0, 64.0, dot(mvB, mvB)));
+    col += kdet * clamp(det, -0.25, 0.25);
 
     col = mix(col, cCurrFlat, staticPix);
     outColor = vec4(clamp(col, 0.0, 1.0), 1.0);

@@ -10,7 +10,9 @@ typedef struct CnnPC {
 #define CNN_FLOW_LEVELS 5
 
 static bool cnn_wanted(void) {
-    return true;
+    char v[PROP_VALUE_MAX] = {0};
+    __system_property_get("debug.winnative.fgcnn", v);
+    return v[0] && atoi(v) != 0;
 }
 
 static void cnn_barrier_ml(VkCommandBuffer cmd, VkImage image, uint32_t layers,
