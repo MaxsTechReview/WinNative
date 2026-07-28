@@ -20,6 +20,8 @@ const int LS   = 8;
 const int BR   = 2;
 const int RMAX = 15;
 const float WC = 3.0;
+const int FR   = 5;
+const int OFF  = 2 * BR + 1;
 
 const int TILE_P = LS + 2 * (RMAX + BR); // 42
 const int TILE_C = LS + 2 * BR;          // 12
@@ -98,39 +100,43 @@ void main() {
     ivec2 l       = ivec2(gl_LocalInvocationID.xy);
     ivec2 cCenter = l + ivec2(BR);
 
+    int sdmax = fine ? FR : RMAX;
+    int pdmax = RMAX;
+    int it2 = clamp(8 - int(pc.minStep), 4, 7);
+
     ivec2 center   = ivec2(0);
-    ivec2 bestD    = ivec2(0);
-    float bestCost = blockCost(l, cCenter, ivec2(0));
-
-    int minStep = clamp(int(pc.minStep), 1, 8);
-    for (int step = 8; step >= minStep; step >>= 1) {
-        ivec2 localBestD = center;
-        float localBest  = bestCost;
-        for (int sy = -1; sy <= 1; ++sy) {
-            for (int sx = -1; sx <= 1; ++sx) {
-                if (sx == 0 && sy == 0) continue;
-                ivec2 d = center + ivec2(sx, sy) * step;
-                if (abs(d.x) > RMAX || abs(d.y) > RMAX) continue;
-                float cost = blockCost(l, cCenter, d);
-                if (cost < localBest) { localBest = cost; localBestD = d; }
+    float bestCost = blockCost(l, cCenter, center);
+    for (int step = 2; step >= 1; step >>= 1) {
+        int iters = (step == 2) ? it2 : 2;
+        for (int it = 0; it < iters; ++it) {
+            ivec2 localBestD = center;
+            float localBest  = bestCost;
+            for (int sy = -1; sy <= 1; ++sy) {
+                for (int sx = -1; sx <= 1; ++sx) {
+                    if (sx == 0 && sy == 0) continue;
+                    ivec2 d = center + ivec2(sx, sy) * step;
+                    if (abs(d.x) > sdmax || abs(d.y) > sdmax) continue;
+                    float cost = blockCost(l, cCenter, d);
+                    if (cost < localBest) { localBest = cost; localBestD = d; }
+                }
             }
+            if (localBest >= bestCost) break;
+            bestCost = localBest;
+            center = localBestD;
         }
-        if (localBest < bestCost) { bestCost = localBest; bestD = localBestD; center = localBestD; }
     }
+    ivec2 bestD = clamp(center, ivec2(-(sdmax - 1)), ivec2(sdmax - 1));
 
-    float wsum = 0.0;
-    vec2  disp = vec2(0.0);
-    for (int sy = -1; sy <= 1; ++sy) {
-        for (int sx = -1; sx <= 1; ++sx) {
-            ivec2 dd = bestD + ivec2(sx, sy);
-            if (abs(dd.x) > RMAX || abs(dd.y) > RMAX) continue;
-            float c = (sx == 0 && sy == 0) ? bestCost : blockCost(l, cCenter, dd);
-            float w = exp(-(c - bestCost) * 4.0);
-            disp += w * vec2(dd);
-            wsum += w;
-        }
-    }
-    vec2 sub = (fine ? coarseAt(p) : vec2(0.0)) + disp / max(wsum, 1e-6);
+    float c00 = blockCost(l, cCenter, bestD);
+    float cxm = blockCost(l, cCenter, bestD + ivec2(-1,  0));
+    float cxp = blockCost(l, cCenter, bestD + ivec2( 1,  0));
+    float cym = blockCost(l, cCenter, bestD + ivec2( 0, -1));
+    float cyp = blockCost(l, cCenter, bestD + ivec2( 0,  1));
+    float dx2 = cxm - 2.0 * c00 + cxp;
+    float dy2 = cym - 2.0 * c00 + cyp;
+    vec2 frac = vec2(dx2 > 1e-7 ? clamp(0.5 * (cxm - cxp) / dx2, -0.5, 0.5) : 0.0,
+                     dy2 > 1e-7 ? clamp(0.5 * (cym - cyp) / dy2, -0.5, 0.5) : 0.0);
+    vec2 sub = (fine ? coarseAt(p) : vec2(0.0)) + vec2(bestD) + frac;
 
     float c0 = sCurr[cCenter.y * TILE_C + cCenter.x].x;
     float p0 = luma(textureLod(prevFrame, (vec2(p) + 0.5) * pc.invMvSize, 0.0).rgb);
@@ -139,13 +145,12 @@ void main() {
     float staticC = (1.0 - smoothstep(0.012, 0.025, abs(c0 - p0)))
                   * smoothstep(0.05, 0.12, gx + gy);
 
-    const int OFF = 2 * BR + 1;
     float second = 3.0e30;
-    if (bestD.x + OFF <= RMAX)  second = min(second, blockCost(l, cCenter, bestD + ivec2( OFF, 0)));
-    if (bestD.x - OFF >= -RMAX) second = min(second, blockCost(l, cCenter, bestD + ivec2(-OFF, 0)));
-    if (bestD.y + OFF <= RMAX)  second = min(second, blockCost(l, cCenter, bestD + ivec2(0,  OFF)));
-    if (bestD.y - OFF >= -RMAX) second = min(second, blockCost(l, cCenter, bestD + ivec2(0, -OFF)));
-    float conf = clamp((second - bestCost) / (second + 1.0e-3), 0.0, 1.0);
+    if (bestD.x + OFF <= pdmax)  second = min(second, blockCost(l, cCenter, bestD + ivec2( OFF, 0)));
+    if (bestD.x - OFF >= -pdmax) second = min(second, blockCost(l, cCenter, bestD + ivec2(-OFF, 0)));
+    if (bestD.y + OFF <= pdmax)  second = min(second, blockCost(l, cCenter, bestD + ivec2(0,  OFF)));
+    if (bestD.y - OFF >= -pdmax) second = min(second, blockCost(l, cCenter, bestD + ivec2(0, -OFF)));
+    float conf = clamp((second - c00) / (second + 1.0e-3), 0.0, 1.0);
 
     imageStore(motionField, p, vec4(sub * pc.mvScale, staticC, conf));
 }

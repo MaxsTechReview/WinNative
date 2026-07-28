@@ -3096,6 +3096,7 @@ static void fg_destroy_dump(VkRenderer* r) {
 // Blit srcImg (full res, given layout) -> fg_dump_img (480x270) -> fg_dump_buf[bufIdx]. Restores srcImg.
 static void fg_record_dump(VkRenderer* r, VkCommandBuffer cmd, VkImage srcImg, VkImageLayout srcLayout, uint32_t srcW, uint32_t srcH, uint32_t bufIdx, int rawF16) {
     if (!r->fg_dump_supported || bufIdx >= FG_DUMP_BUFS) return;
+    r->fg_dump_w[bufIdx] = srcW; r->fg_dump_h[bufIdx] = srcH;
     vkr_image_barrier(cmd, srcImg,
         srcLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -3173,11 +3174,21 @@ static void fg_dump_flush(VkRenderer* r) {
         if (ok) {
             snprintf(path, sizeof(path), "%s/fgdump_info.txt", dirs[d]);
             FILE* fp = fopen(path, "w");
-            if (fp) { fprintf(fp, "480 270 RGBA8 8gen+prev+curr\n"); fclose(fp); }
+            if (fp) {
+                fprintf(fp, "blit %u %u RGBA8\n", FG_DUMP_W, FG_DUMP_H);
+                for (uint32_t i = 0; i < FG_DUMP_BUFS; i++) {
+                    const char* k = r->fg_dump_kind[i] == 1 ? "prev"
+                                  : r->fg_dump_kind[i] == 2 ? "curr"
+                                  : r->fg_dump_kind[i] == 3 ? "flow" : "unused";
+                    fprintf(fp, "%02u %s %u %u %.4f\n", i, k,
+                            r->fg_dump_w[i], r->fg_dump_h[i], (double)r->fg_dump_phase_of[i]);
+                }
+                fclose(fp);
+            }
             used = dirs[d];
         }
     }
-    if (used) VK_LOGI("fgdump written: %s/fgdump_NN.raw (00-07 gen, 08 prev, 09 curr)", used);
+    if (used) VK_LOGI("fgdump written: %s/fgdump_NN.raw + fgdump_info.txt", used);
     else      VK_LOGE("fgdump write failed (no writable path)");
     r->fg_dump_armed = false; r->fg_dump_count = 0;
 }
@@ -3911,6 +3922,31 @@ static FgPending fg_worker_generate(VkRenderer* r, const FgJob* job) {
                         VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
                 }
             }
+        }
+    }
+
+    if (do_interp) {
+        fg_dump_poll(r);
+        if (r->fg_dump_supported && r->fg_dump_armed && r->fg_dump_count + 3u <= FG_DUMP_N
+            && curr_idx != s_fgseq_last_curr) {
+            s_fgseq_last_curr = curr_idx;
+            uint32_t b0 = r->fg_dump_count;
+            r->fg_dump_kind[b0] = 1; r->fg_dump_phase_of[b0] = 0.0f;
+            fg_record_dump(r, f->cmd, r->fg_history[prev_idx].image,
+                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                           r->fg_dims.width, r->fg_dims.height, b0, 0);
+            r->fg_dump_kind[b0+1] = 2; r->fg_dump_phase_of[b0+1] = 1.0f;
+            fg_record_dump(r, f->cmd, curr->image,
+                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                           r->fg_dims.width, r->fg_dims.height, b0+1, 0);
+            r->fg_dump_kind[b0+2] = 3; r->fg_dump_phase_of[b0+2] = job->phase;
+            fg_record_dump(r, f->cmd, r->fg_motion[parity].image,
+                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                           r->fg_motion[parity].width, r->fg_motion[parity].height, b0+2, 1);
+            VK_LOGI("fgseq[%u..%u] prev/curr/flow (phase=%.3f flow=%ux%u prev=%u curr=%u)",
+                    b0, b0+2, (double)job->phase,
+                    r->fg_motion[parity].width, r->fg_motion[parity].height, prev_idx, curr_idx);
+            r->fg_dump_count += 3u;
         }
     }
 

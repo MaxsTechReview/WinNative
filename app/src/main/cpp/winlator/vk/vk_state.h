@@ -509,6 +509,9 @@ typedef struct VkRenderer {
     bool             fg_sig_supported;       // blit+readback path created OK (else dedup disabled)
     int32_t          fg_stage_slot;          // history slot holding the pending frame, -1 = none
     bool             fg_stage_force;
+    uint32_t         fg_dump_w[10], fg_dump_h[10];
+    uint8_t          fg_dump_kind[10];
+    float            fg_dump_phase_of[10];
     VkFence          fg_stage_fence;
     uint64_t         fg_last_promote_ns;
     double           fg_last_sig_delta;
