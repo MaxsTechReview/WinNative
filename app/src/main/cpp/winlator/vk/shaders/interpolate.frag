@@ -158,14 +158,22 @@ void main() {
     float softConf = cnn ? 1.0 : clamp(0.55 + 0.45 * smoothstep(0.02, 0.25, maskConf.y), 0.0, 1.0);
     col = mix(repeat, col, wAgree * softConf * flowOk * (1.0 - 0.30 * steadier));
 
+    // Blending two samples that are misaligned by even a fraction of a pixel cancels
+    // high-frequency detail, so a warped frame loses surface texture. Put it back from
+    // the same weighted mix the colour came from. This used to be faded out as motion
+    // grew, which switched it off exactly where the loss is worst.
     vec2 tx = texel;
-    vec3 blur = (texture(currFrame, uvB + vec2(tx.x, 0.0)).rgb
-               + texture(currFrame, uvB - vec2(tx.x, 0.0)).rgb
-               + texture(currFrame, uvB + vec2(0.0, tx.y)).rgb
-               + texture(currFrame, uvB - vec2(0.0, tx.y)).rgb) * 0.25;
-    float kdet = cnn ? (0.30 - 0.15 * steadier)
-                     : (0.30 - 0.15 * steadier) * (1.0 - smoothstep(9.0, 64.0, dot(mvB, mvB)));
-    col += kdet * clamp(cB - blur, -0.25, 0.25);
+    vec3 blurA = (texture(prevFrame, uvA + vec2(tx.x, 0.0)).rgb
+                + texture(prevFrame, uvA - vec2(tx.x, 0.0)).rgb
+                + texture(prevFrame, uvA + vec2(0.0, tx.y)).rgb
+                + texture(prevFrame, uvA - vec2(0.0, tx.y)).rgb) * 0.25;
+    vec3 blurB = (texture(currFrame, uvB + vec2(tx.x, 0.0)).rgb
+                + texture(currFrame, uvB - vec2(tx.x, 0.0)).rgb
+                + texture(currFrame, uvB + vec2(0.0, tx.y)).rgb
+                + texture(currFrame, uvB - vec2(0.0, tx.y)).rgb) * 0.25;
+    vec3 detail = ((cA - blurA) * wA + (cB - blurB) * wB) / wsum;
+    float kdet = 0.70 - 0.25 * steadier;
+    col += kdet * clamp(detail, -0.25, 0.25);
 
     col = mix(col, repeat, staticPix);
     outColor = vec4(clamp(col, 0.0, 1.0), 1.0);

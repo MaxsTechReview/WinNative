@@ -56,6 +56,9 @@ static void px(int x, int y, float r, float g, float b, float a) {
 static float cloud[CLH][CLW];
 #define NTILE 64
 static float tilecol[NTILE][3];
+#define DET 128
+#define DETMASK (DET - 1)
+static float detail[DET][DET];
 
 static float vnoise(const float *g, int gw, int gh, float x, float y) {
     int x0 = ffloor(x), y0 = ffloor(y);
@@ -88,6 +91,15 @@ static void build_tables(void) {
     for (int y = 0; y < CLH; y++)
         for (int x = 0; x < CLW; x++)
             cloud[y][x] = smoothstepf(0.45f, 0.88f, (cloud[y][x] - lo) / (hi - lo + 1e-6f));
+    /* fine surface detail: real high-frequency texture, which flat shading cannot
+       provide and which is the first thing a misaligned blend destroys */
+    for (int y = 0; y < DET; y++)
+        for (int x = 0; x < DET; x++) {
+            float a = hash1((float)(y * DET + x) * 0.917f + 4.1f);
+            float b = hash1((float)(((y >> 1) << 7) + (x >> 1)) * 1.703f + 8.3f);
+            float c = hash1((float)(((y >> 2) << 7) + (x >> 2)) * 2.311f + 2.7f);
+            detail[y][x] = (a - 0.5f) * 0.60f + (b - 0.5f) * 0.28f + (c - 0.5f) * 0.16f;
+        }
     for (int i = 0; i < NTILE; i++) {
         float h = hash1(i * 3.17f + 0.5f), h2 = hash1(i * 8.11f), h3 = hash1(i * 5.03f);
         tilecol[i][0] = 0.16f + h * 0.10f;
@@ -157,12 +169,17 @@ static void draw_world(float t, float camx) {
         float dwx = z / FOCAL;
         float wx = (0.5f - RW * 0.5f) * dwx + camx;
         int iz = ffloor(z * INVCELL);
+        float detfade = 0.55f * smoothstepf(26.f, 5.f, z);
         unsigned char *p = PIX(0, y);
         for (int x = 0; x < RW; x++, p += 4) {
             int ix = ffloor(wx * INVCELL);
             unsigned h = (unsigned)(ix * 73856093) ^ (unsigned)(iz * 19349663);
             const float *tc = tilecol[(h >> 7) & (NTILE - 1)];
             float k = ((ix + iz) & 1) ? 1.22f : 0.86f;
+            /* detail fades out with distance, as a mip chain would, so it does not alias */
+            float dv = detail[ffloor(z * 22.f) & DETMASK][ffloor(wx * 22.f) & DETMASK]
+                     * detfade;
+            k += dv;
             p[2] = (unsigned char)(clampf(tc[0] * k * fade + hr, 0, 1) * 255.f);
             p[1] = (unsigned char)(clampf(tc[1] * k * fade + hg, 0, 1) * 255.f);
             p[0] = (unsigned char)(clampf(tc[2] * k * fade + hb, 0, 1) * 255.f);
@@ -220,7 +237,8 @@ static void bar(float x0, float y0, float x1, float y1, float w, float r, float 
             float ox = pxx - dx * tp, oy = pyy - dy * tp;
             float d2 = ox * ox + oy * oy;
             if (d2 >= wo2) continue;
-            px(x, y, r, g, b, d2 <= wi2 ? 1.f : smoothstepf(w, wi, sqrtf(d2)));
+            float dv = detail[(y * 3) & DETMASK][(x * 3) & DETMASK] * 0.5f;
+            px(x, y, r + dv, g + dv, b + dv, d2 <= wi2 ? 1.f : smoothstepf(w, wi, sqrtf(d2)));
         }
 }
 
