@@ -172,7 +172,7 @@ void main() {
                 + texture(currFrame, uvB + vec2(0.0, tx.y)).rgb
                 + texture(currFrame, uvB - vec2(0.0, tx.y)).rgb) * 0.25;
     vec3 detail = ((cA - blurA) * wA + (cB - blurB) * wB) / wsum;
-    float kdet = 0.70 - 0.25 * steadier;
+    float kdet = 0.95 - 0.30 * steadier;
     col += kdet * clamp(detail, -0.25, 0.25);
 
     col = mix(col, repeat, staticPix);
