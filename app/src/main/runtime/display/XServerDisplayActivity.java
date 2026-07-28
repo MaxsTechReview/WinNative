@@ -8637,12 +8637,24 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         );
     }
 
+    // .msi and .bat/.cmd aren't PE images, so CreateProcess can't start them; run them through their interpreter.
+    private static String buildGuestProgramArgs(String windowsPath) {
+        String lower = windowsPath.toLowerCase(java.util.Locale.ROOT);
+        if (lower.endsWith(".msi")) {
+            return "\"C:\\windows\\system32\\msiexec.exe\" /i \"" + windowsPath + "\" /passive /norestart";
+        }
+        if (lower.endsWith(".bat") || lower.endsWith(".cmd")) {
+            return "\"C:\\windows\\system32\\cmd.exe\" /c \"" + windowsPath + "\"";
+        }
+        return "\"" + windowsPath + "\"";
+    }
+
     private String getWineStartCommand(GuestProgramLauncherComponent launcherComponent) {
         EnvVars envVars = getOverrideEnvVars();
         String args = "";
 
         if (bootExePath != null && !bootExePath.isEmpty()) {
-            args = "\"" + bootExePath + "\"";
+            args = buildGuestProgramArgs(bootExePath);
             if (bootExeArgs != null && !bootExeArgs.isEmpty()) args += " " + bootExeArgs;
         } else if (shortcut != null) {
             String path = shortcut.path;
@@ -8870,7 +8882,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         }
                     }
 
-                    args = "\"" + path + "\"" + extraArgs;
+                    args = buildGuestProgramArgs(path) + extraArgs;
                 } else {
                     args = "\"wfm.exe\"";
                 }

@@ -805,11 +805,8 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
     }
 
     fun selectExecutable(path: String) {
-        val launchable =
-            path.endsWith(".exe", ignoreCase = true) ||
-                path.endsWith(".bat", ignoreCase = true) ||
-                path.endsWith(".cmd", ignoreCase = true)
-        if (!launchable || !java.io.File(path).isFile) {
+        val file = java.io.File(path)
+        if (!file.isFile || file.extension.lowercase() !in DirectoryPickerDialog.ExecutableExtensions) {
             com.winlator.cmod.shared.ui.toast.WinToast.show(
                 context,
                 R.string.common_ui_select_valid_exe_file,
@@ -902,7 +899,7 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
                             Icon(Icons.Outlined.FolderOpen, contentDescription = null, tint = Accent, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                selectedExePath ?: "Select Executable (.exe)",
+                                selectedExePath ?: "Select Executable",
                                 color = if (selectedExePath == null) TextSecondary else TextPrimary,
                                 maxLines = if (selectedExePath == null) 1 else Int.MAX_VALUE,
                                 overflow = if (selectedExePath == null) TextOverflow.Ellipsis else TextOverflow.Visible,

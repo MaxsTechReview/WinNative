@@ -157,7 +157,7 @@ object DirectoryPickerDialog {
     private val TextPrimary = WinNativeTextPrimary
     private val TextSecondary = WinNativeTextSecondary
 
-    val ExecutableExtensions = setOf("exe", "bat", "cmd")
+    val ExecutableExtensions = setOf("exe", "bat", "cmd", "msi")
 
     private enum class SelectionMode {
         DIRECTORY,
