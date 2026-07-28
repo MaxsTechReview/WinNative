@@ -1014,7 +1014,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         fexcorePresetIds = ids
         val saved = container?.getFEXCorePreset()
             ?: PreferenceManager.getDefaultSharedPreferences(context)
-                .getString("fexcore_preset", FEXCorePreset.PERFORMANCE)
+                .getString("fexcore_preset", FEXCorePreset.PERFORMANCE_TSO)
         val idx = ids.indexOfFirst { it == saved }
         state.selectedFexcorePreset.intValue = if (idx >= 0) idx else 0
     }
