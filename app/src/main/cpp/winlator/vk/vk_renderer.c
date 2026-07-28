@@ -3372,7 +3372,34 @@ static void fg_collect_present_timing(VkRenderer* r) {
     }
 }
 
-static bool fg_submit(VkRenderer* r, FgMode mode, float phase, uint64_t target_ns) {
+static bool fg_resolve_stage(VkRenderer* r, bool blocking) {
+    if (!r->fg_sig_supported || r->fg_stage_slot < 0) return false;
+    uint32_t sslot = (uint32_t)r->fg_stage_slot;
+    VkFence fence = r->fg_slot_fence[sslot];
+    if (fence != VK_NULL_HANDLE) {
+        if (blocking) vkWaitForFences(r->device, 1, &fence, VK_TRUE, UINT64_MAX);
+        else if (vkGetFenceStatus(r->device, fence) != VK_SUCCESS) return false;
+    }
+    double delta = fg_sig_delta(r, sslot, r->fg_history_curr);
+    r->fg_last_sig_delta = delta;
+    uint64_t nowp = now_monotonic_ns();
+    bool backstop = (r->fg_last_promote_ns != 0) && (nowp - r->fg_last_promote_ns > 100000000ull);
+    bool promote = delta > 0.0 || r->fg_history_count < 2u || backstop || r->fg_stage_force;
+    r->fg_stage_slot = -1;
+    r->fg_stage_force = false;
+    if (!promote) { r->fg_dup_dropped++; return false; }
+    r->fg_history_curr = sslot;
+    if (r->fg_history_count < 3) r->fg_history_count++;
+    r->fg_motion_valid = false; r->fg_motion_fwd_valid = false;
+    r->fg_last_promote_ns = nowp;
+    r->fg_promote_ns = nowp;
+    r->fg_distinct++;
+    r->fg_promote_seq++;
+    r->fg_promote_count++;
+    return true;
+}
+
+static bool fg_submit(VkRenderer* r, FgMode mode, float phase, uint64_t target_ns, bool force_promote) {
     if (!r->surface_ready || !r->swapchain) return false;
     pthread_mutex_lock(&r->render_mutex);
     if (!r->surface_ready || !r->swapchain || r->swapchain_image_count == 0
@@ -3406,30 +3433,7 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase, uint64_t target_n
 
         SceneTargets st = manage_scene_targets(r, &snap);
 
-        // Content-dedup step 1: resolve the previous staged frame (deferred promote).
-        bool promoted = false;
-        if (r->fg_sig_supported && r->fg_stage_slot >= 0) {
-            uint32_t sslot = (uint32_t)r->fg_stage_slot;
-            if (r->fg_slot_fence[sslot] != VK_NULL_HANDLE)
-                vkWaitForFences(r->device, 1, &r->fg_slot_fence[sslot], VK_TRUE, UINT64_MAX);
-            double delta = fg_sig_delta(r, sslot, r->fg_history_curr);   // = # signature pixels that moved
-            r->fg_last_sig_delta = delta;
-            uint64_t nowp = now_monotonic_ns();
-            bool backstop = (r->fg_last_promote_ns != 0) && (nowp - r->fg_last_promote_ns > 100000000ull);
-            if (delta > 0.0 || r->fg_history_count < 2u || backstop) {
-                r->fg_history_curr = sslot;
-                if (r->fg_history_count < 3) r->fg_history_count++;
-                r->fg_motion_valid = false; r->fg_motion_fwd_valid = false;
-                r->fg_last_promote_ns = nowp;
-                r->fg_promote_ns = nowp;
-                r->fg_distinct++;
-                r->fg_promote_seq++;   // worker jobs snapshot this to drop a present whose pair was reused
-                promoted = true;
-            } else {
-                r->fg_dup_dropped++;
-            }
-            r->fg_stage_slot = -1;
-        }
+        bool promoted = fg_resolve_stage(r, true);
 
         // Step 2: composite the incoming frame into a staging slot (neither curr nor prev).
         uint32_t stage = (r->fg_history_curr + 1u) % 3u;
@@ -3458,15 +3462,17 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase, uint64_t target_n
         }
         r->fg_slot_fence[stage] = f->in_flight;
         if (r->fg_sig_supported) {
-            r->fg_stage_slot = (int32_t)stage;        // pending; promoted on the next HOLD
+            r->fg_stage_slot = (int32_t)stage;
+            r->fg_stage_force = force_promote;
         } else {
-            r->fg_history_curr = stage;               // no dedup: behave as before (advance every HOLD)
+            r->fg_history_curr = stage;
             if (r->fg_history_count < 3) r->fg_history_count++;
             r->fg_motion_valid = false; r->fg_motion_fwd_valid = false;
             r->fg_promote_ns = now_monotonic_ns();
-            promoted = true;
+            r->fg_promote_seq++;
+            r->fg_promote_count++;
         }
-        if (promoted) r->fg_promote_count++;
+        (void)promoted;
         g_fg_holds++;
         pthread_mutex_unlock(&r->render_mutex);
         r->frame_index = (r->frame_index + 1) % vkr_active_fif(r);
@@ -3806,8 +3812,8 @@ static FgPending fg_worker_generate(VkRenderer* r, const FgJob* job) {
     if (!r->fg_built) { pthread_mutex_unlock(&r->render_mutex); g_fg_dropped++; return p; }
     bool stale = (uint32_t)(r->fg_promote_seq - job->seq) >= 2u;
     bool do_interp = want_interp && !stale && r->fg_history_count >= 2u;
-    uint32_t curr_idx = do_interp ? job->curr_idx : r->fg_history_curr;
-    uint32_t prev_idx = do_interp ? job->prev_idx : ((r->fg_history_curr + 2u) % 3u);
+    uint32_t curr_idx = stale ? r->fg_history_curr : job->curr_idx;
+    uint32_t prev_idx = stale ? ((r->fg_history_curr + 2u) % 3u) : job->prev_idx;
     bool deep = job->deep && do_interp;
     uint32_t parity = curr_idx;
     VkFgImage* curr = &r->fg_history[curr_idx];
@@ -4682,11 +4688,21 @@ JNIEXPORT jlong JNICALL JNI_FN(nativeGetDisplayFrameCount)(JNIEnv* env, jclass c
     return (jlong)c;
 }
 
-JNIEXPORT jboolean JNICALL JNI_FN(nativeRenderHold)(JNIEnv* env, jclass clazz, jlong handle) {
+JNIEXPORT jboolean JNICALL JNI_FN(nativeFgResolveStage)(JNIEnv* env, jclass clazz, jlong handle) {
     (void)env; (void)clazz;
     VkRenderer* r = (VkRenderer*)(intptr_t)handle;
     if (!r || !r->surface_ready) return JNI_FALSE;
-    return fg_submit(r, FG_MODE_HOLD, 0.5f, 0u) ? JNI_TRUE : JNI_FALSE;
+    pthread_mutex_lock(&r->render_mutex);
+    bool p = fg_resolve_stage(r, false);
+    pthread_mutex_unlock(&r->render_mutex);
+    return p ? JNI_TRUE : JNI_FALSE;
+}
+
+JNIEXPORT jboolean JNICALL JNI_FN(nativeRenderHold)(JNIEnv* env, jclass clazz, jlong handle, jboolean forcePromote) {
+    (void)env; (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
+    if (!r || !r->surface_ready) return JNI_FALSE;
+    return fg_submit(r, FG_MODE_HOLD, 0.5f, 0u, forcePromote == JNI_TRUE) ? JNI_TRUE : JNI_FALSE;
 }
 
 // out[0]=promote count, out[1]=last promote time (ns), out[2]=duplicates dropped, out[3]=distinct total.

@@ -73,6 +73,7 @@ public class VulkanRenderer
     private volatile long fgPrevGameNs = 0;
     private volatile long fgCurrentVsyncNs = 0;
     private long fgLastEmitVsyncNs = 0;
+    private boolean fgForcePromote = false;
     private Drawable fgLastScanoutSrc = null;
     private Drawable fgFirstScanoutSrc = null;
     private boolean fgMultiBuffer = false;
@@ -510,78 +511,85 @@ public class VulkanRenderer
         if (fgResyncPending) { fgResyncPending = false; doFgResync(); }
         boolean newGame = fgNewScene.getAndSet(false);
         boolean dirty   = fgSceneDirty.getAndSet(false);
-        fgEmitWasHold = newGame || dirty;
-        boolean promoted = false;
-        if (newGame || dirty) {
-            buildAndSubmitFrame();                       // HOLD: stage incoming; native promotes only distinct content
-            if (nativeHandle != 0) {
-                nativeFgPromoteInfo(nativeHandle, fgPromoteInfo);
-                if (fgPromoteInfo[0] != fgPromoteSeen) {
-                    fgPromoteSeen = fgPromoteInfo[0];
+
+        long vsync = fgCurrentVsyncNs;
+        boolean tick = vsync == 0L || vsync != fgLastEmitVsyncNs;
+        if (tick) fgLastEmitVsyncNs = vsync;
+
+        int eff = Math.max(2, fgEffectiveMultiplier);
+        long disp = fgDisplayPeriodNs;
+        long period = fgContentPeriodNs;
+        int slots = eff;
+        if (disp > 0L && period > 0L) slots = Math.max(1, (int) Math.round((double) period / (double) disp));
+        int emits = Math.max(1, Math.min(eff, slots));
+        fgCadenceM = emits;
+        int lastSlot = fgSlotVblank(emits - 1, slots, emits);
+
+        boolean staticContent = period <= 0L || fgLastPromoteNs == 0L
+                || (System.nanoTime() - fgLastPromoteNs) > 2L * period;
+        boolean uiHold = dirty && !newGame && staticContent;
+        if (dirty && !newGame && !staticContent) fgSceneDirty.set(true);
+        boolean hold = newGame || uiHold;
+        fgEmitWasHold = hold;
+
+        boolean promoted = false, uiPromote = false;
+        if (nativeHandle != 0) {
+            if (hold) fgBuildAndStage(uiHold);
+            else nativeFgResolveStage(nativeHandle);
+            nativeFgPromoteInfo(nativeHandle, fgPromoteInfo);
+            if (fgPromoteInfo[0] != fgPromoteSeen) {
+                fgPromoteSeen = fgPromoteInfo[0];
+                long pNs = fgLastGameNs != 0L ? fgLastGameNs
+                        : (fgPromoteInfo[1] != 0L ? fgPromoteInfo[1] : System.nanoTime());
+                if (pNs != fgLastPromoteNs) {
                     promoted = true;
-                    long pNs = fgLastGameNs != 0L ? fgLastGameNs
-                            : (fgPromoteInfo[1] != 0L ? fgPromoteInfo[1] : System.nanoTime());
                     if (fgLastPromoteNs != 0L) {
-                        long d = pNs - fgLastPromoteNs;   // interval between distinct frames = content period
+                        long d = pNs - fgLastPromoteNs;
                         if (d > 0L && d < 500_000_000L) {
                             fgContentPeriodNs = fgContentPeriodNs == 0L ? d
                                     : fgContentPeriodNs + (d - fgContentPeriodNs) / 8L;
                             double inst = 1.0e9 / (double) fgContentPeriodNs;
                             fgLockedGameHz = fgLockedGameHz <= 0.0 ? inst
                                     : fgLockedGameHz + (inst - fgLockedGameHz) * 0.25;
-                                        }
+                        }
                     }
                     fgPrevPromoteNs = fgLastPromoteNs;
                     fgLastPromoteNs = pNs;
                     fgEngineFrames++;
                     fgVblankSincePromote = 0;
+                } else {
+                    uiPromote = true;
                 }
             }
         }
-        long vsync = fgCurrentVsyncNs;
-        boolean tick = vsync == 0L || vsync != fgLastEmitVsyncNs;
-        if (tick) fgLastEmitVsyncNs = vsync;
         if (!promoted && tick) fgVblankSincePromote++;
 
-        long period = fgContentPeriodNs;
         long target = fgPresentTargetNs();
         boolean canInterp = fgMultiplier > 1 && fgEngineFrames >= 2 && period > 0L
                             && fgLastPromoteNs != 0L && fgPrevPromoteNs != 0L;
         if (!canInterp) {
-            if (newGame || dirty) {
+            if (hold || uiPromote) {
                 nativePresentLast(nativeHandle, 0f, fgPrevPromoteNs, fgLastPromoteNs, target);
                 return 2;
             }
             return 0;
         }
-
-        int eff = Math.max(2, fgEffectiveMultiplier);
-        long disp = fgDisplayPeriodNs;
-        int slots = eff;
-        if (disp > 0L) slots = Math.max(1, (int) Math.round((double) period / (double) disp));
-        int emits = Math.max(1, Math.min(eff, slots));
-        fgCadenceM = emits;
 
         int vi = fgVblankSincePromote;
-        int lastSlot = fgSlotVblank(emits - 1, slots, emits);
-        if (!tick && !promoted) {
-            if (dirty && !newGame && vi > lastSlot) {
+        if (vi > lastSlot) {
+            if (uiPromote) {
                 nativePresentLast(nativeHandle, 0f, fgPrevPromoteNs, fgLastPromoteNs, target);
                 return 2;
             }
             return 0;
         }
+        if (!tick && !promoted) return 0;
+
         int k = -1;
         for (int i = 0; i < emits; i++) {
             if (fgSlotVblank(i, slots, emits) == vi) { k = i; break; }
         }
-        if (k < 0) {
-            if (dirty && !newGame && vi > lastSlot) {
-                nativePresentLast(nativeHandle, 0f, fgPrevPromoteNs, fgLastPromoteNs, target);
-                return 2;
-            }
-            return 0;
-        }
+        if (k < 0) return 0;
 
         int realSlot = fgExtrapolate ? 0 : emits - 1;
         if (k == realSlot) {
@@ -1058,9 +1066,18 @@ public class VulkanRenderer
         nativeSetScene(nativeHandle, buf);
         if (frameGenEnabled) {
             // FG: render into the history ring without presenting; presents are issued by fgEmitOne().
-            nativeRenderHold(nativeHandle);
+            nativeRenderHold(nativeHandle, fgForcePromote);
         } else {
             nativeRenderFrame(nativeHandle);
+        }
+    }
+
+    private void fgBuildAndStage(boolean uiOnly) {
+        fgForcePromote = uiOnly;
+        try {
+            buildAndSubmitFrame();
+        } finally {
+            fgForcePromote = false;
         }
     }
 
@@ -1461,7 +1478,8 @@ public class VulkanRenderer
     private static native void nativeSetFrameGeneration(long handle, boolean enabled);
     private static native boolean nativeFrameGenerationSupported(long handle);
     private static native long nativeGetDisplayFrameCount(long handle);
-    private static native boolean nativeRenderHold(long handle);
+    private static native boolean nativeRenderHold(long handle, boolean forcePromote);
+    private static native boolean nativeFgResolveStage(long handle);
     private static native boolean nativeRenderInterp(long handle, float phase, long prevNs, long currNs, long targetNs);
     private static native void nativeFgPromoteInfo(long handle, long[] out);
     private static native boolean nativePresentLast(long handle, float phase, long prevNs, long currNs, long targetNs);

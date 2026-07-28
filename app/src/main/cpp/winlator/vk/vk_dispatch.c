@@ -127,6 +127,7 @@ bool vkd_load_instance(VkInstance instance) {
     LOAD(DestroyFence);
     LOAD(ResetFences);
     LOAD(WaitForFences);
+    LOAD(GetFenceStatus);
     LOAD(CreateSemaphore);
     LOAD(DestroySemaphore);
 

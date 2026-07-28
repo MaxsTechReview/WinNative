@@ -97,6 +97,7 @@ typedef struct VkDispatch {
     PFN_vkDestroyFence DestroyFence;
     PFN_vkResetFences ResetFences;
     PFN_vkWaitForFences WaitForFences;
+    PFN_vkGetFenceStatus GetFenceStatus;
     PFN_vkCreateSemaphore CreateSemaphore;
     PFN_vkDestroySemaphore DestroySemaphore;
 
@@ -226,6 +227,7 @@ void vkd_unload(void);
 #define vkDestroyFence vkd.DestroyFence
 #define vkResetFences vkd.ResetFences
 #define vkWaitForFences vkd.WaitForFences
+#define vkGetFenceStatus vkd.GetFenceStatus
 #define vkCreateSemaphore vkd.CreateSemaphore
 #define vkDestroySemaphore vkd.DestroySemaphore
 
