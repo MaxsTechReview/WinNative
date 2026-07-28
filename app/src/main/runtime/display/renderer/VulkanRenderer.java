@@ -92,7 +92,7 @@ public class VulkanRenderer
     private volatile boolean fgDeepMode = false;
     private volatile boolean fgExtrapolate = false;   // false = interpolate, true = extrapolate
     private volatile int fgModel = 0;                  // 0 = standard, 1 = steadier
-    private volatile float fgFlowScale = 0.5f;         // flow-field resolution scale [0.2,1.0]
+    private volatile float fgFlowScale = 0.15f;
     private volatile int fgFramesInFlight = 3;         // compositor buffering depth (1..3)
     private volatile Surface fgSurface;
     private float fgFrameRateHint = -1f;
@@ -295,7 +295,7 @@ public class VulkanRenderer
     public void setFrameGenerationPreset(int quality, int model, float flowScale) {
         fgQuality = quality < 0 ? 0 : (quality > 2 ? 2 : quality);
         fgModel = model <= 0 ? 0 : 1;
-        float fs = flowScale < 0.2f ? 0.2f : (flowScale > 1.0f ? 1.0f : flowScale);
+        float fs = flowScale < 0.05f ? 0.05f : (flowScale > 1.0f ? 1.0f : flowScale);
         boolean flowChanged = Math.abs(fs - fgFlowScale) > 1e-4f;
         fgFlowScale = fs;
         pushFrameGenParams();

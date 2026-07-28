@@ -313,9 +313,8 @@ static bool fg_create_cnn_resources(VkRenderer* r, uint32_t w, uint32_t h) {
                    F16 = VK_FORMAT_R16G16B16A16_SFLOAT;
     VkFgCnn* C = &r->fg_cnn;
 
-    float fs = r->fg_flow_scale >= 0.2f ? (r->fg_flow_scale <= 1.0f ? r->fg_flow_scale : 1.0f) : 0.5f;
-    uint32_t mw = (uint32_t)((float)w * fs); if (mw < 1u) mw = 1u;
-    uint32_t mh = (uint32_t)((float)h * fs); if (mh < 1u) mh = 1u;
+    uint32_t mw, mh;
+    fg_flow_dims(r, w, h, &mw, &mh);
     uint32_t lw[CNN_LEVELS], lh[CNN_LEVELS];
     for (int L = 0; L < CNN_LEVELS; L++) {
         lw[L] = (L == 0) ? mw : (lw[L-1] > 1 ? lw[L-1] / 2 : 1u);
@@ -432,7 +431,7 @@ static bool fg_create_cnn_resources(VkRenderer* r, uint32_t w, uint32_t h) {
     C->genReady = true;
 
     C->ready = true;
-    VK_LOGI("CNN-FG resources allocated (L0 %ux%u, %d levels, fs=%.2f)", mw, mh, CNN_LEVELS, (double)fs);
+    VK_LOGI("CNN-FG resources allocated (L0 %ux%u, %d levels)", mw, mh, CNN_LEVELS);
     return true;
 }
 

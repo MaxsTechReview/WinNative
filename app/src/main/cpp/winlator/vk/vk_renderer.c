@@ -92,6 +92,7 @@ static bool pick_physical_device(VkRenderer* r);
 static bool create_device(VkRenderer* r);
 static void query_device_caps(VkRenderer* r);
 static bool cnn_wanted(void);
+static void fg_flow_dims(const VkRenderer* r, uint32_t w, uint32_t h, uint32_t* outW, uint32_t* outH);
 static bool create_cnn_pipelines(VkRenderer* r);
 static void destroy_cnn_pipelines(VkRenderer* r);
 static bool fg_create_cnn_resources(VkRenderer* r, uint32_t w, uint32_t h);
@@ -3181,6 +3182,21 @@ static void fg_dump_flush(VkRenderer* r) {
     r->fg_dump_armed = false; r->fg_dump_count = 0;
 }
 
+#define FG_FLOW_MAX_EDGE 480u
+
+static void fg_flow_dims(const VkRenderer* r, uint32_t w, uint32_t h, uint32_t* outW, uint32_t* outH) {
+    float fs = r->fg_flow_scale >= 0.05f ? (r->fg_flow_scale <= 1.0f ? r->fg_flow_scale : 1.0f) : 0.15f;
+    uint32_t mw = (uint32_t)((float)w * fs); if (mw < 1u) mw = 1u;
+    uint32_t mh = (uint32_t)((float)h * fs); if (mh < 1u) mh = 1u;
+    uint32_t edge = mw > mh ? mw : mh;
+    if (edge > FG_FLOW_MAX_EDGE) {
+        float k = (float)FG_FLOW_MAX_EDGE / (float)edge;
+        mw = (uint32_t)((float)mw * k); if (mw < 1u) mw = 1u;
+        mh = (uint32_t)((float)mh * k); if (mh < 1u) mh = 1u;
+    }
+    *outW = mw; *outH = mh;
+}
+
 static bool fg_create_resources(VkRenderer* r, uint32_t w, uint32_t h) {
     VkSamplerCreateInfo si = {VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
     si.magFilter = VK_FILTER_LINEAR; si.minFilter = VK_FILTER_LINEAR;
@@ -3191,11 +3207,12 @@ static bool fg_create_resources(VkRenderer* r, uint32_t w, uint32_t h) {
     if (!fg_create_color_target(r, &r->fg_history[1], w, h)) goto fail;
     if (!fg_create_color_target(r, &r->fg_history[2], w, h)) goto fail;
     {
-        float fs = r->fg_flow_scale >= 0.2f ? (r->fg_flow_scale <= 1.0f ? r->fg_flow_scale : 1.0f) : 0.5f;
-        uint32_t mw = (uint32_t)((float)w * fs); if (mw < 1u) mw = 1u;
-        uint32_t mh = (uint32_t)((float)h * fs); if (mh < 1u) mh = 1u;
+        uint32_t mw, mh;
+        fg_flow_dims(r, w, h, &mw, &mh);
         uint32_t cw = (mw / 2) ? (mw / 2) : 1u, ch = (mh / 2) ? (mh / 2) : 1u;
-        r->fg_built_flow_scale = fs;
+        r->fg_built_flow_scale = r->fg_flow_scale;
+        VK_LOGI("FG flow field %ux%u (scale %.2f, search range +-%d px)",
+                mw, mh, (double)r->fg_flow_scale, (int)(30.0f * (float)w / (float)mw));
         for (uint32_t mi = 0; mi < 3; mi++) {
             if (!fg_create_motion(r, &r->fg_motion[mi], mw, mh)) goto fail;
             if (!fg_create_motion(r, &r->fg_motion_fwd[mi], mw, mh)) goto fail;
@@ -3293,7 +3310,7 @@ static bool fg_ensure_resources(VkRenderer* r) {
     if (r->swapchain_extent.width == 0 || r->swapchain_extent.height == 0) return false;
     if (!r->pipelines_built) return false;
     { char fss[16] = {0}; __system_property_get("debug.winnative.fgflowscale", fss);
-      if (fss[0]) { float v = (float)atof(fss); if (v >= 0.2f && v <= 1.0f) r->fg_flow_scale = v; } }
+      if (fss[0]) { float v = (float)atof(fss); if (v >= 0.05f && v <= 1.0f) r->fg_flow_scale = v; } }
     if (r->fg_built
         && r->fg_dims.width == r->swapchain_extent.width
         && r->fg_dims.height == r->swapchain_extent.height
@@ -4238,7 +4255,7 @@ JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz,
     r->fg_occ_lo = 0.06f;
     r->fg_occ_hi = 0.25f;
     r->fg_min_step = 1;
-    r->fg_flow_scale = 0.5f;
+    r->fg_flow_scale = 0.15f;
     r->fg_use_cnn = cnn_wanted();
     r->fg_cnn_gen = true;
     r->validation_enabled = (enableValidationLayers == JNI_TRUE);
@@ -4762,7 +4779,7 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenFlowScale)(JNIEnv* env, jclass cl
     (void)env; (void)clazz;
     VkRenderer* r = (VkRenderer*)(intptr_t)handle;
     if (!r) return;
-    float fs = flowScale < 0.2f ? 0.2f : (flowScale > 1.0f ? 1.0f : flowScale);
+    float fs = flowScale < 0.05f ? 0.05f : (flowScale > 1.0f ? 1.0f : flowScale);
     r->fg_flow_scale = fs;
     VK_LOGI("FG flowScale set: %.2f (motion-field rebuild pending)", fs);
 }
