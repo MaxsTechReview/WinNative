@@ -146,8 +146,13 @@ void main() {
     // ...but only where the flow is coherent. Taking a single warped sample on an
     // incoherent vector puts a sharp wrong patch on screen, which is worse than the soft
     // one it replaced, so those pixels keep the dissolve.
-    float sharp = smoothstep(0.04, 0.20, sdis) * flowOk;
-    vec3 repeat = mix(xfade, (t < 0.5) ? cA : cB, sharp);
+    // Where the warp is not trusted, fall back to the nearer real frame UNWARPED. Warping
+    // it there was still applying a vector we have already decided not to believe, which is
+    // what left thin objects doubled and tree trunks smeared - the artifacts are gone when
+    // those pixels simply hold a real frame. It costs sharpness nothing and the region
+    // judders instead, which is far less objectionable than a persistent ghost.
+    float sharp = smoothstep(0.04, 0.20, sdis);
+    vec3 repeat = mix(xfade, (t < 0.5) ? cPrevFlat : cCurrFlat, sharp);
     // Confidence, fitted against exact ground truth over 5.2M pixels: the strongest
     // predictor of whether the warp is worth using is whether its own two samples agree,
     // which does not depend on how much texture the region has. The block-match score
