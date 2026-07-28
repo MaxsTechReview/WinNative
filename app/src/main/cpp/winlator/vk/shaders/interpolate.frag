@@ -112,6 +112,6 @@ void main() {
                      : (0.30 - 0.15 * steadier) * (1.0 - smoothstep(9.0, 64.0, dot(mvB, mvB)));
     col += kdet * clamp(cB - blur, -0.25, 0.25);
 
-    col = mix(col, cCurrFlat, staticPix);
+    col = mix(col, repeat, staticPix);
     outColor = vec4(clamp(col, 0.0, 1.0), 1.0);
 }

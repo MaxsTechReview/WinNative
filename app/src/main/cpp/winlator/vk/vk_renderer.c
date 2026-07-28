@@ -3193,10 +3193,10 @@ static void fg_dump_flush(VkRenderer* r) {
     r->fg_dump_armed = false; r->fg_dump_count = 0;
 }
 
-#define FG_FLOW_MAX_EDGE 480u
+#define FG_FLOW_MAX_EDGE 640u
 
 static void fg_flow_dims(const VkRenderer* r, uint32_t w, uint32_t h, uint32_t* outW, uint32_t* outH) {
-    float fs = r->fg_flow_scale >= 0.05f ? (r->fg_flow_scale <= 1.0f ? r->fg_flow_scale : 1.0f) : 0.15f;
+    float fs = r->fg_flow_scale >= 0.05f ? (r->fg_flow_scale <= 1.0f ? r->fg_flow_scale : 1.0f) : 0.25f;
     uint32_t mw = (uint32_t)((float)w * fs); if (mw < 1u) mw = 1u;
     uint32_t mh = (uint32_t)((float)h * fs); if (mh < 1u) mh = 1u;
     uint32_t edge = mw > mh ? mw : mh;
@@ -4291,7 +4291,7 @@ JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz,
     r->fg_occ_lo = 0.06f;
     r->fg_occ_hi = 0.25f;
     r->fg_min_step = 1;
-    r->fg_flow_scale = 0.15f;
+    r->fg_flow_scale = 0.25f;
     r->fg_use_cnn = cnn_wanted();
     r->fg_cnn_gen = true;
     r->validation_enabled = (enableValidationLayers == JNI_TRUE);

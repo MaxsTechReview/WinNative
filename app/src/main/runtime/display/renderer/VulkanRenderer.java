@@ -92,7 +92,7 @@ public class VulkanRenderer
     private volatile boolean fgDeepMode = false;
     private volatile boolean fgExtrapolate = false;   // false = interpolate, true = extrapolate
     private volatile int fgModel = 0;                  // 0 = standard, 1 = steadier
-    private volatile float fgFlowScale = 0.15f;
+    private volatile float fgFlowScale = 0.25f;
     private volatile int fgFramesInFlight = 3;         // compositor buffering depth (1..3)
     private volatile Surface fgSurface;
     private float fgFrameRateHint = -1f;

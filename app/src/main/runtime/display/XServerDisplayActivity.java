@@ -489,7 +489,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private int frameGenerationModel = 0;     // 0 = standard, 1 = steadier
     private static final int[] FG_PRESET_QUALITY      = {0, 1, 1, 2, 1, 2};
     private static final int[] FG_PRESET_MODEL        = {0, 0, 0, 0, 1, 1};
-    private static final float[] FG_PRESET_FLOW_SCALE = {0.08f, 0.11f, 0.14f, 0.17f, 0.14f, 0.20f};
+    private static final float[] FG_PRESET_FLOW_SCALE = {0.20f, 0.22f, 0.25f, 0.28f, 0.25f, 0.30f};
     private static final boolean[] FG_PRESET_DEEP     = {false, false, false, false, false, true};
     private boolean sgsrEnabled = false;
     private boolean sgsrRuntimeEnabled = false;

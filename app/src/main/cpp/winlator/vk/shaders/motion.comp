@@ -107,7 +107,7 @@ void main() {
 
     int sdmax = fine ? FR : RMAX;
     int pdmax = fine ? PMAX : RMAX;
-    int it2 = clamp(8 - int(pc.minStep), 4, 7);
+    int it2 = fine ? 2 : clamp(8 - int(pc.minStep), 4, 7);
 
     ivec2 center   = ivec2(0);
     float bestCost = blockCost(l, cCenter, center);
