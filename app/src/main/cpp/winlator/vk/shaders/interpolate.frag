@@ -148,7 +148,15 @@ void main() {
     // one it replaced, so those pixels keep the dissolve.
     float sharp = smoothstep(0.04, 0.20, sdis) * flowOk;
     vec3 repeat = mix(xfade, (t < 0.5) ? cA : cB, sharp);
-    col = mix(repeat, col, uniq * flowOk * (1.0 - 0.30 * steadier));
+    // Confidence, fitted against exact ground truth over 5.2M pixels: the strongest
+    // predictor of whether the warp is worth using is whether its own two samples agree,
+    // which does not depend on how much texture the region has. The block-match score
+    // only nudges that and can no longer drive it to zero, which is what used to blank
+    // out low-texture areas and hand them to the dissolve.
+    float sideAgree = length(cA - cB);
+    float wAgree = 0.15 + 0.85 * 0.09 / (0.09 + sideAgree);
+    float softConf = cnn ? 1.0 : clamp(0.55 + 0.45 * smoothstep(0.02, 0.25, maskConf.y), 0.0, 1.0);
+    col = mix(repeat, col, wAgree * softConf * flowOk * (1.0 - 0.30 * steadier));
 
     vec2 tx = texel;
     vec3 blur = (texture(currFrame, uvB + vec2(tx.x, 0.0)).rgb
