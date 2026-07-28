@@ -27,6 +27,31 @@ float valid(highp vec2 p) {
     return offFrame(p) ? 0.0 : 1.0;
 }
 
+#define FM_S2(a, b)          { vec2 fm_t = min(a, b); b = max(a, b); a = fm_t; }
+#define FM_MN3(a, b, c)      FM_S2(a, b); FM_S2(a, c);
+#define FM_MX3(a, b, c)      FM_S2(b, c); FM_S2(a, c);
+#define FM_MNMX3(a, b, c)    FM_MX3(a, b, c); FM_S2(a, b);
+#define FM_MNMX4(a, b, c, d) FM_S2(a, b); FM_S2(c, d); FM_S2(a, c); FM_S2(b, d);
+#define FM_MNMX5(a, b, c, d, e)    FM_S2(a, b); FM_S2(c, d); FM_MN3(a, c, e); FM_MX3(b, d, e);
+#define FM_MNMX6(a, b, c, d, e, f) FM_S2(a, d); FM_S2(b, e); FM_S2(c, f); FM_MN3(a, b, c); FM_MX3(d, e, f);
+
+vec2 flowMedian(highp vec2 uv, highp vec2 n) {
+    vec2 v0 = texture(motionField, uv + vec2(-n.x, -n.y)).xy;
+    vec2 v1 = texture(motionField, uv + vec2( 0.0, -n.y)).xy;
+    vec2 v2 = texture(motionField, uv + vec2( n.x, -n.y)).xy;
+    vec2 v3 = texture(motionField, uv + vec2(-n.x,  0.0)).xy;
+    vec2 v4 = texture(motionField, uv).xy;
+    vec2 v5 = texture(motionField, uv + vec2( n.x,  0.0)).xy;
+    vec2 v6 = texture(motionField, uv + vec2(-n.x,  n.y)).xy;
+    vec2 v7 = texture(motionField, uv + vec2( 0.0,  n.y)).xy;
+    vec2 v8 = texture(motionField, uv + vec2( n.x,  n.y)).xy;
+    FM_MNMX6(v0, v1, v2, v3, v4, v5);
+    FM_MNMX5(v1, v2, v3, v4, v6);
+    FM_MNMX4(v2, v3, v4, v7);
+    FM_MNMX3(v3, v4, v8);
+    return v4;
+}
+
 void main() {
     float t = clamp(pc.phase, 0.0, 1.0);
     float steadier = clamp(pc.occlusionLo, 0.0, 1.0);
@@ -36,7 +61,10 @@ void main() {
 
     highp vec2 texel = 1.0 / vec2(textureSize(currFrame, 0));
     highp vec2 norm  = 1.0 / vec2(textureSize(motionField, 0));
-    vec2 mvB  = texture(motionField, vUV).xy;
+    // A single wrong flow texel drags a patch of the frame in from the wrong place and
+    // reads as a blocky smear. A 3x3 median drops isolated outliers while keeping
+    // motion boundaries, which a blur would round off.
+    vec2 mvB = flowMedian(vUV, norm);
     vec2 mvBn = mvB * norm;
 
     vec3 cCurrFlat = texture(currFrame, vUV).rgb;

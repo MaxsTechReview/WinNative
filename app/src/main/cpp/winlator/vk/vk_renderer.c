@@ -2930,7 +2930,8 @@ static void fg_motion_pass(VkRenderer* r, VkCommandBuffer cmd,
         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, VK_ACCESS_SHADER_WRITE_BIT);
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, r->pipelines.fg_motion_pipe_layout, 0, 1, &fineSet, 0, NULL);
     mpc.mvW = (int32_t)fineImg->width; mpc.mvH = (int32_t)fineImg->height;
-    mpc.invW = 1.0f / (float)fineImg->width; mpc.invH = 1.0f / (float)fineImg->height; mpc.upscale = 2.0f;
+    mpc.invW = 1.0f / (float)fineImg->width; mpc.invH = 1.0f / (float)fineImg->height;
+    mpc.upscale = (float)fineImg->width / (float)coarseImg->width;
     vkCmdPushConstants(cmd, r->pipelines.fg_motion_pipe_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(mpc), &mpc);
     vkCmdDispatch(cmd, (fineImg->width + 7u) / 8u, (fineImg->height + 7u) / 8u, 1);
     vkr_image_barrier(cmd, fineImg->image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,

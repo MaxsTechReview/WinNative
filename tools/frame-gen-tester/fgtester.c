@@ -352,22 +352,26 @@ int main(int argc, char **argv) {
     const char *dir = argc > 1 ? argv[1] : ".";
     int n0 = argc > 2 ? atoi(argv[2]) : 0;
     int nframes = argc > 3 ? atoi(argv[3]) : 8;
-    if (argc > 5) { RW = atoi(argv[4]); RH = atoi(argv[5]); }
+    int step = argc > 4 ? atoi(argv[4]) : 1;      /* 1 = 30 FPS, 3 = 10 FPS, 15 = 2 FPS */
+    if (argc > 6) { RW = atoi(argv[5]); RH = atoi(argv[6]); }
+    if (step < 1) step = 1;
     HORIZ = RH * 0.52f; FOCAL = RW * 0.484f;
     init_trees();
     char path[512];
     for (int i = 0; i < nframes; i++) {
-        float t = (n0 + i) / FPS;
+        float t = (n0 + (float)i * step) / FPS;
+        float d = step / FPS;                      /* interval between presented frames */
         render(t, 1);
         snprintf(path, sizeof(path), "%s/real_%03d.ppm", dir, i); write_ppm(path);
-        render(t + 0.5f / FPS, 1);
+        render(t + 0.5f * d, 1);
         snprintf(path, sizeof(path), "%s/mid_%03d.ppm", dir, i); write_ppm(path);
         for (int q = 1; q <= 3; q++) {
-            render(t + (q * 0.25f) / FPS, 1);
+            render(t + q * 0.25f * d, 1);
             snprintf(path, sizeof(path), "%s/q%d_%03d.ppm", dir, q, i); write_ppm(path);
         }
     }
-    printf("wrote %d real frames + midpoints + quarter-phases to %s (%dx%d)\n", nframes, dir, RW, RH);
+    printf("wrote %d frames at step %d (%.0f FPS) to %s (%dx%d)\n",
+           nframes, step, FPS / step, dir, RW, RH);
     return 0;
 }
 #else
@@ -378,13 +382,66 @@ static double now_s(LARGE_INTEGER freq) {
     return (double)c.QuadPart / (double)freq.QuadPart;
 }
 
+/* Presentation rate. The animation clock always runs in real time, so dropping the
+   rate skips the frames in between rather than slowing the scene down: the character
+   jumps to where it would have been. That is the point of the lower rates - it gives
+   frame generation a much larger gap to bridge. */
+static const int RATES[3] = {30, 10, 2};
+static int g_rate_idx = 0;
+#define RATE_STEP (30 / RATES[g_rate_idx])
+
+#define BTN_W 76
+#define BTN_H 32
+#define BTN_Y 52
+#define BTN_X0 12
+#define BTN_GAP 8
+static void btn_rect(int i, RECT *r) {
+    r->left = BTN_X0 + i * (BTN_W + BTN_GAP);
+    r->top = BTN_Y; r->right = r->left + BTN_W; r->bottom = BTN_Y + BTN_H;
+}
+
 static LRESULT CALLBACK wndproc(HWND h, UINT m, WPARAM w, LPARAM l) {
     switch (m) {
     case WM_DESTROY: PostQuitMessage(0); return 0;
-    case WM_KEYDOWN: if (w == VK_ESCAPE) PostQuitMessage(0); return 0;
+    case WM_LBUTTONDOWN: {
+        int mx = (short)LOWORD(l), my = (short)HIWORD(l);
+        for (int i = 0; i < 3; i++) {
+            RECT r; btn_rect(i, &r);
+            if (mx >= r.left && mx < r.right && my >= r.top && my < r.bottom) {
+                g_rate_idx = i; break;
+            }
+        }
+        return 0;
+    }
+    case WM_KEYDOWN:
+        if (w == VK_ESCAPE) PostQuitMessage(0);
+        else if (w == '1') g_rate_idx = 0;
+        else if (w == '2') g_rate_idx = 1;
+        else if (w == '3') g_rate_idx = 2;
+        return 0;
     case WM_ERASEBKGND: return 1;
     }
     return DefWindowProcW(h, m, w, l);
+}
+
+static void draw_buttons(HDC dc, HFONT font) {
+    HFONT old = (HFONT)SelectObject(dc, font);
+    SetBkMode(dc, TRANSPARENT);
+    for (int i = 0; i < 3; i++) {
+        RECT r; btn_rect(i, &r);
+        int on = (i == g_rate_idx);
+        HBRUSH bg = CreateSolidBrush(on ? RGB(240, 200, 40) : RGB(30, 34, 44));
+        FillRect(dc, &r, bg);
+        DeleteObject(bg);
+        HBRUSH fr = CreateSolidBrush(on ? RGB(255, 255, 255) : RGB(120, 130, 150));
+        FrameRect(dc, &r, fr);
+        DeleteObject(fr);
+        wchar_t lab[16];
+        swprintf(lab, 16, L"%d FPS", RATES[i]);
+        SetTextColor(dc, on ? RGB(20, 20, 20) : RGB(215, 220, 230));
+        DrawTextW(dc, lab, -1, &r, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    }
+    SelectObject(dc, old);
 }
 
 /* Pick the largest of a few sizes that renders inside the frame budget. The
@@ -437,9 +494,15 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE hp, PWSTR cmd, int show) {
     HDC memdc = CreateCompatibleDC(dc);
     SelectObject(memdc, dib);
 
+    HFONT font = CreateFontW(-16, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET,
+                             OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
+                             DEFAULT_PITCH | FF_SWISS, L"Segoe UI");
+
     LARGE_INTEGER freq; QueryPerformanceFrequency(&freq);
-    double t0 = now_s(freq), period = 1.0 / FPS;
-    long long n = 0, late = 0, win_late = 0, win_n = 0;
+    /* n counts in 30 FPS units regardless of the presentation rate, so the animation
+       clock stays real-time and a lower rate simply skips the frames between presents */
+    double t0 = now_s(freq), tick = 1.0 / FPS;
+    long long n = 0, win_late = 0, win_n = 0;
     double win_t0 = t0;
     int health = 1;
     MSG msg;
@@ -448,34 +511,40 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE hp, PWSTR cmd, int show) {
             if (msg.message == WM_QUIT) goto done;
             TranslateMessage(&msg); DispatchMessageW(&msg);
         }
-        double target = n * period;
+        int step = RATE_STEP;
+        double target = n * tick;
         render((float)target, health);
         memcpy(bits, fb, (size_t)RW * RH * 4);
+        draw_buttons(memdc, font);
         BitBlt(dc, 0, 0, RW, RH, memdc, 0, 0, SRCCOPY);
-        n++; win_n++;
+        n += step; win_n++;
         double after = now_s(freq) - t0;
-        if (after > target + period) { late++; win_late++; }
+        if (after > target + step * tick) win_late++;
         if (now_s(freq) - win_t0 >= 1.0) {
             double secs = now_s(freq) - win_t0;
             double fps = win_n / secs;
+            int want = RATES[g_rate_idx];
             health = (win_late * 20 <= win_n);            /* under 5% late frames */
-            wchar_t title[192];
-            swprintf(title, 192,
-                     L"Frame-Gen-Tester  %dx%d  %.1f FPS (target 30)  late %lld/%lld  frame %lld  %s",
-                     RW, RH, fps, win_late, win_n, n, health ? L"OK" : L"TOO SLOW");
+            wchar_t title[224];
+            swprintf(title, 224,
+                     L"Frame-Gen-Tester  %dx%d  %.1f FPS (target %d, skipping %d of every %d)"
+                     L"  late %lld/%lld  %s",
+                     RW, RH, fps, want, step - 1, step, win_late, win_n,
+                     health ? L"OK" : L"TOO SLOW");
             SetWindowTextW(hwnd, title);
             win_t0 = now_s(freq); win_n = 0; win_late = 0;
         }
         for (;;) {
-            double e = now_s(freq) - t0, tg = n * period;
+            double e = now_s(freq) - t0, tg = n * tick;
             if (e >= tg) break;
             double rem = tg - e;
             if (rem > 0.002) Sleep((DWORD)((rem - 0.001) * 1000));
         }
         /* never try to catch up by racing: a stalled frame just shifts the phase */
-        if (now_s(freq) - t0 > (n + 2) * period) { t0 = now_s(freq) - n * period; }
+        if (now_s(freq) - t0 > (n + 2 * step) * tick) t0 = now_s(freq) - n * tick;
     }
 done:
+    DeleteObject(font);
     DeleteDC(memdc); DeleteObject(dib); ReleaseDC(hwnd, dc);
     return 0;
 }
