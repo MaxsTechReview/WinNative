@@ -2046,11 +2046,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             WinToast.show(this, String.format("disabled cores %s: ", performanceManager.getDisabledCores()));
             if (!gpuFrequency.isEmpty()) {
                 try {
-                    var gpuIndex = Integer.parseInt(gpuFrequency);
-                    performanceManager.setGpuFrequency(gpuIndex, true);
+                    var gpuFreq = Integer.parseInt(gpuFrequency);
+                    performanceManager.setGpuFrequency(gpuFreq, gpuFreq,true);
                     var freqs = performanceManager.getGpuFrequencies();
                     if (freqs != null) {
-                        WinToast.show(this, String.format("GPU SET: %s", freqs.get(gpuIndex)));
+                        WinToast.show(this, String.format("GPU SET: %s", freqs.get(gpuFreq)));
                     }
 
                 } catch (Exception ignored) {}

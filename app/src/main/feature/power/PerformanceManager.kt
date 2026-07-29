@@ -23,11 +23,15 @@ object PerformanceManager {
     private const val IDLE_TIMEOUT_NS = 1500000000L
     private const val CPU_PATH = "/sys/devices/system/cpu"
     private const val GPU_PATH = "/sys/class/kgsl/kgsl-3d0"
+    private const val POLICY_PATH = "/sys/devices/system/cpu/cpufreq"
     private const val CPU_BOOST_PATH = "/sys/devices/system/cpu/cpufreq/boost"
     private const val CPU_POLICY_BASE_PATH = "/sys/devices/system/cpu/cpufreq/"
 
-    private var defaultSystemPolicies: List<CpuPolicy>? = null
+    val isDeviceSupported
+        get() = RootManager.isRooted
+
     private val defaultSystemGovernor = getCpuGovernor()
+    private var defaultSystemPolicies: List<CpuPolicy>? = getCpuPolicies()
 
     private var defautlSystemFanMode: Int? = null
 
@@ -37,14 +41,11 @@ object PerformanceManager {
 
     val disabledCores = mutableListOf<Int>()
 
-    val isDeviceSupported
-        get() = RootManager.isRooted
-
     val isFanSupported = checkForFanSupport()
 
+    var gpuFrequencyIndex: Int = 0
+    var gpuFrequencies: MutableList<Int> = mutableListOf()
     val isGpuSupported = checkForGpuSupport()
-    var gpuFrequencyIndex: Int? = 0
-    var gpuFrequencies: List<Int>? = null
     var targetFPS: Float = 0f
     var fpsAvgFrameCount = 0
     var useAutoTargeting: Boolean = false
@@ -61,10 +62,13 @@ object PerformanceManager {
         if (!gpuDirectorySymlink.isDirectory) return false
         val frequencies = RootManager.readSysfsFile("${gpuDirectorySymlink.canonicalPath}/gpu_available_frequencies")
         if (frequencies.isNullOrEmpty()) return false
-        val availableFrequencies = frequencies.split(" ").reversed().map { it -> runCatching { (it.toLong()/1_000_000).toInt() }.getOrDefault(0) }
-        if (availableFrequencies.size < 2 || availableFrequencies.contains(0)) return false
-        gpuFrequencies = availableFrequencies
-        return availableFrequencies.size >= 2
+        frequencies.split(" ").reversed().forEach { it ->
+            runCatching {
+                val freq = (it.toLong() / 1_000_000).toInt()
+                gpuFrequencies.add(freq)
+            }.getOrDefault(0)
+        }
+        return gpuFrequencies.size >= 2
     }
 
     fun checkForFanSupport(): Boolean {
@@ -198,7 +202,8 @@ object PerformanceManager {
 
     fun onTick() {
         if (!isDeviceSupported || targetFPS == 0f || !useAutoTargeting) return
-        if (!autoTargetSetup) {
+        ticks++
+        if (ticks == 1L) {
             val policies = getCpuPolicies() ?: return
             for (policy in policies) {
                 policy.enabled = true
@@ -207,22 +212,20 @@ object PerformanceManager {
                 policy.maxFrequency = policy.availableFrequencies[policy.availableFrequencies.size-1]
                 policy.minFrequency = policy.availableFrequencies[policy.availableFrequencies.size-1]
             }
-            gpuFrequencies?.let {
-                if (it.size > 2)
-                    gpuFrequencyIndex = it.size-1
-            }
-            autoTargetSetup = true
+            if (isGpuSupported && gpuFrequencies.isNotEmpty() && gpuFrequencies.size > 2)
+                setGpuFrequency(gpuFrequencies.last(), gpuFrequencies.last())
             autoTargetPolicies = policies
+            setCpuCorePolicies(policies)
             return
         }
-        ticks++
+
         var fps = calculateFPS()
         if (fps == 0f) return
-        fpsPastFrames.add(fps)
-        if (fpsPastFrames.size < fpsAvgFrameCount) return
-        fps = fpsPastFrames.sum() / fpsPastFrames.size
 
         if (ticks%targetFPS==0f && !autoTargetPolicies.isNullOrEmpty()) {
+            fpsPastFrames.add(fps)
+            if (fpsPastFrames.size < fpsAvgFrameCount) return
+            fps = fpsPastFrames.sum() / fpsPastFrames.size
             var shouldUpdate = false
             if (fps > targetFPS*1.1) {
                 for (policy in autoTargetPolicies) {
@@ -252,10 +255,9 @@ object PerformanceManager {
                         shouldUpdate = true
                     }
                 }
-                gpuFrequencyIndex?.let {
-                    if (it > 0)
-                        gpuFrequencyIndex = it-1
-                }
+                if (isGpuSupported && gpuFrequencyIndex > 1)
+                    gpuFrequencyIndex -= 1
+
             }else if (fps < targetFPS*0.98) {
                 for (policy in autoTargetPolicies) {
                     if (policy.availableFrequencies.isNullOrEmpty()) continue
@@ -272,19 +274,14 @@ object PerformanceManager {
                         shouldUpdate = true
                     }
                 }
-                gpuFrequencyIndex?.let { it ->
-                    gpuFrequencies?.let { it1 ->
-                        if (it+1 < it1.size)
-                            gpuFrequencyIndex = it+1
-                    }
-                }
+                if (isGpuSupported && gpuFrequencyIndex+1 < gpuFrequencies.size)
+                    gpuFrequencyIndex+=1
             }
             fpsPastFrames.clear()
             if (shouldUpdate) {
                 CoroutineScope(Dispatchers.IO).launch {
-                    gpuFrequencyIndex?.let {
-                        setGpuFrequency(it)
-                    }
+                    if (isGpuSupported && gpuFrequencies.isNotEmpty())
+                        setGpuFrequency(gpuFrequencies[gpuFrequencyIndex-1], gpuFrequencies[gpuFrequencyIndex])
                     autoTargetPolicies?.let {
                         setCpuCorePolicies(it)
                     }
@@ -309,18 +306,15 @@ object PerformanceManager {
         return onlineState == "1"
     }
 
-    fun setGpuFrequency(gpuIndex: Int, lockfile: Boolean=true): Boolean? {
+    fun setGpuFrequency(gpuMin: Int, gpuMax: Int, lockfile: Boolean=true): Boolean? {
         if (!isDeviceSupported || !isGpuSupported) return null
-        if (gpuFrequencies.isNullOrEmpty()) return null
-        gpuFrequencies?.let {
-            if (gpuIndex < 0 || gpuIndex > it.size) return false
-            if (lockfile) gpuFrequencyIndex = gpuIndex
-            RootManager.writeSysfsFile("${GPU_PATH}/max_pwrlevel", "0", lockfile)
-            RootManager.writeSysfsFile("${GPU_PATH}/max_clock_mhz", it[gpuIndex].toString(), lockfile)
-            RootManager.writeSysfsFile("${GPU_PATH}/min_clock_mhz", it[gpuIndex].toString(), lockfile)
-            return true
-        }
-        return false
+        if (gpuFrequencies.isEmpty() || gpuFrequencies.size < 2) return null
+        if (!gpuFrequencies.contains(gpuMin) || !gpuFrequencies.contains(gpuMax)) return false
+        if (lockfile) gpuFrequencyIndex = gpuFrequencies.indexOf(gpuMax)
+        RootManager.writeSysfsFile("${GPU_PATH}/max_pwrlevel", "0", lockfile)
+        RootManager.writeSysfsFile("${GPU_PATH}/max_clock_mhz", gpuMax.toString(), lockfile)
+        RootManager.writeSysfsFile("${GPU_PATH}/min_clock_mhz", gpuMin.toString(), lockfile)
+        return true
     }
 
     fun setCpuCoreGovernor(cpuCore: Int, governor: String): Boolean? {
@@ -354,6 +348,24 @@ object PerformanceManager {
         return true
     }
 
+    fun setCpuCoresOnlineState(cpuCores: List<Int>, state: Boolean): Boolean? {
+        if (!isDeviceSupported) return null
+        if (cpuCores.isEmpty()) return false
+        for (cpuCore in cpuCores) {
+            val response = RootManager.writeSysfsFile(
+                "${CPU_PATH}/cpu${cpuCore}/online",
+                if (state) "1" else "0"
+            )
+            if (response) {
+                if (state)
+                    disabledCores.remove(cpuCore)
+                else
+                    disabledCores.add(cpuCore)
+            }
+        }
+        return true
+    }
+
     fun setPolicyOnlineState(policy: CpuPolicy, state: Boolean): Boolean? {
         if (!isDeviceSupported) return null
         if (!policy.cpuCores.isNotEmpty()) return null
@@ -369,19 +381,25 @@ object PerformanceManager {
         return true
     }
 
+    fun setCpuPolicyFrequency(policyPath: String, minFrequency: Long, maxFrequency: Long): Boolean? {
+        if (!isDeviceSupported) return null
+        if (!RootManager.writeSysfsFile("${policyPath}/scaling_min_freq", minFrequency.toString())) return false
+        if (!RootManager.writeSysfsFile("${policyPath}/scaling_max_freq", maxFrequency.toString())) return false
+        return true
+    }
+
     fun setCpuCorePolicies(cpuCorePolicies: List<CpuPolicy>, setBoostFrequency: Boolean=false): Boolean? {
         if (!isDeviceSupported) return null
         for (cpuPolicy in cpuCorePolicies) {
             setCpuBoostState(cpuPolicy.boostState)
-            for (cpuCore in cpuPolicy.cpuCores) {
-                if (cpuPolicy.enabled)
-                    if (setBoostFrequency && cpuPolicy.boostState && cpuPolicy.boostFrequency != null && cpuPolicy.boostFrequency.toInt() != 0)
-                        setCpuCoreFrequency(cpuCore, cpuPolicy.minFrequency, cpuPolicy.boostFrequency)
-                    else
-                        setCpuCoreFrequency(cpuCore, cpuPolicy.minFrequency, cpuPolicy.maxFrequency)
+            if (cpuPolicy.enabled) {
+                setCpuCoresOnlineState(cpuPolicy.cpuCores, true)
+                if (setBoostFrequency && cpuPolicy.boostState && cpuPolicy.boostFrequency != null && cpuPolicy.boostFrequency.toInt() != 0)
+                    setCpuPolicyFrequency("${POLICY_PATH}/${cpuPolicy.policyName}", cpuPolicy.minFrequency, cpuPolicy.boostFrequency)
                 else
-                    setCpuCoreOnlineState(cpuCore, false)
-            }
+                    setCpuPolicyFrequency("${POLICY_PATH}/${cpuPolicy.policyName}", cpuPolicy.minFrequency, cpuPolicy.maxFrequency)
+            } else
+                setCpuCoresOnlineState(cpuPolicy.cpuCores, false)
         }
         return true
     }
@@ -470,11 +488,10 @@ object PerformanceManager {
             defautlSystemFanMode?.let { setFanMode(it) }
         if (defaultSystemPolicies.isNullOrEmpty()) return null
         defaultSystemPolicies?.let { setCpuCorePolicies(it, true) }
-        gpuFrequencies?.let {
-            if (it.size > 1) {
-                setGpuFrequency(0, false)
-                gpuFrequencyIndex = 0
-            }
+        if (isGpuSupported && gpuFrequencies.isNotEmpty()) {
+            setGpuFrequency(gpuFrequencies.first(), gpuFrequencies.last(), false)
+            gpuFrequencyIndex = 0
+            ticks = 0
         }
         return true
     }

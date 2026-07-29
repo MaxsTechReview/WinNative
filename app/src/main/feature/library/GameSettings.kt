@@ -1253,18 +1253,17 @@ private fun PerformanceControlSection(
                     state.cpuPolicies.value[index].minFrequency = frequencies[minIndex]
                     state.cpuPolicies.value[index].maxFrequency = frequencies[maxIndex]
                 }
-                if (!PerformanceManager.isGpuSupported || gpuFrequencies.isNullOrEmpty()) return@SettingGroup
-                Spacer(Modifier.height(SettingSectionGap))
+                if (!PerformanceManager.isGpuSupported || gpuFrequencies.isEmpty()) return@SettingGroup
                 Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                     Box(Modifier.weight(1f)) {
                         SettingSlider(
                             label = stringResource(R.string.performance_gpu_frequencies_label),
-                            value = state.gpuFrequency.value,
-                            range = 0..gpuFrequencies.size-1,
-                            valueText = "${gpuFrequencies[state.gpuFrequency.value].toString()}MHz",
+                            value = gpuFrequencies.indexOf(state.gpuFrequency.value),
+                            range = gpuFrequencies.indices,
+                            valueText = "${state.gpuFrequency.value}MHz",
                             steps = (0 - gpuFrequencies.size - 1).coerceAtLeast(0),
                             onValueChange = {
-                                state.gpuFrequency.value = it
+                                state.gpuFrequency.value = gpuFrequencies[it]
                             }
                         )
                     }
