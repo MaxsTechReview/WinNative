@@ -105,6 +105,7 @@ set(SHADER_LIST
     "cnn_occlusion:comp:cnn_occlusion_comp"
     "cnn_generate:comp:cnn_generate_comp"
     "fg_synthshift:comp:fg_synthshift_comp"
+    "flowfix:comp:flowfix_comp"
 )
 
 set(SHADER_HEADERS "")

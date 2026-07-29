@@ -64,16 +64,9 @@ void main() {
 
     highp vec2 texel = 1.0 / vec2(textureSize(currFrame, 0));
     highp vec2 norm  = 1.0 / vec2(textureSize(motionField, 0));
-    // A single wrong flow texel drags a patch of the frame in from the wrong place and
-    // reads as a blocky smear. A 3x3 median drops isolated outliers while keeping
-    // motion boundaries, which a blur would round off.
     float flowSpread;
     vec2 mvB = flowMedian(vUV, norm, flowSpread);
     vec2 mvBn = mvB * norm;
-    // Neighbouring flow texels disagreeing by this much means the warp is about to pull
-    // the object apart. A soft region reads far better than a shredded one, so hand
-    // those pixels back to the temporal blend.
-    float flowOk = 1.0 - smoothstep(3.0, 10.0, flowSpread);
 
     vec3 cCurrFlat = texture(currFrame, vUV).rgb;
     vec3 cPrevFlat = texture(prevFrame, vUV).rgb;
@@ -120,53 +113,18 @@ void main() {
     highp vec2 uvB = vUV - (1.0 - t) * mvBn;
     vec3 cA = texture(prevFrame, uvA).rgb;
     vec3 cB = texture(currFrame, uvB).rgb;
-    float tolE = (0.05 * dot(mvB, mvB) + 2.0) * tolScale;
-    float hiE  = 6.0 * tolE + 6.0;
-    vec2  dA = bidir ? (mvB + texture(motionFieldFwd, vUV + mvBn).xy)
-                     : (mvB - texture(motionField, uvA).xy);
-    vec2  dB = bidir ? (mvF + texture(motionField, vUV + mvFn).xy)
-                     : (mvB - texture(motionField, uvB).xy);
-    float occA = 1.0 - smoothstep(tolE, hiE, dot(dA, dA));
-    float occB = 1.0 - smoothstep(tolE, hiE, dot(dB, dB));
-    float lA = (occA - 1.0) * 16.0 + (valid(uvA) - 1.0) * 24.0;
-    float lB = (occB - 1.0) * 16.0 + (valid(uvB) - 1.0) * 24.0;
+    float lA = (valid(uvA) - 1.0) * 24.0;
+    float lB = (valid(uvB) - 1.0) * 24.0;
     float mE = max(lA, lB);
     float wA = (1.0 - t) * exp(lA - mE);
     float wB = t * exp(lB - mE);
     float wsum = wA + wB + 1e-6;
     vec3 col = (cA * wA + cB * wB) / wsum;
 
-    // Where the warp is not trusted the output used to cross-dissolve the two real
-    // frames. Wherever they differ that is a double image, and it covers a large part of
-    // the frame - it is where most of the softness came from. Take the nearer warped
-    // side there instead, which is sharp and still motion-compensated, and keep the
-    // dissolve only where the two frames are close enough that it cannot be seen.
-    vec3 xfade  = mix(cPrevFlat, cCurrFlat, t);
-    float sdis  = length(cCurrFlat - cPrevFlat);
-    // ...but only where the flow is coherent. Taking a single warped sample on an
-    // incoherent vector puts a sharp wrong patch on screen, which is worse than the soft
-    // one it replaced, so those pixels keep the dissolve.
-    // Where the warp is not trusted, fall back to the nearer real frame UNWARPED. Warping
-    // it there was still applying a vector we have already decided not to believe, which is
-    // what left thin objects doubled and tree trunks smeared - the artifacts are gone when
-    // those pixels simply hold a real frame. It costs sharpness nothing and the region
-    // judders instead, which is far less objectionable than a persistent ghost.
-    float sharp = smoothstep(0.04, 0.20, sdis);
-    vec3 repeat = mix(xfade, (t < 0.5) ? cPrevFlat : cCurrFlat, sharp);
-    // Confidence, fitted against exact ground truth over 5.2M pixels: the strongest
-    // predictor of whether the warp is worth using is whether its own two samples agree,
-    // which does not depend on how much texture the region has. The block-match score
-    // only nudges that and can no longer drive it to zero, which is what used to blank
-    // out low-texture areas and hand them to the dissolve.
-    float sideAgree = length(cA - cB);
-    float wAgree = 0.15 + 0.85 * 0.09 / (0.09 + sideAgree);
-    float softConf = cnn ? 1.0 : clamp(0.55 + 0.45 * smoothstep(0.02, 0.25, maskConf.y), 0.0, 1.0);
-    col = mix(repeat, col, wAgree * softConf * flowOk * (1.0 - 0.30 * steadier));
+    vec3 xfade = mix(cPrevFlat, cCurrFlat, t);
+    float sideAgree = abs(dot(cA - cB, vec3(0.299, 0.587, 0.114)));
+    col = mix(col, (t < 0.5) ? cA : cB, smoothstep(0.05, 0.22, sideAgree));
 
-    // Blending two samples that are misaligned by even a fraction of a pixel cancels
-    // high-frequency detail, so a warped frame loses surface texture. Put it back from
-    // the same weighted mix the colour came from. This used to be faded out as motion
-    // grew, which switched it off exactly where the loss is worst.
     vec2 tx = texel;
     vec3 blurA = (texture(prevFrame, uvA + vec2(tx.x, 0.0)).rgb
                 + texture(prevFrame, uvA - vec2(tx.x, 0.0)).rgb
@@ -180,6 +138,6 @@ void main() {
     float kdet = 0.95 - 0.30 * steadier;
     col += kdet * clamp(detail, -0.25, 0.25);
 
-    col = mix(col, repeat, staticPix);
+    col = mix(col, xfade, staticPix);
     outColor = vec4(clamp(col, 0.0, 1.0), 1.0);
 }

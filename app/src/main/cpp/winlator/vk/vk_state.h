@@ -191,6 +191,7 @@ typedef struct VkPipelineSet {
     VkPipelineLayout      fg_motion_pipe_layout; // motion set + 32B compute push range
     VkPipelineLayout      fg_interp_pipe_layout; // interp set + 24B fragment push range
     VkPipeline            fg_motion_pipeline;    // compute
+    VkPipeline            fg_flowfix_pipeline;
     VkPipeline            fg_interp_pipeline;    // graphics (swapchain_pass)
 
     VkDescriptorSetLayout cnn_pyramid_dsl, cnn_conv_dsl, cnn_cost9_dsl,
@@ -470,11 +471,13 @@ typedef struct VkRenderer {
     VkFgImage        fg_history[3];          // composited-scene ring; fg_history_curr = newest
     VkFgImage        fg_motion[3];           // half-res backward-flow ring
     VkFgImage        fg_motion_fwd[3];       // half-res forward-flow ring
+    VkFgImage        fg_fixed[3];
     VkFgImage        fg_coarse[3];           // quarter-res backward coarse-flow
     VkFgImage        fg_coarse_fwd[3];       // quarter-res forward coarse-flow
     VkSampler        fg_sampler;             // linear, clamp
     VkDescriptorSet  fg_motion_set[3];       // prev,curr,coarse samplers + motion storage
     VkDescriptorSet  fg_motion_set_fwd[3];
+    VkDescriptorSet  fg_fix_set[3];
     VkDescriptorSet  fg_coarse_set[3];
     VkDescriptorSet  fg_coarse_set_fwd[3];
     VkDescriptorSet  fg_interp_set[3];       // prev,curr,mvBwd,mvFwd samplers

@@ -42,6 +42,7 @@
 #include "shaders/motion_comp.spv.h"
 #include "shaders/motion_fp32_comp.spv.h"
 #include "shaders/interpolate_frag.spv.h"
+#include "shaders/flowfix_comp.spv.h"
 #include "shaders/cnn_pyramid_comp.spv.h"
 #include "shaders/cnn_conv_comp.spv.h"
 #include "shaders/cnn_correlation_cost9_comp.spv.h"
@@ -1138,12 +1139,13 @@ static bool create_pipelines(VkRenderer* r) {
         ? load_shader_module(r, motion_comp, motion_comp_size)
         : load_shader_module(r, motion_fp32_comp, motion_fp32_comp_size);
     VkShaderModule fs_interp = load_shader_module(r, interpolate_frag, interpolate_frag_size);
+    VkShaderModule cs_flowfix = load_shader_module(r, flowfix_comp, flowfix_comp_size);
     if (!vs_window || !fs_window || !fs_cursor || !vs_quad || !fs_blit
         || !fs_crt || !fs_vivid || !fs_hdr || !fs_natural
         || !fs_toon || !fs_ntsc || !fs_ntsc2 || !fs_coloradj
         || !fs_colorgrade || !fs_sharpen || !fs_scanlines
         || !fs_colorblind || !fs_pixelate
-        || !fs_sgsr1 || !cs_motion || !fs_interp) {
+        || !fs_sgsr1 || !cs_motion || !fs_interp || !cs_flowfix) {
         return false;
     }
 
@@ -1252,6 +1254,8 @@ static bool create_pipelines(VkRenderer* r) {
 
     r->pipelines.fg_motion_pipeline = create_compute_pipeline(
         r, cs_motion, r->pipelines.fg_motion_pipe_layout);
+    r->pipelines.fg_flowfix_pipeline = create_compute_pipeline(
+        r, cs_flowfix, r->pipelines.fg_motion_pipe_layout);
     r->pipelines.fg_interp_pipeline = create_graphics_pipeline(
         r, vs_quad, fs_interp, r->pipelines.fg_interp_pipe_layout, r->pipelines.swapchain_pass,
         false, false, NULL);
@@ -1279,6 +1283,7 @@ static bool create_pipelines(VkRenderer* r) {
     vkDestroyShaderModule(r->device, fs_sgsr1, NULL);
     vkDestroyShaderModule(r->device, cs_motion, NULL);
     vkDestroyShaderModule(r->device, fs_interp, NULL);
+    vkDestroyShaderModule(r->device, cs_flowfix, NULL);
 
     if (!r->pipelines.window_pipeline || !r->pipelines.cursor_pipeline
         || !r->pipelines.blit_pipeline
@@ -1286,6 +1291,7 @@ static bool create_pipelines(VkRenderer* r) {
         || !r->pipelines.offscreen_cursor_pipeline
         || !r->pipelines.offscreen_blit_pipeline
         || !r->pipelines.fg_motion_pipeline
+        || !r->pipelines.fg_flowfix_pipeline
         || !r->pipelines.fg_interp_pipeline) {
         destroy_pipelines(r);
         return false;
@@ -1320,6 +1326,7 @@ static void destroy_pipelines(VkRenderer* r) {
     if (r->pipelines.offscreen_cursor_pipeline) vkDestroyPipeline(r->device, r->pipelines.offscreen_cursor_pipeline, NULL);
     if (r->pipelines.offscreen_blit_pipeline)   vkDestroyPipeline(r->device, r->pipelines.offscreen_blit_pipeline, NULL);
     if (r->pipelines.fg_motion_pipeline) vkDestroyPipeline(r->device, r->pipelines.fg_motion_pipeline, NULL);
+    if (r->pipelines.fg_flowfix_pipeline) vkDestroyPipeline(r->device, r->pipelines.fg_flowfix_pipeline, NULL);
     if (r->pipelines.fg_interp_pipeline) vkDestroyPipeline(r->device, r->pipelines.fg_interp_pipeline, NULL);
     destroy_cnn_pipelines(r);
     if (r->pipelines.window_layout)   vkDestroyPipelineLayout(r->device, r->pipelines.window_layout, NULL);
@@ -2782,6 +2789,7 @@ static void fg_destroy_resources(VkRenderer* r) {
     for (uint32_t p = 0; p < 3; p++) {
         if (r->fg_motion_set[p]) { fg_free_set(r, r->fg_motion_set[p]); r->fg_motion_set[p] = VK_NULL_HANDLE; }
         if (r->fg_motion_set_fwd[p]) { fg_free_set(r, r->fg_motion_set_fwd[p]); r->fg_motion_set_fwd[p] = VK_NULL_HANDLE; }
+        if (r->fg_fix_set[p]) { fg_free_set(r, r->fg_fix_set[p]); r->fg_fix_set[p] = VK_NULL_HANDLE; }
         if (r->fg_interp_set[p]) { fg_free_set(r, r->fg_interp_set[p]); r->fg_interp_set[p] = VK_NULL_HANDLE; }
         if (r->fg_interp_set_deep[p]) { fg_free_set(r, r->fg_interp_set_deep[p]); r->fg_interp_set_deep[p] = VK_NULL_HANDLE; }
     }
@@ -2806,6 +2814,10 @@ static void fg_destroy_resources(VkRenderer* r) {
         if (mf->view)   vkDestroyImageView(r->device, mf->view, NULL);
         if (mf->image)  vkDestroyImage(r->device, mf->image, NULL);
         if (mf->memory) vkFreeMemory(r->device, mf->memory, NULL);
+        VkFgImage* fx = &r->fg_fixed[mi];
+        if (fx->view)   vkDestroyImageView(r->device, fx->view, NULL);
+        if (fx->image)  vkDestroyImage(r->device, fx->image, NULL);
+        if (fx->memory) vkFreeMemory(r->device, fx->memory, NULL);
         VkFgImage* cb_ = &r->fg_coarse[mi];
         if (cb_->view)   vkDestroyImageView(r->device, cb_->view, NULL);
         if (cb_->image)  vkDestroyImage(r->device, cb_->image, NULL);
@@ -2816,6 +2828,7 @@ static void fg_destroy_resources(VkRenderer* r) {
         if (cf_->memory) vkFreeMemory(r->device, cf_->memory, NULL);
     }
     memset(r->fg_motion, 0, sizeof(r->fg_motion));
+    memset(r->fg_fixed, 0, sizeof(r->fg_fixed));
     memset(r->fg_motion_fwd, 0, sizeof(r->fg_motion_fwd));
     memset(r->fg_coarse, 0, sizeof(r->fg_coarse));
     memset(r->fg_coarse_fwd, 0, sizeof(r->fg_coarse_fwd));
@@ -2909,6 +2922,26 @@ static bool fg_create_motion(VkRenderer* r, VkFgImage* o, uint32_t w, uint32_t h
     vi.subresourceRange.levelCount = 1; vi.subresourceRange.layerCount = 1;
     if (vkCreateImageView(r->device, &vi, NULL, &o->view) != VK_SUCCESS) return false;
     return true;
+}
+
+static void fg_fix_pass(VkRenderer* r, VkCommandBuffer cmd, uint32_t parity, float phase) {
+    VkFgImage* dst = &r->fg_fixed[parity];
+    struct { int32_t mvW, mvH; float invW, invH, mvScale, minStep, upscale, phase; } fpc;
+    fpc.mvW = (int32_t)dst->width; fpc.mvH = (int32_t)dst->height;
+    fpc.invW = 1.0f / (float)dst->width; fpc.invH = 1.0f / (float)dst->height;
+    fpc.mvScale = 1.0f; fpc.minStep = 0.0f; fpc.upscale = 0.0f; fpc.phase = phase;
+    vkr_image_barrier(cmd, r->fg_motion[parity].image,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+        VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+    vkr_image_barrier(cmd, dst->image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, VK_ACCESS_SHADER_WRITE_BIT);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, r->pipelines.fg_flowfix_pipeline);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, r->pipelines.fg_motion_pipe_layout, 0, 1, &r->fg_fix_set[parity], 0, NULL);
+    vkCmdPushConstants(cmd, r->pipelines.fg_motion_pipe_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(fpc), &fpc);
+    vkCmdDispatch(cmd, (dst->width + 7u) / 8u, (dst->height + 7u) / 8u, 1);
+    vkr_image_barrier(cmd, dst->image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
 }
 
 static void fg_motion_pass(VkRenderer* r, VkCommandBuffer cmd,
@@ -3228,6 +3261,7 @@ static bool fg_create_resources(VkRenderer* r, uint32_t w, uint32_t h) {
         for (uint32_t mi = 0; mi < 3; mi++) {
             if (!fg_create_motion(r, &r->fg_motion[mi], mw, mh)) goto fail;
             if (!fg_create_motion(r, &r->fg_motion_fwd[mi], mw, mh)) goto fail;
+            if (!fg_create_motion(r, &r->fg_fixed[mi], mw, mh)) goto fail;
             if (!fg_create_motion(r, &r->fg_coarse[mi], cw, ch)) goto fail;
             if (!fg_create_motion(r, &r->fg_coarse_fwd[mi], cw, ch)) goto fail;
         }
@@ -3248,9 +3282,10 @@ static bool fg_create_resources(VkRenderer* r, uint32_t w, uint32_t h) {
         r->fg_motion_set_fwd[p] = fg_alloc_set(r, r->pipelines.fg_motion_layout);
         r->fg_coarse_set[p] = fg_alloc_set(r, r->pipelines.fg_motion_layout);
         r->fg_coarse_set_fwd[p] = fg_alloc_set(r, r->pipelines.fg_motion_layout);
+        r->fg_fix_set[p] = fg_alloc_set(r, r->pipelines.fg_motion_layout);
         r->fg_interp_set[p] = fg_alloc_set(r, r->pipelines.fg_interp_layout);
         r->fg_interp_set_deep[p] = fg_alloc_set(r, r->pipelines.fg_interp_layout);
-        if (!r->fg_motion_set[p] || !r->fg_motion_set_fwd[p] || !r->fg_coarse_set[p] || !r->fg_coarse_set_fwd[p] || !r->fg_interp_set[p] || !r->fg_interp_set_deep[p]) goto fail;
+        if (!r->fg_motion_set[p] || !r->fg_motion_set_fwd[p] || !r->fg_coarse_set[p] || !r->fg_coarse_set_fwd[p] || !r->fg_fix_set[p] || !r->fg_interp_set[p] || !r->fg_interp_set_deep[p]) goto fail;
 
         VkImageView prevV = r->fg_history[(p + 2u) % 3u].view;
         VkImageView currV = r->fg_history[p].view;
@@ -3276,12 +3311,13 @@ static bool fg_create_resources(VkRenderer* r, uint32_t w, uint32_t h) {
         // forward: prev/curr swapped, into fg_coarse_fwd / fg_motion_fwd
         FG_MOTION_WRITE(r->fg_coarse_set_fwd[p], currV, prevV, currV, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, r->fg_coarse_fwd[p].view);
         FG_MOTION_WRITE(r->fg_motion_set_fwd[p], currV, prevV, r->fg_coarse_fwd[p].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, r->fg_motion_fwd[p].view);
+        FG_MOTION_WRITE(r->fg_fix_set[p], prevV, currV, r->fg_motion[p].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, r->fg_fixed[p].view);
         #undef FG_MOTION_WRITE
         (void)sPrev; (void)sCurr;
 
         VkDescriptorImageInfo iPrev  = { r->fg_sampler, prevV, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
         VkDescriptorImageInfo iCurr  = { r->fg_sampler, currV, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
-        VkDescriptorImageInfo iMv    = { r->fg_sampler, r->fg_motion[p].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+        VkDescriptorImageInfo iMv    = { r->fg_sampler, r->fg_fixed[p].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
         VkDescriptorImageInfo iMvFwd = { r->fg_sampler, r->fg_motion_fwd[p].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
         VkWriteDescriptorSet iw_[4] = {0};
         for (int b = 0; b < 4; b++) { iw_[b].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET; iw_[b].dstSet = r->fg_interp_set[p]; iw_[b].dstBinding = (uint32_t)b; iw_[b].descriptorCount = 1; iw_[b].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; }
@@ -3608,6 +3644,8 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase, uint64_t target_n
                 VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
         }
     }
+
+    if (do_interp) fg_fix_pass(r, f->cmd, parity, phase);
 
     VkClearValue clear = {0};
     clear.color.float32[3] = 1.0f;
@@ -3984,6 +4022,8 @@ static FgPending fg_worker_generate(VkRenderer* r, const FgJob* job) {
             }
         }
     }
+
+    if (do_interp && !gen_present) fg_fix_pass(r, f->cmd, parity, job->phase);
 
     VkClearValue clear = {0};
     clear.color.float32[3] = 1.0f;

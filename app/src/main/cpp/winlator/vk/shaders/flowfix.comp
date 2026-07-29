@@ -1,0 +1,63 @@
+#version 450
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(set = 0, binding = 0) uniform sampler2D prevFrame;
+layout(set = 0, binding = 1) uniform sampler2D currFrame;
+layout(set = 0, binding = 2) uniform sampler2D motionField;
+layout(set = 0, binding = 3, rgba16f) uniform writeonly image2D fixedField;
+
+layout(push_constant) uniform PC {
+    ivec2 mvSize;
+    vec2  invMvSize;
+    float mvScale;
+    float minStep;
+    float upscale;
+    float phase;
+} pc;
+
+const vec3 LUM = vec3(0.299, 0.587, 0.114);
+
+const vec2 DIR[8] = vec2[8](vec2(-1.0, 0.0), vec2(1.0, 0.0), vec2(0.0, -1.0), vec2(0.0, 1.0),
+                            vec2(-1.0, -1.0), vec2(1.0, 1.0), vec2(-1.0, 1.0), vec2(1.0, -1.0));
+
+float tap(vec2 base, vec2 mv) {
+    float t = pc.phase;
+    vec2 a = (base + t * mv) * pc.invMvSize;
+    vec2 b = (base - (1.0 - t) * mv) * pc.invMvSize;
+    return abs(dot(textureLod(prevFrame, a, 0.0).rgb - textureLod(currFrame, b, 0.0).rgb, LUM));
+}
+
+float cost(vec2 base, vec2 mv) {
+    return tap(base, mv)
+         + tap(base + vec2(-1.0, 0.0), mv)
+         + tap(base + vec2( 1.0, 0.0), mv)
+         + tap(base + vec2( 0.0, -1.0), mv)
+         + tap(base + vec2( 0.0, 1.0), mv);
+}
+
+void main() {
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    if (p.x >= pc.mvSize.x || p.y >= pc.mvSize.y) return;
+
+    vec4 c0 = texelFetch(motionField, p, 0);
+    vec2 base = vec2(p) + 0.5;
+
+    vec2 best = c0.xy;
+    float bestCost = cost(base, best);
+
+    for (int r = 0; r < 2; ++r) {
+        float rad = (r == 0) ? 2.0 : 5.0;
+        for (int i = 0; i < 8; ++i) {
+            ivec2 q = clamp(p + ivec2(DIR[i] * rad), ivec2(0), pc.mvSize - 1);
+            vec2 cand = texelFetch(motionField, q, 0).xy;
+            float c = cost(base, cand);
+            if (c < bestCost) { bestCost = c; best = cand; }
+        }
+    }
+
+    float cz = cost(base, vec2(0.0));
+    if (cz < bestCost) { best = vec2(0.0); }
+
+    imageStore(fixedField, p, vec4(best, c0.z, c0.w));
+}
