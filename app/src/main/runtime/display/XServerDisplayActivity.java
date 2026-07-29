@@ -6803,7 +6803,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             normalizeSyncEnvVars(envVars);
 
             ArrayList<String> bindingPaths = new ArrayList<>();
-            String drives = shortcut != null ? getShortcutSetting("drives", container.getDrives()) : container.getDrives();
+            String drives = WineUtils.readDrivesFromPrefix(container);
+            if (drives.isEmpty()) drives = container.getDrives();
             for (String[] drive : Container.drivesIterator(drives)) {
                 bindingPaths.add(drive[1]);
             }
