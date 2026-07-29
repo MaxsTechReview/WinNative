@@ -11,7 +11,7 @@ import java.security.MessageDigest
 import org.json.JSONObject
 
 object RetroBundle {
-    private const val BASE = "https://github.com/WinNative-Emu/Retro-Consoles/releases/latest/download"
+    private const val BASE = "https://github.com/WinNative-Emu/Retro-Consoles/releases/download/latest"
     private const val ARCHIVE = "retro-consoles.tzst"
     private const val INFO = "bundle-info.json"
 
