@@ -128,6 +128,8 @@
     <string name="common_ui_select">Seleccionar</string>
     <string name="common_ui_select_folder">Seleccionar carpeta</string>
     <string name="common_ui_current_folder">Carpeta actual</string>
+    <string name="common_ui_enter_path">Introducir ruta</string>
+    <string name="common_ui_path_not_found">Ruta no encontrada</string>
     <string name="common_ui_storage_roots">Ubicaciones de almacenamiento</string>
     <string name="common_ui_browse_local_folders_directly">Explorar carpetas locales directamente</string>
     <string name="common_ui_no_folders_available_here">No hay carpetas disponibles aquí</string>

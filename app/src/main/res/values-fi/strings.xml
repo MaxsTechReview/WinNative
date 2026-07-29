@@ -15,6 +15,8 @@
     <string name="common_ui_select_exe">Valitse EXE</string>
     <string name="common_ui_select_folder">Valitse kansio</string>
     <string name="common_ui_current_folder">Nykyinen kansio</string>
+    <string name="common_ui_enter_path">Anna polku</string>
+    <string name="common_ui_path_not_found">Polkua ei löytynyt</string>
     <string name="common_ui_select_valid_exe_file">Valitse kelvollinen .exe-tiedosto</string>
     <string name="common_ui_select_valid_icon_file">Valitse kelvollinen .ico- tai .png-tiedosto.</string>
     <string name="common_ui_exit">Poistu</string>

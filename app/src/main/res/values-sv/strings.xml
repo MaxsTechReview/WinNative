@@ -15,6 +15,8 @@
     <string name="common_ui_select_exe">Välj EXE</string>
     <string name="common_ui_select_folder">Välj mapp</string>
     <string name="common_ui_current_folder">Aktuell mapp</string>
+    <string name="common_ui_enter_path">Ange sökväg</string>
+    <string name="common_ui_path_not_found">Sökvägen hittades inte</string>
     <string name="common_ui_select_valid_exe_file">Välj en giltig .exe-fil</string>
     <string name="common_ui_select_valid_icon_file">Välj en giltig .ico- eller .png-fil.</string>
     <string name="common_ui_exit">Avsluta</string>

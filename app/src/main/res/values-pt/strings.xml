@@ -15,6 +15,8 @@
     <string name="common_ui_select_exe">Selecionar EXE</string>
     <string name="common_ui_select_folder">Selecionar Pasta</string>
     <string name="common_ui_current_folder">Pasta Atual</string>
+    <string name="common_ui_enter_path">Introduzir caminho</string>
+    <string name="common_ui_path_not_found">Caminho não encontrado</string>
     <string name="common_ui_select_valid_exe_file">Selecione um ficheiro .exe válido</string>
     <string name="common_ui_select_valid_icon_file">Selecione um ficheiro .ico ou .png válido.</string>
     <string name="common_ui_exit">Sair</string>

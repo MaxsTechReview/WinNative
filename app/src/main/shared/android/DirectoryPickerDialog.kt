@@ -75,6 +75,9 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.material3.ripple
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -419,6 +422,7 @@ object DirectoryPickerDialog {
         val scope = rememberCoroutineScope()
         var currentDir by remember(initialDir.absolutePath) { mutableStateOf(initialDir) }
         var selectedFile by remember { mutableStateOf<File?>(null) }
+        var showPathInput by remember { mutableStateOf(false) }
         var rootsExpanded by remember { mutableStateOf(false) }
         var refreshTick by remember { mutableStateOf(0) }
         var clipboard by remember { mutableStateOf<ClipData?>(null) }
@@ -898,7 +902,10 @@ object DirectoryPickerDialog {
                     }
 
                     Spacer(Modifier.height(4.dp))
-                    CurrentPathCard(path = selectedFile?.name ?: currentDir.absolutePath)
+                    CurrentPathCard(
+                        path = selectedFile?.name ?: currentDir.absolutePath,
+                        onClick = { showPathInput = true },
+                    )
                     Spacer(Modifier.height(8.dp))
 
                     androidx.compose.foundation.layout.Box(
@@ -1186,6 +1193,32 @@ object DirectoryPickerDialog {
                 }
                 }
             }
+
+            if (showPathInput) {
+                val pathNotFound = activityString(R.string.common_ui_path_not_found)
+                CompositionLocalProvider(LocalPaneNav provides overlayRegistry) {
+                    TextInputOverlay(
+                        modifier = Modifier.matchParentSize(),
+                        title = activityString(R.string.common_ui_enter_path),
+                        initial = currentDir.absolutePath,
+                        confirmLabel = activityString(R.string.common_ui_ok),
+                        onConfirm = { typed ->
+                            val target = File(typed.trim())
+                            if (target.isDirectory) {
+                                currentDir = target
+                                selectedFile = null
+                            } else if (target.isFile) {
+                                currentDir = target.parentFile ?: currentDir
+                                selectedFile = target
+                            } else {
+                                Toast.makeText(context, pathNotFound, Toast.LENGTH_SHORT).show()
+                            }
+                            showPathInput = false
+                        },
+                        onDismiss = { showPathInput = false },
+                    )
+                }
+            }
         }
     }
 
@@ -1236,15 +1269,23 @@ object DirectoryPickerDialog {
     }
 
     @Composable
-    private fun CurrentPathCard(path: String) {
+    private fun CurrentPathCard(
+        path: String,
+        onClick: () -> Unit,
+    ) {
         Box(
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
+                    .paneNavItem(cornerRadius = 12.dp, onActivate = onClick)
                     .background(BgDark)
                     .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
-                    .padding(horizontal = CurrentPathHorizontalPadding, vertical = 4.dp),
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onClick,
+                    ).padding(horizontal = CurrentPathHorizontalPadding, vertical = 4.dp),
             contentAlignment = Alignment.CenterStart,
         ) {
             Text(
@@ -2015,6 +2056,12 @@ object DirectoryPickerDialog {
         onDismiss: () -> Unit,
     ) {
         var text by remember { mutableStateOf(initial) }
+        val focusRequester = remember { FocusRequester() }
+        val keyboard = LocalSoftwareKeyboardController.current
+        LaunchedEffect(Unit) {
+            focusRequester.requestFocus()
+            keyboard?.show()
+        }
         Box(
             modifier =
                 modifier
@@ -2050,7 +2097,7 @@ object DirectoryPickerDialog {
                     value = text,
                     onValueChange = { text = it },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                 )
                 Spacer(Modifier.height(16.dp))
                 Row(

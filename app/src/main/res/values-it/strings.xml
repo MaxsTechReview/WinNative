@@ -128,6 +128,8 @@
     <string name="common_ui_select">Seleziona</string>
     <string name="common_ui_select_folder">Seleziona cartella</string>
     <string name="common_ui_current_folder">Cartella corrente</string>
+    <string name="common_ui_enter_path">Inserisci percorso</string>
+    <string name="common_ui_path_not_found">Percorso non trovato</string>
     <string name="common_ui_storage_roots">Percorsi di archiviazione</string>
     <string name="common_ui_browse_local_folders_directly">Sfoglia direttamente le cartelle locali</string>
     <string name="common_ui_no_folders_available_here">Nessuna cartella disponibile qui</string>

@@ -128,6 +128,8 @@
     <string name="common_ui_select">Auswählen</string>
     <string name="common_ui_select_folder">Ordner auswählen</string>
     <string name="common_ui_current_folder">Aktueller Ordner</string>
+    <string name="common_ui_enter_path">Pfad eingeben</string>
+    <string name="common_ui_path_not_found">Pfad nicht gefunden</string>
     <string name="common_ui_storage_roots">Speicherorte</string>
     <string name="common_ui_browse_local_folders_directly">Lokale Ordner direkt durchsuchen</string>
     <string name="common_ui_no_folders_available_here">Hier sind keine Ordner verfügbar</string>

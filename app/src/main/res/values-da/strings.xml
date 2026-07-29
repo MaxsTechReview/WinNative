@@ -128,6 +128,8 @@
     <string name="common_ui_select">Vælg</string>
     <string name="common_ui_select_folder">Vælg mappe</string>
     <string name="common_ui_current_folder">Nuværende mappe</string>
+    <string name="common_ui_enter_path">Indtast sti</string>
+    <string name="common_ui_path_not_found">Stien blev ikke fundet</string>
     <string name="common_ui_storage_roots">Lagringsrødder</string>
     <string name="common_ui_browse_local_folders_directly">Gennemse lokale mapper direkte</string>
     <string name="common_ui_no_folders_available_here">Ingen mapper tilgængelige her</string>

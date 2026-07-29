@@ -16,6 +16,8 @@
     <string name="common_ui_select_exe">Select EXE</string>
     <string name="common_ui_select_folder">Select Folder</string>
     <string name="common_ui_current_folder">Current Folder</string>
+    <string name="common_ui_enter_path">Enter Path</string>
+    <string name="common_ui_path_not_found">Path not found</string>
     <string name="common_ui_select_valid_exe_file">Please select a valid .exe file</string>
     <string name="common_ui_select_valid_icon_file">Please select a valid .ico or .png file.</string>
     <string name="common_ui_exit">Exit</string>

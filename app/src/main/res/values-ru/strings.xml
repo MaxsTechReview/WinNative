@@ -15,6 +15,8 @@
     <string name="common_ui_select_exe">Выбрать EXE</string>
     <string name="common_ui_select_folder">Выбрать папку</string>
     <string name="common_ui_current_folder">Текущая папка</string>
+    <string name="common_ui_enter_path">Введите путь</string>
+    <string name="common_ui_path_not_found">Путь не найден</string>
     <string name="common_ui_select_valid_exe_file">Выберите корректный файл .exe</string>
     <string name="common_ui_select_valid_icon_file">Выберите корректный файл .ico или .png.</string>
     <string name="common_ui_exit">Выход</string>

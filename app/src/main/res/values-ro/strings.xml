@@ -128,6 +128,8 @@
     <string name="common_ui_select">Selectează</string>
     <string name="common_ui_select_folder">Selectează folder</string>
     <string name="common_ui_current_folder">Folder curent</string>
+    <string name="common_ui_enter_path">Introduceți calea</string>
+    <string name="common_ui_path_not_found">Calea nu a fost găsită</string>
     <string name="common_ui_storage_roots">Locații de stocare</string>
     <string name="common_ui_browse_local_folders_directly">Răsfoiește direct folderele locale</string>
     <string name="common_ui_no_folders_available_here">Niciun folder disponibil aici</string>

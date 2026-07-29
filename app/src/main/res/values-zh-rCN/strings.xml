@@ -128,6 +128,8 @@
     <string name="common_ui_select">选择</string>
     <string name="common_ui_select_folder">选择文件夹</string>
     <string name="common_ui_current_folder">当前文件夹</string>
+    <string name="common_ui_enter_path">输入路径</string>
+    <string name="common_ui_path_not_found">找不到路径</string>
     <string name="common_ui_storage_roots">存储根目录</string>
     <string name="common_ui_browse_local_folders_directly">直接浏览本地文件夹</string>
     <string name="common_ui_no_folders_available_here">此处没有可用的文件夹</string>

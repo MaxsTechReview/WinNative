@@ -15,6 +15,8 @@
     <string name="common_ui_select_exe">EXE Seç</string>
     <string name="common_ui_select_folder">Klasör Seç</string>
     <string name="common_ui_current_folder">Geçerli Klasör</string>
+    <string name="common_ui_enter_path">Yol girin</string>
+    <string name="common_ui_path_not_found">Yol bulunamadı</string>
     <string name="common_ui_select_valid_exe_file">Lütfen geçerli bir .exe dosyası seçin</string>
     <string name="common_ui_select_valid_icon_file">Lütfen geçerli bir .ico veya .png dosyası seçin.</string>
     <string name="common_ui_exit">Çıkış</string>

@@ -128,6 +128,8 @@
     <string name="common_ui_select">Вибрати</string>
     <string name="common_ui_select_folder">Вибрати теку</string>
     <string name="common_ui_current_folder">Поточна тека</string>
+    <string name="common_ui_enter_path">Введіть шлях</string>
+    <string name="common_ui_path_not_found">Шлях не знайдено</string>
     <string name="common_ui_storage_roots">Сховища</string>
     <string name="common_ui_browse_local_folders_directly">Переглядати локальні теки безпосередньо</string>
     <string name="common_ui_no_folders_available_here">Тут немає доступних тек</string>

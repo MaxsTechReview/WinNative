@@ -128,6 +128,8 @@
     <string name="common_ui_select">Selecionar</string>
     <string name="common_ui_select_folder">Selecionar pasta</string>
     <string name="common_ui_current_folder">Pasta atual</string>
+    <string name="common_ui_enter_path">Inserir caminho</string>
+    <string name="common_ui_path_not_found">Caminho não encontrado</string>
     <string name="common_ui_storage_roots">Locais de armazenamento</string>
     <string name="common_ui_browse_local_folders_directly">Navegar pelas pastas locais diretamente</string>
     <string name="common_ui_no_folders_available_here">Nenhuma pasta disponível aqui</string>

@@ -128,6 +128,8 @@
     <string name="common_ui_select">Wybierz</string>
     <string name="common_ui_select_folder">Wybierz folder</string>
     <string name="common_ui_current_folder">Bieżący folder</string>
+    <string name="common_ui_enter_path">Wprowadź ścieżkę</string>
+    <string name="common_ui_path_not_found">Nie znaleziono ścieżki</string>
     <string name="common_ui_storage_roots">Lokalizacje pamięci</string>
     <string name="common_ui_browse_local_folders_directly">Przeglądaj lokalne foldery bezpośrednio</string>
     <string name="common_ui_no_folders_available_here">Brak dostępnych folderów w tej lokalizacji</string>
