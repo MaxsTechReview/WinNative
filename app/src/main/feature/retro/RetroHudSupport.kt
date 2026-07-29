@@ -37,6 +37,21 @@ object RetroHudSupport {
     private const val PS2_BG_ALPHA_PREF = "wn.ps2.hud.bg_alpha"
     private const val PS2_SCALE_PREF = "wn.ps2.hud.scale"
 
+    fun consoleHudDefault(
+        context: Context,
+        systemId: String,
+    ): Boolean =
+        if (systemId == RetroSystems.PS2.id) resolvePs2HudEnabled(context) else RetroDefaults.hud(context, systemId)
+
+    fun hudEnabled(
+        context: Context,
+        shortcut: com.winlator.cmod.runtime.container.Shortcut?,
+        systemId: String,
+    ): Boolean {
+        val perGame = shortcut?.getExtra(RetroShortcuts.KEY_HUD).orEmpty()
+        return if (perGame.isEmpty()) consoleHudDefault(context, systemId) else perGame == "1"
+    }
+
     fun defaultElements(): BooleanArray = booleanArrayOf(true, true, true, true, true, true, true, true, false)
 
     fun ps2Prefs(context: Context) =

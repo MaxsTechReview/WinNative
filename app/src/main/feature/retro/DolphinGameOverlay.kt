@@ -257,7 +257,7 @@ object DolphinGameOverlay {
         fun setHudVisible(value: Boolean) {
             hudOn = value
             activity.applyVariable("wn_hud", if (value) "1" else "0")
-            RetroDefaults.setHud(activity, system.id, value)
+            persistExtra(RetroShortcuts.KEY_HUD, if (value) "1" else "0")
             if (value) showHud() else frameRating?.visibility = android.view.View.GONE
         }
 

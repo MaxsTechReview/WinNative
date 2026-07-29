@@ -1446,7 +1446,7 @@ class RetroActivity : FixedFontScaleAppCompatActivity(), RetroInputView.Listener
             frameRating?.visibility = View.GONE
             applyDisplayGeometry()
         }
-        RetroDefaults.setHud(this, system?.id ?: "", value)
+        persistExtra(RetroShortcuts.KEY_HUD, if (value) "1" else "0")
         menu.rebuild()
     }
 

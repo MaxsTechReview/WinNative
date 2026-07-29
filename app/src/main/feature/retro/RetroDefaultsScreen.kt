@@ -429,7 +429,10 @@ fun RetroDefaultsScreen(bridge: SettingsNavBridge? = null) {
             }
         }
 
-        RetroLibretroHudSection()
+        RetroLibretroHudSection(RetroDefaults.hud(context, "")) {
+            RetroDefaults.setHud(context, "", it)
+            refresh++
+        }
 
         Text(
             stringResource(R.string.retro_scr_console_defaults),

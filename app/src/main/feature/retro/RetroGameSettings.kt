@@ -147,6 +147,16 @@ class RetroSettingsState(
         shortcut.getExtra(RetroShortcuts.KEY_AUDIO)
             .ifEmpty { if (context != null && sysId != null) (if (RetroDefaults.audio(context, sysId)) "1" else "0") else "1" } != "0",
     )
+    var hud by mutableStateOf(
+        shortcut.getExtra(RetroShortcuts.KEY_HUD)
+            .ifEmpty {
+                if (context != null && sysId != null) {
+                    if (RetroHudSupport.consoleHudDefault(context, sysId)) "1" else "0"
+                } else {
+                    "0"
+                }
+            } == "1",
+    )
 
     val optionValues =
         mutableStateMapOf<String, String>().apply {
@@ -198,6 +208,7 @@ class RetroSettingsState(
         shortcut.putExtra(RetroShortcuts.KEY_HDD_IMAGE, hddImage)
         shortcut.putExtra(RetroShortcuts.KEY_HDD_ENABLE, if (hddEnable) "1" else "0")
         shortcut.putExtra(RetroShortcuts.KEY_AUDIO, if (audio) "1" else "0")
+        shortcut.putExtra(RetroShortcuts.KEY_HUD, if (hud) "1" else "0")
         coreOptions.forEach { option ->
             val consoleDefault =
                 if (context != null && sysId != null) {
@@ -364,7 +375,11 @@ private fun RetroSectionContent(
                     RetroSectionId.GRAPHICS -> RetroGraphicsSection(state)
                     RetroSectionId.PERFORMANCE -> RetroPs2PerformanceSection()
                     RetroSectionId.HUD ->
-                        if (state.system?.isExternal == true) RetroPs2HudSection() else RetroLibretroHudSection()
+                        if (state.system?.isExternal == true) {
+                            RetroPs2HudSection(state)
+                        } else {
+                            RetroLibretroHudSection(state.hud) { state.hud = it }
+                        }
                     RetroSectionId.INPUT -> RetroInputSection(state)
                     RetroSectionId.AUDIO -> RetroAudioSection(state)
                     RetroSectionId.ONLINE -> {
@@ -1148,16 +1163,18 @@ private fun DolphinGpuDriverDropdown() {
 }
 
 @Composable
-internal fun RetroLibretroHudSection() {
+internal fun RetroLibretroHudSection(
+    hudOn: Boolean,
+    onHud: (Boolean) -> Unit,
+) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var version by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     @Suppress("UNUSED_EXPRESSION") version
-    val hudOn = RetroDefaults.hud(context, "")
     val elements = remember(version) { RetroHudSupport.loadGlobalHudElements(context) }
     RetroSettingGroup {
         RetroGroupTitle(stringResource(R.string.retro_gs_group_performance_hud))
         RetroSettingSwitch(stringResource(R.string.retro_lr_performance_hud), hudOn) {
-            RetroDefaults.setHud(context, "", it)
+            onHud(it)
             version++
         }
         if (hudOn) {
@@ -1475,19 +1492,19 @@ private fun RetroPs2PerformanceSection() {
 }
 
 @Composable
-private fun RetroPs2HudSection() {
+private fun RetroPs2HudSection(state: RetroSettingsState) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var version by remember { androidx.compose.runtime.mutableIntStateOf(0) }
 
     @Suppress("UNUSED_EXPRESSION") version
 
-    val hudOn = RetroHudSupport.resolvePs2HudEnabled(context)
+    val hudOn = state.hud
     val elements = remember(version) { RetroHudSupport.loadPs2Elements(context) }
 
     RetroSettingGroup {
         RetroGroupTitle(stringResource(R.string.retro_gs_group_performance_hud))
         RetroSettingSwitch(stringResource(R.string.retro_lr_performance_hud), hudOn) {
-            RetroHudSupport.setPs2HudEnabled(context, it)
+            state.hud = it
             version++
         }
         if (hudOn) {

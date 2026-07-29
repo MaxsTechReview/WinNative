@@ -17,8 +17,13 @@ import com.armsx2.WinNativeHost
 import com.winlator.cmod.R
 import com.armsx2.runtime.MainActivityRuntime
 import com.armsx2.ui.WindowImpl
+import com.winlator.cmod.runtime.container.ContainerManager
+import com.winlator.cmod.runtime.container.Shortcut
 import com.winlator.cmod.runtime.display.ui.FrameRating
 import com.winlator.cmod.shared.theme.WinNativeTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import kr.co.iefriends.pcsx2.NativeApp
 
 const val PS2_DEFAULT_DNS = "45.7.228.197"
@@ -39,6 +44,20 @@ object Ps2GameOverlay {
             attach(activity)
         }
         WinNativeHost.applyBootSettings = { ctx -> applyBootConfig(ctx) }
+    }
+
+    private fun loadShortcut(activity: android.app.Activity): Shortcut? {
+        val containerId = activity.intent?.getIntExtra(RetroShortcuts.EXTRA_PS2_CONTAINER_ID, -1) ?: -1
+        val path = activity.intent?.getStringExtra(RetroShortcuts.EXTRA_PS2_SHORTCUT_PATH)
+        if (containerId < 0 || path.isNullOrBlank()) return null
+        val file = java.io.File(path)
+        if (!file.isFile) return null
+        return runCatching {
+            val cm = ContainerManager(activity)
+            val container =
+                if (containerId == ContainerManager.RETRO_CONTAINER_ID) cm.retroContainer else cm.getContainerById(containerId)
+            container?.let { Shortcut(it, file) }
+        }.getOrNull()
     }
 
     private fun ps2Prefs(ctx: android.content.Context) =
@@ -239,7 +258,23 @@ object Ps2GameOverlay {
         var wnPaused = false
         val prefs = activity.getSharedPreferences("ARMSX2", android.content.Context.MODE_PRIVATE)
         var frameRating: FrameRating? = null
-        var hudVisible = RetroHudSupport.resolvePs2HudEnabled(activity)
+        var shortcut: Shortcut? = null
+        val pendingExtras = LinkedHashMap<String, String>()
+        fun persistExtra(key: String, value: String) {
+            val target = shortcut
+            if (target == null) {
+                pendingExtras[key] = value
+                return
+            }
+            @Suppress("OPT_IN_USAGE")
+            GlobalScope.launch(Dispatchers.IO) {
+                runCatching {
+                    target.putExtra(key, value)
+                    target.saveData()
+                }
+            }
+        }
+        var hudVisible = RetroHudSupport.consoleHudDefault(activity, RetroSystems.PS2.id)
         var hudStyle = RetroHudSupport.loadPs2HudStyle(activity)
         var hudElements = RetroHudSupport.loadPs2Elements(activity)
         val menuToggleGate = RetroHudSupport.MenuToggleGate()
@@ -286,9 +321,34 @@ object Ps2GameOverlay {
 
         fun setHudVisible(value: Boolean) {
             hudVisible = value
-            RetroHudSupport.setPs2HudEnabled(activity, value)
+            persistExtra(RetroShortcuts.KEY_HUD, if (value) "1" else "0")
             if (value) showHud() else hideHud()
             menu.rebuild()
+        }
+
+        @Suppress("OPT_IN_USAGE")
+        GlobalScope.launch(Dispatchers.IO) {
+            val loaded = loadShortcut(activity)
+            activity.runOnUiThread {
+                shortcut = loaded
+                if (loaded != null) {
+                    val perGame = loaded.getExtra(RetroShortcuts.KEY_HUD)
+                    if (perGame.isNotEmpty() && (perGame == "1") != hudVisible) {
+                        setHudVisible(perGame == "1")
+                    }
+                    if (pendingExtras.isNotEmpty()) {
+                        val queued = pendingExtras.toMap()
+                        pendingExtras.clear()
+                        @Suppress("OPT_IN_USAGE")
+                        GlobalScope.launch(Dispatchers.IO) {
+                            runCatching {
+                                queued.forEach { (k, v) -> loaded.putExtra(k, v) }
+                                loaded.saveData()
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         fun gsSet(key: String, type: String, value: String) {
@@ -533,7 +593,7 @@ object Ps2GameOverlay {
                         touchVisible.value = value
                         if (controllerConnected.value) manualTouchOverride.value = true
                         ps2Prefs(activity).edit().putBoolean("wn.ps2.touchcontrols", value).apply()
-                        RetroDefaults.setTouchControls(activity, RetroSystems.PS2.id, value)
+                        persistExtra(RetroShortcuts.KEY_TOUCH_CONTROLS, if (value) "1" else "0")
                         val showPad = value && (!controllerConnected.value || manualTouchOverride.value)
                         RetroAchievementOverlayState.syncPlacement(showPad, controllerConnected.value)
                         bg {
@@ -549,7 +609,7 @@ object Ps2GameOverlay {
                         checked = ps2Prefs(activity).getBoolean("wn.ps2.adaptivesticks", false),
                     ) { value ->
                         ps2Prefs(activity).edit().putBoolean("wn.ps2.adaptivesticks", value).apply()
-                        RetroDefaults.setAdaptiveSticks(activity, RetroSystems.PS2.id, value)
+                        persistExtra(RetroShortcuts.KEY_ADAPTIVE_STICKS, if (value) "1" else "0")
                         pad?.adaptiveSticks = value
                         pad?.invalidate()
                         menu.rebuild()

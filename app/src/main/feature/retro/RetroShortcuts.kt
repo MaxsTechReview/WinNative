@@ -25,6 +25,8 @@ object RetroShortcuts {
 
     const val EXTRA_PS2_ROM_PATH = "wn_ps2_rom_path"
     const val EXTRA_PS2_GAME_NAME = "wn_ps2_game_name"
+    const val EXTRA_PS2_SHORTCUT_PATH = "wn_ps2_shortcut_path"
+    const val EXTRA_PS2_CONTAINER_ID = "wn_ps2_container_id"
     const val VAR_PREFIX = "retro_var_"
 
     fun coreVariables(shortcut: Shortcut): HashMap<String, String> {
@@ -211,8 +213,12 @@ object RetroShortcuts {
                 return@thread
             }
             val prefs = context.getSharedPreferences("ARMSX2", Context.MODE_PRIVATE)
-            val touchControls = prefs.getBoolean("wn.ps2.touchcontrols", RetroDefaults.touchControls(context, RetroSystems.PS2.id))
-            val adaptiveSticks = prefs.getBoolean("wn.ps2.adaptivesticks", RetroDefaults.adaptiveSticks(context, RetroSystems.PS2.id))
+            val touchControls =
+                shortcut.getExtra(KEY_TOUCH_CONTROLS)
+                    .ifEmpty { if (RetroDefaults.touchControls(context, RetroSystems.PS2.id)) "1" else "0" } != "0"
+            val adaptiveSticks =
+                shortcut.getExtra(KEY_ADAPTIVE_STICKS)
+                    .ifEmpty { if (RetroDefaults.adaptiveSticks(context, RetroSystems.PS2.id)) "1" else "0" } == "1"
             val driverPref = (prefs.getString("wn.ps2.driver", "") ?: "").trim()
             val customDriverId =
                 if (driverPref.isEmpty() || driverPref.equals("system", ignoreCase = true)) "" else driverPref
@@ -241,6 +247,8 @@ object RetroShortcuts {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     putExtra(EXTRA_PS2_ROM_PATH, rom.absolutePath)
                     putExtra(EXTRA_PS2_GAME_NAME, shortcut.getExtra("custom_name", shortcut.name))
+                    putExtra(EXTRA_PS2_SHORTCUT_PATH, shortcut.file.absolutePath)
+                    putExtra(EXTRA_PS2_CONTAINER_ID, shortcut.container.id)
                 }
             android.os.Handler(android.os.Looper.getMainLooper()).post {
                 runCatching { context.startActivity(intent) }
@@ -314,7 +322,7 @@ object RetroShortcuts {
                 RetroActivity.EXTRA_AUDIO,
                 shortcut.getExtra(KEY_AUDIO).ifEmpty { if (RetroDefaults.audio(context, sysId)) "1" else "0" } != "0",
             )
-            putExtra(RetroActivity.EXTRA_HUD, RetroDefaults.hud(context, sysId))
+            putExtra(RetroActivity.EXTRA_HUD, RetroHudSupport.hudEnabled(context, shortcut, sysId))
             putExtra(RetroActivity.EXTRA_VARIABLES, resolvedCoreVariables(context, shortcut))
         }
 }

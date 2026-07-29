@@ -136,7 +136,7 @@ object DolphinEmbedLaunch {
             shortcut.getExtra(RetroShortcuts.KEY_AUDIO).ifEmpty {
                 if (RetroDefaults.audio(context, sysId)) "1" else "0"
             }
-        vars["wn_hud"] = if (RetroDefaults.hud(context, sysId)) "1" else "0"
+        vars["wn_hud"] = if (RetroHudSupport.hudEnabled(context, shortcut, sysId)) "1" else "0"
         vars["wn_adaptive"] =
             shortcut.getExtra(RetroShortcuts.KEY_ADAPTIVE_STICKS).ifEmpty {
                 if (RetroDefaults.adaptiveSticks(context, sysId)) "1" else "0"
