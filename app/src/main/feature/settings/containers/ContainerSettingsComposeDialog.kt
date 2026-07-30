@@ -465,6 +465,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             state.cpuAvgFrameCount.value = c.getExtra("cpuAvgFrameCount").toIntOrNull() ?: 3
             state.cpuAutoTargetFPS.value = c.getExtra("cpuAutoTargetFPS").toBoolean()
             state.gpuFrequency.value = c.getExtra("gpuFrequency").toIntOrNull() ?: 0
+            state.performanceMode.value = c.getExtra("performanceMode")
+
             val cpuPolicies = c.getExtra("cpuPolicies")
             if (cpuPolicies.isNotEmpty()) {
                 val policies = PerformanceManager.parseRawPoliciesFromString(cpuPolicies)
@@ -803,6 +805,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             c.putExtra("cpuAvgFrameCount", state.cpuAvgFrameCount.value.toString())
             c.putExtra("cpuAutoTargetFPS", state.cpuAutoTargetFPS.value.toString())
             c.putExtra("gpuFrequency", state.gpuFrequency.value.toString())
+            c.putExtra("performanceMode", state.performanceMode.value)
         }
 
         val midiSoundFontEntries = state.midiSoundFontEntries.value

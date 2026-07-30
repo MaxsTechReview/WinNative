@@ -2001,14 +2001,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             var cpuBoostState = Boolean.parseBoolean(shortcut.getExtra("cpuBoostState"));
             var cpuFanMode = shortcut.getExtra("cpuFanMode");
             var gpuFrequency = shortcut.getExtra("gpuFrequency");
+            var performanceMode = shortcut.getExtra("performanceMode");
+            var cpuGovernor = shortcut.getExtra("cpuGovernor");
             if (!cpuFanMode.isEmpty()) {
                 WinToast.show(this, String.format("CPU fan mode set: %s", cpuFanMode));
                 performanceManager.setFanMode(cpuFanMode);
             }
-            var cpuGovernor = shortcut.getExtra("cpuGovernor");
             if (!cpuGovernor.isEmpty()) {
                 WinToast.show(this, String.format("CPU governor set: %s", cpuGovernor));
                 performanceManager.setAllCpuCoreGovernor(cpuGovernor);
+            }
+            if (!performanceMode.isEmpty()) {
+                WinToast.show(this, String.format("Performance mode set: %s", performanceMode));
+                performanceManager.setPerformanceMode(performanceMode);
             }
             if (Boolean.parseBoolean(shortcut.getExtra("cpuAutoTargetFPS"))) {
                 var cpuTargetFPS = shortcut.getExtra("cpuTargetFPS");

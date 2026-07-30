@@ -19,6 +19,14 @@ data class CpuPolicy(
     val availableFrequencies: MutableList<Long>?
 )
 
+data class SystemInformation(
+    var fanMode: Int?,
+    var cpuGovernor: String?,
+    var gpuFrequency: Int?,
+    var policies: List<CpuPolicy>?,
+    var performanceMode: Int?
+)
+
 object PerformanceManager {
     private const val IDLE_TIMEOUT_NS = 1500000000L
     private const val CPU_PATH = "/sys/devices/system/cpu"
@@ -26,35 +34,27 @@ object PerformanceManager {
     private const val POLICY_PATH = "/sys/devices/system/cpu/cpufreq"
     private const val CPU_BOOST_PATH = "/sys/devices/system/cpu/cpufreq/boost"
     private const val CPU_POLICY_BASE_PATH = "/sys/devices/system/cpu/cpufreq/"
+    private val FAN_MODES = mapOf("QUIET" to 1, "SMART" to 4, "SPORT" to 5, "CUSTOM" to 6)
+    private val PERFORMANCE_MODES = mapOf("Standard" to 0, "Performance" to 1, "High Performance" to 2)
 
     val isDeviceSupported
         get() = RootManager.isRooted
 
-    private val defaultSystemGovernor = getCpuGovernor()
-    private var defaultSystemPolicies: List<CpuPolicy>? = getCpuPolicies()
-
-    private var defautlSystemFanMode: Int? = null
-
-    private val FAN_MODES = mapOf<String, Int>("QUIET" to 1, "SMART" to 4, "SPORT" to 5, "CUSTOM" to 6)
-
-    val allCpuGovernors  = getCpuGovernors()
-
-    val disabledCores = mutableListOf<Int>()
-
-    val isFanSupported = checkForFanSupport()
-
-    var gpuFrequencyIndex: Int = 0
-    var gpuFrequencies: MutableList<Int> = mutableListOf()
-    val isGpuSupported = checkForGpuSupport()
     var targetFPS: Float = 0f
     var fpsAvgFrameCount = 0
+    var gpuFrequencyIndex: Int = 0
+    var gpuFrequencies: MutableList<Int> = mutableListOf()
     var useAutoTargeting: Boolean = false
+
     private var ticks: Long = 0L
     private var fpsLastFrameNano = 0L
-    private var autoTargetSetup: Boolean = false
-    private var autoTargetPolicies: List<CpuPolicy>? = null
     private var fpsPastFrames: MutableList<Float> = mutableListOf()
+    private var autoTargetPolicies: List<CpuPolicy>? = null
 
+    val disabledCores = mutableListOf<Int>()
+    val isFanSupported = checkForFanSupport()
+    val isGpuSupported = checkForGpuSupport()
+    private val defaultSystemInfo: SystemInformation? = getSystemInformation()
 
     fun checkForGpuSupport(): Boolean {
         if (!isDeviceSupported) return false
@@ -74,9 +74,7 @@ object PerformanceManager {
     fun checkForFanSupport(): Boolean {
         if (!isDeviceSupported) return false
         val response = RootManager.executeAsRoot("settings get system fan_mode") ?: return false
-        val fanMode = response.toIntOrNull()
-        defautlSystemFanMode = fanMode
-        return fanMode != null
+        return response.toIntOrNull() != null
     }
 
     fun checkForPossibleCrash() {
@@ -110,7 +108,42 @@ object PerformanceManager {
             }
         }
         if (resetDefaultSystemPolicies)
-            defaultSystemPolicies = getCpuPolicies()
+            defaultSystemInfo?.policies = getCpuPolicies()
+    }
+
+    fun getSystemInformation(): SystemInformation? {
+        if (!isDeviceSupported) return null
+        if (defaultSystemInfo != null) return defaultSystemInfo
+        return SystemInformation(
+            fanMode = getFanMode(),
+            cpuGovernor = getCpuGovernor(),
+            gpuFrequency = getGpuFrequency(),
+            policies = getCpuPolicies(),
+            performanceMode = getPerformanceMode()
+        )
+    }
+
+    fun getPerformanceMode(): Int? {
+        if (!isDeviceSupported) return null
+        val response = RootManager.executeAsRoot("settings get system performance_mode") ?: return null
+        return response.toIntOrNull()
+    }
+
+    fun getGpuFrequency(): Int? {
+        if (!isDeviceSupported || !isGpuSupported) return null
+        val response = RootManager.readSysfsFile("${GPU_PATH}/max_clock_mhz") ?: return null
+        return response.toIntOrNull()
+    }
+
+    fun getFanMode(): Int? {
+        if (!isDeviceSupported || !isFanSupported) return null
+        val response = RootManager.executeAsRoot("settings get system fan_mode") ?: return null
+        return response.toIntOrNull()
+    }
+
+    fun getSupportedPerformanceModes(): List<String>? {
+        if (!isDeviceSupported || !isGpuSupported) return null
+        return PERFORMANCE_MODES.map { it.key }
     }
 
     fun getSupportedFanModes(): List<String>? {
@@ -120,7 +153,7 @@ object PerformanceManager {
 
     fun getDefaultSystemPolicies(): List<CpuPolicy>? {
         if (!isDeviceSupported) return null
-        return defaultSystemPolicies
+        return defaultSystemInfo?.policies
     }
 
     fun getCpuBoostState(): Boolean? {
@@ -203,17 +236,17 @@ object PerformanceManager {
     fun onTick() {
         if (!isDeviceSupported || targetFPS == 0f || !useAutoTargeting) return
         ticks++
-        if (ticks == 1L) {
+        if (ticks.toFloat() == targetFPS*60f) {
             val policies = getCpuPolicies() ?: return
             for (policy in policies) {
                 policy.enabled = true
                 policy.boostState = true
                 if (policy.availableFrequencies.isNullOrEmpty()) continue
-                policy.maxFrequency = policy.availableFrequencies[policy.availableFrequencies.size-1]
-                policy.minFrequency = policy.availableFrequencies[policy.availableFrequencies.size-1]
+                policy.maxFrequency = policy.availableFrequencies.first()
+                policy.minFrequency = policy.availableFrequencies.first()
             }
             if (isGpuSupported && gpuFrequencies.isNotEmpty() && gpuFrequencies.size > 2)
-                setGpuFrequency(gpuFrequencies.last(), gpuFrequencies.last())
+                setGpuFrequency(gpuFrequencies.first(), gpuFrequencies.first())
             autoTargetPolicies = policies
             setCpuCorePolicies(policies)
             return
@@ -419,6 +452,17 @@ object PerformanceManager {
         return RootManager.executeAsRoot("settings put system fan_mode ${mode}") != null
     }
 
+    fun setPerformanceMode(performanceMode: Int): Boolean? {
+        if (!isDeviceSupported || !isGpuSupported) return null
+        return RootManager.executeAsRoot("settings put system performance_mode ${performanceMode}") != null
+    }
+
+    fun setPerformanceMode(performanceMode: String): Boolean? {
+        if (!isDeviceSupported || !isGpuSupported) return null
+        val mode = PERFORMANCE_MODES[performanceMode] ?: return null
+        return RootManager.executeAsRoot("settings put system performance_mode ${mode}") != null
+    }
+
     fun setFanMode(fanMode: Int): Boolean? {
         if (!isDeviceSupported || !isFanSupported) return null
         if (!FAN_MODES.containsValue(fanMode)) return null
@@ -471,6 +515,15 @@ object PerformanceManager {
         return stringPolicies
     }
 
+    fun setSystemInformation(systemInfo: SystemInformation, lockfile: Boolean=true, reset: Boolean=false) {
+        if (!isDeviceSupported) return
+        systemInfo.fanMode?.let { setFanMode(it) }
+        systemInfo.cpuGovernor?.let { setAllCpuCoreGovernor(it) }
+        systemInfo.gpuFrequency?.let { setGpuFrequency(gpuFrequencies.first(), it, lockfile) }
+        systemInfo.policies?.let { setCpuCorePolicies(it, reset) }
+        systemInfo.performanceMode?.let { setPerformanceMode(it) }
+    }
+
     fun formatFrequency(valueKhz: Int, boosted: Boolean = false): String {
         val base = when {
             valueKhz >= 1_000_000 -> String.format("%.2f GHz", valueKhz / 1_000_000f)
@@ -482,17 +535,10 @@ object PerformanceManager {
 
     fun resetSystemToDefault(): Boolean? {
         if (!isDeviceSupported) return null
-        if (!defaultSystemGovernor.isNullOrEmpty())
-            setAllCpuCoreGovernor(defaultSystemGovernor)
-        if (isFanSupported && defautlSystemFanMode != null)
-            defautlSystemFanMode?.let { setFanMode(it) }
-        if (defaultSystemPolicies.isNullOrEmpty()) return null
-        defaultSystemPolicies?.let { setCpuCorePolicies(it, true) }
-        if (isGpuSupported && gpuFrequencies.isNotEmpty()) {
-            setGpuFrequency(gpuFrequencies.first(), gpuFrequencies.last(), false)
-            gpuFrequencyIndex = 0
-            ticks = 0
-        }
+        ticks = 0
+        gpuFrequencyIndex = 0
+        autoTargetPolicies = null
+        defaultSystemInfo?.let { setSystemInformation(it, false, true) }
         return true
     }
 }

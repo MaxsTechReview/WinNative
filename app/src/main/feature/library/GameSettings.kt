@@ -587,6 +587,7 @@ class GameSettingsStateHolder {
     val cpuAutoTargetFPS =  mutableStateOf(false)
     val cpuAvgFrameCount = mutableStateOf(3)
     val gpuFrequency =  mutableStateOf(0)
+    val performanceMode = mutableStateOf("")
 }
 
 interface GameSettingsCallbacks {
@@ -1074,8 +1075,9 @@ private fun PerformanceControlSection(
     state: GameSettingsStateHolder,
     callbacks: GameSettingsCallbacks
 ) {
-    val governors = PerformanceManager.allCpuGovernors
+    val governors = PerformanceManager.getCpuGovernors()
     val fanModes = PerformanceManager.getSupportedFanModes()
+    val performanceModes = PerformanceManager.getSupportedPerformanceModes()
     val gpuFrequencies = PerformanceManager.gpuFrequencies
     var fanModeIndex by remember { mutableStateOf(fanModes?.indexOf(state.cpuFanMode.value) ?: 0) }
     var governorIndex by remember { mutableStateOf(governors?.indexOf(state.cpuGovernor.value) ?: 0) }
@@ -1085,37 +1087,54 @@ private fun PerformanceControlSection(
         if (!policies.isNullOrEmpty())
             state.cpuPolicies.value = policies
     }
-    if (!governors.isNullOrEmpty()) {
-        SettingGroup {
-            Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+    SettingGroup {
+        Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+            if (!governors.isNullOrEmpty()) {
                 Box(Modifier.weight(1f)) {
                     SettingDropdown(
                         label = stringResource(R.string.performance_cpu_governor_label),
                         entries = governors,
-                        selectedIndex = governorIndex,
+                        selectedIndex = governors.indexOf(state.cpuGovernor.value),
                         onSelected = {
-                            governorIndex = it
                             state.cpuGovernor.value = governors[it]
                         }
                     )
                 }
-                if (PerformanceManager.isFanSupported && !fanModes.isNullOrEmpty()) {
-                    Box(Modifier.weight(1f)) {
-                        SettingDropdown(
-                            label = stringResource(R.string.performance_cpu_fan_label),
-                            entries = fanModes,
-                            selectedIndex = fanModeIndex,
-                            onSelected = {
-                                fanModeIndex = it
-                                state.cpuFanMode.value = fanModes[it]
-                            }
-                        )
-                    }
+            }
+
+            if (!performanceModes.isNullOrEmpty()) {
+                Box(Modifier.weight(1f)) {
+                    SettingDropdown(
+                        label = stringResource(R.string.performance_system_performance_label),
+                        entries = performanceModes,
+                        selectedIndex = performanceModes.indexOf(state.performanceMode.value),
+                        onSelected = {
+                            state.performanceMode.value = performanceModes[it]
+                        }
+                    )
                 }
             }
         }
-        Spacer(Modifier.height(SettingSectionGap))
     }
+    Spacer(Modifier.height(SettingSectionGap))
+
+    SettingGroup {
+        Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+            if (PerformanceManager.isFanSupported && !fanModes.isNullOrEmpty()) {
+                Box(Modifier.weight(1f)) {
+                    SettingDropdown(
+                        label = stringResource(R.string.performance_cpu_fan_label),
+                        entries = fanModes,
+                        selectedIndex = fanModes.indexOf(state.cpuFanMode.value),
+                        onSelected = {
+                            state.cpuFanMode.value = fanModes[it]
+                        }
+                    )
+                }
+            }
+        }
+    }
+    Spacer(Modifier.height(SettingSectionGap))
 
     SettingGroup {
         Column {
@@ -1145,7 +1164,11 @@ private fun PerformanceControlSection(
                     SettingCheckbox(
                         "AutoFPS",
                         state.cpuAutoTargetFPS.value,
-                        onCheckedChange = { state.cpuAutoTargetFPS.value = it })
+                        onCheckedChange = {
+                            if (state.cpuTargetFPS.value == 0)
+                                state.cpuTargetFPS.value = 60
+                            state.cpuAutoTargetFPS.value = it
+                        })
                 }
             }
             if (state.cpuAutoTargetFPS.value) {
@@ -1180,9 +1203,9 @@ private fun PerformanceControlSection(
                         SettingSlider(
                             label = stringResource(R.string.performance_frames_per_check_label),
                             value = state.cpuAvgFrameCount.value,
-                            range = 1..5,
+                            range = 1..10,
                             valueText = stringResource(R.string.performance_frames_label, state.cpuAvgFrameCount.value),
-                            steps = (0 - 5 - 1).coerceAtLeast(0),
+                            steps = (0 - 10 - 1).coerceAtLeast(0),
                             onValueChange = {
                                 state.cpuAvgFrameCount.value = it
                             }

@@ -326,6 +326,7 @@
     <string name="performance_cpu_cluster_min_label">Cluster %s Min</string>
     <string name="performance_cpu_cluster_max_label">Cluster %s Max</string>
     <string name="performance_cpu_governor_label">CPU Governor</string>
+    <string name="performance_system_performance_label">Performance</string>
     <string name="performance_cpu_fan_label">Fan Control</string>
     <string name="performance_sidebar_label">Power Controls</string>
     <string name="performance_fps_target_label">FPS Target</string>
