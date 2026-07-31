@@ -189,6 +189,21 @@ sealed class RetroMenuEntry {
         val onStep: (Int) -> Unit,
     ) : RetroMenuEntry()
 
+    /**
+     * Two on/off settings sharing one row, side by side.
+     *
+     * A pane is a single column, which is right for a setting whose value needs
+     * the width -- a dropdown showing MEDIUM or BORDERLESS. A plain on/off
+     * needs none of it, and two of them stacked leave a column of mostly empty
+     * cards. Pairing them keeps the row height the rest of the pane uses while
+     * fitting both, which is why this is a distinct entry rather than a column
+     * count the whole pane would have to share.
+     */
+    class TogglePair(
+        val left: Toggle,
+        val right: Toggle,
+    ) : RetroMenuEntry()
+
     class Slider(
         val label: String,
         val valueText: String,
@@ -295,6 +310,13 @@ class RetroMenuController {
         when (val entry = entries.getOrNull(contentIndex)) {
             is RetroMenuEntry.Action -> if (direction == 0) entry.onClick()
             is RetroMenuEntry.Toggle -> entry.onChange(!entry.checked)
+            // Left and Right pick the half, which is what they do everywhere
+            // else on a row; a centre press takes the left one, the same half
+            // the cursor arrives on.
+            is RetroMenuEntry.TogglePair -> {
+                val half = if (direction > 0) entry.right else entry.left
+                half.onChange(!half.checked)
+            }
             is RetroMenuEntry.Choice -> {
                 val size = entry.values.size
                 if (size > 0) {
@@ -883,6 +905,13 @@ private fun RetroPaneList(
                                         onFocus = { controller.contentIndex = index },
                                     )
                                 }
+                            is RetroMenuEntry.TogglePair ->
+                                RetroTogglePairRow(
+                                    entry = entry,
+                                    highlighted = highlighted,
+                                    paneScale = paneScale,
+                                    onFocus = { controller.contentIndex = index },
+                                )
                             is RetroMenuEntry.Radio ->
                                 RetroRadioRow(
                                     entry = entry,
@@ -1054,6 +1083,67 @@ private fun RetroBooleanRow(
             onCheckedChange = entry.onChange,
             colors = outlinedSwitchColors(DrawerAccent, DrawerTextSecondary),
         )
+    }
+}
+
+/**
+ * Two on/off settings on one row; see [RetroMenuEntry.TogglePair].
+ *
+ * Each half is a button rather than a labelled switch. A Switch beside a label
+ * needs the full width of a row to read cleanly, and at half width the two
+ * would crowd each other -- so the state is the button itself: ON or OFF in the
+ * accent colour, with the border lit while it is on. Same height as every other
+ * row on the pane, so the column still scans as a list.
+ */
+@Composable
+private fun RetroTogglePairRow(
+    entry: RetroMenuEntry.TogglePair,
+    highlighted: Boolean,
+    paneScale: Float,
+    onFocus: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
+    ) {
+        listOf(entry.left, entry.right).forEach { half ->
+            Box(Modifier.weight(1f)) {
+                RetroRowShell(
+                    highlighted = highlighted,
+                    activeBorder = half.checked,
+                    paneScale = paneScale,
+                    onClick = {
+                        onFocus()
+                        half.onChange(!half.checked)
+                    },
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = half.label,
+                            color = DrawerTextPrimary,
+                            fontSize = (14f * paneScale).sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text =
+                                half.subtitle ?: if (half.checked) {
+                                    stringResource(R.string.retro_scr_enabled)
+                                } else {
+                                    stringResource(R.string.retro_scr_disabled)
+                                },
+                            color = if (half.checked) DrawerActiveAccent else DrawerTextSecondary,
+                            fontSize = (12f * paneScale).sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

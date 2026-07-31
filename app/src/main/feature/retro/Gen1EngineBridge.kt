@@ -38,6 +38,15 @@ class Gen1EngineBridge(context: Context) {
          * add rows of either kind.
          */
         val steppable: Boolean,
+        /**
+         * Every value the row can take, in the engine's own ladder order, or
+         * empty when the engine could not describe the row -- an option it has
+         * no ladder for, which is what an upstream sync adds. Empty means the
+         * menu falls back to stepping, so a new row still works.
+         */
+        val values: List<String> = emptyList(),
+        /** Where [value] sits in [values]; -1 when there is no ladder. */
+        val selectedIndex: Int = -1,
     )
 
     data class Slot(
@@ -116,6 +125,10 @@ class Gen1EngineBridge(context: Context) {
         var version = ""
         val rows = ArrayList<Row>()
         val slots = ArrayList<Slot>()
+        // Ladders arrive as their own records rather than extra fields on the
+        // row, so that a build of this app older than the engine it is running
+        // against ignores them and still shows a working menu.
+        val ladders = HashMap<String, Pair<Int, List<String>>>()
 
         for (line in text.lineSequence()) {
             if (line.isEmpty()) continue
@@ -142,6 +155,10 @@ class Gen1EngineBridge(context: Context) {
                     if (f.size >= 5) {
                         rows.add(Row(f[1], f[2], f[3], f[4] == "step"))
                     }
+                "vals" ->
+                    if (f.size >= 4) {
+                        ladders[f[1]] = (f[2].toIntOrNull() ?: 0) to f.subList(3, f.size).toList()
+                    }
                 "save" ->
                     if (f.size >= 8) {
                         slots.add(
@@ -158,7 +175,12 @@ class Gen1EngineBridge(context: Context) {
                     }
             }
         }
-        return State(seq, booted, paused, fastForward, fps, import, version, rows, slots)
+        val withLadders =
+            rows.map { row ->
+                val (index, values) = ladders[row.id] ?: return@map row
+                row.copy(values = values, selectedIndex = index.coerceIn(0, values.size - 1))
+            }
+        return State(seq, booted, paused, fastForward, fps, import, version, withLadders, slots)
     }
 
     fun row(id: String): Row? = state.rows.firstOrNull { it.id == id }
@@ -199,6 +221,18 @@ class Gen1EngineBridge(context: Context) {
         id: String,
         direction: Int,
     ) = send("step\t$id\t${if (direction < 0) -1 else 1}")
+
+    /**
+     * Picks a value out of a row's ladder by position.
+     *
+     * The engine still gets there by stepping its own row, so choosing a value
+     * from the menu and cycling to it are the same operation with the same side
+     * effects; this only spares the player the taps.
+     */
+    fun setRow(
+        id: String,
+        index: Int,
+    ) = send("set\t$id\t$index")
 
     fun activate(id: String) = send("activate\t$id")
 

@@ -343,6 +343,64 @@ class Gen1EngineActivity :
             else -> RetroPane.SYSTEM
         }
 
+    /**
+     * One engine option row as a drawer entry.
+     *
+     * A row the engine could describe the whole value ladder for becomes a
+     * dropdown, which is how every other system's settings are presented in
+     * this app: the player sees what the choices are instead of discovering
+     * them by pressing an arrow repeatedly. A row it could not -- an option
+     * added upstream that the bridge has no ladder for -- keeps the arrows,
+     * so it still works rather than disappearing.
+     */
+    private fun rowEntry(row: Gen1EngineBridge.Row): RetroMenuEntry =
+        when {
+            row.values.isNotEmpty() ->
+                RetroMenuEntry.Choice(row.label, row.values, row.selectedIndex) { index ->
+                    bridge.setRow(row.id, index)
+                    pollFaster()
+                }
+            row.steppable ->
+                RetroMenuEntry.Stepper(row.label, row.value) { direction ->
+                    bridge.step(row.id, direction)
+                    pollFaster()
+                }
+            else ->
+                // An activate row opens one of the engine's own sub-screens
+                // (its mod manager, its key rebinder). Those are engine UI, so
+                // the drawer closes and hands the screen over rather than
+                // drawing on top of it.
+                RetroMenuEntry.Action(row.label, RetroDrawerIcons.EditLayout, subtitle = row.value) {
+                    bridge.activate(row.id)
+                    menu.close()
+                }
+        }
+
+    /**
+     * A two-value engine row as one half of a paired on/off row.
+     *
+     * Which end of the ladder counts as "on" is the row's, not a guess from the
+     * label: the engine may translate ON and OFF, but the order it lists them
+     * in is fixed by the row itself. The state under the label is the engine's
+     * own word for it (ON, BORDERLESS) rather than a generic Enabled, because
+     * that is what the same setting says everywhere else in the engine.
+     */
+    private fun toggleHalf(
+        row: Gen1EngineBridge.Row,
+        label: String,
+        onIndex: Int,
+    ): RetroMenuEntry.Toggle {
+        val offIndex = if (onIndex == 0) 1 else 0
+        return RetroMenuEntry.Toggle(
+            label = label,
+            subtitle = row.values.getOrNull(row.selectedIndex) ?: row.value,
+            checked = row.selectedIndex == onIndex,
+        ) { wanted ->
+            bridge.setRow(row.id, if (wanted) onIndex else offIndex)
+            pollFaster()
+        }
+    }
+
     /** Engine rows for one pane, as drawer entries. */
     private fun engineRows(pane: RetroPane): List<RetroMenuEntry> {
         val rows = bridge.state.rows.filter { paneForRow(it.id) == pane }
@@ -355,20 +413,32 @@ class Gen1EngineActivity :
             } else {
                 rows
             }
-        return ordered.map { row ->
-            if (row.steppable) {
-                RetroMenuEntry.Stepper(row.label, row.value) { direction ->
-                    bridge.step(row.id, direction)
-                    pollFaster()
-                }
+
+        // BATTLE ANIMATION and VIDEO MODE are the only two rows here that are
+        // genuinely on-or-off, and a dropdown of two values is a worse control
+        // than a button. They share a row: VIDEO MODE keeps its place in the
+        // ladder order, and BATTLE ANIMATION -- which comes first -- is where
+        // the pair sits.
+        val animations = ordered.firstOrNull { it.id == ANIMATIONS_ROW }?.takeIf { it.values.size == 2 }
+        val videoMode = ordered.firstOrNull { it.id == VIDEO_MODE_ROW }?.takeIf { it.values.size == 2 }
+        val pair =
+            if (animations != null && videoMode != null) {
+                RetroMenuEntry.TogglePair(
+                    left = toggleHalf(animations, animations.label, onIndex = 0),
+                    // VideoMode.MODES is { windowed, borderless }, so the
+                    // second entry is the fullscreen one.
+                    right = toggleHalf(videoMode, getString(R.string.retro_engine_fullscreen), onIndex = 1),
+                )
             } else {
-                // An activate row opens one of the engine's own sub-screens
-                // (its mod manager, its key rebinder). Those are engine UI, so
-                // the drawer closes and hands the screen over rather than
-                // drawing on top of it.
-                RetroMenuEntry.Action(row.label, RetroDrawerIcons.EditLayout, subtitle = row.value) {
-                    bridge.activate(row.id)
-                    menu.close()
+                null
+            }
+
+        return buildList {
+            for (row in ordered) {
+                when {
+                    pair != null && row.id == ANIMATIONS_ROW -> add(pair)
+                    pair != null && row.id == VIDEO_MODE_ROW -> Unit
+                    else -> add(rowEntry(row))
                 }
             }
         }
@@ -484,11 +554,24 @@ class Gen1EngineActivity :
                                 SlotAction.SAVE -> {
                                     bridge.saveToSlot(slot.id)
                                     toast(getString(R.string.retro_engine_saved_to, slot.name))
+                                    pollFaster()
+                                    menu.close()
                                 }
-                                SlotAction.LOAD -> bridge.loadSlot(slot.id)
+                                // A registered slot that has never been written
+                                // to has no save to read. Saying so beats
+                                // closing the menu onto an unchanged game and
+                                // leaving the player to wonder whether Load
+                                // works at all.
+                                SlotAction.LOAD ->
+                                    if (!slot.exists) {
+                                        toast(getString(R.string.retro_engine_slot_empty))
+                                    } else {
+                                        bridge.loadSlot(slot.id)
+                                        toast(getString(R.string.retro_engine_loaded_from, slot.name))
+                                        pollFaster()
+                                        menu.close()
+                                    }
                             }
-                            pollFaster()
-                            menu.close()
                         },
                         // The engine owns the slot files, so the rename goes
                         // through it rather than being written here. The
@@ -1130,6 +1213,10 @@ class Gen1EngineActivity :
 
         // Engine option row ids, grouped the way WinNative presents settings.
         // Anything not listed lands on System; see paneForRow.
+        /** The two Display rows that pair up as buttons instead of dropdowns. */
+        private const val ANIMATIONS_ROW = "animations"
+        private const val VIDEO_MODE_ROW = "videoMode"
+
         private val SOUND_ROWS = setOf("musicVol", "sfxVol", "pikaVol", "musicFilter")
         private val DISPLAY_ROWS =
             setOf("colors", "tilt", "gbcfx", "zoom", "voidFill", "videoMode", "animations")
