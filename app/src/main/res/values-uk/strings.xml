@@ -203,6 +203,7 @@
     <string name="hero_graphics_tests_title">Графічні тести</string>
     <string name="hero_graphics_test_32">32-біт</string>
     <string name="hero_graphics_test_64">64-біт</string>
+    <string name="hero_input_tests_title">Тести введення</string>
     <string name="library_games_add_custom_game">Додати користувацьку гру</string>
     <string name="library_games_game_name">Назва гри</string>
     <string name="library_games_game_folder_mapped_drive">Папка гри (зіставлений ігровий диск)</string>

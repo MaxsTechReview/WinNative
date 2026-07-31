@@ -197,6 +197,7 @@
     <string name="hero_graphics_tests_title">ग्राफ़िक्स परीक्षण</string>
     <string name="hero_graphics_test_32">32-bit</string>
     <string name="hero_graphics_test_64">64-bit</string>
+    <string name="hero_input_tests_title">इनपुट परीक्षण</string>
     <string name="library_games_add_custom_game">कस्टम गेम जोड़ें</string>
     <string name="library_games_game_name">गेम का नाम</string>
     <string name="library_games_game_folder_mapped_drive">गेम फ़ोल्डर (मैप्ड गेम ड्राइव)</string>

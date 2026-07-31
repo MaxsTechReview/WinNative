@@ -200,6 +200,7 @@
     <string name="hero_graphics_tests_title">ทดสอบกราฟิก</string>
     <string name="hero_graphics_test_32">32-bit</string>
     <string name="hero_graphics_test_64">64-bit</string>
+    <string name="hero_input_tests_title">ทดสอบอินพุต</string>
     <string name="library_games_add_custom_game">เพิ่มเกมกำหนดเอง</string>
     <string name="library_games_game_name">ชื่อเกม</string>
     <string name="library_games_game_folder_mapped_drive">โฟลเดอร์เกม (ไดรฟ์เกมที่แมป)</string>

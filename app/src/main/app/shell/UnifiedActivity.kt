@@ -1213,7 +1213,7 @@ class UnifiedActivity :
 
     internal enum class HeroLaunchPopup { BootToDesktop, RemoveShortcut }
 
-    internal enum class HeroBootChoice { Desktop, Cube32, Cube64 }
+    internal enum class HeroBootChoice { Desktop, Cube32, Cube64, Input32, Input64 }
 
     internal data class DownloadCancelRequest(
         val ids: List<String>,

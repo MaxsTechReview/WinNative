@@ -415,6 +415,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private static final long REFACTOR_SIZE_UNSTAGE_DELAY_MS = 3000L;
     private static final long GRAPHICS_TEST_32_EXE_BYTES = 2333245L;
     private static final long GRAPHICS_TEST_64_EXE_BYTES = 2361407L;
+    private static final long INPUT_TEST_32_EXE_BYTES = 289656L;
+    private static final long INPUT_TEST_64_EXE_BYTES = 280952L;
     private String bootExePath;
     private String bootExeArgs;
     private boolean isDependencyInstall;
@@ -6030,12 +6032,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
-    private void stageGraphicsTestExes() {
+    private void stageBundledTestExes() {
         if (container == null) return;
         File dir = new File(container.getRootDir(), ".wine/drive_c/ProgramData/Microsoft/Windows");
         if (!dir.isDirectory() && !dir.mkdirs()) return;
         stageBundledExe(dir, "Graphics-Test-32bit.exe", GRAPHICS_TEST_32_EXE_BYTES);
         stageBundledExe(dir, "Graphics-Test-64bit.exe", GRAPHICS_TEST_64_EXE_BYTES);
+        stageBundledExe(dir, "InputControl32.exe", INPUT_TEST_32_EXE_BYTES);
+        stageBundledExe(dir, "InputControl64.exe", INPUT_TEST_64_EXE_BYTES);
     }
 
     private void stageBundledExe(File dir, String name, long expectedBytes) {
@@ -6510,7 +6514,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         WineStartMenuCreator.create(this, container);
-        stageGraphicsTestExes();
+        stageBundledTestExes();
         WineUtils.createDosdevicesSymlinks(container, getActiveGameDirectoryPath(), isSteamShortcut());
 
         int inputType = container.getInputType();

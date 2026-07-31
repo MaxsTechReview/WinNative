@@ -203,6 +203,7 @@
     <string name="hero_graphics_tests_title">Testy graficzne</string>
     <string name="hero_graphics_test_32">32-bit</string>
     <string name="hero_graphics_test_64">64-bit</string>
+    <string name="hero_input_tests_title">Testy wejścia</string>
     <string name="library_games_add_custom_game">Dodaj własną grę</string>
     <string name="library_games_game_name">Nazwa gry</string>
     <string name="library_games_game_folder_mapped_drive">Folder gry (zmapowany dysk gry)</string>

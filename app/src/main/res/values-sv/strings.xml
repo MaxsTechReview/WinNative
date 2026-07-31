@@ -200,6 +200,7 @@
     <string name="hero_graphics_tests_title">Grafiktester</string>
     <string name="hero_graphics_test_32">32-bitars</string>
     <string name="hero_graphics_test_64">64-bitars</string>
+    <string name="hero_input_tests_title">Inmatningstester</string>
     <string name="library_games_add_custom_game">Lägg till anpassat spel</string>
     <string name="library_games_game_name">Spelnamn</string>
     <string name="library_games_game_folder_mapped_drive">Spelmapp (Mappad speldisk)</string>

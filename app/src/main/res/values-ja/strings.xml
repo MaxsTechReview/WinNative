@@ -200,6 +200,7 @@
     <string name="hero_graphics_tests_title">グラフィックテスト</string>
     <string name="hero_graphics_test_32">32ビット</string>
     <string name="hero_graphics_test_64">64ビット</string>
+    <string name="hero_input_tests_title">入力テスト</string>
     <string name="library_games_add_custom_game">カスタムゲームを追加</string>
     <string name="library_games_game_name">ゲーム名</string>
     <string name="library_games_game_folder_mapped_drive">ゲームフォルダ (マッピングされたゲームドライブ)</string>

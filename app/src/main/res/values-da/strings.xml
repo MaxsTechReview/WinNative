@@ -199,6 +199,7 @@
     <string name="hero_graphics_tests_title">Grafiktests</string>
     <string name="hero_graphics_test_32">32-bit</string>
     <string name="hero_graphics_test_64">64-bit</string>
+    <string name="hero_input_tests_title">Inputtests</string>
     <string name="library_games_add_custom_game">Tilføj brugerdefineret spil</string>
     <string name="library_games_game_name">Spilnavn</string>
     <string name="library_games_game_folder_mapped_drive">Spilmappe (tilknyttet spildrev)</string>

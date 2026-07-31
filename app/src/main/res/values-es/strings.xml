@@ -199,6 +199,7 @@
     <string name="hero_graphics_tests_title">Pruebas gráficas</string>
     <string name="hero_graphics_test_32">32-bit</string>
     <string name="hero_graphics_test_64">64-bit</string>
+    <string name="hero_input_tests_title">Pruebas de entrada</string>
     <string name="library_games_add_custom_game">Añadir juego personalizado</string>
     <string name="library_games_game_name">Nombre del juego</string>
     <string name="library_games_game_folder_mapped_drive">Carpeta del juego (unidad de juego asignada)</string>

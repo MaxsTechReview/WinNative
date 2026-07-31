@@ -199,6 +199,7 @@
     <string name="hero_graphics_tests_title">圖形測試</string>
     <string name="hero_graphics_test_32">32 位元</string>
     <string name="hero_graphics_test_64">64 位元</string>
+    <string name="hero_input_tests_title">輸入測試</string>
     <string name="library_games_add_custom_game">新增自訂遊戲</string>
     <string name="library_games_game_name">遊戲名稱</string>
     <string name="library_games_game_folder_mapped_drive">遊戲資料夾（映射的遊戲磁碟機）</string>

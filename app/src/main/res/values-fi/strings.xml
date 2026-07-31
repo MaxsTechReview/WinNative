@@ -200,6 +200,7 @@
     <string name="hero_graphics_tests_title">Grafiikkatestit</string>
     <string name="hero_graphics_test_32">32-bittinen</string>
     <string name="hero_graphics_test_64">64-bittinen</string>
+    <string name="hero_input_tests_title">Syötetestit</string>
     <string name="library_games_add_custom_game">Lisää mukautettu peli</string>
     <string name="library_games_game_name">Pelin nimi</string>
     <string name="library_games_game_folder_mapped_drive">Pelikansio (yhdistetty peliasema)</string>

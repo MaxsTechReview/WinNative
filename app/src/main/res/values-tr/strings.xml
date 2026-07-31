@@ -200,6 +200,7 @@
     <string name="hero_graphics_tests_title">Grafik Testleri</string>
     <string name="hero_graphics_test_32">32-bit</string>
     <string name="hero_graphics_test_64">64-bit</string>
+    <string name="hero_input_tests_title">Giriş Testleri</string>
     <string name="library_games_add_custom_game">Özel Oyun Ekle</string>
     <string name="library_games_game_name">Oyun Adı</string>
     <string name="library_games_game_folder_mapped_drive">Oyun Klasörü (Eşlenmiş Oyun Sürücüsü)</string>
