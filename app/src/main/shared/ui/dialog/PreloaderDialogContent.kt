@@ -37,6 +37,11 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -86,6 +91,24 @@ class PreloaderDialogState {
     val badge = mutableStateOf("")
     val subtitle = mutableStateOf("")
     val stableContentLayout = mutableStateOf(false)
+
+    /**
+     * The game's own cover, shown in the middle of the splash.
+     *
+     * Null for everything that has no artwork to show, which is every caller
+     * that existed before this: the splash then looks exactly as it did, with
+     * the comet ring in the centre.
+     */
+    val artwork = mutableStateOf<android.graphics.Bitmap?>(null)
+
+    /**
+     * Moves the progress read-out to a bar across the bottom of the screen.
+     *
+     * The comet ring owns the centre, and so does the artwork, so a splash
+     * showing a cover needs its progress somewhere else. Off by default, so the
+     * ring stays where every other game's splash has it.
+     */
+    val bottomProgressBar = mutableStateOf(false)
 
     fun setText(value: String) {
         text.value = value
@@ -163,6 +186,8 @@ fun PreloaderDialogContent(state: PreloaderDialogState) {
     val badge by state.badge
     val subtitle by state.subtitle
     val stableContentLayout by state.stableContentLayout
+    val artwork by state.artwork
+    val bottomProgressBar by state.bottomProgressBar
 
     val accentColor = badgeColor(badge)
     val particles =
@@ -337,16 +362,42 @@ fun PreloaderDialogContent(state: PreloaderDialogState) {
 
             Spacer(modifier = Modifier.height(34.dp))
 
-            NeonCometRing(
-                isIndeterminate = isIndeterminate,
-                progress = progress,
-                accentColor = accentColor,
-                alpha = contentAlpha,
-            )
+            // The centre of the splash: the game's own cover when there is one,
+            // otherwise the ring this screen has always shown. Both want the
+            // middle of the screen, so they are alternatives rather than a
+            // stack -- and when the cover takes it, the progress moves to the
+            // bar along the bottom.
+            val cover = artwork
+            if (cover != null) {
+                Image(
+                    bitmap = cover.asImageBitmap(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    alpha = contentAlpha,
+                    modifier =
+                        Modifier
+                            .widthIn(max = 260.dp)
+                            .heightIn(max = 260.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .border(
+                                width = 1.dp,
+                                color = accentColor.copy(alpha = 0.28f * contentAlpha),
+                                shape = RoundedCornerShape(16.dp),
+                            ),
+                )
+            } else {
+                NeonCometRing(
+                    isIndeterminate = isIndeterminate,
+                    progress = progress,
+                    accentColor = accentColor,
+                    alpha = contentAlpha,
+                )
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            AnimatedContent(
+            if (!bottomProgressBar) {
+                AnimatedContent(
                 targetState = text,
                 contentAlignment = Alignment.Center,
                 transitionSpec = {
@@ -373,6 +424,67 @@ fun PreloaderDialogContent(state: PreloaderDialogState) {
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.widthIn(max = 360.dp),
                 )
+                }
+            }
+        }
+
+        // Pinned to the bottom of the screen rather than placed after the
+        // centred column, so it stays put as the stage text above it changes
+        // length. Only drawn for a splash that moved its progress down here.
+        if (bottomProgressBar) {
+            Column(
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.safeDrawing)
+                        .padding(horizontal = 28.dp)
+                        .padding(bottom = 28.dp)
+                        .widthIn(max = 520.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = text,
+                    fontSize = 15.sp,
+                    fontFamily = InterFont,
+                    color = TextSecondary.copy(alpha = contentAlpha),
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    minLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+                // Smoothed, because an import reports in steps -- an unsmoothed
+                // bar jumps between them, which reads as having stalled.
+                val animated by animateFloatAsState(
+                    targetValue = (progress.coerceIn(0, 100)) / 100f,
+                    animationSpec = tween(240),
+                    label = "preloaderBottomProgress",
+                )
+                if (isIndeterminate) {
+                    LinearProgressIndicator(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp)),
+                        color = accentColor.copy(alpha = contentAlpha),
+                        trackColor = TrackColor.copy(alpha = contentAlpha),
+                    )
+                } else {
+                    LinearProgressIndicator(
+                        progress = { animated },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp)),
+                        color = accentColor.copy(alpha = contentAlpha),
+                        trackColor = TrackColor.copy(alpha = contentAlpha),
+                        drawStopIndicator = {},
+                    )
+                }
             }
         }
     }

@@ -2160,6 +2160,7 @@ Installed path:
     <string name="retro_engine_fullscreen">Fullscreen</string>
     <string name="retro_engine_loaded_from">Loaded %1$s</string>
     <string name="retro_engine_slot_empty">That slot is empty</string>
+    <string name="retro_engine_loading_subtitle">Preparing game data for the first time</string>
     <string name="retro_gs_engine_3d">Voxel 3D</string>
     <string name="retro_gs_engine_3d_subtitle">Play this game in the 3D voxel engine instead of the standard core</string>
     <string name="retro_gs_on_screen_controls">On-screen controls</string>
