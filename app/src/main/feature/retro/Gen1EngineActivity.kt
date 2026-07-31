@@ -414,7 +414,8 @@ class Gen1EngineActivity :
 
     /** Engine rows for one pane, as drawer entries. */
     private fun engineRows(pane: RetroPane): List<RetroMenuEntry> {
-        val rows = bridge.state.rows.filter { paneForRow(it.id) == pane }
+        val rows =
+            bridge.state.rows.filter { paneForRow(it.id) == pane && it.id !in HIDDEN_ROWS }
         // The mod's rows lead the Display pane: they are what the player turned
         // 3D mode on for, and the engine's own display rows still follow.
         val ordered =
@@ -1293,6 +1294,23 @@ class Gen1EngineActivity :
         /** The two Display rows that pair up as buttons instead of dropdowns. */
         private const val ANIMATIONS_ROW = "animations"
         private const val VIDEO_MODE_ROW = "videoMode"
+
+        /**
+         * Engine rows that decide nothing on this path, and so are not shown.
+         *
+         * An unknown row is deliberately kept and shown -- that is how an option
+         * added upstream stays reachable without a change here. This is the
+         * opposite case: a row that is present but inert, which is worse than an
+         * absent one because it invites the player to change something that
+         * cannot change.
+         *
+         * TOUCH PAD switches the engine's own on-screen D-pad, which this fork
+         * builds with that overlay forced off (see WINNATIVE_TOUCH_ARG in
+         * TouchControls.lua) because WinNative draws the pad itself. Toggling it
+         * would write a value nothing reads, and the switch the player actually
+         * wants is on the Controls pane.
+         */
+        private val HIDDEN_ROWS = setOf("touchControls")
 
         private val SOUND_ROWS = setOf("musicVol", "sfxVol", "pikaVol", "musicFilter")
         private val DISPLAY_ROWS =
