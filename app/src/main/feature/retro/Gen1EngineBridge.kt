@@ -54,6 +54,9 @@ class Gen1EngineBridge(context: Context) {
         val exists: Boolean,
     )
 
+    /** Where a first-boot ROM import has got to. */
+    data class Import(val stage: String, val progress: Float)
+
     data class State(
         val seq: Long,
         /**
@@ -61,6 +64,16 @@ class Gen1EngineBridge(context: Context) {
          * this rather than an empty settings list, which would look broken.
          */
         val booted: Boolean,
+        /** The host asked the engine to hold still; its update loop is stopped. */
+        val paused: Boolean,
+        val fastForward: Boolean,
+        /** The engine's own frame rate; nothing on this side can observe it. */
+        val fps: Int,
+        /**
+         * Set only while a first-boot ROM import is running. Null the rest of
+         * the time, which is how the loading screen knows to come down.
+         */
+        val import: Import?,
         val version: String,
         val rows: List<Row>,
         val slots: List<Slot>,
@@ -75,25 +88,31 @@ class Gen1EngineBridge(context: Context) {
         private set
 
     /**
-     * Reads the published state. Returns true when the sequence number moved,
-     * which is the caller's signal to rebuild the menu -- the engine only
-     * advances it when something actually changed.
+     * Reads the published state, and returns true when the sequence number
+     * moved -- the caller's signal to rebuild the menu.
+     *
+     * The state is taken every time regardless, because not everything in it
+     * belongs on the menu: the frame rate changes on every poll and the engine
+     * deliberately does not advance the sequence for it, so it has to be picked
+     * up without triggering a rebuild.
      */
     fun refresh(): Boolean {
         val text =
             runCatching { if (statePath.isFile) statePath.readText() else null }
                 .getOrNull() ?: return false
         val parsed = runCatching { parse(text) }.getOrNull() ?: return false
-        // A file caught mid-rewrite parses to something with no rows and a
-        // sequence number that has not moved; both are filtered by this.
-        if (parsed.seq == state.seq) return false
+        val moved = parsed.seq != state.seq
         state = parsed
-        return true
+        return moved
     }
 
     private fun parse(text: String): State {
         var seq = 0L
         var booted = false
+        var paused = false
+        var fastForward = false
+        var fps = 0
+        var import: Import? = null
         var version = ""
         val rows = ArrayList<Row>()
         val slots = ArrayList<Slot>()
@@ -104,6 +123,20 @@ class Gen1EngineBridge(context: Context) {
             when (f.getOrNull(0)) {
                 "seq" -> seq = f.getOrNull(1)?.toLongOrNull() ?: 0L
                 "booted" -> booted = f.getOrNull(1) == "1"
+                "paused" -> paused = f.getOrNull(1) == "1"
+                "ff" -> fastForward = f.getOrNull(1) == "1"
+                "fps" -> fps = f.getOrNull(1)?.toIntOrNull() ?: 0
+                "import" ->
+                    if (f.size >= 3) {
+                        import =
+                            Import(
+                                stage = f[1],
+                                // Sent in thousandths: the wire format is text,
+                                // and an integer cannot drift the way a
+                                // formatted float can across locales.
+                                progress = ((f[2].toIntOrNull() ?: 0) / 1000f).coerceIn(0f, 1f),
+                            )
+                    }
                 "version" -> version = f.getOrNull(1).orEmpty()
                 "row" ->
                     if (f.size >= 5) {
@@ -125,7 +158,7 @@ class Gen1EngineBridge(context: Context) {
                     }
             }
         }
-        return State(seq, booted, version, rows, slots)
+        return State(seq, booted, paused, fastForward, fps, import, version, rows, slots)
     }
 
     fun row(id: String): Row? = state.rows.firstOrNull { it.id == id }
@@ -173,6 +206,9 @@ class Gen1EngineBridge(context: Context) {
 
     fun loadSlot(id: String) = send("loadslot\t$id")
 
+    /** Writes the game into a chosen slot, making it the active one. */
+    fun saveToSlot(id: String) = send("saveslot\t$id")
+
     fun newSlot() = send("newslot")
 
     /**
@@ -185,6 +221,16 @@ class Gen1EngineBridge(context: Context) {
     ) = send("renameslot\t$id\t${name.replace('\t', ' ').replace('\n', ' ').trim()}")
 
     fun reset() = send("reset")
+
+    /**
+     * Holds the game still. Only the engine's game loop stops -- it keeps
+     * reading commands, or nothing could unpause it, and it keeps drawing, so
+     * the paused frame stays on screen.
+     */
+    fun setPaused(paused: Boolean) = send("pause\t${if (paused) 1 else 0}")
+
+    /** Drives the engine's own speed setting, and restores it when turned off. */
+    fun setFastForward(on: Boolean) = send("ff\t${if (on) 1 else 0}")
 
     /**
      * Clears state left by a previous run, so the menu cannot show the last
@@ -209,7 +255,11 @@ class Gen1EngineBridge(context: Context) {
         private const val SAVE_SUBDIR = "save/pokemon-love2d"
         private const val BRIDGE_SUBDIR = "winnative"
 
-        val EMPTY = State(seq = -1L, booted = false, version = "", rows = emptyList(), slots = emptyList())
+        val EMPTY =
+            State(
+                seq = -1L, booted = false, paused = false, fastForward = false, fps = 0,
+                import = null, version = "", rows = emptyList(), slots = emptyList(),
+            )
 
         /**
          * Row ids belonging to the 3D mod rather than the engine, matched by

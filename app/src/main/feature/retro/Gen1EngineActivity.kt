@@ -11,6 +11,8 @@ import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Monitor
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.Lifecycle
@@ -25,6 +27,9 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.winlator.cmod.R
+import com.winlator.cmod.runtime.container.ContainerManager
+import com.winlator.cmod.runtime.container.Shortcut
+import com.winlator.cmod.runtime.display.ui.FrameRating
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import org.love2d.sdl.SDLActivity
 import java.io.File
@@ -58,7 +63,42 @@ class Gen1EngineActivity :
     ViewModelStoreOwner,
     SavedStateRegistryOwner {
     private var pad: RetroInputView? = null
+    private var menuView: ComposeView? = null
     private lateinit var bridge: Gen1EngineBridge
+
+    /**
+     * Whether the on-screen pad is drawn. When it is off the picture gets the
+     * whole screen, which is the point of turning it off -- a player on a
+     * controller should not keep a Game Boy-shaped letterbox.
+     */
+    private var touchControls = true
+
+    /** Cached so the shortcut file is read once rather than on every write. */
+    private var persistShortcut: Shortcut? = null
+
+    /**
+     * True until the engine reports a booted game.
+     *
+     * Held as Compose state so the loading screen can come down the moment the
+     * game is up. It starts true because the engine takes a moment to publish
+     * anything at all, and the first thing on screen would otherwise be the
+     * engine's own splash -- the thing the loading screen exists to cover.
+     */
+    private var loadingVisible by androidx.compose.runtime.mutableStateOf(true)
+    private var importState by
+        androidx.compose.runtime.mutableStateOf<Gen1EngineBridge.Import?>(null)
+    private var artwork: android.graphics.Bitmap? = null
+
+    /**
+     * Which job the slot list is doing when it opens.
+     *
+     * Save and Load both land on the same list of slots, the way the games
+     * themselves work -- you choose a slot to save into, and you choose a slot
+     * to load from. One list, two jobs, so it has to be told which.
+     */
+    private enum class SlotAction { SAVE, LOAD }
+
+    private var slotAction = SlotAction.LOAD
     private val menu = RetroMenuController()
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
 
@@ -202,29 +242,40 @@ class Gen1EngineActivity :
     }
 
     /**
-     * A hardware key -- a real controller, or the emulator's own keyboard.
-     * Routed to the drawer when it is open for the same reason the pad is.
+     * A hardware key -- a real controller, the emulator's keyboard, or the
+     * system Back gesture.
+     *
+     * Intercepted at dispatch, not in onKeyDown. SDL's surface holds focus and
+     * is its own OnKeyListener, so it consumes every key before the activity's
+     * onKeyDown or onBackPressed would ever run -- which is why Back was
+     * reaching the engine and opening its in-game menu instead of WinNative's.
+     * dispatchKeyEvent is the one point that sees the event first.
+     *
+     * While the drawer is open every key belongs to it, for the same reason the
+     * pad does: a press meant for the menu must not also reach the game behind
+     * it.
      */
-    override fun onKeyDown(keyCode: Int, event: android.view.KeyEvent): Boolean {
-        if (menu.visible && menu.handleKey(keyCode, android.view.KeyEvent.ACTION_DOWN)) return true
-        return super.onKeyDown(keyCode, event)
-    }
-
-    override fun onKeyUp(keyCode: Int, event: android.view.KeyEvent): Boolean {
-        if (menu.visible && menu.handleKey(keyCode, android.view.KeyEvent.ACTION_UP)) return true
-        return super.onKeyUp(keyCode, event)
-    }
-
-    @Deprecated("Activity, not ComponentActivity: there is no back dispatcher to register with.")
-    override fun onBackPressed() {
-        // Back closes the drawer a level at a time, then opens it -- matching
-        // the libretro path, where back is how a player without a MENU button
-        // reaches the menu at all.
-        if (menu.visible) {
-            menu.handleKey(android.view.KeyEvent.KEYCODE_BACK, android.view.KeyEvent.ACTION_UP)
-        } else {
-            openMenu()
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        val keyCode = event.keyCode
+        if (keyCode == android.view.KeyEvent.KEYCODE_BACK) {
+            // Acted on the up event; the down is swallowed so auto-repeat
+            // cannot toggle the drawer open and shut.
+            if (event.action == android.view.KeyEvent.ACTION_UP) {
+                // Inside the drawer Back steps back a pane and then closes it;
+                // outside it, Back is how a player with no MENU button opens it.
+                if (menu.visible) {
+                    menu.handleKey(keyCode, android.view.KeyEvent.ACTION_UP)
+                } else {
+                    openMenu()
+                }
+            }
+            return true
         }
+        if (menu.visible) {
+            menu.handleKey(keyCode, event.action)
+            return true
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     // ------------------------------------------------------------- menu model
@@ -233,10 +284,10 @@ class Gen1EngineActivity :
      * The drawer's tabs for this path.
      *
      * Built here rather than through RetroDrawerTabs.build because the engine
-     * does not have the same surfaces a libretro core does: there is no HUD to
-     * configure (the FPS overlay reads libretro state), no netplay, and no
-     * memory cards. A tab that opened onto nothing would be worse than an
-     * absent one.
+     * does not have every surface a libretro core does: there is no netplay and
+     * there are no memory cards, and a tab that opened onto nothing would be
+     * worse than an absent one. Everything else a Game Boy game offers is here,
+     * and the HUD and Controls panes are the same ones the libretro path builds.
      */
     private fun buildTabs(): List<RetroTabSpec> =
         listOf(
@@ -255,6 +306,11 @@ class Gen1EngineActivity :
                 RetroPane.PERFORMANCE,
                 Icons.Outlined.Bolt,
                 getString(R.string.retro_ps2_tab_performance),
+            ),
+            RetroTabSpec(
+                RetroPane.HUD,
+                RetroDrawerIcons.Hud,
+                getString(R.string.retro_tab_hud),
             ),
             RetroTabSpec(
                 RetroPane.CONTROLS,
@@ -323,33 +379,57 @@ class Gen1EngineActivity :
             null -> buildMainEntries()
             RetroPane.SAVES -> buildSaveEntries()
             RetroPane.CONTROLS -> buildControlEntries() + engineRows(RetroPane.CONTROLS)
+            RetroPane.HUD -> buildHudEntries()
             else -> engineRows(pane)
         }
 
     private fun buildMainEntries(): List<RetroMenuEntry> =
         buildList {
+            // Save and Load each open the slot list, which is how saving works
+            // in these games and how save states work on the libretro path.
+            // The engine owns the slots -- it is not a libretro core, so there
+            // is no state blob for WinNative to serialise; picking a slot tells
+            // the engine to write its own save there.
+            val activeSlot = bridge.state.slots.firstOrNull { it.active }?.name
             add(
-                RetroMenuEntry.Action(getString(R.string.retro_lr_resume), RetroDrawerIcons.Resume) {
-                    menu.close()
-                },
-            )
-            // The engine owns its save slots -- it is not a libretro core, so
-            // there is no state blob for WinNative to serialise. Saving writes
-            // the engine's own save file, which is also what the player would
-            // get from SAVE inside the game.
-            add(
-                RetroMenuEntry.Action(getString(R.string.retro_engine_save), RetroDrawerIcons.Save) {
-                    bridge.saveGame()
-                    menu.close()
-                    toast(getString(R.string.retro_engine_saved))
+                RetroMenuEntry.Action(
+                    getString(R.string.retro_engine_save),
+                    RetroDrawerIcons.Save,
+                    subtitle = activeSlot,
+                ) {
+                    slotAction = SlotAction.SAVE
+                    menu.showPane(RetroPane.SAVES)
                 },
             )
             add(
                 RetroMenuEntry.Action(
-                    getString(R.string.retro_engine_slots),
+                    getString(R.string.retro_engine_load),
                     RetroDrawerIcons.Load,
-                    subtitle = bridge.state.slots.firstOrNull { it.active }?.name,
-                ) { menu.showPane(RetroPane.SAVES) },
+                    subtitle = activeSlot,
+                ) {
+                    slotAction = SlotAction.LOAD
+                    menu.showPane(RetroPane.SAVES)
+                },
+            )
+            add(
+                // Drives the engine's own speed setting rather than a host-side
+                // frame skip, so audio keeps its pitch -- the engine scales its
+                // logic step and deliberately leaves sound alone.
+                RetroMenuEntry.Action(
+                    getString(R.string.retro_lr_fast_forward),
+                    RetroDrawerIcons.FastForward,
+                    active = bridge.state.fastForward,
+                ) {
+                    bridge.setFastForward(!bridge.state.fastForward)
+                    pollFaster()
+                },
+            )
+            add(
+                RetroMenuEntry.Action(
+                    getString(R.string.retro_lr_hud),
+                    RetroDrawerIcons.Hud,
+                    active = hudVisible,
+                ) { setHudVisible(!hudVisible) },
             )
             add(
                 RetroMenuEntry.Action(getString(R.string.retro_lr_reset), RetroDrawerIcons.Reset) {
@@ -400,7 +480,14 @@ class Gen1EngineActivity :
                         subtitle = slotSubtitle(slot),
                         filled = slot.exists,
                         onClick = {
-                            bridge.loadSlot(slot.id)
+                            when (slotAction) {
+                                SlotAction.SAVE -> {
+                                    bridge.saveToSlot(slot.id)
+                                    toast(getString(R.string.retro_engine_saved_to, slot.name))
+                                }
+                                SlotAction.LOAD -> bridge.loadSlot(slot.id)
+                            }
+                            pollFaster()
                             menu.close()
                         },
                         // The engine owns the slot files, so the rename goes
@@ -431,49 +518,240 @@ class Gen1EngineActivity :
                     ) {},
                 )
             }
-            add(
-                RetroMenuEntry.Action(getString(R.string.retro_engine_new_slot), RetroDrawerIcons.Add) {
-                    bridge.newSlot()
-                    menu.close()
-                },
-            )
+            // Only offered when saving: creating a slot to load from would
+            // hand the player an empty one.
+            if (slotAction == SlotAction.SAVE) {
+                add(
+                    RetroMenuEntry.Action(getString(R.string.retro_engine_new_slot), RetroDrawerIcons.Add) {
+                        bridge.newSlot()
+                        pollFaster()
+                        menu.close()
+                    },
+                )
+            }
         }
 
     /**
      * WinNative's own control settings, which belong to the pad rather than to
      * the engine -- the engine never sees the pad, only the keys it sends.
+     *
+     * The same builder the libretro path uses, so the player gets the identical
+     * pane: the on-screen controls switch, the layout editor, opacity, colours
+     * and haptics. Stick inversion is off because a Game Boy has no sticks.
      */
     private fun buildControlEntries(): List<RetroMenuEntry> =
+        RetroControlsMenu.build(
+            RetroControlsMenu.Host(
+                context = this,
+                overlay = pad,
+                menu = menu,
+                systemId = RetroSystems.GAMEBOY.id,
+                touchControls = { touchControls },
+                onTouchControls = { value ->
+                    touchControls = value
+                    applyTouchControls()
+                    persistExtra(RetroShortcuts.KEY_TOUCH_CONTROLS, if (value) "1" else "0")
+                },
+                // No sticks on this system, so the adaptive-stick setting has
+                // nothing to act on; reported as off and ignored.
+                adaptiveSticks = { false },
+                onAdaptiveSticks = { },
+                orientationLabel = {
+                    val host = mLayout
+                    if ((host?.height ?: 0) > (host?.width ?: 0)) {
+                        getString(R.string.retro_lr_portrait)
+                    } else {
+                        getString(R.string.retro_lr_landscape)
+                    }
+                },
+                onCloseMenu = { menu.close() },
+                showStickInversion = false,
+            ),
+        )
+
+    // ------------------------------------------------------------------- HUD
+    //
+    // The performance overlay is WinNative's own view and measures the frames
+    // it is drawn on, so it works over the engine exactly as it does over a
+    // libretro core. Its settings are the global ones, shared with every other
+    // system rather than kept separately for this path.
+
+    private var hudVisible = false
+    private var hudStyle = HudStyle()
+    private var hudElements = RetroHudSupport.defaultElements()
+    private var frameRating: FrameRating? = null
+
+    private fun buildHudEntries(): List<RetroMenuEntry> =
+        RetroHudSupport.buildHudEntries(
+            context = this,
+            hudVisible = hudVisible,
+            style = hudStyle,
+            elements = hudElements,
+            onMaster = { setHudVisible(it) },
+            onStyle = { next ->
+                hudStyle = next
+                frameRating?.let { RetroHudSupport.applyStyle(it, next, hudElements) }
+                RetroHudSupport.saveGlobalHudStyle(this, next)
+            },
+            onElements = { next ->
+                hudElements = next
+                frameRating?.let { RetroHudSupport.applyStyle(it, hudStyle, next) }
+                RetroHudSupport.saveGlobalHudElements(this, next)
+            },
+            onRebuild = { menu.rebuild() },
+        )
+
+    private fun setHudVisible(value: Boolean) {
+        hudVisible = value
+        if (value) {
+            showHud()
+        } else {
+            frameRating?.visibility = android.view.View.GONE
+            handler.removeCallbacks(hudTick)
+        }
+        persistExtra(RetroShortcuts.KEY_HUD, if (value) "1" else "0")
+        menu.rebuild()
+    }
+
+    /**
+     * Feeds the overlay one tick per engine frame.
+     *
+     * The overlay works out its frame rate from how often it is told a frame
+     * happened, and nothing on this side ever sees one -- SDL presents on its
+     * own thread, so there is no callback to hang this on and the overlay would
+     * sit at zero. The engine reports its own rate instead, and this reproduces
+     * it at the right cadence. It stops while paused, so the overlay reads zero
+     * exactly when the game is not running.
+     */
+    private val hudTick =
+        object : Runnable {
+            override fun run() {
+                val rating = frameRating ?: return
+                val fps = bridge.state.fps
+                if (!hudVisible || bridge.state.paused || fps <= 0) {
+                    handler.postDelayed(this, HUD_IDLE_TICK_MS)
+                    return
+                }
+                rating.recordGameFrame()
+                handler.postDelayed(this, (1000L / fps).coerceAtLeast(1L))
+            }
+        }
+
+    private fun showHud() {
+        val host = mLayout ?: return
+        var rating = frameRating
+        if (rating == null) {
+            rating = RetroHudSupport.createFrameRating(this, ENGINE_RENDERER_LABEL)
+            frameRating = rating
+            // Below the drawer so the menu is never drawn underneath the
+            // overlay, which is the order the libretro path uses too.
+            host.addView(rating, host.indexOfChild(menuView).coerceAtLeast(0))
+            RetroHudSupport.applyStyle(rating, hudStyle, hudElements)
+        }
+        rating.visibility = android.view.View.VISIBLE
+        rating.reset()
+        handler.removeCallbacks(hudTick)
+        handler.post(hudTick)
+    }
+
+    private fun buildBottomEntries(): List<RetroMenuEntry.Action> =
         buildList {
-            val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this@Gen1EngineActivity)
-            val haptic = prefs.getFloat(PREF_HAPTIC, DEFAULT_HAPTIC)
+            // Pause stops the engine's game loop but not its command polling,
+            // so Resume can reach it. The drawer stays open on Pause and closes
+            // on Resume, which is how the libretro path behaves.
+            if (bridge.state.paused) {
+                add(
+                    RetroMenuEntry.Action(
+                        getString(R.string.retro_lr_resume),
+                        RetroDrawerIcons.Resume,
+                        active = true,
+                    ) {
+                        bridge.setPaused(false)
+                        pollFaster()
+                        menu.close()
+                    },
+                )
+            } else {
+                add(
+                    RetroMenuEntry.Action(getString(R.string.retro_lr_pause), RetroDrawerIcons.Pause) {
+                        bridge.setPaused(true)
+                        pollFaster()
+                    },
+                )
+            }
             add(
-                RetroMenuEntry.Slider(
-                    label = getString(R.string.retro_lr_haptic_feedback),
-                    valueText = "${(haptic * 100).toInt()}%",
-                    value = haptic,
-                    min = 0f,
-                    max = 1f,
-                    step = 0.1f,
-                ) { value ->
-                    prefs.edit().putFloat(PREF_HAPTIC, value).apply()
-                    pad?.hapticStrength = value
-                    menu.rebuild()
+                RetroMenuEntry.Action(getString(R.string.retro_lr_exit), RetroDrawerIcons.Exit, danger = true) {
+                // Save before leaving, the way closing a game on the libretro
+                // path writes its state: the engine's save is the only record
+                // of progress on this path.
+                    bridge.saveGame()
+                    menu.close()
+                    handler.postDelayed({ finish() }, EXIT_SAVE_GRACE_MS)
                 },
             )
         }
 
-    private fun buildBottomEntries(): List<RetroMenuEntry.Action> =
-        listOf(
-            RetroMenuEntry.Action(getString(R.string.retro_lr_exit), RetroDrawerIcons.Exit, danger = true) {
-                // Save before leaving, the way closing a game on the libretro
-                // path writes its state: the engine's save is the only record
-                // of progress on this path.
-                bridge.saveGame()
-                menu.close()
-                handler.postDelayed({ finish() }, EXIT_SAVE_GRACE_MS)
-            },
-        )
+    /**
+     * Shows or hides the pad and re-lays the picture around it.
+     *
+     * Both halves matter: leaving the surface at its old size would waste the
+     * space the pad just gave up, and hiding the pad without resizing would
+     * leave the game in a letterbox for no reason.
+     */
+    private fun applyTouchControls() {
+        pad?.visibility = if (touchControls) android.view.View.VISIBLE else android.view.View.GONE
+        val host = mLayout ?: return
+        pad?.let { view -> host.post { updateGameArea(host, view) } }
+    }
+
+    /**
+     * Writes a setting back to the game's shortcut, so it is remembered per
+     * game and agrees with what the settings screen shows -- the same place the
+     * libretro path keeps these.
+     */
+    private fun persistExtra(key: String, value: String) {
+        val path = intent.getStringExtra(EXTRA_SHORTCUT_PATH) ?: return
+        Thread {
+            runCatching {
+                val shortcut =
+                    persistShortcut ?: run {
+                        val file = File(path)
+                        if (!file.isFile) return@runCatching
+                        val cm = ContainerManager(this)
+                        Shortcut(cm.retroContainer, file)
+                            .also { persistShortcut = it }
+                    }
+                shortcut.putExtra(key, value)
+                shortcut.saveData()
+            }.onFailure { Log.w(TAG, "could not persist $key: ${it.message}") }
+        }.start()
+    }
+
+    /**
+     * Reads back the per-game settings this activity owns. Falls back to the
+     * system default for anything the shortcut has never had set, which is what
+     * the libretro path does for a freshly added game.
+     */
+    private fun loadPersistedSettings() {
+        val path = intent.getStringExtra(EXTRA_SHORTCUT_PATH)
+        val shortcut =
+            runCatching {
+                path?.let { File(it) }?.takeIf { it.isFile }?.let { file ->
+                    Shortcut(
+                        ContainerManager(this).retroContainer,
+                        file,
+                    )
+                }
+            }.getOrNull()
+        persistShortcut = shortcut
+
+        touchControls =
+            shortcut?.getExtra(RetroShortcuts.KEY_TOUCH_CONTROLS)?.takeIf { it.isNotEmpty() }?.let { it != "0" }
+                ?: RetroDefaults.touchControls(this, RetroSystems.GAMEBOY.id)
+        hudVisible = shortcut?.getExtra(RetroShortcuts.KEY_HUD)?.takeIf { it.isNotEmpty() }?.let { it != "0" } ?: false
+        hudStyle = RetroHudSupport.loadGlobalHudStyle(this)
+        hudElements = RetroHudSupport.loadGlobalHudElements(this)
+    }
 
     private fun toast(text: String) {
         android.widget.Toast.makeText(this, text, android.widget.Toast.LENGTH_SHORT).show()
@@ -492,8 +770,18 @@ class Gen1EngineActivity :
     private val poll =
         object : Runnable {
             override fun run() {
-                if (bridge.refresh() && menu.visible) menu.rebuild()
-                handler.postDelayed(this, if (menu.visible) POLL_ACTIVE_MS else POLL_IDLE_MS)
+                val moved = bridge.refresh()
+                importState = bridge.state.import
+                // Down as soon as the engine says a game is running. Also
+                // driven by the import line disappearing, so a run that never
+                // needed an import -- every launch after the first -- does not
+                // sit behind the screen waiting for progress that never comes.
+                if (loadingVisible && bridge.state.booted) loadingVisible = false
+                if (moved && menu.visible) menu.rebuild()
+                handler.postDelayed(
+                    this,
+                    if (menu.visible || loadingVisible) POLL_ACTIVE_MS else POLL_IDLE_MS,
+                )
             }
         }
 
@@ -537,6 +825,20 @@ class Gen1EngineActivity :
         // discovers its mods once, during load. Installing afterwards would
         // take until the next launch to show up.
         Gen1ModInstaller.ensureInstalled(this)
+
+        // Before the menu providers are set, because they read this state the
+        // first time the drawer is built.
+        loadPersistedSettings()
+
+        // Decoded here rather than in the composable: it is read once, and a
+        // missing or unreadable file simply means no picture on the loading
+        // screen, not a failure to start the game.
+        artwork =
+            intent.getStringExtra(EXTRA_ARTWORK_PATH)
+                ?.takeIf { it.isNotBlank() }
+                ?.let { path ->
+                    runCatching { android.graphics.BitmapFactory.decodeFile(path) }.getOrNull()
+                }
 
         bridge = Gen1EngineBridge(this)
         // Anything left from the last run describes a game that is no longer
@@ -611,7 +913,7 @@ class Gen1EngineActivity :
             host.post { updateGameArea(host, view) }
         }
 
-        host.addView(
+        val menuComposeView =
             ComposeView(this).apply {
                 // Above both SDL's surface and the pad, so the drawer is not
                 // drawn underneath the buttons it is replacing.
@@ -623,15 +925,32 @@ class Gen1EngineActivity :
                     WinNativeTheme {
                         Box(Modifier.fillMaxSize()) {
                             RetroDrawerMenu(menu)
+                            // Above the drawer: during the import there is no
+                            // game to configure, and the menu must not be
+                            // reachable behind it.
+                            Gen1LoadingScreen(
+                                gameName = intent.getStringExtra(EXTRA_GAME_NAME).orEmpty(),
+                                artwork = artwork,
+                                state = importState,
+                                visible = loadingVisible,
+                            )
                         }
                     }
                 }
-            },
+            }
+        menuView = menuComposeView
+        host.addView(
+            menuComposeView,
             android.widget.RelativeLayout.LayoutParams(
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT,
             ),
         )
+
+        // Applied after both views exist: it sizes the picture around the pad,
+        // and shows the overlay if this game had it on last time.
+        applyTouchControls()
+        if (hudVisible) host.post { showHud() }
     }
 
     /**
@@ -657,7 +976,10 @@ class Gen1EngineActivity :
         // flush against the top of the screen in portrait instead of floating
         // below a black band, and the pad gets the leftover height rather than
         // the engine wasting it.
-        val budgetHeight = if (portrait) (h * PORTRAIT_GAME_HEIGHT_FRACTION).toInt() else h
+        // With the pad hidden there is nothing to leave room for, so the
+        // picture takes the whole screen -- which is the reason to turn the pad
+        // off in the first place.
+        val budgetHeight = if (portrait && touchControls) (h * PORTRAIT_GAME_HEIGHT_FRACTION).toInt() else h
         val scale = minOf(w / GB_WIDTH, budgetHeight / GB_HEIGHT).coerceAtLeast(1)
         val gameWidth = (GB_WIDTH * scale).toFloat()
         val gameHeight = (GB_HEIGHT * scale).toFloat()
@@ -665,11 +987,39 @@ class Gen1EngineActivity :
         // Centred across, and in portrait pushed to the top so every pixel the
         // picture does not use goes to the buttons underneath it.
         val left = (w - gameWidth) * 0.5f
-        val top = if (portrait) 0f else (h - gameHeight) * 0.5f
+        val top = if (portrait && touchControls) 0f else (h - gameHeight) * 0.5f
         val area = android.graphics.RectF(left, top, left + gameWidth, top + gameHeight)
 
         view.setGameArea(area)
         applySurfaceBounds(area)
+        applyFillScale(area, w, h)
+    }
+
+    /**
+     * Stretches the picture over the whole display when the pad is hidden.
+     *
+     * With the buttons gone there is nothing to leave room for, so the black
+     * bars either side serve no purpose -- the screen should be the game. The
+     * surface keeps its exact 160x144-multiple size, which is what keeps the
+     * pixels sharp, and the view is scaled up from there to cover the display.
+     *
+     * This does not preserve the Game Boy's 10:9 aspect: filling a 16:9 screen
+     * means stretching horizontally, which is the trade the setting asks for.
+     * With the pad shown the scale is reset to 1 and the aspect is exact.
+     */
+    private fun applyFillScale(area: android.graphics.RectF, hostWidth: Int, hostHeight: Int) {
+        val surface = mSurface ?: return
+        if (touchControls || area.width() <= 0f || area.height() <= 0f) {
+            surface.scaleX = 1f
+            surface.scaleY = 1f
+            return
+        }
+        // Scaled about its own centre, and the rectangle is centred in the host
+        // whenever the pad is hidden, so the result lands flush with the edges.
+        surface.pivotX = area.width() * 0.5f
+        surface.pivotY = area.height() * 0.5f
+        surface.scaleX = hostWidth / area.width()
+        surface.scaleY = hostHeight / area.height()
     }
 
     /**
@@ -749,17 +1099,28 @@ class Gen1EngineActivity :
         const val EXTRA_VERSION = "wn.engine.version"
         const val EXTRA_GAME_NAME = "wn.engine.game_name"
         const val EXTRA_SHORTCUT_PATH = "wn.engine.shortcut"
+        const val EXTRA_ARTWORK_PATH = "wn.engine.artwork"
 
         private const val DPAD_DEADZONE = 0.35f
 
         private const val PREF_HAPTIC = "retro_haptic_strength"
         private const val DEFAULT_HAPTIC = 0.4f
 
+        /**
+         * Named on the HUD's renderer line. The engine draws through LOVE on
+         * OpenGL ES, so this says what is actually presenting the frames rather
+         * than borrowing the libretro label.
+         */
+        private const val ENGINE_RENDERER_LABEL = "LOVE / GLES"
+
         /** Above SDL's surface and the pad. */
         private const val MENU_ELEVATION = 2000f
 
         /** Between the parts of a save slot's progress line. */
         private const val SUBTITLE_SEPARATOR = "  \u00b7  "
+
+        /** How often the HUD feeder rechecks when there is nothing to report. */
+        private const val HUD_IDLE_TICK_MS = 250L
 
         private const val POLL_IDLE_MS = 700L
         private const val POLL_ACTIVE_MS = 200L

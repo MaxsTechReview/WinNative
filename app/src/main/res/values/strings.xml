@@ -2146,9 +2146,11 @@ Installed path:
       whatever the running engine and its mods actually offer rather than a
       copy that could fall out of step with them.
     -->
-    <string name="retro_engine_save">Save Game</string>
+    <string name="retro_engine_save">Save</string>
     <string name="retro_engine_saved">Game saved</string>
-    <string name="retro_engine_slots">Save Slots</string>
+    <string name="retro_engine_loading">Loading…</string>
+    <string name="retro_engine_load">Load</string>
+    <string name="retro_engine_saved_to">Saved to %1$s</string>
     <string name="retro_engine_slot_active_only">Active</string>
     <string name="retro_engine_rename_slot">Rename Save Slot</string>
     <string name="retro_engine_caught">%1$d caught</string>

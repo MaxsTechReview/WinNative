@@ -84,6 +84,13 @@ object Gen1EmbedLaunch {
                 shortcut.getExtra("custom_name", shortcut.name),
             )
             putExtra(Gen1EngineActivity.EXTRA_SHORTCUT_PATH, shortcut.file.absolutePath)
+            // The loading screen shown during a first-boot ROM import uses the
+            // game's own artwork, so the player sees the game they picked
+            // rather than the engine's splash.
+            putExtra(
+                Gen1EngineActivity.EXTRA_ARTWORK_PATH,
+                shortcut.getExtra("customCoverArtPath"),
+            )
         }
     }
 }
