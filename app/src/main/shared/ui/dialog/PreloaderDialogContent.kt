@@ -155,6 +155,13 @@ private val TextSecondary = Color(0xFFA1B1C8)
 private val TextDim = Color(0xFF65748B)
 private val TrackColor = Color(0xFF202A3A)
 
+/**
+ * Height reserved at the bottom for the status line and the progress bar, so
+ * the centred content never runs under them. Two lines of status, the gap, the
+ * bar and its padding.
+ */
+private val BOTTOM_BLOCK_HEIGHT = 120.dp
+
 private val InterFont = FontFamily(Font(R.font.inter_medium, FontWeight.Medium))
 private val BricolageDisplayFont =
     FontFamily(Font(R.font.bricolage_grotesque_extrabold, FontWeight.ExtraBold))
@@ -295,6 +302,12 @@ fun PreloaderDialogContent(state: PreloaderDialogState) {
                     .fillMaxSize()
                     .windowInsetsPadding(WindowInsets.safeDrawing)
                     .padding(horizontal = 28.dp)
+                    // The bottom bar is positioned against the screen, not
+                    // placed after this column, so on a short screen -- any
+                    // phone in landscape -- the centred content would otherwise
+                    // run underneath it. Reserving the height it occupies keeps
+                    // the two apart without either having to measure the other.
+                    .padding(bottom = if (bottomProgressBar) BOTTOM_BLOCK_HEIGHT else 0.dp)
                     .offset { IntOffset(0, contentRise.roundToInt()) },
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
