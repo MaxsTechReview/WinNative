@@ -924,11 +924,11 @@ internal fun UnifiedActivity.launchCustomGame(
         }
 
         if (com.winlator.cmod.feature.retro.RetroShortcuts.isRetroShortcut(shortcut)) {
-            val retroSystem = com.winlator.cmod.feature.retro.RetroShortcuts.systemForShortcut(shortcut)
-            val embeddedDolphin =
-                com.winlator.cmod.feature.retro.RetroCoreManager.usesDolphinCore(retroSystem) &&
-                    com.winlator.cmod.feature.retro.RetroShortcuts.embeddedDolphinEnabled(context)
-            if ((retroSystem != null && retroSystem.isExternal) || embeddedDolphin) {
+            // Asks RetroShortcuts which launcher this shortcut needs rather
+            // than reasoning about it here. Listing the embedded paths in two
+            // places is what sent 3D-enabled games to the libretro core: this
+            // caller knew about PS2 and Dolphin but not about the 3D engine.
+            if (com.winlator.cmod.feature.retro.RetroShortcuts.usesEmbeddedLauncher(context, shortcut)) {
                 withContext(Dispatchers.Main) {
                     com.winlator.cmod.feature.retro.RetroShortcuts.launch(context, shortcut)
                 }

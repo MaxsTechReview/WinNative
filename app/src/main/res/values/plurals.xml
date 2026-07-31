@@ -4,4 +4,9 @@
         <item quantity="one">%d ZIP asset</item>
         <item quantity="other">%d ZIP assets</item>
     </plurals>
+    <!-- Progress on a save slot in the 3D engine's Retro menu. -->
+    <plurals name="retro_engine_badges">
+        <item quantity="one">%d badge</item>
+        <item quantity="other">%d badges</item>
+    </plurals>
 </resources>

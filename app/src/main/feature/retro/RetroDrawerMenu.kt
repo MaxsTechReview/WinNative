@@ -172,6 +172,23 @@ sealed class RetroMenuEntry {
         val onSelect: () -> Unit,
     ) : RetroMenuEntry()
 
+    /**
+     * A setting that cycles, where the host knows the current value but not the
+     * set of values it cycles through.
+     *
+     * Choice cannot express that: it needs the whole list up front to render its
+     * dropdown and to know where the current value sits in it. This is for
+     * settings owned by something outside WinNative -- the hosted Gen 1 engine
+     * publishes each of its option rows as a label and a value string, and
+     * stepping one runs the engine's own handler, which is what keeps the engine
+     * the single owner of its settings rather than the host mirroring them.
+     */
+    class Stepper(
+        val label: String,
+        val valueText: String,
+        val onStep: (Int) -> Unit,
+    ) : RetroMenuEntry()
+
     class Slider(
         val label: String,
         val valueText: String,
@@ -286,6 +303,9 @@ class RetroMenuController {
                 }
             }
             is RetroMenuEntry.Radio -> if (direction == 0) entry.onSelect()
+            // Centre steps forward, matching how a cycling row behaves when it
+            // is tapped rather than nudged left or right.
+            is RetroMenuEntry.Stepper -> entry.onStep(if (direction < 0) -1 else 1)
             is RetroMenuEntry.Slider ->
                 if (direction != 0) {
                     entry.onChange((entry.value + direction * entry.step).coerceIn(entry.min, entry.max))
@@ -873,6 +893,13 @@ private fun RetroPaneList(
                                         entry.onSelect()
                                     },
                                 )
+                            is RetroMenuEntry.Stepper ->
+                                RetroStepperRow(
+                                    entry = entry,
+                                    highlighted = highlighted,
+                                    paneScale = paneScale,
+                                    onFocus = { controller.contentIndex = index },
+                                )
                             is RetroMenuEntry.Action ->
                                 RetroActionCard(
                                     entry = entry,
@@ -1118,6 +1145,76 @@ private fun RetroChoiceRow(
                 )
             }
         }
+    }
+}
+
+/**
+ * A cycling row whose value set the host does not know; see
+ * [RetroMenuEntry.Stepper].
+ *
+ * Laid out like [RetroChoiceRow] so the two are indistinguishable to the
+ * player, but with explicit arrows instead of a dropdown: with no list of
+ * values there is nothing to drop down, and stepping is the only thing the
+ * owner of the setting exposes. Tapping the row steps forward, which is what
+ * the chevron on a Choice row does too.
+ */
+@Composable
+private fun RetroStepperRow(
+    entry: RetroMenuEntry.Stepper,
+    highlighted: Boolean,
+    paneScale: Float,
+    onFocus: () -> Unit,
+) {
+    RetroRowShell(
+        highlighted = highlighted,
+        activeBorder = false,
+        paneScale = paneScale,
+        onClick = {
+            onFocus()
+            entry.onStep(1)
+        },
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = entry.label,
+                color = DrawerTextPrimary,
+                fontSize = (14f * paneScale).sp,
+                fontWeight = FontWeight.Medium,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = entry.valueText,
+                color = DrawerActiveAccent,
+                fontSize = (12f * paneScale).sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        // Separately tappable, so a value can be walked backwards without
+        // cycling all the way round -- some engine ladders are long.
+        Text(
+            text = "◂",
+            color = DrawerTextSecondary,
+            fontSize = (16f * paneScale).sp,
+            modifier =
+                Modifier
+                    .clickable {
+                        onFocus()
+                        entry.onStep(-1)
+                    }
+                    .padding(horizontal = 6.dp),
+        )
+        Text(
+            text = "▸",
+            color = DrawerTextSecondary,
+            fontSize = (16f * paneScale).sp,
+            modifier =
+                Modifier
+                    .clickable {
+                        onFocus()
+                        entry.onStep(1)
+                    }
+                    .padding(horizontal = 6.dp),
+        )
     }
 }
 

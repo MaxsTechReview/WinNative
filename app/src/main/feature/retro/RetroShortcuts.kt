@@ -150,9 +150,29 @@ object RetroShortcuts {
     ) {
         val system = systemForShortcut(shortcut)
         if (!RetroBundle.requireInstalled(context)) return
+
         if (system != null && system.isExternal) {
             recordLaunchStats(context, shortcut.getExtra("custom_name", shortcut.name))
             launchEmbeddedPs2(context, shortcut)
+            return
+        }
+        // The 3D engine replaces the libretro core for the handful of titles it
+        // supports, and only when the user turned the toggle on for that game.
+        // Hashing the ROM to confirm compatibility is I/O, so it stays off the
+        // caller's thread.
+        if (Gen1EmbedLaunch.isEnabled(shortcut)) {
+            recordLaunchStats(context, shortcut.getExtra("custom_name", shortcut.name))
+            kotlin.concurrent.thread(name = "WnEngine3DLaunch") {
+                if (Gen1EmbedLaunch.shouldLaunch(context, shortcut)) {
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        Gen1EmbedLaunch.launch(context, shortcut)
+                    }
+                } else {
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        context.startActivity(launchIntent(context, shortcut))
+                    }
+                }
+            }
             return
         }
         if (RetroCoreManager.usesDolphinCore(system) && embeddedDolphinEnabled(context)) {
@@ -161,6 +181,31 @@ object RetroShortcuts {
             return
         }
         context.startActivity(launchIntent(context, shortcut))
+    }
+
+    /**
+     * Whether this shortcut runs on something other than a libretro core in
+     * RetroActivity, and so must go through [launch] rather than straight to
+     * [launchIntent].
+     *
+     * Callers outside this file used to test the individual cases themselves,
+     * which is how the 3D engine was missed: a caller that knew about PS2 and
+     * Dolphin sent every other shortcut to the libretro path, so a game with
+     * the 3D toggle on quietly opened in the standard core instead. Anything
+     * that dispatches a retro shortcut should ask this instead of rebuilding
+     * the list, so a future embedded path only has to be added here.
+     */
+    fun usesEmbeddedLauncher(
+        context: Context,
+        shortcut: Shortcut,
+    ): Boolean {
+        val system = systemForShortcut(shortcut)
+        if (system != null && system.isExternal) return true
+        if (RetroCoreManager.usesDolphinCore(system) && embeddedDolphinEnabled(context)) return true
+        // Deliberately the cheap flag test, not the ROM hash: this decides
+        // which launcher to call, and launch() re-checks compatibility on a
+        // background thread before committing to the engine.
+        return Gen1EmbedLaunch.isEnabled(shortcut)
     }
 
     fun embeddedDolphinEnabled(context: Context): Boolean =

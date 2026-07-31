@@ -2425,6 +2425,32 @@ internal fun UnifiedActivity.LibraryGameDetailDialog(
                                     },
                                 )
                             }
+                            // The 3D engine offers itself only for the few Gen 1
+                            // titles it supports, and only when its files are
+                            // actually in the retro bundle. Compatibility is the
+                            // ROM's SHA-1, so deciding it means hashing a file:
+                            // done once off the composition thread, keyed on the
+                            // shortcut, rather than on every recomposition.
+                            val engine3dShortcut = homeShortcutState.shortcut
+                            val engine3dKey = engine3dShortcut?.file?.absolutePath
+                            var engine3dSupported by remember(engine3dKey) { mutableStateOf(false) }
+                            var engine3dOn by remember(engine3dKey) {
+                                mutableStateOf(
+                                    engine3dShortcut?.let {
+                                        com.winlator.cmod.feature.retro.Gen1EmbedLaunch.isEnabled(it)
+                                    } ?: false,
+                                )
+                            }
+                            LaunchedEffect(engine3dKey) {
+                                engine3dSupported =
+                                    engine3dShortcut != null &&
+                                    withContext(Dispatchers.IO) {
+                                        runCatching {
+                                            com.winlator.cmod.feature.retro.Gen1EmbedLaunch
+                                                .isCompatible(context, engine3dShortcut)
+                                        }.getOrDefault(false)
+                                    }
+                            }
                             LibraryGameLaunchScreen(
                                 appName = launchAppName,
                                 subtitle = subtitle,
@@ -2443,6 +2469,25 @@ internal fun UnifiedActivity.LibraryGameDetailDialog(
                                 hasPinnedShortcut = hasPinnedShortcut,
                                 playEnabled = playEnabled,
                                 playDisabledLabel = playDisabledLabel,
+                                altEngineLabel =
+                                    if (engine3dSupported) stringResource(R.string.retro_gs_engine_3d) else null,
+                                altEngineEnabled = engine3dOn,
+                                onAltEngineChange =
+                                    if (engine3dSupported && engine3dShortcut != null) {
+                                        { on ->
+                                            engine3dOn = on
+                                            // Written straight to the shortcut, so
+                                            // Play uses it immediately and the
+                                            // Graphics pane agrees with it.
+                                            engine3dShortcut.putExtra(
+                                                com.winlator.cmod.feature.retro.Gen1EmbedLaunch.KEY_ENGINE_3D,
+                                                if (on) "1" else "0",
+                                            )
+                                            engine3dShortcut.saveData()
+                                        }
+                                    } else {
+                                        null
+                                    },
                                 onBack = onDismissRequest,
                                 onPlay = {
                                     val containerManager = ContainerManager(context)

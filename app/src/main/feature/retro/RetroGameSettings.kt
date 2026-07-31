@@ -133,6 +133,9 @@ class RetroSettingsState(
             .ifEmpty { if (context != null && sysId != null) RetroDefaults.upscale(context, sysId) else "native" }
             .lowercase().let { if (it in UPSCALE_KEYS) it else "native" },
     )
+    // Off unless the player asks for it: the 3D engine replaces the libretro
+    // core entirely, so it must never become the default for a game.
+    var engine3d by mutableStateOf(shortcut.getExtra(Gen1EmbedLaunch.KEY_ENGINE_3D) == "1")
     var touchControls by mutableStateOf(
         shortcut.getExtra(RetroShortcuts.KEY_TOUCH_CONTROLS)
             .ifEmpty { if (context != null && sysId != null) (if (RetroDefaults.touchControls(context, sysId)) "1" else "0") else "1" } != "0",
@@ -203,6 +206,7 @@ class RetroSettingsState(
         shortcut.putExtra(RetroShortcuts.KEY_SHADER, shader)
         shortcut.putExtra(RetroShortcuts.KEY_SGSR, if (sgsr) "1" else "0")
         shortcut.putExtra(RetroShortcuts.KEY_UPSCALE, upscale)
+        shortcut.putExtra(Gen1EmbedLaunch.KEY_ENGINE_3D, if (engine3d) "1" else "0")
         shortcut.putExtra(RetroShortcuts.KEY_TOUCH_CONTROLS, if (touchControls) "1" else "0")
         shortcut.putExtra(RetroShortcuts.KEY_ADAPTIVE_STICKS, if (adaptiveSticks) "1" else "0")
         shortcut.putExtra(RetroShortcuts.KEY_HDD_IMAGE, hddImage)
@@ -1078,6 +1082,31 @@ private fun RetroGraphicsSection(state: RetroSettingsState) {
     if (state.system?.isExternal == true) {
         RetroPs2GraphicsSection()
         return
+    }
+    // First on the Graphics pane, because it decides what draws the game at
+    // all -- every row below it configures the standard core, which this
+    // replaces. It lived under Input for a while, next to the on-screen
+    // controls, which is where nobody looked for it.
+    //
+    // Only offered for the handful of games the 3D engine actually supports.
+    // Compatibility is the ROM's SHA-1, so it means hashing a file: resolved
+    // once off the composition thread rather than on every recomposition.
+    val engineCtx = androidx.compose.ui.platform.LocalContext.current
+    var engine3dSupported by remember { mutableStateOf(false) }
+    LaunchedEffect(state.shortcut.file.absolutePath) {
+        engine3dSupported =
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                runCatching { Gen1EmbedLaunch.isCompatible(engineCtx, state.shortcut) }
+                    .getOrDefault(false)
+            }
+    }
+    if (engine3dSupported) {
+        RetroSettingSwitch(
+            label = stringResource(R.string.retro_gs_engine_3d),
+            checked = state.engine3d,
+            subtitle = stringResource(R.string.retro_gs_engine_3d_subtitle),
+            onCheckedChange = { state.engine3d = it },
+        )
     }
     val shaderLabels = listOf(
         stringResource(R.string.retro_gs_shader_default),

@@ -209,7 +209,13 @@ android {
                     'src/main/feature',
                     'src/main/sharedmemory',
                     'src/main/runtime',
-                    'src/main/shared'
+                    'src/main/shared',
+                    // SDL2 and love-android glue, vendored for the 3D engine.
+                    // Their class names are a JNI contract with liblove.so and
+                    // cannot be renamed or repackaged, so they are kept apart
+                    // from WinNative's own sources with their upstream licence
+                    // headers intact. See EMULATOR_CREDITS.md.
+                    'src/main/engine'
             ]
         }
     }
