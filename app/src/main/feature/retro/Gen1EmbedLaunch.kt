@@ -77,8 +77,116 @@ object Gen1EmbedLaunch {
      * megabyte twice, and the second time was usually on the main thread. Call
      * this from a background thread and start the Intent it returns.
      */
-    fun launchIntentIfSupported(context: Context, shortcut: Shortcut): Intent? =
-        if (Gen1EngineActivity.isInstalled(context)) launchIntent(context, shortcut) else null
+    fun launchIntentIfSupported(context: Context, shortcut: Shortcut): Intent? {
+        if (!Gen1EngineActivity.isInstalled(context)) return null
+        val intent = launchIntent(context, shortcut) ?: return null
+        // After the Intent, because building it is what resolves the version,
+        // and before the Intent is started, because the engine reads its saves
+        // as it boots.
+        prepareLaunch(context, shortcut, intent.getStringExtra(Gen1EngineActivity.EXTRA_VERSION).orEmpty())
+        return intent
+    }
+
+    /**
+     * Brings this game's engine saves down from the cloud before it starts, if
+     * the cloud has something newer.
+     *
+     * The same shape as the Dolphin path: a restore writes into the staging
+     * directory, which is then copied into the engine's own save directory --
+     * it has to happen before the engine boots, because the engine reads its
+     * slot registry once at startup.
+     *
+     * Runs on the caller's thread and blocks; call it from the launch worker,
+     * not the main thread.
+     */
+    private fun syncCloudSaves(context: Context, shortcut: Shortcut) {
+        if (context !is android.app.Activity) return
+        if (shortcut.getExtra("cloud_sync_enabled", "1") == "0") return
+        val gameName = shortcut.getExtra("custom_name", shortcut.name)
+        val cloudId = Gen1CloudSync.cloudId(shortcut)
+        val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
+        runCatching {
+            kotlinx.coroutines.runBlocking {
+                kotlinx.coroutines.withTimeout(12_000L) {
+                    val entries =
+                        com.winlator.cmod.feature.sync.google.GameSaveBackupManager.listGoogleHistory(
+                            context,
+                            com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource.CUSTOM,
+                            cloudId,
+                            com.winlator.cmod.feature.sync.google.GoogleAuthMode.RESUME,
+                        )
+                    val latest = entries.maxByOrNull { it.timestampMs } ?: return@withTimeout
+                    val localTs = Gen1CloudSync.localTimestamp(context, cloudId)
+                    val mark = prefs.getLong("retro_cloud_mark_$cloudId", 0L)
+                    val restore: suspend () -> Unit = {
+                        val result =
+                            com.winlator.cmod.feature.sync.google.GameSaveBackupManager.restoreFromGoogle(
+                                context,
+                                latest,
+                                com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource.CUSTOM,
+                                cloudId,
+                                com.winlator.cmod.feature.sync.google.GoogleAuthMode.RESUME,
+                                customSaveDir = Gen1CloudSync.stagingDir(context, cloudId),
+                            )
+                        if (result.success) {
+                            Gen1CloudSync.applyStaged(context, cloudId)
+                            prefs.edit().putLong("retro_cloud_mark_$cloudId", latest.timestampMs).apply()
+                        }
+                    }
+                    if (localTs == 0L) {
+                        // Nothing here yet: a new device, or this game's first
+                        // run. Take the cloud copy without asking.
+                        restore()
+                    } else if (latest.timestampMs > localTs + 120_000L && latest.timestampMs > mark) {
+                        if (askCloudConflict(context, gameName)) {
+                            restore()
+                        } else {
+                            // Remembered so the same choice is not asked again
+                            // for the same cloud save.
+                            prefs.edit().putLong("retro_cloud_mark_$cloudId", latest.timestampMs).apply()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun askCloudConflict(activity: android.app.Activity, gameName: String): Boolean {
+        val latch = java.util.concurrent.CountDownLatch(1)
+        val useCloud = java.util.concurrent.atomic.AtomicBoolean(false)
+        activity.runOnUiThread {
+            androidx.appcompat.app.AlertDialog.Builder(activity)
+                .setTitle(activity.getString(com.winlator.cmod.R.string.retro_lr_cloud_save))
+                .setMessage(
+                    activity.getString(com.winlator.cmod.R.string.retro_lr_cloud_conflict_message, gameName),
+                )
+                .setCancelable(false)
+                .setPositiveButton(activity.getString(com.winlator.cmod.R.string.retro_lr_use_cloud_save)) { _, _ ->
+                    useCloud.set(true)
+                    latch.countDown()
+                }
+                .setNegativeButton(activity.getString(com.winlator.cmod.R.string.retro_scr_keep_local_save)) { _, _ ->
+                    latch.countDown()
+                }
+                .show()
+        }
+        latch.await()
+        return useCloud.get()
+    }
+
+    /**
+     * Everything that must happen before the engine starts: pull a newer cloud
+     * save down, and record which game version this shortcut is so a later
+     * backup does not have to hash the ROM again to find out.
+     */
+    fun prepareLaunch(context: Context, shortcut: Shortcut, version: String) {
+        val cloudId = Gen1CloudSync.cloudId(shortcut)
+        Gen1CloudSync.rememberVersion(context, cloudId, version)
+        // A restore made from the Cloud Saves screen landed in the staging
+        // directory and has been waiting for a launch to be copied in.
+        Gen1CloudSync.applyRestoreIfPending(context, cloudId)
+        syncCloudSaves(context, shortcut)
+    }
 
     fun launchIntent(context: Context, shortcut: Shortcut): Intent? {
         val rom = File(RetroShortcuts.romPath(shortcut))

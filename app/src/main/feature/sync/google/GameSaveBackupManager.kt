@@ -748,6 +748,14 @@ object GameSaveBackupManager {
             ?.takeIf { it.isNotBlank() } ?: return null
         val gameName = shortcut.getExtra("custom_name", shortcut.name)
         return when {
+            // Checked before the system, because a Game Boy shortcut with the
+            // 3D toggle on keeps its progress inside the engine rather than in
+            // a libretro .srm -- same system, different saves, different place.
+            com.winlator.cmod.feature.retro.Gen1CloudSync.isEngineShortcut(shortcut) ->
+                com.winlator.cmod.feature.retro.Gen1CloudSync.stagingDir(
+                    context,
+                    com.winlator.cmod.feature.retro.Gen1CloudSync.cloudId(shortcut),
+                )
             system == com.winlator.cmod.feature.retro.RetroSystems.PS2.id ->
                 File(com.armsx2.runtime.MainActivityRuntime.assetCopyRoot(context), "memcards")
             com.winlator.cmod.feature.retro.RetroCoreManager
@@ -781,6 +789,10 @@ object GameSaveBackupManager {
                     retroShortcut.getExtra("custom_name", retroShortcut.name),
                 )
             }
+            // Same reason as Dolphin's: what gets uploaded is a staged copy,
+            // so it has to be taken from the live save directory now rather
+            // than whenever the game last happened to stage one.
+            com.winlator.cmod.feature.retro.Gen1CloudSync.refreshForBackup(context, retroShortcut)
         }
         val dir = retroSaveDir(context, retroShortcut)
         if (dir != null) {

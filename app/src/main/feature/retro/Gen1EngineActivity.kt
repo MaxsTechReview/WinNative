@@ -141,6 +141,12 @@ class Gen1EngineActivity :
     }
 
     override fun onStop() {
+        // The catch-all for a save the host never saw: the player using the
+        // game's own SAVE menu writes a slot file with nothing on this side
+        // being told. Staging on the way out picks that up whatever route the
+        // save took. Cheap when nothing changed -- the fingerprint check drops
+        // an unchanged set before any upload is queued.
+        queueCloudBackup()
         // Nothing is on screen to show the state, so stop reading it. The
         // thread stays alive: a command can still be queued from a lifecycle
         // path, and the engine keeps running behind us.
@@ -566,6 +572,7 @@ class Gen1EngineActivity :
                                 SlotAction.SAVE -> {
                                     bridge.saveToSlot(slot.id)
                                     toast(getString(R.string.retro_engine_saved_to, slot.name))
+                                    queueCloudBackupAfterSave()
                                     pollFaster()
                                     menu.close()
                                 }
@@ -619,6 +626,7 @@ class Gen1EngineActivity :
                 add(
                     RetroMenuEntry.Action(getString(R.string.retro_engine_new_slot), RetroDrawerIcons.Add) {
                         bridge.newSlot()
+                        queueCloudBackupAfterSave()
                         pollFaster()
                         menu.close()
                     },
@@ -780,6 +788,7 @@ class Gen1EngineActivity :
                 // path writes its state: the engine's save is the only record
                 // of progress on this path.
                     bridge.saveGame()
+                    queueCloudBackupAfterSave()
                     menu.close()
                     handler.postDelayed({ finish() }, EXIT_SAVE_GRACE_MS)
                 },
@@ -846,6 +855,39 @@ class Gen1EngineActivity :
         hudVisible = shortcut?.getExtra(RetroShortcuts.KEY_HUD)?.takeIf { it.isNotEmpty() }?.let { it != "0" } ?: false
         hudStyle = RetroHudSupport.loadGlobalHudStyle(this)
         hudElements = RetroHudSupport.loadGlobalHudElements(this)
+    }
+
+    /**
+     * Queues this game's engine saves for cloud backup.
+     *
+     * Called after a save the menu asked for, and again when the activity goes
+     * away -- that second one is what covers a save made from inside the game,
+     * which the host never sees happen. The queue is the same one the libretro
+     * path uses, so the upload runs the next time the app is in the foreground
+     * with Drive connected; nothing here waits on the network.
+     *
+     * Off the main thread because staging copies files.
+     */
+    private fun queueCloudBackup() {
+        val shortcut = persistShortcut ?: return
+        if (shortcut.getExtra("cloud_sync_enabled", "1") == "0") return
+        val gameName = intent.getStringExtra(EXTRA_GAME_NAME).orEmpty()
+            .ifBlank { shortcut.getExtra("custom_name", shortcut.name) }
+        val app = applicationContext
+        Thread {
+            runCatching { Gen1CloudSync.queueBackup(app, Gen1CloudSync.cloudId(shortcut), gameName) }
+                .onFailure { Log.w(TAG, "could not queue cloud backup: ${it.message}") }
+        }.apply { name = "gen1-cloud-queue"; start() }
+    }
+
+    /**
+     * Gives the engine time to write the save it was just asked for, then
+     * queues it. The command is only queued on the bridge when this returns,
+     * and the engine polls for it -- so staging immediately would copy the
+     * previous save.
+     */
+    private fun queueCloudBackupAfterSave() {
+        handler.postDelayed({ queueCloudBackup() }, SAVE_SETTLE_MS)
     }
 
     private fun toast(text: String) {
@@ -1288,6 +1330,13 @@ class Gen1EngineActivity :
 
         /** Long enough for the engine to pick the save command up and run it. */
         private const val EXIT_SAVE_GRACE_MS = 400L
+
+        /**
+         * How long to let the engine actually write a save before copying it
+         * for the cloud. The command reaches the engine on its next poll, so
+         * staging any sooner would copy the previous save.
+         */
+        private const val SAVE_SETTLE_MS = 700L
 
         // Engine option row ids, grouped the way WinNative presents settings.
         // Anything not listed lands on System; see paneForRow.
