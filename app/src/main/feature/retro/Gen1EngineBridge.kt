@@ -20,12 +20,45 @@ import java.io.File
  *
  * Both files live in the engine's LOVE save directory, which sits under
  * WinNative's own external files directory, so no permission is involved.
+ *
+ * Every one of those file operations happens on this class's own thread, never
+ * on the caller's. The channel is a file poll, so the alternative was reading
+ * and parsing the state file on the main thread several times a second for as
+ * long as a game is open, and writing one from inside a menu tap -- storage
+ * work on the thread that has to draw the next frame. Callers hand over a
+ * command and move on; the last state read is kept in a volatile field so the
+ * menu can still be built synchronously from whatever is current.
+ *
+ * One thread rather than a pool, deliberately: commands must reach the engine
+ * in the order they were made (choosing a save slot then writing to it is two
+ * commands whose order is the whole point), and a single looper gives that for
+ * free without a lock.
  */
 class Gen1EngineBridge(context: Context) {
     private val dir = File(context.getExternalFilesDir(null), "$SAVE_SUBDIR/$BRIDGE_SUBDIR")
     private val statePath = File(dir, "state.txt")
     private val commandPath = File(dir, "cmd.txt")
     private val commandTmp = File(dir, "cmd.host.tmp")
+
+    /**
+     * Background priority: this must never compete with the engine's own
+     * render thread. A menu tap arriving a few milliseconds later is invisible;
+     * a dropped frame in the game is not.
+     */
+    private val ioThread =
+        android.os.HandlerThread(THREAD_NAME, android.os.Process.THREAD_PRIORITY_BACKGROUND)
+            .apply { start() }
+    private val io = android.os.Handler(ioThread.looper)
+    private val main = android.os.Handler(android.os.Looper.getMainLooper())
+
+    /** Called on the main thread when something the menu draws has changed. */
+    private var listener: ((State, Boolean) -> Unit)? = null
+
+    @Volatile
+    private var polling = false
+
+    @Volatile
+    private var pollFast = false
 
     /** One engine option, exactly as its own OPTIONS menu would show it. */
     data class Row(
@@ -96,6 +129,78 @@ class Gen1EngineBridge(context: Context) {
     var state: State = EMPTY
         private set
 
+    // ------------------------------------------------------------ the poll
+    //
+    // The engine publishes on its own schedule, so the host polls. All of it
+    // runs on the io thread; only the notification crosses back to the main
+    // thread, and only when it has something to say.
+
+    private val pollTask =
+        object : Runnable {
+            override fun run() {
+                if (!polling) return
+                val before = state
+                val moved = refresh()
+                val now = state
+                // Deliberately not every tick. The frame rate changes on every
+                // read and the HUD picks it up from `state` on its own, so
+                // waking the main thread for it would be ten pointless
+                // recompositions a second. Only a menu-visible change, the
+                // import progress, and the game coming up are worth a hop.
+                if (moved || now.import != before.import || now.booted != before.booted) {
+                    val callback = listener
+                    if (callback != null) main.post { callback(now, moved) }
+                }
+                io.postDelayed(this, if (pollFast) POLL_ACTIVE_MS else POLL_IDLE_MS)
+            }
+        }
+
+    /**
+     * Begins polling. [onChanged] is called on the main thread, with the state
+     * and whether the menu's sequence number moved.
+     */
+    fun startPolling(onChanged: (State, Boolean) -> Unit) {
+        listener = onChanged
+        polling = true
+        io.removeCallbacks(pollTask)
+        io.post(pollTask)
+    }
+
+    /** Stops polling without tearing the thread down, for a backgrounded game. */
+    fun stopPolling() {
+        polling = false
+        io.removeCallbacks(pollTask)
+    }
+
+    /**
+     * Fast while the drawer is open or has just been touched, so a changed row
+     * shows its new value promptly; slow the rest of the time, when nothing is
+     * reading the values.
+     */
+    fun setPollFast(fast: Boolean) {
+        if (pollFast == fast) return
+        pollFast = fast
+        if (polling) pollNow()
+    }
+
+    /** Reads once immediately, then resumes the normal cadence. */
+    fun pollNow() {
+        if (!polling) return
+        io.removeCallbacks(pollTask)
+        io.post(pollTask)
+    }
+
+    /**
+     * Drops the thread. After this the bridge is dead; anything still queued is
+     * discarded rather than run against a torn-down activity.
+     */
+    fun shutdown() {
+        polling = false
+        listener = null
+        io.removeCallbacksAndMessages(null)
+        ioThread.quitSafely()
+    }
+
     /**
      * Reads the published state, and returns true when the sequence number
      * moved -- the caller's signal to rebuild the menu.
@@ -104,8 +209,11 @@ class Gen1EngineBridge(context: Context) {
      * belongs on the menu: the frame rate changes on every poll and the engine
      * deliberately does not advance the sequence for it, so it has to be picked
      * up without triggering a rebuild.
+     *
+     * Runs on whichever thread calls it and touches storage, so in this app
+     * that is only ever the io thread.
      */
-    fun refresh(): Boolean {
+    private fun refresh(): Boolean {
         val text =
             runCatching { if (statePath.isFile) statePath.readText() else null }
                 .getOrNull() ?: return false
@@ -188,14 +296,21 @@ class Gen1EngineBridge(context: Context) {
     /**
      * Queues commands for the engine.
      *
+     * Returns as soon as the work is handed to the io thread, so a menu tap
+     * costs the frame nothing. Ordering still holds: one looper runs every
+     * write, so two taps reach the engine in the order they were made.
+     *
      * Appends to any batch the engine has not consumed yet rather than
      * replacing it: the two processes share no lock, so a player who taps two
      * rows quickly must not lose the first. Written through a temporary file
      * and renamed so the engine can never read a half-written batch.
      */
-    @Synchronized
     fun send(vararg commands: String) {
         if (commands.isEmpty()) return
+        io.post { writeCommands(commands) }
+    }
+
+    private fun writeCommands(commands: Array<out String>) {
         runCatching {
             dir.mkdirs()
             val pending = if (commandPath.isFile) commandPath.readText() else ""
@@ -272,15 +387,26 @@ class Gen1EngineBridge(context: Context) {
      * publishes its first state. Called once at launch.
      */
     fun clearStale() {
-        runCatching {
-            statePath.delete()
-            commandPath.delete()
-            commandTmp.delete()
+        io.post {
+            runCatching {
+                statePath.delete()
+                commandPath.delete()
+                commandTmp.delete()
+            }
         }
     }
 
     companion object {
         private const val TAG = "WnGen1Bridge"
+        private const val THREAD_NAME = "gen1-bridge-io"
+
+        /**
+         * How often the state file is read. Slow while playing, because nothing
+         * is looking at the values; fast while the drawer is open, so a row
+         * shows its new value about as quickly as a tap can register.
+         */
+        private const val POLL_ACTIVE_MS = 200L
+        private const val POLL_IDLE_MS = 700L
 
         /**
          * LOVE derives this from the game's identity, so it is fixed by the

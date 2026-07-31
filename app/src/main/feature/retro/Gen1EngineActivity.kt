@@ -87,7 +87,12 @@ class Gen1EngineActivity :
     private var loadingVisible by androidx.compose.runtime.mutableStateOf(true)
     private var importState by
         androidx.compose.runtime.mutableStateOf<Gen1EngineBridge.Import?>(null)
-    private var artwork: android.graphics.Bitmap? = null
+    /**
+     * The shortcut's cover, decoded off the main thread. Compose state because
+     * it arrives after the loading screen is already up.
+     */
+    private var artwork by
+        androidx.compose.runtime.mutableStateOf<android.graphics.Bitmap?>(null)
 
     /**
      * Which job the slot list is doing when it opens.
@@ -132,10 +137,14 @@ class Gen1EngineActivity :
     override fun onResume() {
         super.onResume()
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
-        schedulePoll()
+        bridge.startPolling(::onEngineState)
     }
 
     override fun onStop() {
+        // Nothing is on screen to show the state, so stop reading it. The
+        // thread stays alive: a command can still be queued from a lifecycle
+        // path, and the engine keeps running behind us.
+        bridge.stopPolling()
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
         super.onStop()
     }
@@ -143,6 +152,7 @@ class Gen1EngineActivity :
     override fun onDestroy() {
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
         handler.removeCallbacksAndMessages(null)
+        bridge.shutdown()
         store.clear()
         super.onDestroy()
     }
@@ -228,10 +238,11 @@ class Gen1EngineActivity :
         // Release first so a direction held when the menu opened does not stay
         // down behind it, which is what the libretro path does too.
         releaseAllKeys()
-        // The engine publishes state continuously, but reading once here means
-        // the drawer opens showing current values instead of filling in a poll
-        // later.
-        bridge.refresh()
+        // Built from the last state the bridge read, which is at most one idle
+        // poll old. Reading the file here instead would put storage work in the
+        // middle of the frame that opens the drawer, to save a couple of
+        // hundred milliseconds on values that rarely change while playing --
+        // and pollFaster below closes that gap anyway.
         menu.open()
         pollFaster()
     }
@@ -843,37 +854,33 @@ class Gen1EngineActivity :
     // --------------------------------------------------------------- polling
 
     /**
-     * The engine publishes state on its own schedule, so the host polls.
+     * What to do when the engine's published state changes.
      *
-     * Slow while playing -- nothing is reading the values -- and fast while the
-     * drawer is open or has just been touched, so a stepped row shows its new
-     * value promptly. Rebuilding only when the sequence number moves keeps this
-     * from churning the menu every tick.
+     * The reading and parsing happen on the bridge's own thread; this is only
+     * the part that touches the UI, so it is the only part on the main thread.
+     * It is not called every tick -- the bridge stays quiet unless something
+     * drawn here actually moved.
      */
-    private val poll =
-        object : Runnable {
-            override fun run() {
-                val moved = bridge.refresh()
-                importState = bridge.state.import
-                // Down as soon as the engine says a game is running. Also
-                // driven by the import line disappearing, so a run that never
-                // needed an import -- every launch after the first -- does not
-                // sit behind the screen waiting for progress that never comes.
-                if (loadingVisible && bridge.state.booted) loadingVisible = false
-                if (moved && menu.visible) menu.rebuild()
-                handler.postDelayed(
-                    this,
-                    if (menu.visible || loadingVisible) POLL_ACTIVE_MS else POLL_IDLE_MS,
-                )
-            }
-        }
-
-    private fun schedulePoll() {
-        handler.removeCallbacks(poll)
-        handler.post(poll)
+    private fun onEngineState(state: Gen1EngineBridge.State, menuChanged: Boolean) {
+        importState = state.import
+        // Down as soon as the engine says a game is running. Also driven by the
+        // import line disappearing, so a run that never needed an import --
+        // every launch after the first -- does not sit behind the screen
+        // waiting for progress that never comes.
+        if (loadingVisible && state.booted) loadingVisible = false
+        if (menuChanged && menu.visible) menu.rebuild()
     }
 
-    private fun pollFaster() = schedulePoll()
+    /**
+     * Asks for a read now, because something just changed the engine's state
+     * and the menu is showing it.
+     *
+     * The command that caused the change is still queued on the bridge's
+     * thread, and this lands behind it -- so the read always sees the engine
+     * after the command reached it, not before. The cadence is left alone; that
+     * belongs to whether the drawer is open, not to a single tap.
+     */
+    private fun pollFaster() = bridge.pollNow()
 
     // ------------------------------------------------------------- SDL wiring
 
@@ -904,24 +911,17 @@ class Gen1EngineActivity :
         val version = intent.getStringExtra(EXTRA_VERSION)
         Log.i(TAG, "onCreate rom=$rom version=$version")
 
-        // Before super.onCreate, because that starts the engine and the engine
-        // discovers its mods once, during load. Installing afterwards would
-        // take until the next launch to show up.
+        // Started first and joined last, so this storage work overlaps the
+        // engine coming up in super.onCreate rather than adding to it. The
+        // values it produces are not needed until the very end of onCreate.
+        val prefetch = startSettingsPrefetch()
+
+        // This one has to be synchronous, and before super.onCreate: that call
+        // starts the engine, and the engine enumerates its mods once while it
+        // loads. Installing afterwards would not appear until the next launch.
+        // The common path is a stat and a short stamp read; the unpack only
+        // happens on the first launch after the bundle ships a new mod.
         Gen1ModInstaller.ensureInstalled(this)
-
-        // Before the menu providers are set, because they read this state the
-        // first time the drawer is built.
-        loadPersistedSettings()
-
-        // Decoded here rather than in the composable: it is read once, and a
-        // missing or unreadable file simply means no picture on the loading
-        // screen, not a failure to start the game.
-        artwork =
-            intent.getStringExtra(EXTRA_ARTWORK_PATH)
-                ?.takeIf { it.isNotBlank() }
-                ?.let { path ->
-                    runCatching { android.graphics.BitmapFactory.decodeFile(path) }.getOrNull()
-                }
 
         bridge = Gen1EngineBridge(this)
         // Anything left from the last run describes a game that is no longer
@@ -1006,6 +1006,14 @@ class Gen1EngineActivity :
                 setViewTreeSavedStateRegistryOwner(this@Gen1EngineActivity)
                 setContent {
                     WinNativeTheme {
+                        // The drawer can close itself -- B and Back are handled
+                        // inside the controller -- so the cadence is driven off
+                        // the state that actually decides it rather than from
+                        // the call sites that happen to open it. Runs on the
+                        // main thread and only when one of the two flips.
+                        androidx.compose.runtime.LaunchedEffect(menu.visible, loadingVisible) {
+                            bridge.setPollFast(menu.visible || loadingVisible)
+                        }
                         Box(Modifier.fillMaxSize()) {
                             RetroDrawerMenu(menu)
                             // Above the drawer: during the import there is no
@@ -1030,11 +1038,78 @@ class Gen1EngineActivity :
             ),
         )
 
+        // Joined here, not earlier: these are the first two lines that read
+        // what it fetched, and by now it has had the whole of super.onCreate to
+        // finish. Nothing has been laid out against a default yet, so there is
+        // no flicker to correct.
+        prefetch.join()
+
         // Applied after both views exist: it sizes the picture around the pad,
         // and shows the overlay if this game had it on last time.
         applyTouchControls()
         if (hudVisible) host.post { showHud() }
     }
+
+    /**
+     * Reads this activity's persisted settings and the shortcut's artwork off
+     * the main thread.
+     *
+     * All of it is storage work: a Shortcut is a file, the defaults behind it
+     * are SharedPreferences, and ContainerManager -- which a Shortcut needs to
+     * be constructed -- lists the container directory and parses a JSON config
+     * for each one it finds. That is a variable amount of disk and parsing on
+     * the thread that is also trying to start a game.
+     *
+     * Returned rather than awaited, so the caller decides how much of its own
+     * work to overlap with it.
+     */
+    private fun startSettingsPrefetch(): Thread =
+        Thread {
+            runCatching { loadPersistedSettings() }
+                .onFailure { Log.w(TAG, "could not read saved settings: ${it.message}") }
+
+            // Warms the preference file so the pad's own reads, which have to
+            // happen on the main thread because they configure a view, come
+            // out of the in-memory cache instead of parsing XML there.
+            runCatching {
+                androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+            }
+
+            // Decoded here rather than in the composable, and downsampled --
+            // it is drawn at a couple of hundred dp, so decoding a full-size
+            // cover at 1:1 would cost far more memory and time than the picture
+            // is worth. A missing or unreadable file simply means no picture on
+            // the loading screen, not a failure to start the game.
+            val decoded =
+                intent.getStringExtra(EXTRA_ARTWORK_PATH)
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { path -> decodeArtwork(path) }
+            // Compose state, so the loading screen picks the picture up whenever
+            // it lands -- it is on screen before this finishes, and showing the
+            // title without the cover for a moment is the right trade.
+            if (decoded != null) handler.post { artwork = decoded }
+        }.apply {
+            name = "gen1-settings"
+            priority = Thread.NORM_PRIORITY - 1
+            start()
+        }
+
+    /** Decodes the shortcut's cover no larger than the loading screen draws it. */
+    private fun decodeArtwork(path: String): android.graphics.Bitmap? =
+        runCatching {
+            val bounds =
+                android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            android.graphics.BitmapFactory.decodeFile(path, bounds)
+            val longest = maxOf(bounds.outWidth, bounds.outHeight)
+            if (longest <= 0) return@runCatching null
+            val target = (ARTWORK_MAX_DP * resources.displayMetrics.density).toInt().coerceAtLeast(1)
+            var sample = 1
+            while (longest / (sample * 2) >= target) sample *= 2
+            android.graphics.BitmapFactory.decodeFile(
+                path,
+                android.graphics.BitmapFactory.Options().apply { inSampleSize = sample },
+            )
+        }.getOrNull()
 
     /**
      * Where the Game Boy picture sits inside the window, which is what the pad
@@ -1145,7 +1220,6 @@ class Gen1EngineActivity :
         // A key held when the activity goes away would otherwise stay down in
         // the engine and keep the player walking on return.
         releaseAllKeys()
-        handler.removeCallbacks(poll)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
         super.onPause()
     }
@@ -1205,8 +1279,11 @@ class Gen1EngineActivity :
         /** How often the HUD feeder rechecks when there is nothing to report. */
         private const val HUD_IDLE_TICK_MS = 250L
 
-        private const val POLL_IDLE_MS = 700L
-        private const val POLL_ACTIVE_MS = 200L
+        /**
+         * Longest edge the loading screen's cover is ever drawn at, which is
+         * what it gets decoded to rather than at full size.
+         */
+        private const val ARTWORK_MAX_DP = 240f
 
         /** Long enough for the engine to pick the save command up and run it. */
         private const val EXIT_SAVE_GRACE_MS = 400L

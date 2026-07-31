@@ -163,14 +163,20 @@ object RetroShortcuts {
         if (Gen1EmbedLaunch.isEnabled(shortcut)) {
             recordLaunchStats(context, shortcut.getExtra("custom_name", shortcut.name))
             kotlin.concurrent.thread(name = "WnEngine3DLaunch") {
-                if (Gen1EmbedLaunch.shouldLaunch(context, shortcut)) {
-                    android.os.Handler(android.os.Looper.getMainLooper()).post {
-                        Gen1EmbedLaunch.launch(context, shortcut)
+                // The Intent is BUILT here, not just decided here. Building it
+                // resolves the ROM's version, which hashes the file -- so
+                // handing the decision back to the main thread and calling
+                // launch() there would hash the same megabyte a second time, on
+                // the thread that has to draw the transition. Only
+                // startActivity crosses back.
+                val intent =
+                    Gen1EmbedLaunch.launchIntentIfSupported(context, shortcut)
+                        ?: launchIntent(context, shortcut)
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    if (context !is android.app.Activity) {
+                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
-                } else {
-                    android.os.Handler(android.os.Looper.getMainLooper()).post {
-                        context.startActivity(launchIntent(context, shortcut))
-                    }
+                    context.startActivity(intent)
                 }
             }
             return

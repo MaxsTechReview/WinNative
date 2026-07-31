@@ -68,6 +68,18 @@ object Gen1EmbedLaunch {
         context.startActivity(intent)
     }
 
+    /**
+     * The Intent for this shortcut, or null if the 3D engine cannot run it.
+     *
+     * Deciding and building are one step on purpose. Both need the ROM's
+     * version, and working that out means hashing the file -- so a caller that
+     * asked [shouldLaunch] first and then built the Intent hashed the same
+     * megabyte twice, and the second time was usually on the main thread. Call
+     * this from a background thread and start the Intent it returns.
+     */
+    fun launchIntentIfSupported(context: Context, shortcut: Shortcut): Intent? =
+        if (Gen1EngineActivity.isInstalled(context)) launchIntent(context, shortcut) else null
+
     fun launchIntent(context: Context, shortcut: Shortcut): Intent? {
         val rom = File(RetroShortcuts.romPath(shortcut))
         val version = versionForRom(rom) ?: return null
