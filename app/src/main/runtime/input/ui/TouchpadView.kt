@@ -267,7 +267,7 @@ class TouchpadView(
                 } else {
                     longPressHandler.removeCallbacks(longPressRunnable)
                 }
-                if (simTouchScreen) {
+                if (simTouchScreen && tapToClickEnabled) {
                     val clickDelay = Runnable { if (continueClick) {
                         xServer.injectPointerMove(lastTouchedPosX, lastTouchedPosY)
                         xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
@@ -378,7 +378,7 @@ class TouchpadView(
             lastTapTransY = ty
         }
         xServer.injectPointerMove(tx, ty)
-        if (event.pointerCount == 1) xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
+        if (event.pointerCount == 1 && tapToClickEnabled) xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
     }
 
     private fun handleTouchMove(event: MotionEvent) {
@@ -404,7 +404,7 @@ class TouchpadView(
     }
 
     private fun handleTwoFingerTap(event: MotionEvent) {
-        if (event.pointerCount == 2) {
+        if (event.pointerCount == 2 && tapToClickEnabled) {
             if (xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT)) {
                 xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
             }
@@ -460,7 +460,7 @@ class TouchpadView(
                     scrollAccumY = 0.0f
                 }
                 scrolling = true
-            } else if (currDistance >= 350.0f && !xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT) && finger2.travelDistance() < 10.0f) {
+            } else if (tapToClickEnabled && currDistance >= 350.0f && !xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT) && finger2.travelDistance() < 10.0f) {
                 pressPointerButtonLeft(finger1)
                 skipPointerMove = true
             }
@@ -653,6 +653,10 @@ class TouchpadView(
     }
 
     var tapToClickEnabled = true
+        set(value) {
+            field = value
+            if (!value) resetInputState()
+        }
 
     fun setMouseEnabled(enabled: Boolean) {
         this.mouseEnabled = enabled

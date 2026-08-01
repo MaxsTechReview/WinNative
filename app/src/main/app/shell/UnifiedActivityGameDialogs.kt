@@ -726,13 +726,20 @@ internal fun UnifiedActivity.HeroBootDialog(
 ) {
     var choice by remember { mutableStateOf(HeroBootChoice.Desktop) }
     val graphicsTest = stringResource(R.string.hero_graphics_tests_title)
-    val test32 = graphicsTest + " " + stringResource(R.string.hero_graphics_test_32)
-    val test64 = graphicsTest + " " + stringResource(R.string.hero_graphics_test_64)
+    val inputTest = stringResource(R.string.hero_input_tests_title)
+    val bits32 = stringResource(R.string.hero_graphics_test_32)
+    val bits64 = stringResource(R.string.hero_graphics_test_64)
+    val test32 = "$graphicsTest $bits32"
+    val test64 = "$graphicsTest $bits64"
+    val input32 = "$inputTest $bits32"
+    val input64 = "$inputTest $bits64"
     val title =
         when (choice) {
             HeroBootChoice.Desktop -> stringResource(R.string.hero_boot_to_desktop_title)
             HeroBootChoice.Cube32 -> test32
             HeroBootChoice.Cube64 -> test64
+            HeroBootChoice.Input32 -> input32
+            HeroBootChoice.Input64 -> input64
         }
     val registry = remember { PaneNavRegistry() }
     Dialog(onDismissRequest = onDismissRequest) {
@@ -762,6 +769,16 @@ internal fun UnifiedActivity.HeroBootDialog(
                         label = test64,
                         selected = choice == HeroBootChoice.Cube64,
                         onClick = { choice = HeroBootChoice.Cube64 },
+                    )
+                    HeroBootOptionRow(
+                        label = input32,
+                        selected = choice == HeroBootChoice.Input32,
+                        onClick = { choice = HeroBootChoice.Input32 },
+                    )
+                    HeroBootOptionRow(
+                        label = input64,
+                        selected = choice == HeroBootChoice.Input64,
+                        onClick = { choice = HeroBootChoice.Input64 },
                     )
                 }
             },
@@ -2479,6 +2496,14 @@ internal fun UnifiedActivity.LibraryGameDetailDialog(
                                                         intent
                                                             .putExtra("shortcut_path", sc.file.absolutePath)
                                                             .putExtra("boot_exe", "C:\\ProgramData\\Microsoft\\Windows\\Graphics-Test-64bit.exe")
+                                                    HeroBootChoice.Input32 ->
+                                                        intent
+                                                            .putExtra("shortcut_path", sc.file.absolutePath)
+                                                            .putExtra("boot_exe", "C:\\ProgramData\\Microsoft\\Windows\\InputControl32.exe")
+                                                    HeroBootChoice.Input64 ->
+                                                        intent
+                                                            .putExtra("shortcut_path", sc.file.absolutePath)
+                                                            .putExtra("boot_exe", "C:\\ProgramData\\Microsoft\\Windows\\InputControl64.exe")
                                                 }
                                                 context.startActivity(intent)
                                                 onDismissRequest()

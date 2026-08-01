@@ -15,6 +15,8 @@
     <string name="common_ui_select_exe">Seleccionar EXE</string>
     <string name="common_ui_select_folder">Seleccionar carpeta</string>
     <string name="common_ui_current_folder">Carpeta actual</string>
+    <string name="common_ui_enter_path">Ingresar ruta</string>
+    <string name="common_ui_path_not_found">Ruta no encontrada</string>
     <string name="common_ui_select_valid_exe_file">Selecciona un archivo .exe válido</string>
     <string name="common_ui_select_valid_icon_file">Selecciona un archivo .ico o .png válido.</string>
     <string name="common_ui_exit">Salir</string>
@@ -158,6 +160,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">Obtener arte</string>
+    <string name="library_games_scraping_artwork">Obteniendo…</string>
     <string name="library_games_shortcut_created">Acceso directo creado</string>
     <string name="library_games_failed_to_create_shortcut">No se pudo crear el acceso directo: %s</string>
     <string name="library_games_install_path">Ruta de instalación</string>
@@ -198,6 +202,7 @@
     <string name="hero_graphics_tests_title">Pruebas de gráficos</string>
     <string name="hero_graphics_test_32">32 bits</string>
     <string name="hero_graphics_test_64">64 bits</string>
+    <string name="hero_input_tests_title">Pruebas de entrada</string>
     <string name="library_games_add_custom_game">Agregar juego personalizado</string>
     <string name="library_games_game_name">Nombre del juego</string>
     <string name="library_games_game_folder_mapped_drive">Carpeta del juego (unidad de juego asignada)</string>
@@ -287,6 +292,7 @@
     <string name="containers_list_duplicate_title">Duplicar contenedor</string>
     <string name="containers_list_confirm_remove">¿Eliminar este contenedor? Las partidas guardadas dentro de él se eliminarán de forma permanente. Las partidas sincronizadas en la nube permanecen en la nube, pero los cambios locales que aún no se hayan sincronizado se perderán — sincroniza primero las partidas en la nube de este juego si quieres conservarlas.</string>
     <string name="containers_list_confirm_duplicate">¿Quieres duplicar este contenedor?</string>
+    <string name="containers_list_duplicate_failed">No se pudo duplicar el contenedor</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">¿Quieres eliminar este acceso directo?</string>
@@ -382,6 +388,7 @@
     <string name="input_controls_editor_reset_unavailable">No hay ninguna instantánea original disponible para este perfil.</string>
     <string name="input_controls_editor_title">Editor de controles</string>
     <string name="input_controls_editor_toggle_switch">Interruptor</string>
+    <string name="input_controls_editor_swipeable">Deslizable</string>
     <string name="input_controls_editor_profile_exported_to">Perfil exportado a</string>
     <string name="input_controls_editor_unable_to_import">No se pudo importar el perfil</string>
     <string name="input_controls_editor_import_profile">Importar perfil</string>
@@ -484,6 +491,10 @@
     <string name="container_box64_compatibility">Compatibilidad</string>
     <string name="container_box64_intermediate">Intermedio</string>
     <string name="container_box64_performance">Rendimiento</string>
+    <string name="container_fexcore_performance_tso">Rendimiento TSO</string>
+    <string name="container_fexcore_extreme">Extremo</string>
+    <string name="container_fexcore_extreme_tso">Extremo TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec">Activa o desactiva el recompilador dinámico de Box64.</string>
     <string name="box64_env_var_help__dynarec_safeflags">
         Manejo de flags en los opcodes CALL/RET&lt;br /&gt;&lt;br /&gt;
@@ -591,6 +602,7 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Controlador de gráficos</string>
+    <string name="container_zink_mode">Modo Zink</string>
     <string name="container_graphics_configuration">Configuración del controlador de gráficos</string>
     <string name="container_graphics_version">Versión del controlador de gráficos</string>
     <string name="container_graphics_available_extensions">Extensiones disponibles</string>
@@ -745,6 +757,32 @@ Por ejemplo, <b>META</b> para la <i>tecla META</i>, \n
     <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_hud_element_graph">Gráfico</string>
     <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">HUD estilo Mango</string>
+    <string name="session_drawer_hud_mango_settings">Ajustes del HUD Mango</string>
+    <string name="mango_hud_element_gpu_load">Carga GPU</string>
+    <string name="mango_hud_element_gpu_temp">Temp. GPU</string>
+    <string name="mango_hud_element_cpu_load">Carga CPU</string>
+    <string name="mango_hud_element_cpu_temp">Temp. CPU</string>
+    <string name="mango_hud_element_ram">RAM</string>
+    <string name="mango_hud_element_battery">Batería</string>
+    <string name="mango_hud_element_lows" formatted="false">Mínimos 1%</string>
+    <string name="mango_hud_element_graph">Gráfico de frametime</string>
+    <string name="mango_hud_element_engine">Motor</string>
+    <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">Frecuencia CPU</string>
+    <string name="mango_hud_element_gpu_clock">Frecuencia GPU</string>
+    <string name="mango_hud_element_cores">Por núcleo</string>
+    <string name="mango_hud_element_network">Red</string>
+    <string name="mango_hud_element_swap">Swap</string>
+    <string name="mango_hud_element_resolution">Resolución</string>
+    <string name="mango_hud_element_wine">Versión de Wine</string>
+    <string name="mango_hud_element_duration">Tiempo de sesión</string>
+    <string name="mango_hud_element_clock">Reloj</string>
+    <string name="mango_hud_element_throttle">Estado térmico</string>
+    <string name="mango_hud_group_memory">Memoria</string>
+    <string name="mango_hud_group_system">Sistema</string>
+    <string name="mango_hud_lock">Bloquear HUD</string>
+    <string name="mango_hud_lock_subtitle">Permite que los toques pasen a los controles detrás del HUD. Mantén pulsado el HUD para bloquearlo. (5s)</string>
     <string name="hud_position_menu_title">Mover HUD a</string>
     <string name="hud_position_top_left">Arriba a la izquierda</string>
     <string name="hud_position_top_center">Arriba al centro</string>
@@ -1020,6 +1058,7 @@ Por ejemplo, <b>META</b> para la <i>tecla META</i>, \n
     <string name="settings_general_select_wallpaper">Seleccionar fondo de pantalla</string>
     <string name="settings_general_title">General</string>
     <string name="settings_general_enable_file_provider">Activar proveedor de archivos</string>
+    <string name="settings_general_enable_auto_scraping">Activar obtención automática de arte</string>
     <string name="settings_general_take_effect_next_startup">Esta opción tendrá efecto en el próximo inicio.</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Reinstalar Imagefs</string>
@@ -1043,6 +1082,7 @@ Por ejemplo, <b>META</b> para la <i>tecla META</i>, \n
     <string name="settings_general_xinput_toggle_summary">Desactiva el manejo de XInput cuando quieres control exclusivo del mouse y el teclado.</string>
     <string name="settings_external_display_output_summary">Mueve el juego a una pantalla externa conectada en lugar de duplicar esta pantalla. Los lentes siempre usan su propia pantalla.</string>
     <string name="settings_general_file_provider_summary">Expone los archivos de WinNative a los selectores de documentos y administradores de archivos de Android.</string>
+    <string name="settings_general_auto_scraping_summary">Permite que WinNative obtenga automáticamente el arte de juegos personalizados.</string>
     <string name="settings_general_open_browser_summary">Abre los enlaces web compatibles en el navegador de Android en lugar de dentro de Wine.</string>
     <string name="settings_general_clipboard_summary">Permite copiar y pegar entre las sesiones de Android y Wine.</string>
     <string name="settings_general_imagefs_summary">Restaura los archivos del sistema incluidos sin eliminar tus contenedores existentes.</string>
@@ -1115,6 +1155,8 @@ Por ejemplo, <b>META</b> para la <i>tecla META</i>, \n
     <string name="settings_other_language_title">Idioma</string>
     <string name="settings_other_language_summary">Elige el idioma de la interfaz</string>
     <string name="settings_other_language_system_default">Predeterminado del sistema</string>
+    <string name="settings_other_game_language_title">Idioma del juego</string>
+    <string name="settings_other_game_language_summary">Idioma preferido para las descargas de Steam/Epic/GOG</string>
 
     <string name="settings_other_section_integration">Integración</string>
     <string name="settings_other_setup_wizard_title">Asistente de configuración</string>
@@ -1502,6 +1544,7 @@ Ruta instalada:
     <string name="steam_friends_section_online">En línea (%1$d)</string>
     <string name="steam_friends_section_offline">Desconectados (%1$d)</string>
     <string name="steam_friends_none_loaded">Aún no se cargaron amigos.</string>
+    <string name="steam_friends_chat_off">El chat está desactivado. Vuelve a activar el Servicio de chat para ver a tus amigos.</string>
     <string name="steam_friends_self_you">Tú</string>
     <string name="steam_friends_in_game">En el juego</string>
     <string name="steam_friends_join">Unirse</string>
@@ -1527,6 +1570,8 @@ Ruta instalada:
     <string name="steam_join_the_game">el juego</string>
     <string name="steam_friends_settings">Configuración</string>
     <string name="steam_chat_settings_title">Configuración del chat</string>
+    <string name="steam_chat_setting_service">Servicio de chat</string>
+    <string name="steam_chat_setting_service_desc">Inicia sesión para ver amigos y chatear; desactívalo para aparecer sin conexión</string>
     <string name="steam_chat_setting_notifications">Notificaciones del chat</string>
     <string name="steam_chat_setting_notifications_desc">Muestra una notificación cuando recibas un mensaje</string>
     <string name="steam_chat_setting_heads">Burbujas de chat</string>
@@ -1550,15 +1595,28 @@ Ruta instalada:
     <string name="file_manager_paste">Pegar</string>
     <string name="file_manager_paste_here">Pegar aquí</string>
     <string name="file_manager_new_folder">Carpeta nueva</string>
+    <string name="file_manager_new_folder_short">Carpeta</string>
+    <string name="file_manager_multi_select">Elegir</string>
     <string name="file_manager_create">Crear</string>
     <string name="file_manager_delete">Eliminar</string>
+    <string name="file_manager_copy_count">Copiar (%1$d)</string>
+    <string name="file_manager_cut_count">Cortar (%1$d)</string>
+    <string name="file_manager_delete_count">Eliminar (%1$d)</string>
+    <string name="file_manager_extract">Extraer</string>
+    <string name="file_manager_extract_here">Extraer aquí</string>
+    <string name="file_manager_extract_to">Extraer en…</string>
+    <string name="file_manager_extracting">Extrayendo %1$s</string>
+    <string name="file_manager_extract_failed">Error al extraer</string>
     <string name="file_manager_run_boot">Ejecutar / Arrancar</string>
     <string name="file_manager_create_shortcut">Crear acceso directo</string>
     <string name="file_manager_run_in_container">Ejecutar en el contenedor</string>
     <string name="file_manager_no_containers">No hay contenedores disponibles</string>
     <string name="file_manager_delete_confirm">¿Eliminar \"%1$s\"? Esto no se puede deshacer.</string>
+    <string name="file_manager_delete_confirm_multi">¿Eliminar %1$d elementos? Esto no se puede deshacer.</string>
     <string name="file_manager_copying">Copiando %1$s</string>
     <string name="file_manager_moving">Moviendo %1$s</string>
+    <string name="file_manager_copying_count">Copiando %1$d elementos</string>
+    <string name="file_manager_moving_count">Moviendo %1$d elementos</string>
     <string name="file_manager_paste_into_itself">No se puede pegar una carpeta dentro de sí misma</string>
     <string name="file_manager_operation_failed">La operación falló</string>
     <string name="file_manager_delete_failed">La eliminación falló</string>
@@ -1566,4 +1624,39 @@ Ruta instalada:
     <string name="file_manager_create_folder_failed">La creación de la carpeta falló</string>
 
     <string name="settings_content_refresh">Actualizar</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">Aplica un efecto ReShade (.fx) a los juegos DXVK/VKD3D (Vulkan) mediante la capa vkBasalt integrada. Coloca cada efecto en su propia carpeta en Android/data/&lt;package&gt;/files/ReShade/. El ajuste de parámetros en vivo y el interruptor en el juego llegarán con la actualización de la capa de recarga en caliente.</string>
+    <string name="reshade_catalog_title">Efectos ReShade</string>
+    <string name="reshade_catalog_search">Buscar efectos…</string>
+    <string name="reshade_catalog_installed">Instalados (%1$d)</string>
+    <string name="reshade_catalog_available">Disponibles (%1$d)</string>
+    <string name="reshade_catalog_downloading">Descargando</string>
+    <string name="reshade_catalog_installing">Instalando</string>
+    <string name="reshade_catalog_offline_cache">Sin conexión — mostrando una lista en caché. Conéctate para descargar nuevos efectos.</string>
+    <string name="reshade_catalog_offline_none">Sin conexión — mostrando solo los efectos instalados. Conéctate para explorar el catálogo.</string>
+    <string name="reshade_catalog_needs_connection">Conéctate a Internet para descargar efectos.</string>
+    <string name="reshade_catalog_download_failed">No se pudo descargar %1$s.</string>
+    <string name="reshade_catalog_empty_query">Ningún efecto coincide con \"%1$s\".</string>
+    <string name="reshade_catalog_empty">No hay efectos disponibles. Conéctate a Internet para explorar el catálogo.</string>
+    <string name="reshade_catalog_done">Listo</string>
+    <string name="reshade_catalog_delete_cd">Eliminar %1$s</string>
+    <string name="reshade_catalog_delete_title">¿Eliminar %1$s?</string>
+    <string name="reshade_catalog_delete_body">Esto elimina el efecto del almacenamiento y de cualquier conjunto que lo use. Puedes volver a descargarlo más tarde.</string>
+    <string name="reshade_catalog_delete_confirm">Eliminar</string>
+    <string name="reshade_catalog_delete_cancel">Cancelar</string>
+    <string name="reshade_catalog_delete_failed">No se pudo eliminar %1$s.</string>
+    <string name="reshade_params_title">PARÁMETROS DEL EFECTO</string>
+    <string name="reshade_params_reset">Restablecer</string>
+    <string name="reshade_loadout_empty">Aún no hay efectos. Agrega uno o más efectos para crear un conjunto.</string>
+    <string name="reshade_loadout_add">Agregar efecto</string>
+    <string name="reshade_loadout_full">Conjunto lleno — quita un efecto para agregar otro.</string>
+    <string name="reshade_effect_active">activo</string>
+    <string name="reshade_mode_solo">Solo</string>
+    <string name="reshade_mode_stack">Pila</string>
+    <string name="reshade_mode_solo_hint">Un efecto activo a la vez (comparación A/B, cambia en directo durante el juego).</string>
+    <string name="reshade_mode_stack_hint">Superpón cualquier subconjunto de efectos, aplicados en orden.</string>
+    <string name="reshade_drawer_enable">Activar ReShade</string>
+    <string name="reshade_drawer_empty">No hay efectos ReShade en este conjunto. Agrega efectos en la configuración de este juego (o del contenedor) para cambiarlos y ajustarlos aquí.</string>
+    <string name="reshade_drawer_no_params">Este efecto no expone parámetros ajustables.</string>
 </resources>

@@ -278,6 +278,66 @@ internal fun HUDPaneContent(
                 )
             }
 
+            // Mango-style HUD toggle + settings gear, shown like the limiter whether the HUD is on or off.
+            var mangoSettingsOpen by remember { mutableStateOf(false) }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
+                // Top-aligned so the gear's slot shares the toggle row's top edge:
+                // same nav row (right selects the gear, down skips past it) and the
+                // highlight hugs the gear itself like the Controls pane gear.
+                verticalAlignment = Alignment.Top,
+            ) {
+                Box(
+                    Modifier.weight(1f).paneNavItem(
+                        cornerRadius = (14f * paneScale).dp,
+                        onActivate = { listener.onMangoHudChanged(!state.mangoHudEnabled) },
+                    ),
+                ) {
+                    DrawerBooleanRow(
+                        title = stringResource(R.string.session_drawer_hud_mango_style),
+                        checked = state.mangoHudEnabled,
+                        onCheckedChange = listener::onMangoHudChanged,
+                    )
+                }
+                val gearShape = RoundedCornerShape((12f * paneScale).dp)
+                Box(
+                    modifier =
+                        Modifier
+                            .size((44f * paneScale).dp)
+                            .clip(gearShape)
+                            .background(PaneInnerResting)
+                            .border(1.dp, RestingCardBorder, gearShape)
+                            .paneNavItem(
+                                cornerRadius = (12f * paneScale).dp,
+                                onActivate = { mangoSettingsOpen = true },
+                            )
+                            .clickable { mangoSettingsOpen = true },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Settings,
+                        contentDescription = stringResource(R.string.common_ui_settings),
+                        tint = DrawerTextPrimary,
+                        modifier = Modifier.size((20f * paneScale).dp),
+                    )
+                }
+            }
+            if (mangoSettingsOpen) {
+                MangoHudSettingsDialog(
+                    elements = state.mangoHudElements,
+                    hudAlpha = state.mangoHudAlpha,
+                    bgAlpha = state.mangoHudBgAlpha,
+                    hudScale = state.mangoHudScale,
+                    locked = state.mangoHudLocked,
+                    onToggle = listener::onMangoHudElementToggled,
+                    onAlphaChanged = listener::onMangoHudAlphaChanged,
+                    onBgAlphaChanged = listener::onMangoHudBackgroundAlphaChanged,
+                    onScaleChanged = listener::onMangoHudScaleChanged,
+                    onLockChanged = listener::onMangoHudLockChanged,
+                    onDismiss = { mangoSettingsOpen = false },
+                )
+            }
+
             if (active) {
                 NavSliderRow(
                     label = stringResource(R.string.session_drawer_hud_alpha),
@@ -468,6 +528,221 @@ internal fun HUDMetricInputDialog(
             )
         }
       }
+    }
+}
+
+@Composable
+internal fun MangoHudSettingsDialog(
+    elements: BooleanArray,
+    hudAlpha: Float,
+    bgAlpha: Float,
+    hudScale: Float,
+    locked: Boolean,
+    onToggle: (Int, Boolean) -> Unit,
+    onAlphaChanged: (Float) -> Unit,
+    onBgAlphaChanged: (Float) -> Unit,
+    onScaleChanged: (Float) -> Unit,
+    onLockChanged: (Boolean) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    // Chip label position matches MangoHudView element indices.
+    val labels =
+        listOf(
+            stringResource(R.string.mango_hud_element_gpu_load),
+            stringResource(R.string.mango_hud_element_gpu_temp),
+            stringResource(R.string.mango_hud_element_cpu_load),
+            stringResource(R.string.mango_hud_element_cpu_temp),
+            stringResource(R.string.mango_hud_element_ram),
+            stringResource(R.string.mango_hud_element_battery),
+            stringResource(R.string.mango_hud_element_lows),
+            stringResource(R.string.mango_hud_element_graph),
+            stringResource(R.string.mango_hud_element_engine),
+            stringResource(R.string.mango_hud_element_vram),
+            stringResource(R.string.mango_hud_element_cpu_mhz),
+            stringResource(R.string.mango_hud_element_gpu_clock),
+            stringResource(R.string.mango_hud_element_cores),
+            stringResource(R.string.mango_hud_element_network),
+            stringResource(R.string.mango_hud_element_swap),
+            stringResource(R.string.mango_hud_element_resolution),
+            stringResource(R.string.mango_hud_element_wine),
+            stringResource(R.string.mango_hud_element_duration),
+            stringResource(R.string.mango_hud_element_clock),
+            stringResource(R.string.mango_hud_element_throttle),
+        )
+    // Display groups (label res -> element indices), decoupled from index order.
+    val groups =
+        listOf(
+            R.string.session_drawer_hud_element_gpu to listOf(0, 1, 11, 9),
+            R.string.session_drawer_hud_element_cpu to listOf(2, 3, 10, 12),
+            R.string.mango_hud_group_memory to listOf(4, 14),
+            R.string.session_drawer_hud_element_fps to listOf(6, 7, 8),
+            R.string.mango_hud_group_system to listOf(5, 13, 15, 16, 17, 18, 19),
+        )
+
+    // stableCursor: track the selected slot by identity, not by spatial index —
+    // scrolling reshuffles item positions and index-based tracking jumps to the
+    // pinned header mid-scroll.
+    val mangoNav = remember { SharedPaneNavRegistry().apply { stableCursor = true } }
+    val shape = RoundedCornerShape(16.dp)
+    val maxCardHeight = (LocalConfiguration.current.screenHeightDp * 0.92f).dp
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        CompositionLocalProvider(SharedLocalPaneNav provides mangoNav) {
+            DialogPaneNav(mangoNav, onDismiss = onDismiss, onStart = onDismiss)
+            Box(
+                modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 14.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(
+                    modifier =
+                        Modifier
+                            .widthIn(max = 400.dp)
+                            .fillMaxWidth()
+                            .heightIn(max = maxCardHeight)
+                            .clip(shape)
+                            .background(WinNativeSurface)
+                            .border(1.dp, WinNativeOutline, shape)
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    // Pinned header: title + always-visible close, no scrolling needed to exit.
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Settings,
+                            contentDescription = null,
+                            tint = WinNativeTextPrimary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.session_drawer_hud_mango_settings),
+                            color = DrawerTextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.weight(1f),
+                        )
+                        val closeShape = RoundedCornerShape(10.dp)
+                        // Touch-only: a pinned slot inside a scrolling nav set makes the
+                        // spatial rows reshuffle mid-scroll; controllers close with B.
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(32.dp)
+                                    .clip(closeShape)
+                                    .background(PaneInnerResting)
+                                    .border(1.dp, RestingCardBorder, closeShape)
+                                    .clickable(onClick = onDismiss),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = stringResource(R.string.common_ui_close),
+                                tint = DrawerTextPrimary,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    }
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(WinNativeOutline))
+
+                    Column(
+                        modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().sharedPaneNavItem(
+                                onActivate = { onLockChanged(!locked) },
+                            ),
+                        ) {
+                            DrawerBooleanRow(
+                                title = stringResource(R.string.mango_hud_lock),
+                                subtitle = stringResource(R.string.mango_hud_lock_subtitle),
+                                checked = locked,
+                                onCheckedChange = onLockChanged,
+                            )
+                        }
+
+                        groups.forEach { (labelRes, indices) ->
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                PaneSectionLabel(stringResource(labelRes))
+                                ChipFlow {
+                                    indices.forEach { index ->
+                                        HUDToggleChip(
+                                            label = labels[index],
+                                            checked = elements[index],
+                                            onClick = { onToggle(index, !elements[index]) },
+                                            modifier = Modifier.sharedPaneNavItem(
+                                                onActivate = { onToggle(index, !elements[index]) },
+                                                isEntry = index == 0,
+                                            ),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Local value drives the drag so a 1% move doesn't rebuild the whole drawer state.
+                        var scaleLocal by remember(hudScale) { mutableStateOf(hudScale) }
+                        Box(
+                            modifier = Modifier.fillMaxWidth().sharedPaneNavItem(
+                                onAdjust = { dir ->
+                                    scaleLocal = (scaleLocal + dir * 0.05f).coerceIn(0.5f, 1.5f)
+                                    onScaleChanged(scaleLocal)
+                                },
+                            ),
+                        ) {
+                            DrawerSliderRow(
+                                label = stringResource(R.string.session_drawer_hud_scale),
+                                valueText = "${Math.round(scaleLocal * 100)}%",
+                                value = scaleLocal,
+                                valueRange = 0.5f..1.5f,
+                                steps = 0,
+                                onValueChange = {
+                                    scaleLocal = Math.round(it * 100) / 100f
+                                    onScaleChanged(scaleLocal)
+                                },
+                            )
+                        }
+                        Box(
+                            modifier = Modifier.fillMaxWidth().sharedPaneNavItem(
+                                onAdjust = { dir ->
+                                    onAlphaChanged((hudAlpha + dir * 0.05f).coerceIn(0.1f, 1f))
+                                },
+                            ),
+                        ) {
+                            DrawerSliderRow(
+                                label = stringResource(R.string.session_drawer_hud_alpha),
+                                valueText = "${(hudAlpha * 100).toInt()}%",
+                                value = hudAlpha,
+                                valueRange = 0.1f..1f,
+                                steps = 17,
+                                onValueChange = { onAlphaChanged(it.snapToStep(0.05f, 0.1f, 1f)) },
+                            )
+                        }
+                        Box(
+                            modifier = Modifier.fillMaxWidth().sharedPaneNavItem(
+                                onAdjust = { dir ->
+                                    onBgAlphaChanged((bgAlpha + dir * 0.05f).coerceIn(0f, 1f))
+                                },
+                            ),
+                        ) {
+                            DrawerSliderRow(
+                                label = stringResource(R.string.session_drawer_hud_background),
+                                valueText = "${(bgAlpha * 100).toInt()}%",
+                                value = bgAlpha,
+                                valueRange = 0f..1f,
+                                steps = 19,
+                                onValueChange = { onBgAlphaChanged(it.snapToStep(0.05f, 0f, 1f)) },
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

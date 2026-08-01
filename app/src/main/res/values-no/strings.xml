@@ -15,6 +15,8 @@
     <string name="common_ui_select_exe">Velg EXE</string>
     <string name="common_ui_select_folder">Velg mappe</string>
     <string name="common_ui_current_folder">Gjeldende mappe</string>
+    <string name="common_ui_enter_path">Angi sti</string>
+    <string name="common_ui_path_not_found">Fant ikke stien</string>
     <string name="common_ui_select_valid_exe_file">Velg en gyldig .exe-fil</string>
     <string name="common_ui_select_valid_icon_file">Velg en gyldig .ico- eller .png-fil.</string>
     <string name="common_ui_exit">Avslutt</string>
@@ -158,6 +160,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">Hent grafikk</string>
+    <string name="library_games_scraping_artwork">Henter</string>
     <string name="library_games_shortcut_created">Snarvei opprettet</string>
     <string name="library_games_failed_to_create_shortcut">Kunne ikke opprette snarvei: %s</string>
     <string name="library_games_install_path">Installasjonssti</string>
@@ -198,6 +202,7 @@
     <string name="hero_graphics_tests_title">Grafikktester</string>
     <string name="hero_graphics_test_32">32-bit</string>
     <string name="hero_graphics_test_64">64-bit</string>
+    <string name="hero_input_tests_title">Inndatatester</string>
     <string name="library_games_add_custom_game">Legg til egendefinert spill</string>
     <string name="library_games_game_name">Spillnavn</string>
     <string name="library_games_game_folder_mapped_drive">Spillmappe (tilordnet spillstasjon)</string>
@@ -287,6 +292,7 @@
     <string name="containers_list_duplicate_title">Dupliser beholder</string>
     <string name="containers_list_confirm_remove">Fjerne denne beholderen? Eventuelle spilllagringer som er lagret i den, vil bli slettet permanent. Skylagrede lagringer forblir i skyen, men lokale endringer som ennå ikke er synkronisert, vil gå tapt – synkroniser dette spillets skylagringer først hvis du vil beholde dem.</string>
     <string name="containers_list_confirm_duplicate">Vil du duplisere denne beholderen?</string>
+    <string name="containers_list_duplicate_failed">Kunne ikke duplisere beholderen</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">Vil du fjerne denne snarveien?</string>
@@ -382,6 +388,7 @@
     <string name="input_controls_editor_reset_unavailable">Ingen opprinnelig øyeblikksbilde er tilgjengelig for denne profilen.</string>
     <string name="input_controls_editor_title">Kontrollredigering</string>
     <string name="input_controls_editor_toggle_switch">Vippebryter</string>
+    <string name="input_controls_editor_swipeable">Sveipbar</string>
     <string name="input_controls_editor_profile_exported_to">Profil eksportert til</string>
     <string name="input_controls_editor_unable_to_import">Kan ikke importere profil</string>
     <string name="input_controls_editor_import_profile">Importer profil</string>
@@ -484,6 +491,10 @@
     <string name="container_box64_compatibility">Kompatibilitet</string>
     <string name="container_box64_intermediate">Middels</string>
     <string name="container_box64_performance">Ytelse</string>
+    <string name="container_fexcore_performance_tso">Ytelse TSO</string>
+    <string name="container_fexcore_extreme">Ekstrem</string>
+    <string name="container_fexcore_extreme_tso">Ekstrem TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec">Aktiverer eller deaktiverer Box64 dynamisk rekompilator.</string>
     <string name="box64_env_var_help__dynarec_safeflags">
         Håndtering av flagg på CALL/RET-opkoder&lt;br /&gt;&lt;br /&gt;
@@ -591,6 +602,7 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Grafikkdriver</string>
+    <string name="container_zink_mode">Zink-modus</string>
     <string name="container_graphics_configuration">Konfigurasjon av grafikkdriver</string>
     <string name="container_graphics_version">Versjon av grafikkdriver</string>
     <string name="container_graphics_available_extensions">Tilgjengelige utvidelser</string>
@@ -745,6 +757,32 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_hud_element_graph">Graf</string>
     <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">Mango-stil HUD</string>
+    <string name="session_drawer_hud_mango_settings">Mango HUD-innstillinger</string>
+    <string name="mango_hud_element_gpu_load">GPU-belastning</string>
+    <string name="mango_hud_element_gpu_temp">GPU-temp.</string>
+    <string name="mango_hud_element_cpu_load">CPU-belastning</string>
+    <string name="mango_hud_element_cpu_temp">CPU-temp.</string>
+    <string name="mango_hud_element_ram">RAM</string>
+    <string name="mango_hud_element_battery">Batteri</string>
+    <string name="mango_hud_element_lows" formatted="false">1 %-bunner</string>
+    <string name="mango_hud_element_graph">Frametime-graf</string>
+    <string name="mango_hud_element_engine">Motor</string>
+    <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">CPU-klokke</string>
+    <string name="mango_hud_element_gpu_clock">GPU-klokke</string>
+    <string name="mango_hud_element_cores">Per kjerne</string>
+    <string name="mango_hud_element_network">Nettverk</string>
+    <string name="mango_hud_element_swap">Swap</string>
+    <string name="mango_hud_element_resolution">Oppløsning</string>
+    <string name="mango_hud_element_wine">Wine-versjon</string>
+    <string name="mango_hud_element_duration">Økttid</string>
+    <string name="mango_hud_element_clock">Klokke</string>
+    <string name="mango_hud_element_throttle">Termisk status</string>
+    <string name="mango_hud_group_memory">Minne</string>
+    <string name="mango_hud_group_system">System</string>
+    <string name="mango_hud_lock">Lås HUD</string>
+    <string name="mango_hud_lock_subtitle">La berøringer gå til kontrollene bak HUD-en. Hold på HUD-en for å låse den. (5s)</string>
     <string name="hud_position_menu_title">Flytt HUD til</string>
     <string name="hud_position_top_left">Øverst til venstre</string>
     <string name="hud_position_top_center">Øverst i midten</string>
@@ -1020,6 +1058,7 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_general_select_wallpaper">Velg bakgrunnsbilde</string>
     <string name="settings_general_title">Generelt</string>
     <string name="settings_general_enable_file_provider">Aktiver File Provider</string>
+    <string name="settings_general_enable_auto_scraping">Aktiver automatisk henting</string>
     <string name="settings_general_take_effect_next_startup">Dette valget trer i kraft ved neste oppstart.</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Installer Imagefs på nytt</string>
@@ -1043,6 +1082,7 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_general_xinput_toggle_summary">Slår av XInput-håndtering når du vil ha eksklusiv mus- og tastaturkontroll.</string>
     <string name="settings_external_display_output_summary">Flytt spillet til en tilkoblet ekstern skjerm i stedet for å speile denne skjermen. Briller bruker alltid sin egen skjerm.</string>
     <string name="settings_general_file_provider_summary">Gjør WinNative-filer tilgjengelige for Androids dokumentvelgere og filbehandlere.</string>
+    <string name="settings_general_auto_scraping_summary">Denne innstillingen lar WinNative automatisk hente grafikk til egendefinerte spill.</string>
     <string name="settings_general_open_browser_summary">Åpne støttede nettlenker i Android-nettleseren i stedet for inne i Wine.</string>
     <string name="settings_general_clipboard_summary">Tillat kopiering og innliming mellom Android- og Wine-økter.</string>
     <string name="settings_general_imagefs_summary">Gjenopprett medfølgende systemfiler uten å fjerne dine eksisterende containere.</string>
@@ -1115,6 +1155,8 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_other_language_title">Språk</string>
     <string name="settings_other_language_summary">Velg visningsspråk</string>
     <string name="settings_other_language_system_default">Systemstandard</string>
+    <string name="settings_other_game_language_title">Spillspråk</string>
+    <string name="settings_other_game_language_summary">Foretrukket språk for Steam/Epic/GOG-nedlastinger</string>
 
     <string name="settings_other_section_integration">Integrasjon</string>
     <string name="settings_other_setup_wizard_title">Oppsettsveiviser</string>
@@ -1502,6 +1544,7 @@ Installert bane:
     <string name="steam_friends_section_online">På nett (%1$d)</string>
     <string name="steam_friends_section_offline">Frakoblet (%1$d)</string>
     <string name="steam_friends_none_loaded">Ingen venner lastet ennå.</string>
+    <string name="steam_friends_chat_off">Chatten er av. Slå på chattetjenesten igjen for å se vennene dine.</string>
     <string name="steam_friends_self_you">Du</string>
     <string name="steam_friends_in_game">I spill</string>
     <string name="steam_friends_join">Bli med</string>
@@ -1527,6 +1570,8 @@ Installert bane:
     <string name="steam_join_the_game">spillet</string>
     <string name="steam_friends_settings">Innstillinger</string>
     <string name="steam_chat_settings_title">Chatteinnstillinger</string>
+    <string name="steam_chat_setting_service">Chattetjeneste</string>
+    <string name="steam_chat_setting_service_desc">Logg inn for å se venner og chatte; slå av for å vises frakoblet</string>
     <string name="steam_chat_setting_notifications">Chattevarsler</string>
     <string name="steam_chat_setting_notifications_desc">Vis et varsel når du mottar en melding</string>
     <string name="steam_chat_setting_heads">Chattehoder</string>
@@ -1550,15 +1595,28 @@ Installert bane:
     <string name="file_manager_paste">Lim inn</string>
     <string name="file_manager_paste_here">Lim inn her</string>
     <string name="file_manager_new_folder">Ny mappe</string>
+    <string name="file_manager_new_folder_short">Mappe</string>
+    <string name="file_manager_multi_select">Velg</string>
     <string name="file_manager_create">Opprett</string>
     <string name="file_manager_delete">Slett</string>
+    <string name="file_manager_copy_count">Kopier (%1$d)</string>
+    <string name="file_manager_cut_count">Klipp ut (%1$d)</string>
+    <string name="file_manager_delete_count">Slett (%1$d)</string>
+    <string name="file_manager_extract">Pakk ut</string>
+    <string name="file_manager_extract_here">Pakk ut her</string>
+    <string name="file_manager_extract_to">Pakk ut til…</string>
+    <string name="file_manager_extracting">Pakker ut %1$s</string>
+    <string name="file_manager_extract_failed">Utpakking mislyktes</string>
     <string name="file_manager_run_boot">Kjør / Boot</string>
     <string name="file_manager_create_shortcut">Opprett snarvei</string>
     <string name="file_manager_run_in_container">Kjør i container</string>
     <string name="file_manager_no_containers">Ingen containere tilgjengelig</string>
     <string name="file_manager_delete_confirm">Slette \"%1$s\"? Dette kan ikke angres.</string>
+    <string name="file_manager_delete_confirm_multi">Slette %1$d elementer? Dette kan ikke angres.</string>
     <string name="file_manager_copying">Kopierer %1$s</string>
     <string name="file_manager_moving">Flytter %1$s</string>
+    <string name="file_manager_copying_count">Kopierer %1$d elementer</string>
+    <string name="file_manager_moving_count">Flytter %1$d elementer</string>
     <string name="file_manager_paste_into_itself">Kan ikke lime inn en mappe i seg selv</string>
     <string name="file_manager_operation_failed">Operasjonen mislyktes</string>
     <string name="file_manager_delete_failed">Sletting mislyktes</string>
@@ -1566,4 +1624,39 @@ Installert bane:
     <string name="file_manager_create_folder_failed">Oppretting av mappe mislyktes</string>
 
     <string name="settings_content_refresh">Oppdater</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">Bruk en ReShade-effekt (.fx) på DXVK/VKD3D-spill (Vulkan) via det innebygde vkBasalt-laget. Legg hver effekt i sin egen mappe under Android/data/&lt;package&gt;/files/ReShade/. Justering av parametere i sanntid og bryteren i spillet kommer med oppdateringen av live-reload-laget.</string>
+    <string name="reshade_catalog_title">ReShade-effekter</string>
+    <string name="reshade_catalog_search">Søk etter effekter…</string>
+    <string name="reshade_catalog_installed">Installert (%1$d)</string>
+    <string name="reshade_catalog_available">Tilgjengelige (%1$d)</string>
+    <string name="reshade_catalog_downloading">Laster ned</string>
+    <string name="reshade_catalog_installing">Installerer</string>
+    <string name="reshade_catalog_offline_cache">Frakoblet — viser en bufret liste. Koble til for å laste ned nye effekter.</string>
+    <string name="reshade_catalog_offline_none">Frakoblet — viser bare installerte effekter. Koble til for å bla gjennom katalogen.</string>
+    <string name="reshade_catalog_needs_connection">Koble til internett for å laste ned effekter.</string>
+    <string name="reshade_catalog_download_failed">Kunne ikke laste ned %1$s.</string>
+    <string name="reshade_catalog_empty_query">Ingen effekter samsvarer med \"%1$s\".</string>
+    <string name="reshade_catalog_empty">Ingen effekter tilgjengelige. Koble til internett for å bla gjennom katalogen.</string>
+    <string name="reshade_catalog_done">Ferdig</string>
+    <string name="reshade_catalog_delete_cd">Slett %1$s</string>
+    <string name="reshade_catalog_delete_title">Slette %1$s?</string>
+    <string name="reshade_catalog_delete_body">Dette fjerner effekten fra lagringen og fra alle sett som bruker den. Du kan laste den ned igjen senere.</string>
+    <string name="reshade_catalog_delete_confirm">Slett</string>
+    <string name="reshade_catalog_delete_cancel">Avbryt</string>
+    <string name="reshade_catalog_delete_failed">Kunne ikke slette %1$s.</string>
+    <string name="reshade_params_title">EFFEKTPARAMETERE</string>
+    <string name="reshade_params_reset">Tilbakestill</string>
+    <string name="reshade_loadout_empty">Ingen effekter ennå. Legg til én eller flere effekter for å lage et sett.</string>
+    <string name="reshade_loadout_add">Legg til effekt</string>
+    <string name="reshade_loadout_full">Settet er fullt — fjern en effekt for å legge til en annen.</string>
+    <string name="reshade_effect_active">aktiv</string>
+    <string name="reshade_mode_solo">Solo</string>
+    <string name="reshade_mode_stack">Stabel</string>
+    <string name="reshade_mode_solo_hint">Én effekt aktiv om gangen (A/B-sammenligning, bytt live i spillet).</string>
+    <string name="reshade_mode_stack_hint">Legg lag på lag med et vilkårlig utvalg effekter, brukt i rekkefølge.</string>
+    <string name="reshade_drawer_enable">Aktiver ReShade</string>
+    <string name="reshade_drawer_empty">Ingen ReShade-effekter i dette settet. Legg til effekter i dette spillets innstillinger (eller containerens) for å bytte og justere dem her.</string>
+    <string name="reshade_drawer_no_params">Denne effekten har ingen justerbare parametere.</string>
 </resources>

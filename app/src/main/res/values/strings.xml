@@ -16,6 +16,8 @@
     <string name="common_ui_select_exe">Select EXE</string>
     <string name="common_ui_select_folder">Select Folder</string>
     <string name="common_ui_current_folder">Current Folder</string>
+    <string name="common_ui_enter_path">Enter Path</string>
+    <string name="common_ui_path_not_found">Path not found</string>
     <string name="common_ui_select_valid_exe_file">Please select a valid .exe file</string>
     <string name="common_ui_select_valid_icon_file">Please select a valid .ico or .png file.</string>
     <string name="common_ui_exit">Exit</string>
@@ -161,6 +163,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">Scrape Artwork</string>
+    <string name="library_games_scraping_artwork">Scraping</string>
     <string name="library_games_shortcut_created">Shortcut created</string>
     <string name="library_games_failed_to_create_shortcut">Failed to create shortcut: %s</string>
     <string name="library_games_install_path">Install Path</string>
@@ -201,6 +205,7 @@
     <string name="hero_graphics_tests_title">Graphics Tests</string>
     <string name="hero_graphics_test_32">32-bit</string>
     <string name="hero_graphics_test_64">64-bit</string>
+    <string name="hero_input_tests_title">Input Tests</string>
     <string name="library_games_add_custom_game">Add Custom Game</string>
     <string name="library_games_game_name">Game Name</string>
     <string name="library_games_game_folder_mapped_drive">Game Folder (Mapped Game Drive)</string>
@@ -290,6 +295,7 @@
     <string name="containers_list_duplicate_title">Duplicate container</string>
     <string name="containers_list_confirm_remove">Remove this container? Any game saves stored inside it will be permanently deleted. Cloud-synced saves stay in the cloud, but local changes that haven\'t synced yet will be lost — sync this game\'s cloud saves first if you want to keep them.</string>
     <string name="containers_list_confirm_duplicate">Do you want to duplicate this container?</string>
+    <string name="containers_list_duplicate_failed">Failed to duplicate container</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">Do you want to remove this shortcut?</string>
@@ -385,6 +391,7 @@
     <string name="input_controls_editor_reset_unavailable">No original snapshot is available for this profile.</string>
     <string name="input_controls_editor_title">Controls Editor</string>
     <string name="input_controls_editor_toggle_switch">Toggle Switch</string>
+    <string name="input_controls_editor_swipeable">Swipeable</string>
     <string name="input_controls_editor_profile_exported_to">Profile exported to</string>
     <string name="input_controls_editor_unable_to_import">Unable to import profile</string>
     <string name="input_controls_editor_import_profile">Import Profile</string>
@@ -477,6 +484,44 @@
     <string name="container_wine_opengl">OpenGL</string>
     <string name="container_surface_effect">Surface Effect</string>
 
+    <!-- ReShade drop-in effects (vkBasalt) -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">Apply a ReShade (.fx) effect to DXVK/VKD3D (Vulkan) games via the bundled vkBasalt layer. Drop each effect into its own folder under Android/data/&lt;package&gt;/files/ReShade/. Live parameter tuning and the in-game toggle arrive with the live-reload layer update.</string>
+    <string name="reshade_catalog_title">ReShade effects</string>
+    <string name="reshade_catalog_search">Search effects…</string>
+    <string name="reshade_catalog_installed">Installed (%1$d)</string>
+    <string name="reshade_catalog_available">Available (%1$d)</string>
+    <string name="reshade_catalog_downloading">Downloading</string>
+    <string name="reshade_catalog_installing">Installing</string>
+    <string name="reshade_catalog_offline_cache">Offline — showing a cached list. Connect to download new effects.</string>
+    <string name="reshade_catalog_offline_none">Offline — showing installed effects only. Connect to browse the catalog.</string>
+    <string name="reshade_catalog_needs_connection">Connect to the internet to download effects.</string>
+    <string name="reshade_catalog_download_failed">Failed to download %1$s.</string>
+    <string name="reshade_catalog_empty_query">No effects match \"%1$s\".</string>
+    <string name="reshade_catalog_empty">No effects available. Connect to the internet to browse the catalog.</string>
+    <string name="reshade_catalog_done">Done</string>
+    <string name="reshade_catalog_delete_cd">Delete %1$s</string>
+    <string name="reshade_catalog_delete_title">Delete %1$s?</string>
+    <string name="reshade_catalog_delete_body">This removes the effect from storage and from any loadout using it. You can download it again later.</string>
+    <string name="reshade_catalog_delete_confirm">Delete</string>
+    <string name="reshade_catalog_delete_cancel">Cancel</string>
+    <string name="reshade_catalog_delete_failed">Couldn\'t delete %1$s.</string>
+    <string name="reshade_params_title">EFFECT PARAMETERS</string>
+    <string name="reshade_params_reset">Reset</string>
+    <!-- Multi-effect ReShade loadout (pre-launch editor) -->
+    <string name="reshade_loadout_empty">No effects yet. Add one or more effects to build a loadout.</string>
+    <string name="reshade_loadout_add">Add effect</string>
+    <string name="reshade_loadout_full">Loadout full — remove an effect to add another.</string>
+    <string name="reshade_effect_active">active</string>
+    <string name="reshade_mode_solo">Solo</string>
+    <string name="reshade_mode_stack">Stack</string>
+    <string name="reshade_mode_solo_hint">One effect active at a time (A/B compare, switch live in-game).</string>
+    <string name="reshade_mode_stack_hint">Layer any subset of effects, applied in order.</string>
+    <!-- In-game ReShade drawer pane (live control) -->
+    <string name="reshade_drawer_enable">Enable ReShade</string>
+    <string name="reshade_drawer_empty">No ReShade effects in this loadout. Add effects in this game\'s settings (or the container\'s) to switch and tune them here.</string>
+    <string name="reshade_drawer_no_params">This effect exposes no adjustable parameters.</string>
+
     <!-- Container > Box64 -->
     <string name="container_box64_title">Box64</string>
     <string name="container_box64_wowbox64_title">Box64 / Wowbox64</string>
@@ -487,6 +532,10 @@
     <string name="container_box64_compatibility">Compatibility</string>
     <string name="container_box64_intermediate">Intermediate</string>
     <string name="container_box64_performance">Performance</string>
+    <string name="container_fexcore_performance_tso">Performance TSO</string>
+    <string name="container_fexcore_extreme">Extreme</string>
+    <string name="container_fexcore_extreme_tso">Extreme TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec">Enables or disables the Box64 dynamic recompiler.</string>
     <string name="box64_env_var_help__dynarec_safeflags">
         Handling of flags on CALL/RET opcodes&lt;br /&gt;&lt;br /&gt;
@@ -594,6 +643,7 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Graphics Driver</string>
+    <string name="container_zink_mode">Zink Mode</string>
     <string name="container_graphics_configuration">Graphics Driver Configuration</string>
     <string name="container_graphics_version">Graphics Driver Version</string>
     <string name="container_graphics_available_extensions">Available Extensions</string>
@@ -748,6 +798,32 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_hud_element_graph">Graph</string>
     <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">Mango Style HUD</string>
+    <string name="session_drawer_hud_mango_settings">Mango HUD Settings</string>
+    <string name="mango_hud_element_gpu_load">GPU Load</string>
+    <string name="mango_hud_element_gpu_temp">GPU Temp</string>
+    <string name="mango_hud_element_cpu_load">CPU Load</string>
+    <string name="mango_hud_element_cpu_temp">CPU Temp</string>
+    <string name="mango_hud_element_ram">RAM</string>
+    <string name="mango_hud_element_battery">Battery</string>
+    <string name="mango_hud_element_lows" formatted="false">1% Lows</string>
+    <string name="mango_hud_element_graph">Frametime Graph</string>
+    <string name="mango_hud_element_engine">Engine</string>
+    <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">CPU Clock</string>
+    <string name="mango_hud_element_gpu_clock">GPU Clock</string>
+    <string name="mango_hud_element_cores">Per-Core</string>
+    <string name="mango_hud_element_network">Network</string>
+    <string name="mango_hud_element_swap">Swap</string>
+    <string name="mango_hud_element_resolution">Resolution</string>
+    <string name="mango_hud_element_wine">Wine Version</string>
+    <string name="mango_hud_element_duration">Session Time</string>
+    <string name="mango_hud_element_clock">Clock</string>
+    <string name="mango_hud_element_throttle">Throttle Status</string>
+    <string name="mango_hud_group_memory">Memory</string>
+    <string name="mango_hud_group_system">System</string>
+    <string name="mango_hud_lock">Lock HUD</string>
+    <string name="mango_hud_lock_subtitle">Let touches pass through to the controls behind the HUD. Press and hold the HUD to lock it. (5s)</string>
     <string name="hud_position_menu_title">Move HUD to</string>
     <string name="hud_position_top_left">Top Left</string>
     <string name="hud_position_top_center">Top Center</string>
@@ -1023,6 +1099,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_general_select_wallpaper">Select wallpaper</string>
     <string name="settings_general_title">General</string>
     <string name="settings_general_enable_file_provider">Enable File Provider</string>
+    <string name="settings_general_enable_auto_scraping">Enable Auto Scraping</string>
     <string name="settings_general_take_effect_next_startup">This option will take effect at the next startup.</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Reinstall Imagefs</string>
@@ -1046,6 +1123,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_general_xinput_toggle_summary">Turns off XInput handling when you want exclusive mouse and keyboard control.</string>
     <string name="settings_external_display_output_summary">Move the game to a connected external display instead of mirroring this screen. Glasses always use their own display.</string>
     <string name="settings_general_file_provider_summary">Expose WinNative files to Android document pickers and file managers.</string>
+    <string name="settings_general_auto_scraping_summary">This setting allows WinNative to automatically pull custom game artwork.</string>
     <string name="settings_general_open_browser_summary">Open supported web links in the Android browser instead of inside Wine.</string>
     <string name="settings_general_clipboard_summary">Allow copy and paste between Android and Wine sessions.</string>
     <string name="settings_general_imagefs_summary">Restore bundled system files without removing your existing containers.</string>
@@ -1566,15 +1644,28 @@ Installed path:
     <string name="file_manager_paste">Paste</string>
     <string name="file_manager_paste_here">Paste here</string>
     <string name="file_manager_new_folder">New Folder</string>
+    <string name="file_manager_new_folder_short">Folder</string>
+    <string name="file_manager_multi_select">Select</string>
     <string name="file_manager_create">Create</string>
     <string name="file_manager_delete">Delete</string>
+    <string name="file_manager_copy_count">Copy (%1$d)</string>
+    <string name="file_manager_cut_count">Cut (%1$d)</string>
+    <string name="file_manager_delete_count">Delete (%1$d)</string>
+    <string name="file_manager_extract">Extract</string>
+    <string name="file_manager_extract_here">Extract here</string>
+    <string name="file_manager_extract_to">Extract to…</string>
+    <string name="file_manager_extracting">Extracting %1$s</string>
+    <string name="file_manager_extract_failed">Extraction failed</string>
     <string name="file_manager_run_boot">Run / Boot</string>
     <string name="file_manager_create_shortcut">Create Shortcut</string>
     <string name="file_manager_run_in_container">Run in container</string>
     <string name="file_manager_no_containers">No containers available</string>
     <string name="file_manager_delete_confirm">Delete \"%1$s\"? This cannot be undone.</string>
+    <string name="file_manager_delete_confirm_multi">Delete %1$d items? This cannot be undone.</string>
     <string name="file_manager_copying">Copying %1$s</string>
     <string name="file_manager_moving">Moving %1$s</string>
+    <string name="file_manager_copying_count">Copying %1$d items</string>
+    <string name="file_manager_moving_count">Moving %1$d items</string>
     <string name="file_manager_paste_into_itself">Can\'t paste a folder into itself</string>
     <string name="file_manager_operation_failed">Operation failed</string>
     <string name="file_manager_delete_failed">Delete failed</string>

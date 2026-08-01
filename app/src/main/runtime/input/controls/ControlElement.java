@@ -96,6 +96,7 @@ public class ControlElement {
   private short y;
   private boolean selected = false;
   private boolean toggleSwitch = false;
+  private boolean swipeable = true;
   private boolean radialMenuExpanded = false;
   private int activeRadialBindingIndex = -1;
   private boolean isRadialBindingCurrentlyHeld = false;
@@ -213,6 +214,14 @@ public class ControlElement {
 
   public void setToggleSwitch(boolean toggleSwitch) {
     this.toggleSwitch = toggleSwitch;
+  }
+
+  public boolean isSwipeable() {
+    return swipeable;
+  }
+
+  public void setSwipeable(boolean swipeable) {
+    this.swipeable = swipeable;
   }
 
   public float getOpacity() {
@@ -2658,11 +2667,11 @@ return boundingBox;
               ? Color.argb((int) (250 * a), 255, 255, 255)
               : ColorUtils.setAlphaComponent(accent, (int) (160 * a)));
           if (dy != 0) {
-            canvas.drawLine(ax - chev, ay + dy * chev, ax, ay - dy * chev * 0.4f, paint);
-            canvas.drawLine(ax + chev, ay + dy * chev, ax, ay - dy * chev * 0.4f, paint);
+            canvas.drawLine(ax - chev, ay - dy * chev * 0.4f, ax, ay + dy * chev, paint);
+            canvas.drawLine(ax + chev, ay - dy * chev * 0.4f, ax, ay + dy * chev, paint);
           } else {
-            canvas.drawLine(ax + dx * chev, ay - chev, ax - dx * chev * 0.4f, ay, paint);
-            canvas.drawLine(ax + dx * chev, ay + chev, ax - dx * chev * 0.4f, ay, paint);
+            canvas.drawLine(ax - dx * chev * 0.4f, ay - chev, ax + dx * chev, ay, paint);
+            canvas.drawLine(ax - dx * chev * 0.4f, ay + chev, ax + dx * chev, ay, paint);
           }
         }
         paint.setStrokeCap(Paint.Cap.BUTT);
@@ -2738,11 +2747,23 @@ return boundingBox;
         float elementSize = scroller.getElementSize();
         float scrollOffset = scroller.getScrollOffset();
         byte[] rangeIndex = scroller.getRangeIndex();
-        luminaGlassBody(canvas, paint, boundingBox, a);
+        paint.setStyle(Paint.Style.FILL);
+        placeShader(getLuminaBodyShader(), boundingBox.left, boundingBox.top, Math.max(1, boundingBox.height()));
+        paint.setShader(getLuminaBodyShader());
+        paint.setAlpha((int) (170 * a));
+        canvas.drawRoundRect(
+            boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom, rr, rr, paint);
+        placeShader(getLuminaShadeShader(), boundingBox.left, boundingBox.top, Math.max(1, boundingBox.height()));
+        paint.setShader(getLuminaShadeShader());
+        paint.setAlpha((int) (255 * a));
+        canvas.drawRoundRect(
+            boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom, rr, rr, paint);
+        paint.setShader(null);
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeWidth(hairline * 1.2f);
         paint.setColor(rimColor);
-        drawCleanBody(canvas, paint, boundingBox, 0f);
+        canvas.drawRoundRect(
+            boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom, rr, rr, paint);
 
         canvas.save();
         path.reset();
@@ -3720,6 +3741,7 @@ return boundingBox;
       elementJSONObject.put("x", (float) x / inputControlsView.getMaxWidth());
       elementJSONObject.put("y", (float) y / inputControlsView.getMaxHeight());
       elementJSONObject.put("toggleSwitch", toggleSwitch);
+      elementJSONObject.put("swipeable", swipeable);
       elementJSONObject.put("text", text);
       elementJSONObject.put("iconId", iconId);
 
@@ -3764,6 +3786,15 @@ return boundingBox;
     } else {
       for (int i = 0; i < count; i++) inputControlsView.handleInputEvent(ordered[i], pressed);
     }
+  }
+
+  public boolean isCapturing(int pointerId) {
+    return currentPointerId == pointerId;
+  }
+
+  public boolean isSwipeTarget() {
+    if (type == Type.RADIAL_MENU) return true;
+    return (type == Type.BUTTON || type == Type.D_PAD) && swipeable;
   }
 
   public boolean handleTouchDown(int pointerId, float x, float y) {

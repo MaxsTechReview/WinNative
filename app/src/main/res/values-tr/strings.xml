@@ -15,6 +15,8 @@
     <string name="common_ui_select_exe">EXE Seç</string>
     <string name="common_ui_select_folder">Klasör Seç</string>
     <string name="common_ui_current_folder">Geçerli Klasör</string>
+    <string name="common_ui_enter_path">Yol girin</string>
+    <string name="common_ui_path_not_found">Yol bulunamadı</string>
     <string name="common_ui_select_valid_exe_file">Lütfen geçerli bir .exe dosyası seçin</string>
     <string name="common_ui_select_valid_icon_file">Lütfen geçerli bir .ico veya .png dosyası seçin.</string>
     <string name="common_ui_exit">Çıkış</string>
@@ -158,6 +160,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">Görselleri Getir</string>
+    <string name="library_games_scraping_artwork">Getiriliyor</string>
     <string name="library_games_shortcut_created">Kısayol oluşturuldu</string>
     <string name="library_games_failed_to_create_shortcut">Kısayol oluşturulamadı: %s</string>
     <string name="library_games_install_path">Yükleme Yolu</string>
@@ -198,6 +202,7 @@
     <string name="hero_graphics_tests_title">Grafik Testleri</string>
     <string name="hero_graphics_test_32">32-bit</string>
     <string name="hero_graphics_test_64">64-bit</string>
+    <string name="hero_input_tests_title">Giriş Testleri</string>
     <string name="library_games_add_custom_game">Özel Oyun Ekle</string>
     <string name="library_games_game_name">Oyun Adı</string>
     <string name="library_games_game_folder_mapped_drive">Oyun Klasörü (Eşlenmiş Oyun Sürücüsü)</string>
@@ -287,6 +292,7 @@
     <string name="containers_list_duplicate_title">Konteyneri çoğalt</string>
     <string name="containers_list_confirm_remove">Bu konteyner kaldırılsın mı? İçinde saklanan tüm oyun kayıtları kalıcı olarak silinecek. Buluta eşitlenmiş kayıtlar bulutta kalır, ancak henüz eşitlenmemiş yerel değişiklikler kaybolur — korumak istiyorsanız önce bu oyunun bulut kayıtlarını eşitleyin.</string>
     <string name="containers_list_confirm_duplicate">Bu konteyneri çoğaltmak istiyor musunuz?</string>
+    <string name="containers_list_duplicate_failed">Konteyner çoğaltılamadı</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">Bu kısayolu kaldırmak istiyor musunuz?</string>
@@ -382,6 +388,7 @@
     <string name="input_controls_editor_reset_unavailable">Bu profil için orijinal anlık görüntü mevcut değil.</string>
     <string name="input_controls_editor_title">Kontrol Düzenleyicisi</string>
     <string name="input_controls_editor_toggle_switch">Açma/Kapama Anahtarı</string>
+    <string name="input_controls_editor_swipeable">Kaydırılabilir</string>
     <string name="input_controls_editor_profile_exported_to">Profil şuraya dışa aktarıldı</string>
     <string name="input_controls_editor_unable_to_import">Profil içe aktarılamıyor</string>
     <string name="input_controls_editor_import_profile">Profili İçe Aktar</string>
@@ -484,6 +491,10 @@
     <string name="container_box64_compatibility">Uyumluluk</string>
     <string name="container_box64_intermediate">Orta</string>
     <string name="container_box64_performance">Performans</string>
+    <string name="container_fexcore_performance_tso">Performans TSO</string>
+    <string name="container_fexcore_extreme">Ekstrem</string>
+    <string name="container_fexcore_extreme_tso">Ekstrem TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec">Box64 dinamik yeniden derleyicisini etkinleştirir veya devre dışı bırakır.</string>
     <string name="box64_env_var_help__dynarec_safeflags">
         CALL/RET opcode\'larında bayrakların işlenmesi&lt;br /&gt;&lt;br /&gt;
@@ -591,6 +602,7 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Grafik Sürücüsü</string>
+    <string name="container_zink_mode">Zink Modu</string>
     <string name="container_graphics_configuration">Grafik Sürücüsü Yapılandırması</string>
     <string name="container_graphics_version">Grafik Sürücüsü Sürümü</string>
     <string name="container_graphics_available_extensions">Kullanılabilir Uzantılar</string>
@@ -745,6 +757,32 @@ E.g. <b>META</b> için <i>META tuşu</i>, \n
     <string name="session_drawer_hud_element_temp">B.SIC</string>
     <string name="session_drawer_hud_element_graph">Grafik</string>
     <string name="session_drawer_hud_element_cpu_temp">C.SIC</string>
+    <string name="session_drawer_hud_mango_style">Mango Tarzı HUD</string>
+    <string name="session_drawer_hud_mango_settings">Mango HUD Ayarları</string>
+    <string name="mango_hud_element_gpu_load">GPU Yükü</string>
+    <string name="mango_hud_element_gpu_temp">GPU Sıcaklığı</string>
+    <string name="mango_hud_element_cpu_load">CPU Yükü</string>
+    <string name="mango_hud_element_cpu_temp">CPU Sıcaklığı</string>
+    <string name="mango_hud_element_ram">RAM</string>
+    <string name="mango_hud_element_battery">Pil</string>
+    <string name="mango_hud_element_lows" formatted="false">%1 Düşükler</string>
+    <string name="mango_hud_element_graph">Frametime Grafiği</string>
+    <string name="mango_hud_element_engine">Motor</string>
+    <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">CPU Hızı</string>
+    <string name="mango_hud_element_gpu_clock">GPU Hızı</string>
+    <string name="mango_hud_element_cores">Çekirdek Başına</string>
+    <string name="mango_hud_element_network">Ağ</string>
+    <string name="mango_hud_element_swap">Takas</string>
+    <string name="mango_hud_element_resolution">Çözünürlük</string>
+    <string name="mango_hud_element_wine">Wine Sürümü</string>
+    <string name="mango_hud_element_duration">Oturum Süresi</string>
+    <string name="mango_hud_element_clock">Saat</string>
+    <string name="mango_hud_element_throttle">Kısıtlama Durumu</string>
+    <string name="mango_hud_group_memory">Bellek</string>
+    <string name="mango_hud_group_system">Sistem</string>
+    <string name="mango_hud_lock">HUD\'u Kilitle</string>
+    <string name="mango_hud_lock_subtitle">Dokunuşların HUD arkasındaki kontrollere geçmesini sağlar. Kilitlemek için HUD\'a basılı tutun. (5s)</string>
     <string name="hud_position_menu_title">HUD\'u şuraya taşı</string>
     <string name="hud_position_top_left">Sol Üst</string>
     <string name="hud_position_top_center">Üst Orta</string>
@@ -1020,6 +1058,7 @@ E.g. <b>META</b> için <i>META tuşu</i>, \n
     <string name="settings_general_select_wallpaper">Duvar kağıdı seç</string>
     <string name="settings_general_title">Genel</string>
     <string name="settings_general_enable_file_provider">Dosya Sağlayıcısını Etkinleştir</string>
+    <string name="settings_general_enable_auto_scraping">Otomatik Görsel Getirmeyi Etkinleştir</string>
     <string name="settings_general_take_effect_next_startup">Bu seçenek bir sonraki başlatmada etkin olacaktır.</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Imagefs\'i Yeniden Kur</string>
@@ -1043,6 +1082,7 @@ E.g. <b>META</b> için <i>META tuşu</i>, \n
     <string name="settings_general_xinput_toggle_summary">Özel fare ve klavye denetimi istediğinizde XInput işlemeyi kapatır.</string>
     <string name="settings_external_display_output_summary">Bu ekranı yansıtmak yerine oyunu bağlı bir harici ekrana taşıyın. Gözlükler her zaman kendi ekranlarını kullanır.</string>
     <string name="settings_general_file_provider_summary">WinNative dosyalarını Android belge seçicilerine ve dosya yöneticilerine açar.</string>
+    <string name="settings_general_auto_scraping_summary">Bu ayar, WinNative\'in özel oyun görsellerini otomatik olarak getirmesine olanak tanır.</string>
     <string name="settings_general_open_browser_summary">Desteklenen web bağlantılarını Wine yerine Android tarayıcısında açar.</string>
     <string name="settings_general_clipboard_summary">Android ile Wine oturumları arasında kopyalama ve yapıştırmaya izin verir.</string>
     <string name="settings_general_imagefs_summary">Mevcut kapsayıcılarınızı kaldırmadan paket sistem dosyalarını geri yükler.</string>
@@ -1115,6 +1155,8 @@ E.g. <b>META</b> için <i>META tuşu</i>, \n
     <string name="settings_other_language_title">Dil</string>
     <string name="settings_other_language_summary">Görüntüleme dilini seçin</string>
     <string name="settings_other_language_system_default">Sistem varsayılanı</string>
+    <string name="settings_other_game_language_title">Oyun Dili</string>
+    <string name="settings_other_game_language_summary">Steam/Epic/GOG indirmeleri için tercih edilen dil</string>
 
     <string name="settings_other_section_integration">Entegrasyon</string>
     <string name="settings_other_setup_wizard_title">Kurulum Sihirbazı</string>
@@ -1502,6 +1544,7 @@ Yüklü konum:
     <string name="steam_friends_section_online">Çevrimiçi (%1$d)</string>
     <string name="steam_friends_section_offline">Çevrimdışı (%1$d)</string>
     <string name="steam_friends_none_loaded">Henüz arkadaş yüklenmedi.</string>
+    <string name="steam_friends_chat_off">Sohbet kapalı. Arkadaşlarınızı görmek için Sohbet Servisini yeniden açın.</string>
     <string name="steam_friends_self_you">Sen</string>
     <string name="steam_friends_in_game">Oyunda</string>
     <string name="steam_friends_join">Katıl</string>
@@ -1527,6 +1570,8 @@ Yüklü konum:
     <string name="steam_join_the_game">oyun</string>
     <string name="steam_friends_settings">Ayarlar</string>
     <string name="steam_chat_settings_title">Sohbet Ayarları</string>
+    <string name="steam_chat_setting_service">Sohbet Servisi</string>
+    <string name="steam_chat_setting_service_desc">Arkadaşlarınızı görmek ve sohbet etmek için giriş yapın; çevrimdışı olmak için kapatın</string>
     <string name="steam_chat_setting_notifications">Sohbet Bildirimleri</string>
     <string name="steam_chat_setting_notifications_desc">Bir mesaj aldığınızda bildirim göster</string>
     <string name="steam_chat_setting_heads">Sohbet Balonları</string>
@@ -1550,15 +1595,28 @@ Yüklü konum:
     <string name="file_manager_paste">Yapıştır</string>
     <string name="file_manager_paste_here">Buraya yapıştır</string>
     <string name="file_manager_new_folder">Yeni Klasör</string>
+    <string name="file_manager_new_folder_short">Klasör</string>
+    <string name="file_manager_multi_select">Seç</string>
     <string name="file_manager_create">Oluştur</string>
     <string name="file_manager_delete">Sil</string>
+    <string name="file_manager_copy_count">Kopyala (%1$d)</string>
+    <string name="file_manager_cut_count">Kes (%1$d)</string>
+    <string name="file_manager_delete_count">Sil (%1$d)</string>
+    <string name="file_manager_extract">Çıkar</string>
+    <string name="file_manager_extract_here">Buraya çıkar</string>
+    <string name="file_manager_extract_to">Şuraya çıkar…</string>
+    <string name="file_manager_extracting">%1$s çıkarılıyor</string>
+    <string name="file_manager_extract_failed">Çıkarma başarısız</string>
     <string name="file_manager_run_boot">Çalıştır / Başlat</string>
     <string name="file_manager_create_shortcut">Kısayol Oluştur</string>
     <string name="file_manager_run_in_container">Kapsayıcıda çalıştır</string>
     <string name="file_manager_no_containers">Kullanılabilir kapsayıcı yok</string>
     <string name="file_manager_delete_confirm">\"%1$s\" silinsin mi? Bu geri alınamaz.</string>
+    <string name="file_manager_delete_confirm_multi">%1$d öğe silinsin mi? Bu geri alınamaz.</string>
     <string name="file_manager_copying">%1$s kopyalanıyor</string>
     <string name="file_manager_moving">%1$s taşınıyor</string>
+    <string name="file_manager_copying_count">%1$d öğe kopyalanıyor</string>
+    <string name="file_manager_moving_count">%1$d öğe taşınıyor</string>
     <string name="file_manager_paste_into_itself">Bir klasör kendi içine yapıştırılamaz</string>
     <string name="file_manager_operation_failed">İşlem başarısız oldu</string>
     <string name="file_manager_delete_failed">Silme başarısız oldu</string>
@@ -1566,4 +1624,39 @@ Yüklü konum:
     <string name="file_manager_create_folder_failed">Klasör oluşturma başarısız oldu</string>
 
     <string name="settings_content_refresh">Yenile</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">Yerleşik vkBasalt katmanı aracılığıyla DXVK/VKD3D (Vulkan) oyunlarına bir ReShade efekti (.fx) uygulayın. Her efekti Android/data/&lt;package&gt;/files/ReShade/ altında kendi klasörüne yerleştirin. Canlı parametre ayarı ve oyun içi anahtar, canlı yeniden yükleme katmanı güncellemesiyle gelecek.</string>
+    <string name="reshade_catalog_title">ReShade efektleri</string>
+    <string name="reshade_catalog_search">Efekt ara…</string>
+    <string name="reshade_catalog_installed">Yüklü (%1$d)</string>
+    <string name="reshade_catalog_available">Kullanılabilir (%1$d)</string>
+    <string name="reshade_catalog_downloading">İndiriliyor</string>
+    <string name="reshade_catalog_installing">Yükleniyor</string>
+    <string name="reshade_catalog_offline_cache">Çevrimdışı — önbelleğe alınmış bir liste gösteriliyor. Yeni efektler indirmek için bağlanın.</string>
+    <string name="reshade_catalog_offline_none">Çevrimdışı — yalnızca yüklü efektler gösteriliyor. Kataloğa göz atmak için bağlanın.</string>
+    <string name="reshade_catalog_needs_connection">Efekt indirmek için internete bağlanın.</string>
+    <string name="reshade_catalog_download_failed">%1$s indirilemedi.</string>
+    <string name="reshade_catalog_empty_query">\"%1$s\" ile eşleşen efekt yok.</string>
+    <string name="reshade_catalog_empty">Kullanılabilir efekt yok. Kataloğa göz atmak için internete bağlanın.</string>
+    <string name="reshade_catalog_done">Bitti</string>
+    <string name="reshade_catalog_delete_cd">%1$s sil</string>
+    <string name="reshade_catalog_delete_title">%1$s silinsin mi?</string>
+    <string name="reshade_catalog_delete_body">Bu, efekti depolamadan ve onu kullanan tüm setlerden kaldırır. Daha sonra tekrar indirebilirsiniz.</string>
+    <string name="reshade_catalog_delete_confirm">Sil</string>
+    <string name="reshade_catalog_delete_cancel">İptal</string>
+    <string name="reshade_catalog_delete_failed">%1$s silinemedi.</string>
+    <string name="reshade_params_title">EFEKT PARAMETRELERİ</string>
+    <string name="reshade_params_reset">Sıfırla</string>
+    <string name="reshade_loadout_empty">Henüz efekt yok. Bir set oluşturmak için bir veya daha fazla efekt ekleyin.</string>
+    <string name="reshade_loadout_add">Efekt ekle</string>
+    <string name="reshade_loadout_full">Set dolu — başka bir efekt eklemek için birini kaldırın.</string>
+    <string name="reshade_effect_active">etkin</string>
+    <string name="reshade_mode_solo">Solo</string>
+    <string name="reshade_mode_stack">Yığın</string>
+    <string name="reshade_mode_solo_hint">Aynı anda tek efekt etkin (A/B karşılaştırması, oyun içinde canlı geçiş yapın).</string>
+    <string name="reshade_mode_stack_hint">Herhangi bir efekt alt kümesini katmanlayın, sırayla uygulanır.</string>
+    <string name="reshade_drawer_enable">ReShade\'i etkinleştir</string>
+    <string name="reshade_drawer_empty">Bu sette ReShade efekti yok. Burada değiştirmek ve ayarlamak için bu oyunun (veya kapsayıcının) ayarlarına efekt ekleyin.</string>
+    <string name="reshade_drawer_no_params">Bu efektin ayarlanabilir parametresi yok.</string>
 </resources>

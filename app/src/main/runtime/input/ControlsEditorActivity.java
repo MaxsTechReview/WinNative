@@ -356,6 +356,7 @@ private void showControlElementSettings(View anchorView) {
           ControlElement.Type type = element.getType();
           view.findViewById(R.id.LLShape).setVisibility(View.GONE);
           view.findViewById(R.id.CBToggleSwitch).setVisibility(View.GONE);
+          view.findViewById(R.id.CBSwipeable).setVisibility(View.GONE);
           view.findViewById(R.id.LLCustomTextIcon).setVisibility(View.GONE);
           view.findViewById(R.id.LLRangeOptions).setVisibility(View.GONE);
           view.findViewById(R.id.LLRadialMenuOptions).setVisibility(View.GONE);
@@ -365,9 +366,12 @@ private void showControlElementSettings(View anchorView) {
             if (type == ControlElement.Type.BUTTON) {
               view.findViewById(R.id.LLShape).setVisibility(View.VISIBLE);
               view.findViewById(R.id.CBToggleSwitch).setVisibility(View.VISIBLE);
+              view.findViewById(R.id.CBSwipeable).setVisibility(View.VISIBLE);
             } else {
               view.findViewById(R.id.LLRadialMenuOptions).setVisibility(View.VISIBLE);
             }
+          } else if (type == ControlElement.Type.D_PAD) {
+            view.findViewById(R.id.CBSwipeable).setVisibility(View.VISIBLE);
           } else if (type == ControlElement.Type.RANGE_BUTTON) {
             view.findViewById(R.id.LLRangeOptions).setVisibility(View.VISIBLE);
           }
@@ -458,6 +462,14 @@ private void showControlElementSettings(View anchorView) {
     cbToggleSwitch.setOnCheckedChangeListener(
         (buttonView, isChecked) -> {
           element.setToggleSwitch(isChecked);
+          profile.save();
+        });
+
+    CheckBox cbSwipeable = view.findViewById(R.id.CBSwipeable);
+    cbSwipeable.setChecked(element.isSwipeable());
+    cbSwipeable.setOnCheckedChangeListener(
+        (buttonView, isChecked) -> {
+          element.setSwipeable(isChecked);
           profile.save();
         });
 

@@ -248,6 +248,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 val identifier = wineVersionIdentifiers.getOrNull(versionIndex) ?: return
                 val wineInfo = WineInfo.fromIdentifier(context, contentsManager, identifier)
                 isArm64EC = wineInfo.isArm64EC()
+                state.isArm64EC.value = isArm64EC
                 state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
                 applyDefaultContainerName(wineInfo, identifier)
                 // Box64 list depends on arch (box64 vs wowbox64 entries).
@@ -462,7 +463,10 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         } else items
 
         drivesWorking.clear()
-        val drivesStr = c?.getDrives() ?: Container.DEFAULT_DRIVES
+        val drivesStr = c?.let {
+            com.winlator.cmod.runtime.wine.WineUtils.readDrivesFromPrefix(it)
+                .ifEmpty { it.getDrives() }
+        } ?: Container.DEFAULT_DRIVES
         for (drive in Container.drivesIterator(drivesStr)) {
             drivesWorking.add(
                 DriveDraft(
@@ -531,6 +535,10 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             state.selectedGraphicsDriver
         )
 
+        state.zinkModeEntries.value = context.resources.getStringArray(R.array.zink_mode_entries).toList()
+        state.selectedZinkMode.intValue =
+            if ((c?.getZinkMode() ?: Container.DEFAULT_ZINK_MODE) == "windows") 1 else 0
+
         val dxWrapperArr = context.resources.getStringArray(R.array.dxwrapper_entries).toList()
         state.dxWrapperEntries.value = dxWrapperArr
         selectByIdentifier(
@@ -542,6 +550,17 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val surfaceEffectArr = context.resources.getStringArray(R.array.surface_effect_entries).toList()
         state.surfaceEffectEntries.value = surfaceEffectArr
         state.selectedSurfaceEffect.intValue = if (c?.getExtra("swapRB", "0") == "1") 1 else 0
+
+        // init() migrates a legacy single reshadeEffect / flat reshadeParams into the loadout model
+        val reshadeEffects = com.winlator.cmod.runtime.reshade.ReshadeManager.scanEffects(context)
+        state.reshadeEffects.value = reshadeEffects
+        state.reshadeLoadout.init(
+            reshadeEffects,
+            c?.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_LOADOUT, null),
+            c?.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_MODE, null),
+            c?.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_PARAMS, null),
+            c?.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_EFFECT, null),
+        )
 
         val audioDriverArr = context.resources.getStringArray(R.array.audio_driver_entries).toList()
         state.audioDriverEntries.value = audioDriverArr
@@ -564,6 +583,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         if (c != null) {
             val wineInfo = WineInfo.fromIdentifier(context, contentsManager, c.getWineVersion())
             isArm64EC = wineInfo.isArm64EC()
+            state.isArm64EC.value = isArm64EC
             state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
 
             rebuildEmulatorLists()
@@ -695,6 +715,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val wineInfo = WineInfo.fromIdentifier(context, contentsManager, selectedIdentifier)
         val archChanged = isArm64EC != wineInfo.isArm64EC()
         isArm64EC = wineInfo.isArm64EC()
+        state.isArm64EC.value = isArm64EC
         state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
         applyDefaultContainerName(wineInfo, selectedIdentifier)
 
@@ -805,16 +826,35 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             c.setCPUList(cpuList)
             c.setCPUListWoW64(cpuListWoW64)
             c.setGraphicsDriver(graphicsDriver)
+            c.setZinkMode(if (state.selectedZinkMode.intValue == 1) "windows" else "unix")
             c.setGraphicsDriverConfig(graphicsDriverConfig)
             c.setDXWrapper(dxwrapper)
             c.setDXWrapperConfig(dxwrapperConfig)
             c.putExtra("swapRB", if (state.selectedSurfaceEffect.intValue == 1) "1" else "0")
             c.putExtra("refreshRate", getRefreshRateFromState())
+            run {
+                // reshadeEffect stays coherent (= first effect) for legacy readers; all null when empty
+                val loadoutJson = state.reshadeLoadout.loadoutJsonOrNull()
+                c.putExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_LOADOUT, loadoutJson)
+                c.putExtra(
+                    com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_MODE,
+                    if (loadoutJson == null) null else state.reshadeLoadout.mode)
+                c.putExtra(
+                    com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_PARAMS,
+                    if (loadoutJson == null) null else state.reshadeLoadout.paramsJsonOrNull())
+                c.putExtra(
+                    com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_EFFECT,
+                    if (loadoutJson == null) null else state.reshadeLoadout.firstEffectName())
+            }
             c.setAudioDriver(audioDriver)
             c.setEmulator(emulator)
             c.setEmulator64(emulator64)
             c.setWinComponents(wincomponents)
             c.setDrives(drivesString)
+            // an existing prefix owns the drive list, so write it there too
+            if (java.io.File(c.rootDir, ".wine/dosdevices").isDirectory) {
+                com.winlator.cmod.runtime.wine.WineUtils.applyDrivesToPrefix(c, drivesString)
+            }
             c.setFullscreenStretched(state.fullscreenStretched.value)
             c.setUseUnixLibs(state.useUnixLibs.value)
             c.setInputType(finalInputType)
@@ -882,6 +922,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                             if (state.selectedSurfaceEffect.intValue == 1) "1" else "0"
                         )
                         getRefreshRateFromState()?.let { newContainer.putExtra("refreshRate", it) }
+                        newContainer.setZinkMode(if (state.selectedZinkMode.intValue == 1) "windows" else "unix")
                         newContainer.saveData()
                         saveMouseWarpOverride(newContainer)
                     } else {
@@ -980,7 +1021,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         fexcorePresetIds = ids
         val saved = container?.getFEXCorePreset()
             ?: PreferenceManager.getDefaultSharedPreferences(context)
-                .getString("fexcore_preset", FEXCorePreset.PERFORMANCE)
+                .getString("fexcore_preset", FEXCorePreset.PERFORMANCE_TSO)
         val idx = ids.indexOfFirst { it == saved }
         state.selectedFexcorePreset.intValue = if (idx >= 0) idx else 0
     }
@@ -1145,7 +1186,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
 
         loadGraphicsDriverVersions()
 
-        selectByValue(state.gfxVulkanVersionEntries.value, config.get("vulkanVersion") ?: "1.3", state.gfxSelectedVulkanVersion)
+        selectByValue(state.gfxVulkanVersionEntries.value, config.get("vulkanVersion") ?: "1.4", state.gfxSelectedVulkanVersion)
         selectByValue(state.gfxGpuNameEntries.value, config.get("gpuName") ?: "Device", state.gfxSelectedGpuName)
         selectByNumber(state.gfxMaxDeviceMemoryEntries.value, config.get("maxDeviceMemory") ?: "0", state.gfxSelectedMaxDeviceMemory)
         selectByValue(state.gfxPresentModeEntries.value, config.get("presentMode") ?: "mailbox", state.gfxSelectedPresentMode)
@@ -1302,7 +1343,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
     }
 
     private fun buildGraphicsDriverConfigFromState(): String {
-        val vulkanVersion = state.gfxVulkanVersionEntries.value.getOrElse(state.gfxSelectedVulkanVersion.intValue) { "1.3" }
+        val vulkanVersion = state.gfxVulkanVersionEntries.value.getOrElse(state.gfxSelectedVulkanVersion.intValue) { "1.4" }
         val version = state.gfxDriverVersionEntries.value.getOrElse(state.gfxSelectedDriverVersion.intValue) { "" }
         val blacklisted = state.gfxBlacklistedExtensions.value.joinToString(",")
         val gpuName = state.gfxGpuNameEntries.value.getOrElse(state.gfxSelectedGpuName.intValue) { "Device" }

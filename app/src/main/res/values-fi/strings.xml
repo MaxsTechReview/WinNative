@@ -15,6 +15,8 @@
     <string name="common_ui_select_exe">Valitse EXE</string>
     <string name="common_ui_select_folder">Valitse kansio</string>
     <string name="common_ui_current_folder">Nykyinen kansio</string>
+    <string name="common_ui_enter_path">Anna polku</string>
+    <string name="common_ui_path_not_found">Polkua ei löytynyt</string>
     <string name="common_ui_select_valid_exe_file">Valitse kelvollinen .exe-tiedosto</string>
     <string name="common_ui_select_valid_icon_file">Valitse kelvollinen .ico- tai .png-tiedosto.</string>
     <string name="common_ui_exit">Poistu</string>
@@ -158,6 +160,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">Hae kuvitus</string>
+    <string name="library_games_scraping_artwork">Haetaan</string>
     <string name="library_games_shortcut_created">Pikakuvake luotu</string>
     <string name="library_games_failed_to_create_shortcut">Pikakuvakkeen luonti epäonnistui: %s</string>
     <string name="library_games_install_path">Asennuspolku</string>
@@ -198,6 +202,7 @@
     <string name="hero_graphics_tests_title">Grafiikkatestit</string>
     <string name="hero_graphics_test_32">32-bittinen</string>
     <string name="hero_graphics_test_64">64-bittinen</string>
+    <string name="hero_input_tests_title">Syötetestit</string>
     <string name="library_games_add_custom_game">Lisää mukautettu peli</string>
     <string name="library_games_game_name">Pelin nimi</string>
     <string name="library_games_game_folder_mapped_drive">Pelikansio (yhdistetty peliasema)</string>
@@ -287,6 +292,7 @@
     <string name="containers_list_duplicate_title">Kopioi säiliö</string>
     <string name="containers_list_confirm_remove">Poistetaanko tämä säiliö? Kaikki sen sisältämät pelitallennukset poistetaan pysyvästi. Pilveen synkronoidut tallennukset säilyvät pilvessä, mutta paikalliset muutokset, joita ei ole vielä synkronoitu, menetetään – synkronoi tämän pelin pilvitallennukset ensin, jos haluat säilyttää ne.</string>
     <string name="containers_list_confirm_duplicate">Haluatko kopioida tämän säiliön?</string>
+    <string name="containers_list_duplicate_failed">Säiliön kopiointi epäonnistui</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">Haluatko poistaa tämän pikakuvakkeen?</string>
@@ -382,6 +388,7 @@
     <string name="input_controls_editor_reset_unavailable">Tälle profiilille ei ole saatavilla alkuperäistä tilannevedosta.</string>
     <string name="input_controls_editor_title">Ohjausten muokkain</string>
     <string name="input_controls_editor_toggle_switch">Vaihtokytkin</string>
+    <string name="input_controls_editor_swipeable">Pyyhkäisyaktivointi</string>
     <string name="input_controls_editor_profile_exported_to">Profiili viety kohteeseen</string>
     <string name="input_controls_editor_unable_to_import">Profiilia ei voitu tuoda</string>
     <string name="input_controls_editor_import_profile">Tuo profiili</string>
@@ -484,6 +491,10 @@
     <string name="container_box64_compatibility">Yhteensopivuus</string>
     <string name="container_box64_intermediate">Keskitaso</string>
     <string name="container_box64_performance">Suorituskyky</string>
+    <string name="container_fexcore_performance_tso">Suorituskyky TSO</string>
+    <string name="container_fexcore_extreme">Äärimmäinen</string>
+    <string name="container_fexcore_extreme_tso">Äärimmäinen TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec">Ottaa käyttöön tai poistaa käytöstä Box64:n dynaamisen uudelleenkääntäjän.</string>
     <string name="box64_env_var_help__dynarec_safeflags">
         Lippujen käsittely CALL/RET-opkoodeissa&lt;br /&gt;&lt;br /&gt;
@@ -591,6 +602,7 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Grafiikka-ajuri</string>
+    <string name="container_zink_mode">Zink-tila</string>
     <string name="container_graphics_configuration">Grafiikka-ajurin asetukset</string>
     <string name="container_graphics_version">Grafiikka-ajurin versio</string>
     <string name="container_graphics_available_extensions">Saatavilla olevat laajennukset</string>
@@ -745,6 +757,32 @@ E.g. <b>META</b> for <i>META-näppäin</i>, \n
     <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_hud_element_graph">Kaavio</string>
     <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">Mango-tyylinen HUD</string>
+    <string name="session_drawer_hud_mango_settings">Mango-HUDin asetukset</string>
+    <string name="mango_hud_element_gpu_load">GPU-kuorma</string>
+    <string name="mango_hud_element_gpu_temp">GPU-lämpötila</string>
+    <string name="mango_hud_element_cpu_load">CPU-kuorma</string>
+    <string name="mango_hud_element_cpu_temp">CPU-lämpötila</string>
+    <string name="mango_hud_element_ram">RAM</string>
+    <string name="mango_hud_element_battery">Akku</string>
+    <string name="mango_hud_element_lows" formatted="false">1 %:n minimit</string>
+    <string name="mango_hud_element_graph">Frametime-kaavio</string>
+    <string name="mango_hud_element_engine">Moottori</string>
+    <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">CPU-kellotaajuus</string>
+    <string name="mango_hud_element_gpu_clock">GPU-kellotaajuus</string>
+    <string name="mango_hud_element_cores">Ydinkohtainen</string>
+    <string name="mango_hud_element_network">Verkko</string>
+    <string name="mango_hud_element_swap">Swap</string>
+    <string name="mango_hud_element_resolution">Resoluutio</string>
+    <string name="mango_hud_element_wine">Wine-versio</string>
+    <string name="mango_hud_element_duration">Istunnon kesto</string>
+    <string name="mango_hud_element_clock">Kello</string>
+    <string name="mango_hud_element_throttle">Kuristustila</string>
+    <string name="mango_hud_group_memory">Muisti</string>
+    <string name="mango_hud_group_system">Järjestelmä</string>
+    <string name="mango_hud_lock">Lukitse HUD</string>
+    <string name="mango_hud_lock_subtitle">Kosketukset menevät HUDin takana oleviin ohjaimiin. Pidä HUDia painettuna lukitaksesi sen. (5s)</string>
     <string name="hud_position_menu_title">Siirrä HUD kohtaan</string>
     <string name="hud_position_top_left">Ylävasen</string>
     <string name="hud_position_top_center">Yläkeskusta</string>
@@ -1020,6 +1058,7 @@ E.g. <b>META</b> for <i>META-näppäin</i>, \n
     <string name="settings_general_select_wallpaper">Valitse taustakuva</string>
     <string name="settings_general_title">Yleiset</string>
     <string name="settings_general_enable_file_provider">Ota tiedostojen tarjoaja käyttöön</string>
+    <string name="settings_general_enable_auto_scraping">Ota automaattinen haku käyttöön</string>
     <string name="settings_general_take_effect_next_startup">Tämä asetus tulee voimaan seuraavalla käynnistyksellä.</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Asenna Imagefs uudelleen</string>
@@ -1043,6 +1082,7 @@ E.g. <b>META</b> for <i>META-näppäin</i>, \n
     <string name="settings_general_xinput_toggle_summary">Poistaa XInput-käsittelyn käytöstä, kun haluat yksinomaisen hiiren ja näppäimistön hallinnan.</string>
     <string name="settings_external_display_output_summary">Siirrä peli liitettyyn ulkoiseen näyttöön tämän näytön peilaamisen sijaan. Lasit käyttävät aina omaa näyttöään.</string>
     <string name="settings_general_file_provider_summary">Tuo WinNative-tiedostot Androidin dokumenttien valitsimien ja tiedostonhallintaohjelmien saataville.</string>
+    <string name="settings_general_auto_scraping_summary">Tämä asetus antaa WinNativen hakea mukautettujen pelien kuvituksen automaattisesti.</string>
     <string name="settings_general_open_browser_summary">Avaa tuetut verkkolinkit Androidin selaimessa Wine-istunnon sijaan.</string>
     <string name="settings_general_clipboard_summary">Salli kopiointi ja liittäminen Androidin ja Wine-istuntojen välillä.</string>
     <string name="settings_general_imagefs_summary">Palauta mukana toimitetut järjestelmätiedostot poistamatta olemassa olevia säilöjä.</string>
@@ -1115,6 +1155,8 @@ E.g. <b>META</b> for <i>META-näppäin</i>, \n
     <string name="settings_other_language_title">Kieli</string>
     <string name="settings_other_language_summary">Valitse näyttökieli</string>
     <string name="settings_other_language_system_default">Järjestelmän oletus</string>
+    <string name="settings_other_game_language_title">Pelin kieli</string>
+    <string name="settings_other_game_language_summary">Ensisijainen kieli Steam/Epic/GOG-latauksille</string>
 
     <string name="settings_other_section_integration">Integrointi</string>
     <string name="settings_other_setup_wizard_title">Ohjattu asennus</string>
@@ -1502,6 +1544,7 @@ Asennuspolku:
     <string name="steam_friends_section_online">Verkossa (%1$d)</string>
     <string name="steam_friends_section_offline">Poissa verkosta (%1$d)</string>
     <string name="steam_friends_none_loaded">Kavereita ei ole vielä ladattu.</string>
+    <string name="steam_friends_chat_off">Chat on pois päältä. Ota chat-palvelu takaisin käyttöön nähdäksesi kaverisi.</string>
     <string name="steam_friends_self_you">Sinä</string>
     <string name="steam_friends_in_game">Pelissä</string>
     <string name="steam_friends_join">Liity</string>
@@ -1527,6 +1570,8 @@ Asennuspolku:
     <string name="steam_join_the_game">peli</string>
     <string name="steam_friends_settings">Asetukset</string>
     <string name="steam_chat_settings_title">Chatin asetukset</string>
+    <string name="steam_chat_setting_service">Chat-palvelu</string>
+    <string name="steam_chat_setting_service_desc">Kirjaudu sisään nähdäksesi kaverit ja chatataksesi; poista käytöstä näkyäksesi poissa linjoilta</string>
     <string name="steam_chat_setting_notifications">Chat-ilmoitukset</string>
     <string name="steam_chat_setting_notifications_desc">Näytä ilmoitus, kun saat viestin</string>
     <string name="steam_chat_setting_heads">Chat-kuplat</string>
@@ -1550,15 +1595,28 @@ Asennuspolku:
     <string name="file_manager_paste">Liitä</string>
     <string name="file_manager_paste_here">Liitä tähän</string>
     <string name="file_manager_new_folder">Uusi kansio</string>
+    <string name="file_manager_new_folder_short">Kansio</string>
+    <string name="file_manager_multi_select">Valitse</string>
     <string name="file_manager_create">Luo</string>
     <string name="file_manager_delete">Poista</string>
+    <string name="file_manager_copy_count">Kopioi (%1$d)</string>
+    <string name="file_manager_cut_count">Leikkaa (%1$d)</string>
+    <string name="file_manager_delete_count">Poista (%1$d)</string>
+    <string name="file_manager_extract">Pura</string>
+    <string name="file_manager_extract_here">Pura tähän</string>
+    <string name="file_manager_extract_to">Pura kohteeseen…</string>
+    <string name="file_manager_extracting">Puretaan %1$s</string>
+    <string name="file_manager_extract_failed">Purkaminen epäonnistui</string>
     <string name="file_manager_run_boot">Suorita / käynnistä</string>
     <string name="file_manager_create_shortcut">Luo pikakuvake</string>
     <string name="file_manager_run_in_container">Suorita säilössä</string>
     <string name="file_manager_no_containers">Ei saatavilla olevia säilöjä</string>
     <string name="file_manager_delete_confirm">Poistetaanko \"%1$s\"? Tätä ei voi kumota.</string>
+    <string name="file_manager_delete_confirm_multi">Poistetaanko %1$d kohdetta? Tätä ei voi kumota.</string>
     <string name="file_manager_copying">Kopioidaan %1$s</string>
     <string name="file_manager_moving">Siirretään %1$s</string>
+    <string name="file_manager_copying_count">Kopioidaan %1$d kohdetta</string>
+    <string name="file_manager_moving_count">Siirretään %1$d kohdetta</string>
     <string name="file_manager_paste_into_itself">Kansiota ei voi liittää itseensä</string>
     <string name="file_manager_operation_failed">Toiminto epäonnistui</string>
     <string name="file_manager_delete_failed">Poisto epäonnistui</string>
@@ -1566,4 +1624,39 @@ Asennuspolku:
     <string name="file_manager_create_folder_failed">Kansion luonti epäonnistui</string>
 
     <string name="settings_content_refresh">Päivitä</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">Käytä ReShade-tehostetta (.fx) DXVK/VKD3D-peleissä (Vulkan) sisäänrakennetun vkBasalt-kerroksen kautta. Sijoita jokainen tehoste omaan kansioonsa polkuun Android/data/&lt;package&gt;/files/ReShade/. Reaaliaikainen parametrien säätö ja pelinsisäinen kytkin tulevat live-reload-kerroksen päivityksen myötä.</string>
+    <string name="reshade_catalog_title">ReShade-tehosteet</string>
+    <string name="reshade_catalog_search">Hae tehosteita…</string>
+    <string name="reshade_catalog_installed">Asennettu (%1$d)</string>
+    <string name="reshade_catalog_available">Saatavilla (%1$d)</string>
+    <string name="reshade_catalog_downloading">Ladataan</string>
+    <string name="reshade_catalog_installing">Asennetaan</string>
+    <string name="reshade_catalog_offline_cache">Offline — näytetään välimuistiin tallennettu luettelo. Muodosta yhteys ladataksesi uusia tehosteita.</string>
+    <string name="reshade_catalog_offline_none">Offline — näytetään vain asennetut tehosteet. Muodosta yhteys selataksesi luetteloa.</string>
+    <string name="reshade_catalog_needs_connection">Muodosta internetyhteys ladataksesi tehosteita.</string>
+    <string name="reshade_catalog_download_failed">Kohteen %1$s lataaminen epäonnistui.</string>
+    <string name="reshade_catalog_empty_query">Mikään tehoste ei vastaa hakua \"%1$s\".</string>
+    <string name="reshade_catalog_empty">Ei tehosteita saatavilla. Muodosta internetyhteys selataksesi luetteloa.</string>
+    <string name="reshade_catalog_done">Valmis</string>
+    <string name="reshade_catalog_delete_cd">Poista %1$s</string>
+    <string name="reshade_catalog_delete_title">Poistetaanko %1$s?</string>
+    <string name="reshade_catalog_delete_body">Tämä poistaa tehosteen tallennustilasta ja kaikista kokoonpanoista, jotka käyttävät sitä. Voit ladata sen myöhemmin uudelleen.</string>
+    <string name="reshade_catalog_delete_confirm">Poista</string>
+    <string name="reshade_catalog_delete_cancel">Peruuta</string>
+    <string name="reshade_catalog_delete_failed">Kohteen %1$s poistaminen epäonnistui.</string>
+    <string name="reshade_params_title">TEHOSTEEN PARAMETRIT</string>
+    <string name="reshade_params_reset">Nollaa</string>
+    <string name="reshade_loadout_empty">Ei vielä tehosteita. Lisää yksi tai useampi tehoste luodaksesi kokoonpanon.</string>
+    <string name="reshade_loadout_add">Lisää tehoste</string>
+    <string name="reshade_loadout_full">Kokoonpano täynnä — poista tehoste lisätäksesi toisen.</string>
+    <string name="reshade_effect_active">aktiivinen</string>
+    <string name="reshade_mode_solo">Solo</string>
+    <string name="reshade_mode_stack">Pino</string>
+    <string name="reshade_mode_solo_hint">Yksi tehoste aktiivisena kerrallaan (A/B-vertailu, vaihda pelin aikana).</string>
+    <string name="reshade_mode_stack_hint">Kerrosta mikä tahansa tehosteiden osajoukko, käytetään järjestyksessä.</string>
+    <string name="reshade_drawer_enable">Ota ReShade käyttöön</string>
+    <string name="reshade_drawer_empty">Tässä kokoonpanossa ei ole ReShade-tehosteita. Lisää tehosteita tämän pelin asetuksissa (tai säiliön asetuksissa) vaihtaaksesi ja säätääksesi niitä täällä.</string>
+    <string name="reshade_drawer_no_params">Tällä tehosteella ei ole säädettäviä parametreja.</string>
 </resources>

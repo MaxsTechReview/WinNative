@@ -15,6 +15,8 @@
     <string name="common_ui_select_exe">Välj EXE</string>
     <string name="common_ui_select_folder">Välj mapp</string>
     <string name="common_ui_current_folder">Aktuell mapp</string>
+    <string name="common_ui_enter_path">Ange sökväg</string>
+    <string name="common_ui_path_not_found">Sökvägen hittades inte</string>
     <string name="common_ui_select_valid_exe_file">Välj en giltig .exe-fil</string>
     <string name="common_ui_select_valid_icon_file">Välj en giltig .ico- eller .png-fil.</string>
     <string name="common_ui_exit">Avsluta</string>
@@ -158,6 +160,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">Hämta grafik</string>
+    <string name="library_games_scraping_artwork">Hämtar</string>
     <string name="library_games_shortcut_created">Genväg skapad</string>
     <string name="library_games_failed_to_create_shortcut">Det gick inte att skapa genväg: %s</string>
     <string name="library_games_install_path">Installationssökväg</string>
@@ -198,6 +202,7 @@
     <string name="hero_graphics_tests_title">Grafiktester</string>
     <string name="hero_graphics_test_32">32-bitars</string>
     <string name="hero_graphics_test_64">64-bitars</string>
+    <string name="hero_input_tests_title">Inmatningstester</string>
     <string name="library_games_add_custom_game">Lägg till anpassat spel</string>
     <string name="library_games_game_name">Spelnamn</string>
     <string name="library_games_game_folder_mapped_drive">Spelmapp (Mappad speldisk)</string>
@@ -287,6 +292,7 @@
     <string name="containers_list_duplicate_title">Duplicera container</string>
     <string name="containers_list_confirm_remove">Ta bort den här containern? Alla spelsparningar som lagras i den raderas permanent. Molnsynkade sparningar finns kvar i molnet, men lokala ändringar som ännu inte synkats går förlorade — synka det här spelets molnsparningar först om du vill behålla dem.</string>
     <string name="containers_list_confirm_duplicate">Vill du duplicera den här containern?</string>
+    <string name="containers_list_duplicate_failed">Det gick inte att duplicera containern</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">Vill du ta bort den här genvägen?</string>
@@ -382,6 +388,7 @@
     <string name="input_controls_editor_reset_unavailable">Ingen ursprunglig ögonblicksbild finns tillgänglig för den här profilen.</string>
     <string name="input_controls_editor_title">Kontrollredigerare</string>
     <string name="input_controls_editor_toggle_switch">Växlingsknapp</string>
+    <string name="input_controls_editor_swipeable">Svepbar</string>
     <string name="input_controls_editor_profile_exported_to">Profil exporterad till</string>
     <string name="input_controls_editor_unable_to_import">Det gick inte att importera profilen</string>
     <string name="input_controls_editor_import_profile">Importera profil</string>
@@ -484,6 +491,10 @@
     <string name="container_box64_compatibility">Kompatibilitet</string>
     <string name="container_box64_intermediate">Mellannivå</string>
     <string name="container_box64_performance">Prestanda</string>
+    <string name="container_fexcore_performance_tso">Prestanda TSO</string>
+    <string name="container_fexcore_extreme">Extrem</string>
+    <string name="container_fexcore_extreme_tso">Extrem TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec">Aktiverar eller inaktiverar Box64:s dynamiska omkompilerare.</string>
     <string name="box64_env_var_help__dynarec_safeflags">
         Hantering av flaggor på CALL/RET-opkoder&lt;br /&gt;&lt;br /&gt;
@@ -591,6 +602,7 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Grafikdrivrutin</string>
+    <string name="container_zink_mode">Zink-läge</string>
     <string name="container_graphics_configuration">Grafikdrivrutinskonfiguration</string>
     <string name="container_graphics_version">Grafikdrivrutinsversion</string>
     <string name="container_graphics_available_extensions">Tillgängliga tillägg</string>
@@ -745,6 +757,32 @@ T.ex. <b>META</b> för <i>META-tangent</i>, \n
     <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_hud_element_graph">Graf</string>
     <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">HUD i Mango-stil</string>
+    <string name="session_drawer_hud_mango_settings">Mango HUD-inställningar</string>
+    <string name="mango_hud_element_gpu_load">GPU-belastning</string>
+    <string name="mango_hud_element_gpu_temp">GPU-temp.</string>
+    <string name="mango_hud_element_cpu_load">CPU-belastning</string>
+    <string name="mango_hud_element_cpu_temp">CPU-temp.</string>
+    <string name="mango_hud_element_ram">RAM</string>
+    <string name="mango_hud_element_battery">Batteri</string>
+    <string name="mango_hud_element_lows" formatted="false">1 %-lägsta</string>
+    <string name="mango_hud_element_graph">Frametime-graf</string>
+    <string name="mango_hud_element_engine">Motor</string>
+    <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">CPU-klocka</string>
+    <string name="mango_hud_element_gpu_clock">GPU-klocka</string>
+    <string name="mango_hud_element_cores">Per kärna</string>
+    <string name="mango_hud_element_network">Nätverk</string>
+    <string name="mango_hud_element_swap">Swap</string>
+    <string name="mango_hud_element_resolution">Upplösning</string>
+    <string name="mango_hud_element_wine">Wine-version</string>
+    <string name="mango_hud_element_duration">Sessionstid</string>
+    <string name="mango_hud_element_clock">Klocka</string>
+    <string name="mango_hud_element_throttle">Termisk status</string>
+    <string name="mango_hud_group_memory">Minne</string>
+    <string name="mango_hud_group_system">System</string>
+    <string name="mango_hud_lock">Lås HUD</string>
+    <string name="mango_hud_lock_subtitle">Låt tryck nå kontrollerna bakom HUD:en. Håll in HUD:en för att låsa den. (5s)</string>
     <string name="hud_position_menu_title">Flytta HUD till</string>
     <string name="hud_position_top_left">Uppe till vänster</string>
     <string name="hud_position_top_center">Uppe i mitten</string>
@@ -1020,6 +1058,7 @@ T.ex. <b>META</b> för <i>META-tangent</i>, \n
     <string name="settings_general_select_wallpaper">Välj bakgrundsbild</string>
     <string name="settings_general_title">Allmänt</string>
     <string name="settings_general_enable_file_provider">Aktivera filleverantör</string>
+    <string name="settings_general_enable_auto_scraping">Aktivera automatisk hämtning</string>
     <string name="settings_general_take_effect_next_startup">Det här alternativet börjar gälla vid nästa start.</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Installera om Imagefs</string>
@@ -1043,6 +1082,7 @@ T.ex. <b>META</b> för <i>META-tangent</i>, \n
     <string name="settings_general_xinput_toggle_summary">Stänger av XInput-hantering när du vill ha exklusiv mus- och tangentbordskontroll.</string>
     <string name="settings_external_display_output_summary">Flytta spelet till en ansluten extern skärm i stället för att spegla den här skärmen. Glasögon använder alltid sin egen skärm.</string>
     <string name="settings_general_file_provider_summary">Exponera WinNative-filer för Androids dokumentväljare och filhanterare.</string>
+    <string name="settings_general_auto_scraping_summary">Den här inställningen låter WinNative automatiskt hämta grafik för anpassade spel.</string>
     <string name="settings_general_open_browser_summary">Öppna webblänkar som stöds i Android-webbläsaren i stället för i Wine.</string>
     <string name="settings_general_clipboard_summary">Tillåt kopiera och klistra in mellan Android- och Wine-sessioner.</string>
     <string name="settings_general_imagefs_summary">Återställ medföljande systemfiler utan att ta bort dina befintliga containrar.</string>
@@ -1115,6 +1155,8 @@ T.ex. <b>META</b> för <i>META-tangent</i>, \n
     <string name="settings_other_language_title">Språk</string>
     <string name="settings_other_language_summary">Välj visningsspråk</string>
     <string name="settings_other_language_system_default">Systemstandard</string>
+    <string name="settings_other_game_language_title">Spelspråk</string>
+    <string name="settings_other_game_language_summary">Föredraget språk för Steam/Epic/GOG-nedladdningar</string>
 
     <string name="settings_other_section_integration">Integration</string>
     <string name="settings_other_setup_wizard_title">Installationsguide</string>
@@ -1502,6 +1544,7 @@ Installerad sökväg:
     <string name="steam_friends_section_online">Online (%1$d)</string>
     <string name="steam_friends_section_offline">Offline (%1$d)</string>
     <string name="steam_friends_none_loaded">Inga vänner har laddats ännu.</string>
+    <string name="steam_friends_chat_off">Chatten är avstängd. Slå på chattjänsten igen för att se dina vänner.</string>
     <string name="steam_friends_self_you">Du</string>
     <string name="steam_friends_in_game">I spel</string>
     <string name="steam_friends_join">Anslut</string>
@@ -1527,6 +1570,8 @@ Installerad sökväg:
     <string name="steam_join_the_game">spelet</string>
     <string name="steam_friends_settings">Inställningar</string>
     <string name="steam_chat_settings_title">Chattinställningar</string>
+    <string name="steam_chat_setting_service">Chattjänst</string>
+    <string name="steam_chat_setting_service_desc">Logga in för att se vänner och chatta; stäng av för att visas offline</string>
     <string name="steam_chat_setting_notifications">Chattaviseringar</string>
     <string name="steam_chat_setting_notifications_desc">Visa en avisering när du får ett meddelande</string>
     <string name="steam_chat_setting_heads">Chatthuvuden</string>
@@ -1550,15 +1595,28 @@ Installerad sökväg:
     <string name="file_manager_paste">Klistra in</string>
     <string name="file_manager_paste_here">Klistra in här</string>
     <string name="file_manager_new_folder">Ny mapp</string>
+    <string name="file_manager_new_folder_short">Mapp</string>
+    <string name="file_manager_multi_select">Välj</string>
     <string name="file_manager_create">Skapa</string>
     <string name="file_manager_delete">Ta bort</string>
+    <string name="file_manager_copy_count">Kopiera (%1$d)</string>
+    <string name="file_manager_cut_count">Klipp ut (%1$d)</string>
+    <string name="file_manager_delete_count">Ta bort (%1$d)</string>
+    <string name="file_manager_extract">Packa upp</string>
+    <string name="file_manager_extract_here">Packa upp här</string>
+    <string name="file_manager_extract_to">Packa upp till…</string>
+    <string name="file_manager_extracting">Packar upp %1$s</string>
+    <string name="file_manager_extract_failed">Uppackningen misslyckades</string>
     <string name="file_manager_run_boot">Kör / Starta</string>
     <string name="file_manager_create_shortcut">Skapa genväg</string>
     <string name="file_manager_run_in_container">Kör i container</string>
     <string name="file_manager_no_containers">Inga containrar tillgängliga</string>
     <string name="file_manager_delete_confirm">Ta bort \"%1$s\"? Detta kan inte ångras.</string>
+    <string name="file_manager_delete_confirm_multi">Ta bort %1$d objekt? Detta kan inte ångras.</string>
     <string name="file_manager_copying">Kopierar %1$s</string>
     <string name="file_manager_moving">Flyttar %1$s</string>
+    <string name="file_manager_copying_count">Kopierar %1$d objekt</string>
+    <string name="file_manager_moving_count">Flyttar %1$d objekt</string>
     <string name="file_manager_paste_into_itself">Det går inte att klistra in en mapp i sig själv</string>
     <string name="file_manager_operation_failed">Åtgärden misslyckades</string>
     <string name="file_manager_delete_failed">Borttagning misslyckades</string>
@@ -1566,4 +1624,39 @@ Installerad sökväg:
     <string name="file_manager_create_folder_failed">Det gick inte att skapa mappen</string>
 
     <string name="settings_content_refresh">Uppdatera</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">Använd en ReShade-effekt (.fx) på DXVK/VKD3D-spel (Vulkan) via det inbyggda vkBasalt-lagret. Lägg varje effekt i sin egen mapp under Android/data/&lt;package&gt;/files/ReShade/. Justering av parametrar i realtid och växeln i spelet kommer med uppdateringen av live-reload-lagret.</string>
+    <string name="reshade_catalog_title">ReShade-effekter</string>
+    <string name="reshade_catalog_search">Sök effekter…</string>
+    <string name="reshade_catalog_installed">Installerade (%1$d)</string>
+    <string name="reshade_catalog_available">Tillgängliga (%1$d)</string>
+    <string name="reshade_catalog_downloading">Laddar ner</string>
+    <string name="reshade_catalog_installing">Installerar</string>
+    <string name="reshade_catalog_offline_cache">Offline — visar en cachad lista. Anslut för att ladda ner nya effekter.</string>
+    <string name="reshade_catalog_offline_none">Offline — visar endast installerade effekter. Anslut för att bläddra i katalogen.</string>
+    <string name="reshade_catalog_needs_connection">Anslut till internet för att ladda ner effekter.</string>
+    <string name="reshade_catalog_download_failed">Det gick inte att ladda ner %1$s.</string>
+    <string name="reshade_catalog_empty_query">Inga effekter matchar \"%1$s\".</string>
+    <string name="reshade_catalog_empty">Inga effekter tillgängliga. Anslut till internet för att bläddra i katalogen.</string>
+    <string name="reshade_catalog_done">Klar</string>
+    <string name="reshade_catalog_delete_cd">Ta bort %1$s</string>
+    <string name="reshade_catalog_delete_title">Ta bort %1$s?</string>
+    <string name="reshade_catalog_delete_body">Detta tar bort effekten från lagringen och från alla uppsättningar som använder den. Du kan ladda ner den igen senare.</string>
+    <string name="reshade_catalog_delete_confirm">Ta bort</string>
+    <string name="reshade_catalog_delete_cancel">Avbryt</string>
+    <string name="reshade_catalog_delete_failed">Det gick inte att ta bort %1$s.</string>
+    <string name="reshade_params_title">EFFEKTPARAMETRAR</string>
+    <string name="reshade_params_reset">Återställ</string>
+    <string name="reshade_loadout_empty">Inga effekter ännu. Lägg till en eller flera effekter för att skapa en uppsättning.</string>
+    <string name="reshade_loadout_add">Lägg till effekt</string>
+    <string name="reshade_loadout_full">Uppsättningen är full — ta bort en effekt för att lägga till en annan.</string>
+    <string name="reshade_effect_active">aktiv</string>
+    <string name="reshade_mode_solo">Solo</string>
+    <string name="reshade_mode_stack">Stapel</string>
+    <string name="reshade_mode_solo_hint">En effekt aktiv i taget (A/B-jämförelse, växla live i spelet).</string>
+    <string name="reshade_mode_stack_hint">Lägg valfri delmängd av effekter i lager, tillämpade i ordning.</string>
+    <string name="reshade_drawer_enable">Aktivera ReShade</string>
+    <string name="reshade_drawer_empty">Inga ReShade-effekter i den här uppsättningen. Lägg till effekter i det här spelets inställningar (eller containerns) för att växla och justera dem här.</string>
+    <string name="reshade_drawer_no_params">Den här effekten har inga justerbara parametrar.</string>
 </resources>

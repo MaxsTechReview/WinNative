@@ -15,6 +15,8 @@
     <string name="common_ui_select_exe">EXE चुनें</string>
     <string name="common_ui_select_folder">फ़ोल्डर चुनें</string>
     <string name="common_ui_current_folder">वर्तमान फ़ोल्डर</string>
+    <string name="common_ui_enter_path">पथ दर्ज करें</string>
+    <string name="common_ui_path_not_found">पथ नहीं मिला</string>
     <string name="common_ui_select_valid_exe_file">कृपया मान्य .exe फ़ाइल चुनें</string>
     <string name="common_ui_select_valid_icon_file">कृपया मान्य .ico या .png फ़ाइल चुनें।</string>
     <string name="common_ui_exit">बाहर निकलें</string>
@@ -155,6 +157,8 @@
         <item quantity="one">%d फ़ाइल</item>
         <item quantity="other">%d फ़ाइलें</item>
     </plurals>
+    <string name="library_games_scrape_artwork">आर्टवर्क प्राप्त करें</string>
+    <string name="library_games_scraping_artwork">प्राप्त हो रहा है</string>
     <string name="library_games_shortcut_created">शॉर्टकट बनाया गया</string>
     <string name="library_games_failed_to_create_shortcut">शॉर्टकट बनाने में विफल: %s</string>
     <string name="library_games_install_path">इंस्टॉल पथ</string>
@@ -195,6 +199,7 @@
     <string name="hero_graphics_tests_title">ग्राफ़िक्स परीक्षण</string>
     <string name="hero_graphics_test_32">32-bit</string>
     <string name="hero_graphics_test_64">64-bit</string>
+    <string name="hero_input_tests_title">इनपुट परीक्षण</string>
     <string name="library_games_add_custom_game">कस्टम गेम जोड़ें</string>
     <string name="library_games_game_name">गेम का नाम</string>
     <string name="library_games_game_folder_mapped_drive">गेम फ़ोल्डर (मैप्ड गेम ड्राइव)</string>
@@ -276,6 +281,7 @@
     <string name="containers_list_duplicate_title">कंटेनर की नकल बनाएं</string>
     <string name="containers_list_confirm_remove">क्या आप इस कंटेनर को हटाना चाहते हैं?</string>
     <string name="containers_list_confirm_duplicate">क्या आप इस कंटेनर की नकल बनाना चाहते हैं?</string>
+    <string name="containers_list_duplicate_failed">कंटेनर डुप्लिकेट करने में विफल</string>
     <string name="shortcuts_list_confirm_remove">क्या आप इस शॉर्टकट को हटाना चाहते हैं?</string>
     <string name="shortcuts_list_add_to_home_screen">होम स्क्रीन में जोड़ें</string>
     <string name="shortcuts_library_artwork_title">लाइब्रेरी आर्टवर्क</string>
@@ -360,6 +366,7 @@
     <string name="input_controls_editor_reset_unavailable">इस प्रोफ़ाइल के लिए कोई मूल स्नैपशॉट उपलब्ध नहीं है.</string>
     <string name="input_controls_editor_title">नियंत्रण संपादक</string>
     <string name="input_controls_editor_toggle_switch">टॉगल स्विच</string>
+    <string name="input_controls_editor_swipeable">स्वाइप योग्य</string>
     <string name="input_controls_editor_profile_exported_to">प्रोफ़ाइल को निर्यात किया गया</string>
     <string name="input_controls_editor_unable_to_import">प्रोफ़ाइल आयात करने में असमर्थ</string>
     <string name="input_controls_editor_import_profile">प्रोफ़ाइल आयात करें</string>
@@ -456,6 +463,10 @@
     <string name="container_box64_compatibility">संगतता</string>
     <string name="container_box64_intermediate">मध्यम</string>
     <string name="container_box64_performance">प्रदर्शन</string>
+    <string name="container_fexcore_performance_tso">प्रदर्शन TSO</string>
+    <string name="container_fexcore_extreme">चरम</string>
+    <string name="container_fexcore_extreme_tso">चरम TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec">Box64 डायनामिक रीकंपाइलर को सक्षम या अक्षम करता है।</string>
     <string name="box64_env_var_help__dynarec_safeflags">
         CALL/RET opcodes पर flags का व्यवहार&lt;br /&gt;&lt;br /&gt;
@@ -564,6 +575,7 @@
     <string name="container_fexcore_version">FEXCore संस्करण</string>
     <string name="use_unix_libs">UnixLibs का उपयोग करें</string>
     <string name="container_graphics_driver">ग्राफ़िक्स ड्राइवर</string>
+    <string name="container_zink_mode">Zink मोड</string>
     <string name="container_graphics_transcoder">BCn ट्रांसकोडर</string>
     <string name="container_graphics_quality">BCn गुणवत्ता</string>
     <string name="container_graphics_configuration">ग्राफ़िक्स ड्राइवर कॉन्फ़िगरेशन</string>
@@ -665,6 +677,32 @@
     <string name="session_drawer_hud_element_battery">BAT</string>
     <string name="session_drawer_hud_element_graph">ग्राफ़</string>
     <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">Mango स्टाइल HUD</string>
+    <string name="session_drawer_hud_mango_settings">Mango HUD सेटिंग्स</string>
+    <string name="mango_hud_element_gpu_load">GPU लोड</string>
+    <string name="mango_hud_element_gpu_temp">GPU तापमान</string>
+    <string name="mango_hud_element_cpu_load">CPU लोड</string>
+    <string name="mango_hud_element_cpu_temp">CPU तापमान</string>
+    <string name="mango_hud_element_ram">RAM</string>
+    <string name="mango_hud_element_battery">बैटरी</string>
+    <string name="mango_hud_element_lows" formatted="false">1% लो</string>
+    <string name="mango_hud_element_graph">फ्रेमटाइम ग्राफ़</string>
+    <string name="mango_hud_element_engine">इंजन</string>
+    <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">CPU क्लॉक</string>
+    <string name="mango_hud_element_gpu_clock">GPU क्लॉक</string>
+    <string name="mango_hud_element_cores">प्रति कोर</string>
+    <string name="mango_hud_element_network">नेटवर्क</string>
+    <string name="mango_hud_element_swap">स्वैप</string>
+    <string name="mango_hud_element_resolution">रिज़ॉल्यूशन</string>
+    <string name="mango_hud_element_wine">Wine संस्करण</string>
+    <string name="mango_hud_element_duration">सत्र समय</string>
+    <string name="mango_hud_element_clock">घड़ी</string>
+    <string name="mango_hud_element_throttle">थ्रॉटल स्थिति</string>
+    <string name="mango_hud_group_memory">मेमोरी</string>
+    <string name="mango_hud_group_system">सिस्टम</string>
+    <string name="mango_hud_lock">HUD लॉक करें</string>
+    <string name="mango_hud_lock_subtitle">स्पर्श HUD के पीछे के नियंत्रणों तक पहुँचें। लॉक करने के लिए HUD को दबाए रखें। (5s)</string>
     <string name="hud_position_menu_title">HUD को यहाँ ले जाएँ</string>
     <string name="hud_position_top_left">ऊपर बाएँ</string>
     <string name="hud_position_top_center">ऊपर केंद्र</string>
@@ -846,6 +884,7 @@
     <string name="settings_general_select_wallpaper">वॉलपेपर चुनें</string>
     <string name="settings_general_title">सामान्य</string>
     <string name="settings_general_enable_file_provider">फ़ाइल प्रदाता सक्षम करें</string>
+    <string name="settings_general_enable_auto_scraping">स्वतः प्राप्ति सक्षम करें</string>
     <string name="settings_general_take_effect_next_startup">यह विकल्प अगले स्टार्टअप पर प्रभावी होगा.</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Imagefs पुनः इंस्टॉल करें</string>
@@ -869,6 +908,7 @@
     <string name="settings_general_xinput_toggle_summary">जब आप विशेष माउस और कीबोर्ड नियंत्रण चाहते हैं तो XInput हैंडलिंग बंद कर देता है।</string>
     <string name="settings_external_display_output_summary">इस स्क्रीन को मिरर करने के बजाय गेम को कनेक्टेड बाहरी डिस्प्ले पर ले जाएँ। ग्लास हमेशा अपनी डिस्प्ले का उपयोग करते हैं।</string>
     <string name="settings_general_file_provider_summary">WinNative फ़ाइलों को Android दस्तावेज़ चयनकर्ताओं और फ़ाइल प्रबंधकों के सामने उजागर करें।</string>
+    <string name="settings_general_auto_scraping_summary">यह सेटिंग WinNative को कस्टम गेम आर्टवर्क स्वतः प्राप्त करने देती है।</string>
     <string name="settings_general_open_browser_summary">समर्थित वेब लिंक को Wine के बजाय Android ब्राउज़र में खोलें।</string>
     <string name="settings_general_clipboard_summary">Android और Wine सत्रों के बीच कॉपी और पेस्ट करने की अनुमति दें।</string>
     <string name="settings_general_imagefs_summary">अपने मौजूदा कंटेनरों को हटाए बिना बंडल सिस्टम फ़ाइलों को पुनर्स्थापित करें।</string>
@@ -1308,6 +1348,7 @@
     <string name="steam_friends_section_online">ऑनलाइन (%1$d)</string>
     <string name="steam_friends_section_offline">ऑफ़लाइन (%1$d)</string>
     <string name="steam_friends_none_loaded">अभी तक कोई मित्र लोड नहीं हुआ।</string>
+    <string name="steam_friends_chat_off">चैट बंद है। अपने मित्रों को देखने के लिए चैट सेवा फिर से चालू करें।</string>
     <string name="steam_friends_self_you">आप</string>
     <string name="steam_friends_in_game">खेल में</string>
     <string name="steam_friends_join">शामिल हों</string>
@@ -1333,6 +1374,8 @@
     <string name="steam_join_the_game">गेम</string>
     <string name="steam_friends_settings">Settings</string>
     <string name="steam_chat_settings_title">Chat Settings</string>
+    <string name="steam_chat_setting_service">चैट सेवा</string>
+    <string name="steam_chat_setting_service_desc">मित्रों और चैट के लिए साइन इन करें; ऑफ़लाइन दिखने के लिए बंद करें।</string>
     <string name="steam_chat_setting_notifications">Chat Notifications</string>
     <string name="steam_chat_setting_notifications_desc">Show a notification when you receive a message</string>
     <string name="steam_chat_setting_heads">Chat Heads</string>
@@ -1473,15 +1516,28 @@
     <string name="file_manager_paste">पेस्ट करें</string>
     <string name="file_manager_paste_here">यहाँ पेस्ट करें</string>
     <string name="file_manager_new_folder">नया फ़ोल्डर</string>
+    <string name="file_manager_new_folder_short">फ़ोल्डर</string>
+    <string name="file_manager_multi_select">चुनें</string>
     <string name="file_manager_create">बनाएँ</string>
     <string name="file_manager_delete">हटाएँ</string>
+    <string name="file_manager_copy_count">कॉपी करें (%1$d)</string>
+    <string name="file_manager_cut_count">काटें (%1$d)</string>
+    <string name="file_manager_delete_count">हटाएँ (%1$d)</string>
+    <string name="file_manager_extract">निकालें</string>
+    <string name="file_manager_extract_here">यहाँ निकालें</string>
+    <string name="file_manager_extract_to">यहाँ निकालें…</string>
+    <string name="file_manager_extracting">%1$s निकाला जा रहा है</string>
+    <string name="file_manager_extract_failed">निकालना विफल</string>
     <string name="file_manager_run_boot">चलाएँ / बूट करें</string>
     <string name="file_manager_create_shortcut">शॉर्टकट बनाएँ</string>
     <string name="file_manager_run_in_container">कंटेनर में चलाएँ</string>
     <string name="file_manager_no_containers">कोई कंटेनर उपलब्ध नहीं</string>
     <string name="file_manager_delete_confirm">\"%1$s\" को हटाएँ? इसे पूर्ववत नहीं किया जा सकता।</string>
+    <string name="file_manager_delete_confirm_multi">%1$d आइटम हटाएँ? इसे पूर्ववत नहीं किया जा सकता।</string>
     <string name="file_manager_copying">%1$s कॉपी हो रहा है</string>
     <string name="file_manager_moving">%1$s स्थानांतरित हो रहा है</string>
+    <string name="file_manager_copying_count">%1$d आइटम कॉपी हो रहे हैं</string>
+    <string name="file_manager_moving_count">%1$d आइटम स्थानांतरित हो रहे हैं</string>
     <string name="file_manager_paste_into_itself">किसी फ़ोल्डर को उसी में पेस्ट नहीं किया जा सकता</string>
     <string name="file_manager_operation_failed">कार्रवाई विफल रही</string>
     <string name="file_manager_delete_failed">हटाना विफल रहा</string>
@@ -1505,4 +1561,39 @@
     <string name="steam_chat_setting_stay_running">बैकग्राउंड में चलाएँ</string>
     <string name="steam_chat_setting_stay_running_desc">WinNative से बाहर निकलने के बाद चैट चालू रखें</string>
     <string name="settings_content_refresh">रीफ़्रेश</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">अंतर्निहित vkBasalt लेयर के माध्यम से DXVK/VKD3D (Vulkan) गेम पर ReShade प्रभाव (.fx) लागू करें। प्रत्येक प्रभाव को Android/data/&lt;package&gt;/files/ReShade/ के अंतर्गत उसके अपने फ़ोल्डर में रखें। लाइव पैरामीटर ट्यूनिंग और इन-गेम टॉगल लाइव-रीलोड लेयर अपडेट के साथ आएंगे।</string>
+    <string name="reshade_catalog_title">ReShade प्रभाव</string>
+    <string name="reshade_catalog_search">प्रभाव खोजें…</string>
+    <string name="reshade_catalog_installed">इंस्टॉल किए गए (%1$d)</string>
+    <string name="reshade_catalog_available">उपलब्ध (%1$d)</string>
+    <string name="reshade_catalog_downloading">डाउनलोड हो रहा है</string>
+    <string name="reshade_catalog_installing">इंस्टॉल हो रहा है</string>
+    <string name="reshade_catalog_offline_cache">ऑफ़लाइन — एक कैश की गई सूची दिखाई जा रही है। नए प्रभाव डाउनलोड करने के लिए कनेक्ट करें।</string>
+    <string name="reshade_catalog_offline_none">ऑफ़लाइन — केवल इंस्टॉल किए गए प्रभाव दिखाए जा रहे हैं। कैटलॉग ब्राउज़ करने के लिए कनेक्ट करें।</string>
+    <string name="reshade_catalog_needs_connection">प्रभाव डाउनलोड करने के लिए इंटरनेट से कनेक्ट करें।</string>
+    <string name="reshade_catalog_download_failed">%1$s डाउनलोड करने में विफल।</string>
+    <string name="reshade_catalog_empty_query">\"%1$s\" से कोई प्रभाव मेल नहीं खाता।</string>
+    <string name="reshade_catalog_empty">कोई प्रभाव उपलब्ध नहीं। कैटलॉग ब्राउज़ करने के लिए इंटरनेट से कनेक्ट करें।</string>
+    <string name="reshade_catalog_done">पूर्ण</string>
+    <string name="reshade_catalog_delete_cd">%1$s हटाएँ</string>
+    <string name="reshade_catalog_delete_title">%1$s हटाएँ?</string>
+    <string name="reshade_catalog_delete_body">यह प्रभाव को स्टोरेज से और उसका उपयोग करने वाले किसी भी लोडआउट से हटा देता है। आप इसे बाद में फिर से डाउनलोड कर सकते हैं।</string>
+    <string name="reshade_catalog_delete_confirm">हटाएँ</string>
+    <string name="reshade_catalog_delete_cancel">रद्द करें</string>
+    <string name="reshade_catalog_delete_failed">%1$s को हटाया नहीं जा सका।</string>
+    <string name="reshade_params_title">प्रभाव पैरामीटर</string>
+    <string name="reshade_params_reset">रीसेट</string>
+    <string name="reshade_loadout_empty">अभी तक कोई प्रभाव नहीं। लोडआउट बनाने के लिए एक या अधिक प्रभाव जोड़ें।</string>
+    <string name="reshade_loadout_add">प्रभाव जोड़ें</string>
+    <string name="reshade_loadout_full">लोडआउट भरा है — दूसरा जोड़ने के लिए एक प्रभाव हटाएँ।</string>
+    <string name="reshade_effect_active">सक्रिय</string>
+    <string name="reshade_mode_solo">सोलो</string>
+    <string name="reshade_mode_stack">स्टैक</string>
+    <string name="reshade_mode_solo_hint">एक समय में एक प्रभाव सक्रिय (A/B तुलना, गेम में लाइव स्विच करें)।</string>
+    <string name="reshade_mode_stack_hint">प्रभावों के किसी भी उपसमूह को परत करें, क्रम में लागू किया जाता है।</string>
+    <string name="reshade_drawer_enable">ReShade सक्षम करें</string>
+    <string name="reshade_drawer_empty">इस लोडआउट में कोई ReShade प्रभाव नहीं है। उन्हें यहाँ बदलने और ट्यून करने के लिए इस गेम की सेटिंग (या कंटेनर की) में प्रभाव जोड़ें।</string>
+    <string name="reshade_drawer_no_params">यह प्रभाव कोई समायोज्य पैरामीटर प्रदान नहीं करता।</string>
 </resources>

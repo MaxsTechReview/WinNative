@@ -128,6 +128,8 @@
     <string name="common_ui_select">选择</string>
     <string name="common_ui_select_folder">选择文件夹</string>
     <string name="common_ui_current_folder">当前文件夹</string>
+    <string name="common_ui_enter_path">输入路径</string>
+    <string name="common_ui_path_not_found">找不到路径</string>
     <string name="common_ui_storage_roots">存储根目录</string>
     <string name="common_ui_browse_local_folders_directly">直接浏览本地文件夹</string>
     <string name="common_ui_no_folders_available_here">此处没有可用的文件夹</string>
@@ -157,6 +159,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">抓取封面</string>
+    <string name="library_games_scraping_artwork">抓取中</string>
     <string name="library_games_shortcut_created">快捷方式已创建</string>
     <string name="library_games_failed_to_create_shortcut">创建快捷方式失败：%s</string>
     <string name="library_games_install_path">安装路径</string>
@@ -197,6 +201,7 @@
     <string name="hero_graphics_tests_title">图形测试</string>
     <string name="hero_graphics_test_32">32 位</string>
     <string name="hero_graphics_test_64">64 位</string>
+    <string name="hero_input_tests_title">输入测试</string>
     <string name="library_games_add_custom_game">添加自定义游戏</string>
     <string name="library_games_game_name">游戏名称</string>
     <string name="library_games_game_folder_mapped_drive">游戏文件夹（映射的游戏驱动器）</string>
@@ -268,6 +273,7 @@
     <string name="containers_list_duplicate_title">复制容器</string>
     <string name="containers_list_confirm_remove">您要移除此容器吗？</string>
     <string name="containers_list_confirm_duplicate">您要复制此容器吗？</string>
+    <string name="containers_list_duplicate_failed">复制容器失败</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">您要移除此快捷方式吗？</string>
@@ -323,6 +329,7 @@
     <string name="input_controls_editor_confirm_duplicate_profile">您要复制此配置文件吗？</string>
     <string name="input_controls_editor_title">控制编辑器</string>
     <string name="input_controls_editor_toggle_switch">切换开关</string>
+    <string name="input_controls_editor_swipeable">可滑动触发</string>
     <string name="input_controls_editor_profile_exported_to">配置文件已导出到</string>
     <string name="input_controls_editor_unable_to_import">无法导入配置文件</string>
     <string name="input_controls_editor_import_profile">导入配置文件</string>
@@ -421,6 +428,10 @@
     <string name="container_box64_compatibility">兼容性</string>
     <string name="container_box64_intermediate">中等</string>
     <string name="container_box64_performance">性能</string>
+    <string name="container_fexcore_performance_tso">性能 TSO</string>
+    <string name="container_fexcore_extreme">极限</string>
+    <string name="container_fexcore_extreme_tso">极限 TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec_safeflags">
         CALL/RET 操作码的标志处理&lt;br /&gt;&lt;br /&gt;
         &lt;b&gt;0&lt;/b&gt;：将 CALL/RET 视为从不需要标志（更快，不稳定）&lt;br /&gt;
@@ -509,6 +520,7 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">图形驱动</string>
+    <string name="container_zink_mode">Zink 模式</string>
     <string name="container_graphics_transcoder">BCn 转码器</string>
     <string name="container_graphics_quality">BCn 质量</string>
     <string name="container_graphics_configuration">图形驱动配置</string>
@@ -592,6 +604,32 @@
     <string name="session_drawer_hud_element_battery">电量</string>
     <string name="session_drawer_hud_element_graph">图表</string>
     <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">Mango 风格 HUD</string>
+    <string name="session_drawer_hud_mango_settings">Mango HUD 设置</string>
+    <string name="mango_hud_element_gpu_load">GPU 负载</string>
+    <string name="mango_hud_element_gpu_temp">GPU 温度</string>
+    <string name="mango_hud_element_cpu_load">CPU 负载</string>
+    <string name="mango_hud_element_cpu_temp">CPU 温度</string>
+    <string name="mango_hud_element_ram">内存</string>
+    <string name="mango_hud_element_battery">电池</string>
+    <string name="mango_hud_element_lows" formatted="false">1% 最低帧</string>
+    <string name="mango_hud_element_graph">帧生成时间图表</string>
+    <string name="mango_hud_element_engine">引擎</string>
+    <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">CPU 频率</string>
+    <string name="mango_hud_element_gpu_clock">GPU 频率</string>
+    <string name="mango_hud_element_cores">每核心</string>
+    <string name="mango_hud_element_network">网络</string>
+    <string name="mango_hud_element_swap">交换内存</string>
+    <string name="mango_hud_element_resolution">分辨率</string>
+    <string name="mango_hud_element_wine">Wine 版本</string>
+    <string name="mango_hud_element_duration">会话时长</string>
+    <string name="mango_hud_element_clock">时钟</string>
+    <string name="mango_hud_element_throttle">温控状态</string>
+    <string name="mango_hud_group_memory">内存</string>
+    <string name="mango_hud_group_system">系统</string>
+    <string name="mango_hud_lock">锁定 HUD</string>
+    <string name="mango_hud_lock_subtitle">让触摸穿透到 HUD 后面的控件。长按 HUD 即可锁定。 (5s)</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">您要结束此进程吗？</string>
@@ -734,6 +772,7 @@
     <string name="settings_general_select_wallpaper">选择壁纸</string>
     <string name="settings_general_title">通用</string>
     <string name="settings_general_enable_file_provider">启用文件提供程序</string>
+    <string name="settings_general_enable_auto_scraping">启用自动抓取</string>
     <string name="settings_general_take_effect_next_startup">此选项将在下次启动时生效。</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">重新安装 Imagefs</string>
@@ -757,6 +796,7 @@
     <string name="settings_general_xinput_toggle_summary">在需要独占鼠标和键盘控制时关闭 XInput 处理。</string>
     <string name="settings_external_display_output_summary">将游戏移到已连接的外部显示器，而不是镜像此屏幕。眼镜始终使用自己的显示屏。</string>
     <string name="settings_general_file_provider_summary">向 Android 文档选择器和文件管理器公开 WinNative 文件。</string>
+    <string name="settings_general_auto_scraping_summary">让 WinNative 自动抓取自定义游戏封面。</string>
     <string name="settings_general_open_browser_summary">在 Android 浏览器中打开支持的网页链接，而非在 Wine 内部打开。</string>
     <string name="settings_general_clipboard_summary">允许在 Android 和 Wine 会话之间复制和粘贴。</string>
     <string name="settings_general_imagefs_summary">恢复捆绑的系统文件而不删除现有容器。</string>
@@ -1371,6 +1411,7 @@
     <string name="steam_friends_section_online">在线 (%1$d)</string>
     <string name="steam_friends_section_offline">离线 (%1$d)</string>
     <string name="steam_friends_none_loaded">尚未加载好友。</string>
+    <string name="steam_friends_chat_off">聊天已关闭。重新开启聊天服务以查看好友。</string>
     <string name="steam_friends_self_you">你</string>
     <string name="steam_friends_in_game">游戏中</string>
     <string name="steam_friends_join">加入</string>
@@ -1396,6 +1437,8 @@
     <string name="steam_join_the_game">游戏</string>
     <string name="steam_friends_settings">Settings</string>
     <string name="steam_chat_settings_title">Chat Settings</string>
+    <string name="steam_chat_setting_service">聊天服务</string>
+    <string name="steam_chat_setting_service_desc">登录以使用好友和聊天；关闭则显示为离线。</string>
     <string name="steam_chat_setting_notifications">Chat Notifications</string>
     <string name="steam_chat_setting_notifications_desc">Show a notification when you receive a message</string>
     <string name="steam_chat_setting_heads">Chat Heads</string>
@@ -1537,15 +1580,28 @@
     <string name="file_manager_paste">粘贴</string>
     <string name="file_manager_paste_here">粘贴到此处</string>
     <string name="file_manager_new_folder">新建文件夹</string>
+    <string name="file_manager_new_folder_short">文件夹</string>
+    <string name="file_manager_multi_select">多选</string>
     <string name="file_manager_create">创建</string>
     <string name="file_manager_delete">删除</string>
+    <string name="file_manager_copy_count">复制 (%1$d)</string>
+    <string name="file_manager_cut_count">剪切 (%1$d)</string>
+    <string name="file_manager_delete_count">删除 (%1$d)</string>
+    <string name="file_manager_extract">解压</string>
+    <string name="file_manager_extract_here">解压到此处</string>
+    <string name="file_manager_extract_to">解压到…</string>
+    <string name="file_manager_extracting">正在解压 %1$s</string>
+    <string name="file_manager_extract_failed">解压失败</string>
     <string name="file_manager_run_boot">运行 / 启动</string>
     <string name="file_manager_create_shortcut">创建快捷方式</string>
     <string name="file_manager_run_in_container">在容器中运行</string>
     <string name="file_manager_no_containers">没有可用的容器</string>
     <string name="file_manager_delete_confirm">删除 \"%1$s\"？此操作无法撤消。</string>
+    <string name="file_manager_delete_confirm_multi">删除 %1$d 个项目？此操作无法撤消。</string>
     <string name="file_manager_copying">正在复制 %1$s</string>
     <string name="file_manager_moving">正在移动 %1$s</string>
+    <string name="file_manager_copying_count">正在复制 %1$d 个项目</string>
+    <string name="file_manager_moving_count">正在移动 %1$d 个项目</string>
     <string name="file_manager_paste_into_itself">无法将文件夹粘贴到其自身</string>
     <string name="file_manager_operation_failed">操作失败</string>
     <string name="file_manager_delete_failed">删除失败</string>
@@ -1569,5 +1625,40 @@
     <string name="steam_chat_setting_stay_running">在后台运行</string>
     <string name="steam_chat_setting_stay_running_desc">退出 WinNative 后保持聊天运行</string>
     <string name="settings_content_refresh">刷新</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">通过内置的 vkBasalt 层将 ReShade 效果（.fx）应用于 DXVK/VKD3D（Vulkan）游戏。将每个效果放入 Android/data/&lt;package&gt;/files/ReShade/ 下各自的文件夹中。实时参数调整和游戏内开关将随实时重载层更新一起提供。</string>
+    <string name="reshade_catalog_title">ReShade 效果</string>
+    <string name="reshade_catalog_search">搜索效果…</string>
+    <string name="reshade_catalog_installed">已安装 (%1$d)</string>
+    <string name="reshade_catalog_available">可用 (%1$d)</string>
+    <string name="reshade_catalog_downloading">正在下载</string>
+    <string name="reshade_catalog_installing">正在安装</string>
+    <string name="reshade_catalog_offline_cache">离线 — 显示缓存列表。连接以下载新效果。</string>
+    <string name="reshade_catalog_offline_none">离线 — 仅显示已安装的效果。连接以浏览目录。</string>
+    <string name="reshade_catalog_needs_connection">连接到互联网以下载效果。</string>
+    <string name="reshade_catalog_download_failed">下载 %1$s 失败。</string>
+    <string name="reshade_catalog_empty_query">没有与 \"%1$s\" 匹配的效果。</string>
+    <string name="reshade_catalog_empty">没有可用的效果。连接到互联网以浏览目录。</string>
+    <string name="reshade_catalog_done">完成</string>
+    <string name="reshade_catalog_delete_cd">删除 %1$s</string>
+    <string name="reshade_catalog_delete_title">删除 %1$s？</string>
+    <string name="reshade_catalog_delete_body">这将从存储中以及使用该效果的所有配置中移除该效果。你可以稍后重新下载。</string>
+    <string name="reshade_catalog_delete_confirm">删除</string>
+    <string name="reshade_catalog_delete_cancel">取消</string>
+    <string name="reshade_catalog_delete_failed">无法删除 %1$s。</string>
+    <string name="reshade_params_title">效果参数</string>
+    <string name="reshade_params_reset">重置</string>
+    <string name="reshade_loadout_empty">还没有效果。添加一个或多个效果以创建配置。</string>
+    <string name="reshade_loadout_add">添加效果</string>
+    <string name="reshade_loadout_full">配置已满 — 移除一个效果才能再添加。</string>
+    <string name="reshade_effect_active">已启用</string>
+    <string name="reshade_mode_solo">单独</string>
+    <string name="reshade_mode_stack">叠加</string>
+    <string name="reshade_mode_solo_hint">一次仅激活一个效果（A/B 对比，可在游戏中实时切换）。</string>
+    <string name="reshade_mode_stack_hint">叠加任意效果子集，按顺序应用。</string>
+    <string name="reshade_drawer_enable">启用 ReShade</string>
+    <string name="reshade_drawer_empty">此配置中没有 ReShade 效果。在此游戏（或容器）的设置中添加效果，即可在此切换和调整。</string>
+    <string name="reshade_drawer_no_params">此效果没有可调整的参数。</string>
 </resources>
 

@@ -128,6 +128,8 @@
     <string name="common_ui_select">Selectează</string>
     <string name="common_ui_select_folder">Selectează folder</string>
     <string name="common_ui_current_folder">Folder curent</string>
+    <string name="common_ui_enter_path">Introduceți calea</string>
+    <string name="common_ui_path_not_found">Calea nu a fost găsită</string>
     <string name="common_ui_storage_roots">Locații de stocare</string>
     <string name="common_ui_browse_local_folders_directly">Răsfoiește direct folderele locale</string>
     <string name="common_ui_no_folders_available_here">Niciun folder disponibil aici</string>
@@ -157,6 +159,8 @@
     </plurals>
 
     <!-- Library > Games -->
+    <string name="library_games_scrape_artwork">Obține ilustrații</string>
+    <string name="library_games_scraping_artwork">Se obțin…</string>
     <string name="library_games_shortcut_created">Comanda rapida creata</string>
     <string name="library_games_failed_to_create_shortcut">Nu s-a putut crea comanda rapida: %s</string>
     <string name="library_games_install_path">Cale de instalare</string>
@@ -197,6 +201,7 @@
     <string name="hero_graphics_tests_title">Teste grafice</string>
     <string name="hero_graphics_test_32">32-bit</string>
     <string name="hero_graphics_test_64">64-bit</string>
+    <string name="hero_input_tests_title">Teste de intrare</string>
     <string name="library_games_add_custom_game">Adauga joc personalizat</string>
     <string name="library_games_game_name">Nume joc</string>
     <string name="library_games_game_folder_mapped_drive">Folder joc (unitate de joc mapata)</string>
@@ -268,6 +273,7 @@
     <string name="containers_list_duplicate_title">Duplica containerul</string>
     <string name="containers_list_confirm_remove">Doresti sa elimini acest container?</string>
     <string name="containers_list_confirm_duplicate">Doresti sa duplici acest container?</string>
+    <string name="containers_list_duplicate_failed">Duplicarea containerului a esuat</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">Doresti sa elimini aceasta comanda rapida?</string>
@@ -323,6 +329,7 @@
     <string name="input_controls_editor_confirm_duplicate_profile">Doresti sa duplici acest profil?</string>
     <string name="input_controls_editor_title">Editor controale</string>
     <string name="input_controls_editor_toggle_switch">Comutator</string>
+    <string name="input_controls_editor_swipeable">Activare prin glisare</string>
     <string name="input_controls_editor_profile_exported_to">Profil exportat in</string>
     <string name="input_controls_editor_unable_to_import">Nu s-a putut importa profilul</string>
     <string name="input_controls_editor_import_profile">Importa profil</string>
@@ -421,6 +428,10 @@
     <string name="container_box64_compatibility">Compatibilitate</string>
     <string name="container_box64_intermediate">Intermediar</string>
     <string name="container_box64_performance">Performanta</string>
+    <string name="container_fexcore_performance_tso">Performanta TSO</string>
+    <string name="container_fexcore_extreme">Extrem</string>
+    <string name="container_fexcore_extreme_tso">Extrem TSO</string>
+    <string name="container_fexcore_denuvo">Denuvo</string>
     <string name="box64_env_var_help__dynarec_safeflags">
         Gestionarea indicatorilor la operatiile CALL/RET&lt;br /&gt;&lt;br /&gt;
         &lt;b&gt;0&lt;/b&gt; : Trateaza CALL/RET ca si cum nu ar avea nevoie niciodata de indicatori (mai rapid, instabil)&lt;br /&gt;
@@ -509,6 +520,7 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Driver grafic</string>
+    <string name="container_zink_mode">Mod Zink</string>
     <string name="container_graphics_transcoder">Transcodor BCn</string>
     <string name="container_graphics_quality">Calitate BCn</string>
     <string name="container_graphics_configuration">Configurare driver grafic</string>
@@ -592,6 +604,32 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="session_drawer_hud_element_battery">Bat.</string>
     <string name="session_drawer_hud_element_graph">Grafic</string>
     <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="session_drawer_hud_mango_style">HUD stil Mango</string>
+    <string name="session_drawer_hud_mango_settings">Setări HUD Mango</string>
+    <string name="mango_hud_element_gpu_load">Sarcină GPU</string>
+    <string name="mango_hud_element_gpu_temp">Temp. GPU</string>
+    <string name="mango_hud_element_cpu_load">Sarcină CPU</string>
+    <string name="mango_hud_element_cpu_temp">Temp. CPU</string>
+    <string name="mango_hud_element_ram">RAM</string>
+    <string name="mango_hud_element_battery">Baterie</string>
+    <string name="mango_hud_element_lows" formatted="false">Minime 1%</string>
+    <string name="mango_hud_element_graph">Grafic frametime</string>
+    <string name="mango_hud_element_engine">Motor</string>
+    <string name="mango_hud_element_vram">VRAM</string>
+    <string name="mango_hud_element_cpu_mhz">Frecvență CPU</string>
+    <string name="mango_hud_element_gpu_clock">Frecvență GPU</string>
+    <string name="mango_hud_element_cores">Per nucleu</string>
+    <string name="mango_hud_element_network">Rețea</string>
+    <string name="mango_hud_element_swap">Swap</string>
+    <string name="mango_hud_element_resolution">Rezoluție</string>
+    <string name="mango_hud_element_wine">Versiune Wine</string>
+    <string name="mango_hud_element_duration">Timp sesiune</string>
+    <string name="mango_hud_element_clock">Ceas</string>
+    <string name="mango_hud_element_throttle">Stare termică</string>
+    <string name="mango_hud_group_memory">Memorie</string>
+    <string name="mango_hud_group_system">Sistem</string>
+    <string name="mango_hud_lock">Blochează HUD</string>
+    <string name="mango_hud_lock_subtitle">Permite atingerilor să ajungă la comenzile din spatele HUD-ului. Ține apăsat HUD-ul pentru a-l bloca. (5s)</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Doresti sa opresti acest proces?</string>
@@ -734,6 +772,7 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="settings_general_select_wallpaper">Selectează fundalul</string>
     <string name="settings_general_title">General</string>
     <string name="settings_general_enable_file_provider">Activeaza furnizorul de fisiere</string>
+    <string name="settings_general_enable_auto_scraping">Activează obținerea automată</string>
     <string name="settings_general_take_effect_next_startup">Aceasta optiune va avea efect la urmatoarea pornire.</string>
     <string name="settings_general_imagefs">Imagefs</string>
     <string name="settings_general_reinstall_imagefs">Reinstaleaza Imagefs</string>
@@ -757,6 +796,7 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="settings_general_xinput_toggle_summary">Opreste gestionarea XInput cand doresti control exclusiv cu mouse-ul si tastatura.</string>
     <string name="settings_external_display_output_summary">Mută jocul pe un afișaj extern conectat în loc să oglindească acest ecran. Ochelarii folosesc întotdeauna propriul afișaj.</string>
     <string name="settings_general_file_provider_summary">Expune fisierele WinNative catre selectoarele de documente si managerii de fisiere Android.</string>
+    <string name="settings_general_auto_scraping_summary">Această setare permite WinNative să obțină automat ilustrațiile jocurilor personalizate.</string>
     <string name="settings_general_open_browser_summary">Deschide link-urile web compatibile in browserul Android in loc de Wine.</string>
     <string name="settings_general_clipboard_summary">Permite copierea si lipirea intre Android si sesiunile Wine.</string>
     <string name="settings_general_imagefs_summary">Restaureaza fisierele de sistem incluse fara a elimina containerele existente.</string>
@@ -1371,6 +1411,7 @@ Cale instalata:
     <string name="steam_friends_section_online">Online (%1$d)</string>
     <string name="steam_friends_section_offline">Offline (%1$d)</string>
     <string name="steam_friends_none_loaded">Niciun prieten încărcat încă.</string>
+    <string name="steam_friends_chat_off">Chatul este dezactivat. Reactivează Serviciul de chat pentru a-ți vedea prietenii.</string>
     <string name="steam_friends_self_you">Tu</string>
     <string name="steam_friends_in_game">În joc</string>
     <string name="steam_friends_join">Alătură-te</string>
@@ -1396,6 +1437,8 @@ Cale instalata:
     <string name="steam_join_the_game">jocul</string>
     <string name="steam_friends_settings">Settings</string>
     <string name="steam_chat_settings_title">Chat Settings</string>
+    <string name="steam_chat_setting_service">Serviciu de chat</string>
+    <string name="steam_chat_setting_service_desc">Conectează-te pentru a-ți vedea prietenii și a discuta; dezactivează pentru a apărea offline</string>
     <string name="steam_chat_setting_notifications">Chat Notifications</string>
     <string name="steam_chat_setting_notifications_desc">Show a notification when you receive a message</string>
     <string name="steam_chat_setting_heads">Chat Heads</string>
@@ -1536,15 +1579,28 @@ Cale instalata:
     <string name="file_manager_paste">Lipeste</string>
     <string name="file_manager_paste_here">Lipeste aici</string>
     <string name="file_manager_new_folder">Folder nou</string>
+    <string name="file_manager_new_folder_short">Folder</string>
+    <string name="file_manager_multi_select">Alege</string>
     <string name="file_manager_create">Creeaza</string>
     <string name="file_manager_delete">Sterge</string>
+    <string name="file_manager_copy_count">Copiaza (%1$d)</string>
+    <string name="file_manager_cut_count">Decupeaza (%1$d)</string>
+    <string name="file_manager_delete_count">Sterge (%1$d)</string>
+    <string name="file_manager_extract">Extrage</string>
+    <string name="file_manager_extract_here">Extrage aici</string>
+    <string name="file_manager_extract_to">Extrage in…</string>
+    <string name="file_manager_extracting">Se extrage %1$s</string>
+    <string name="file_manager_extract_failed">Extragere esuata</string>
     <string name="file_manager_run_boot">Ruleaza / Porneste</string>
     <string name="file_manager_create_shortcut">Creeaza comanda rapida</string>
     <string name="file_manager_run_in_container">Ruleaza in container</string>
     <string name="file_manager_no_containers">Niciun container disponibil</string>
     <string name="file_manager_delete_confirm">Stergi \"%1$s\"? Aceasta actiune nu poate fi anulata.</string>
+    <string name="file_manager_delete_confirm_multi">Stergi %1$d elemente? Aceasta actiune nu poate fi anulata.</string>
     <string name="file_manager_copying">Se copiaza %1$s</string>
     <string name="file_manager_moving">Se muta %1$s</string>
+    <string name="file_manager_copying_count">Se copiaza %1$d elemente</string>
+    <string name="file_manager_moving_count">Se muta %1$d elemente</string>
     <string name="file_manager_paste_into_itself">Nu poti lipi un folder in el insusi</string>
     <string name="file_manager_operation_failed">Operatiunea a esuat</string>
     <string name="file_manager_delete_failed">Stergerea a esuat</string>
@@ -1568,5 +1624,40 @@ Cale instalata:
     <string name="steam_chat_setting_stay_running">Rulează în fundal</string>
     <string name="steam_chat_setting_stay_running_desc">Menține chatul activ după ce ieși din WinNative</string>
     <string name="settings_content_refresh">Reîmprospătează</string>
+    <!-- ReShade -->
+    <string name="reshade_section_title">ReShade</string>
+    <string name="reshade_section_hint">Aplică un efect ReShade (.fx) jocurilor DXVK/VKD3D (Vulkan) prin stratul vkBasalt integrat. Pune fiecare efect în propriul folder în Android/data/&lt;package&gt;/files/ReShade/. Reglarea parametrilor în timp real și comutatorul din joc vor sosi odată cu actualizarea stratului cu reîncărcare în timp real.</string>
+    <string name="reshade_catalog_title">Efecte ReShade</string>
+    <string name="reshade_catalog_search">Caută efecte…</string>
+    <string name="reshade_catalog_installed">Instalate (%1$d)</string>
+    <string name="reshade_catalog_available">Disponibile (%1$d)</string>
+    <string name="reshade_catalog_downloading">Se descarcă</string>
+    <string name="reshade_catalog_installing">Se instalează</string>
+    <string name="reshade_catalog_offline_cache">Offline — se afișează o listă din cache. Conectează-te pentru a descărca efecte noi.</string>
+    <string name="reshade_catalog_offline_none">Offline — se afișează doar efectele instalate. Conectează-te pentru a răsfoi catalogul.</string>
+    <string name="reshade_catalog_needs_connection">Conectează-te la internet pentru a descărca efecte.</string>
+    <string name="reshade_catalog_download_failed">Descărcarea %1$s a eșuat.</string>
+    <string name="reshade_catalog_empty_query">Niciun efect nu corespunde cu \"%1$s\".</string>
+    <string name="reshade_catalog_empty">Niciun efect disponibil. Conectează-te la internet pentru a răsfoi catalogul.</string>
+    <string name="reshade_catalog_done">Gata</string>
+    <string name="reshade_catalog_delete_cd">Șterge %1$s</string>
+    <string name="reshade_catalog_delete_title">Ștergi %1$s?</string>
+    <string name="reshade_catalog_delete_body">Aceasta elimină efectul din stocare și din orice configurație care îl folosește. Îl poți descărca din nou mai târziu.</string>
+    <string name="reshade_catalog_delete_confirm">Șterge</string>
+    <string name="reshade_catalog_delete_cancel">Anulează</string>
+    <string name="reshade_catalog_delete_failed">Nu s-a putut șterge %1$s.</string>
+    <string name="reshade_params_title">PARAMETRII EFECTULUI</string>
+    <string name="reshade_params_reset">Resetează</string>
+    <string name="reshade_loadout_empty">Încă niciun efect. Adaugă unul sau mai multe efecte pentru a crea o configurație.</string>
+    <string name="reshade_loadout_add">Adaugă efect</string>
+    <string name="reshade_loadout_full">Configurație plină — elimină un efect pentru a adăuga altul.</string>
+    <string name="reshade_effect_active">activ</string>
+    <string name="reshade_mode_solo">Solo</string>
+    <string name="reshade_mode_stack">Stivă</string>
+    <string name="reshade_mode_solo_hint">Un singur efect activ pe rând (comparație A/B, comută live în joc).</string>
+    <string name="reshade_mode_stack_hint">Suprapune orice subset de efecte, aplicate în ordine.</string>
+    <string name="reshade_drawer_enable">Activează ReShade</string>
+    <string name="reshade_drawer_empty">Niciun efect ReShade în această configurație. Adaugă efecte în setările acestui joc (sau ale containerului) pentru a le comuta și ajusta aici.</string>
+    <string name="reshade_drawer_no_params">Acest efect nu expune parametri ajustabili.</string>
 </resources>
 
