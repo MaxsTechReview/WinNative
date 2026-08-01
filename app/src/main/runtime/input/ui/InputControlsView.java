@@ -751,8 +751,8 @@ public class InputControlsView extends View {
         case MotionEvent.ACTION_MOVE:
           {
             if (selectedElement != null) {
-              selectedElement.setX((int) Mathf.roundTo(event.getX() - offsetX, snappingSize));
-              selectedElement.setY((int) Mathf.roundTo(event.getY() - offsetY, snappingSize));
+              selectedElement.setX(Math.round(event.getX() - offsetX));
+              selectedElement.setY(Math.round(event.getY() - offsetY));
               invalidate();
             }
             break;
@@ -761,9 +761,7 @@ public class InputControlsView extends View {
           {
             if (selectedElement != null && profile != null) profile.save();
             if (moveCursor)
-              cursor.set(
-                  (int) Mathf.roundTo(event.getX(), snappingSize),
-                  (int) Mathf.roundTo(event.getY(), snappingSize));
+              cursor.set(Math.round(event.getX()), Math.round(event.getY()));
             invalidate();
             break;
           }
