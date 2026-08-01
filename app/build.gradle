@@ -285,6 +285,8 @@ dependencies {
     implementation libs.playServicesGamesV2
 
     implementation libs.workRuntimeKtx
+
+    implementation "com.github.topjohnwu.libsu:core:6.0.0"
 }
 
 spotless {
