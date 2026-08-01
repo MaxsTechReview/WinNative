@@ -16,6 +16,7 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import com.winlator.cmod.runtime.input.controls.GameHubLayout
+import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
@@ -529,6 +530,17 @@ class RetroInputView(
     private val TAP_MAX_MS = 300L
     private val TAP_MAX_MAG = 0.35f
     private val DEAD_ZONE_PX = 10f
+
+    /**
+     * How much further along the other axis the thumb must travel before the
+     * D-pad gives up the direction it is already sending.
+     *
+     * Only used when the touch is over both axes at once. 1.35 is roughly a
+     * 36-degree band around the held direction: wide enough that a thumb rolling
+     * around the pad does not flicker, narrow enough that deliberately changing
+     * direction still feels immediate.
+     */
+    private val DPAD_AXIS_SWAP_BIAS = 1.35f
     private val FACE_KEYCODES = setOf(
         KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_B,
         KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y,
@@ -2440,8 +2452,36 @@ class RetroInputView(
                     val dxToPad = x - dpadCx
                     val dyToPad = y - dpadCy
                     val dz = dpadRadius * 0.24f
-                    if (dxToPad > dz) newDpadX = 1f else if (dxToPad < -dz) newDpadX = -1f
-                    if (dyToPad > dz) newDpadY = 1f else if (dyToPad < -dz) newDpadY = -1f
+                    var wantX = if (dxToPad > dz) 1f else if (dxToPad < -dz) -1f else 0f
+                    var wantY = if (dyToPad > dz) 1f else if (dyToPad < -dz) -1f else 0f
+
+                    // One direction at a time. A thumb resting on a round pad
+                    // covers two directions constantly, and on these systems a
+                    // diagonal is rarely what the player meant -- it walks them
+                    // into a wall, or picks the wrong menu row. Whichever axis
+                    // the thumb has travelled further along wins, so pressing
+                    // "more" up than left gives up.
+                    //
+                    // The held axis is favoured by a margin rather than the two
+                    // being compared outright. Dead on the diagonal the larger
+                    // axis swaps on a pixel of jitter, and without the margin
+                    // the direction would chatter between the two while the
+                    // thumb sits still.
+                    if (wantX != 0f && wantY != 0f) {
+                        val alongX = abs(dxToPad)
+                        val alongY = abs(dyToPad)
+                        val holdingX = dpadX != 0f && dpadY == 0f
+                        val holdingY = dpadY != 0f && dpadX == 0f
+                        val takeX =
+                            when {
+                                holdingX -> alongX * DPAD_AXIS_SWAP_BIAS >= alongY
+                                holdingY -> alongX >= alongY * DPAD_AXIS_SWAP_BIAS
+                                else -> alongX >= alongY
+                            }
+                        if (takeX) wantY = 0f else wantX = 0f
+                    }
+                    newDpadX = wantX
+                    newDpadY = wantY
                 }
             }
         }
