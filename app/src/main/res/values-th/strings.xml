@@ -15,6 +15,8 @@
     <string name="common_ui_select_exe">เลือก EXE</string>
     <string name="common_ui_select_folder">เลือกโฟลเดอร์</string>
     <string name="common_ui_current_folder">โฟลเดอร์ปัจจุบัน</string>
+    <string name="common_ui_enter_path">ป้อนพาธ</string>
+    <string name="common_ui_path_not_found">ไม่พบพาธ</string>
     <string name="common_ui_select_valid_exe_file">โปรดเลือกไฟล์ .exe ที่ถูกต้อง</string>
     <string name="common_ui_select_valid_icon_file">โปรดเลือกไฟล์ .ico หรือ .png ที่ถูกต้อง</string>
     <string name="common_ui_exit">ออก</string>
@@ -200,6 +202,7 @@
     <string name="hero_graphics_tests_title">ทดสอบกราฟิก</string>
     <string name="hero_graphics_test_32">32-bit</string>
     <string name="hero_graphics_test_64">64-bit</string>
+    <string name="hero_input_tests_title">ทดสอบอินพุต</string>
     <string name="library_games_add_custom_game">เพิ่มเกมกำหนดเอง</string>
     <string name="library_games_game_name">ชื่อเกม</string>
     <string name="library_games_game_folder_mapped_drive">โฟลเดอร์เกม (ไดรฟ์เกมที่แมป)</string>

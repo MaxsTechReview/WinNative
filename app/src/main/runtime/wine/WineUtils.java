@@ -17,6 +17,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -60,10 +61,13 @@ public abstract class WineUtils {
     String bestDriveLetter = null;
     String bestDriveRoot = null;
 
-    String drives =
-        container != null && container.getDrives() != null
-            ? container.getDrives()
-            : Container.DEFAULT_DRIVES;
+    String drives = readDrivesFromPrefix(container);
+    if (drives.isEmpty()) {
+      drives =
+          container != null && container.getDrives() != null
+              ? container.getDrives()
+              : Container.DEFAULT_DRIVES;
+    }
 
     for (String[] drive : Container.drivesIterator(drives)) {
       if (drive.length < 2) continue;
@@ -375,50 +379,57 @@ public abstract class WineUtils {
     return letter.length() == 1 && Character.isLetter(letter.charAt(0));
   }
 
-  public static void createDosdevicesSymlinks(
-      Container container, @Nullable String gameDirectoryPath, boolean exposeSteamGameLink) {
-    Log.d(
-        "ContainerLaunch",
-        "createDosdevicesSymlinks: rootDir="
-            + container.getRootDir().getAbsolutePath()
-            + " drives="
-            + container.getDrives()
-            + " gameDir="
-            + gameDirectoryPath);
+  // dosdevices is the source of truth for drives; c: and z: stay app-managed
+  public static String readDrivesFromPrefix(@Nullable Container container) {
+    if (container == null) return "";
     File dosdevicesDir = new File(container.getRootDir(), ".wine/dosdevices");
-    if (!dosdevicesDir.exists()) {
-      boolean created = dosdevicesDir.mkdirs();
-      Log.d("ContainerLaunch", "createDosdevicesSymlinks: created dosdevices dir=" + created);
-    }
-    String dosdevicesPath = dosdevicesDir.getPath();
     File[] files = dosdevicesDir.listFiles();
-    if (files != null) for (File file : files) if (file.getName().matches("[a-z]:")) file.delete();
+    if (files == null) return "";
 
-    FileUtils.symlink("../drive_c", dosdevicesPath + "/c:");
-    FileUtils.symlink(container.getRootDir().getPath() + "/../..", dosdevicesPath + "/z:");
+    List<String> names = new ArrayList<>();
+    for (File file : files) if (file.getName().matches("[a-z]:")) names.add(file.getName());
+    Collections.sort(names);
+
+    StringBuilder drives = new StringBuilder();
+    for (String name : names) {
+      if (name.equals("c:") || name.equals("z:")) continue;
+      String target = FileUtils.readSymlink(new File(dosdevicesDir, name));
+      if (target.isEmpty()) continue;
+
+      String path = target;
+      if (!new File(target).isAbsolute()) {
+        File resolved = new File(dosdevicesDir, target);
+        try {
+          path = resolved.getCanonicalPath();
+        } catch (IOException e) {
+          path = resolved.getAbsolutePath();
+        }
+      }
+      if (path.isEmpty() || path.contains(":")) continue;
+      drives.append(name.substring(0, 1).toUpperCase(Locale.ENGLISH)).append(':').append(path);
+    }
+    return drives.toString();
+  }
+
+  public static void applyDrivesToPrefix(@Nullable Container container, @Nullable String drives) {
+    if (container == null) return;
+    File dosdevicesDir = new File(container.getRootDir(), ".wine/dosdevices");
+    if (!dosdevicesDir.exists()) dosdevicesDir.mkdirs();
+    String dosdevicesPath = dosdevicesDir.getPath();
 
     String packageStorageSuffix = "/com.winnative.cmod/storage";
     String legacyPackageStorageSuffix = "/com.winlator.cmod/storage";
-    Context context = null;
     if (container.getManager() != null && container.getManager().getContext() != null) {
-      context = container.getManager().getContext();
-      String packageName = context.getPackageName();
-      packageStorageSuffix = "/" + packageName + "/storage";
+      packageStorageSuffix =
+          "/" + container.getManager().getContext().getPackageName() + "/storage";
     }
 
-    if (context != null) {
-      String normalizedDrives = normalizePersistentDrives(context, container.getDrives(), false);
-      if (normalizedDrives != null
-          && !normalizedDrives.isEmpty()
-          && !normalizedDrives.equals(container.getDrives())) {
-        container.setDrives(normalizedDrives);
-        Log.d("WineUtils", "Normalized launch drives in memory to: " + normalizedDrives);
-      }
-    }
+    LinkedHashSet<String> applied = new LinkedHashSet<>();
+    for (String[] drive : Container.drivesIterator(drives != null ? drives : "")) {
+      if (drive.length < 2 || "A".equalsIgnoreCase(drive[0])) continue;
+      String letter = drive[0].toLowerCase(Locale.ENGLISH);
+      if (letter.equals("c") || letter.equals("z")) continue;
 
-    int driveCount = 0;
-    for (String[] drive : container.drivesIterator()) {
-      if ("A".equalsIgnoreCase(drive[0])) continue;
       String path = resolveReadableDrivePath(drive[1]);
       File linkTarget = new File(path);
       path = linkTarget.getAbsolutePath();
@@ -428,11 +439,44 @@ public abstract class WineUtils {
         linkTarget.mkdirs();
         FileUtils.chmod(linkTarget, 0771);
       }
-      FileUtils.symlink(path, dosdevicesPath + "/" + drive[0].toLowerCase(Locale.ENGLISH) + ":");
-      Log.d("ContainerLaunch", "createDosdevicesSymlinks: " + drive[0] + ": -> " + path);
-      driveCount++;
+      FileUtils.symlink(path, dosdevicesPath + "/" + letter + ":");
+      applied.add(letter + ":");
+      Log.d("ContainerLaunch", "applyDrivesToPrefix: " + letter + ": -> " + path);
     }
-    Log.d("ContainerLaunch", "createDosdevicesSymlinks: created " + driveCount + " drive symlinks");
+
+    File[] files = dosdevicesDir.listFiles();
+    if (files != null)
+      for (File file : files) {
+        String name = file.getName();
+        if (!name.matches("[a-z]:") || name.equals("c:") || name.equals("z:")) continue;
+        if (!applied.contains(name)) file.delete();
+      }
+  }
+
+  public static void createDosdevicesSymlinks(
+      Container container, @Nullable String gameDirectoryPath, boolean exposeSteamGameLink) {
+    File dosdevicesDir = new File(container.getRootDir(), ".wine/dosdevices");
+    if (!dosdevicesDir.exists()) dosdevicesDir.mkdirs();
+    String dosdevicesPath = dosdevicesDir.getPath();
+
+    FileUtils.symlink("../drive_c", dosdevicesPath + "/c:");
+    FileUtils.symlink(container.getRootDir().getPath() + "/../..", dosdevicesPath + "/z:");
+
+    // the container config only seeds a prefix that has no drives yet
+    String drives = readDrivesFromPrefix(container);
+    Log.d("ContainerLaunch", "createDosdevicesSymlinks: entries=" + Arrays.toString(dosdevicesDir.list()) + " read=" + drives);
+    if (drives.isEmpty()) {
+      drives = container.getDrives();
+      Context context =
+          container.getManager() != null ? container.getManager().getContext() : null;
+      if (context != null) {
+        String normalizedDrives = normalizePersistentDrives(context, drives, false);
+        if (normalizedDrives != null && !normalizedDrives.isEmpty()) drives = normalizedDrives;
+      }
+      Log.d("ContainerLaunch", "createDosdevicesSymlinks: seeding fresh prefix with " + drives);
+    }
+
+    applyDrivesToPrefix(container, drives);
 
     // Only expose Steam's steamapps/common symlink for actual Steam launches.
     if (gameDirectoryPath != null && !gameDirectoryPath.isEmpty()) {

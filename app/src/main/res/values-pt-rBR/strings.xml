@@ -128,6 +128,8 @@
     <string name="common_ui_select">Selecionar</string>
     <string name="common_ui_select_folder">Selecionar pasta</string>
     <string name="common_ui_current_folder">Pasta atual</string>
+    <string name="common_ui_enter_path">Inserir caminho</string>
+    <string name="common_ui_path_not_found">Caminho não encontrado</string>
     <string name="common_ui_storage_roots">Locais de armazenamento</string>
     <string name="common_ui_browse_local_folders_directly">Navegar pelas pastas locais diretamente</string>
     <string name="common_ui_no_folders_available_here">Nenhuma pasta disponível aqui</string>
@@ -199,6 +201,7 @@
     <string name="hero_graphics_tests_title">Testes gráficos</string>
     <string name="hero_graphics_test_32">32-bit</string>
     <string name="hero_graphics_test_64">64-bit</string>
+    <string name="hero_input_tests_title">Testes de entrada</string>
     <string name="library_games_add_custom_game">Adicionar Jogo Personalizado</string>
     <string name="library_games_game_name">Nome do Jogo</string>
     <string name="library_games_game_folder_mapped_drive">Pasta do jogo (unidade de jogo mapeada)</string>

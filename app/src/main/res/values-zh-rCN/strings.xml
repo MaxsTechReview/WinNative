@@ -128,6 +128,8 @@
     <string name="common_ui_select">选择</string>
     <string name="common_ui_select_folder">选择文件夹</string>
     <string name="common_ui_current_folder">当前文件夹</string>
+    <string name="common_ui_enter_path">输入路径</string>
+    <string name="common_ui_path_not_found">找不到路径</string>
     <string name="common_ui_storage_roots">存储根目录</string>
     <string name="common_ui_browse_local_folders_directly">直接浏览本地文件夹</string>
     <string name="common_ui_no_folders_available_here">此处没有可用的文件夹</string>
@@ -199,6 +201,7 @@
     <string name="hero_graphics_tests_title">图形测试</string>
     <string name="hero_graphics_test_32">32 位</string>
     <string name="hero_graphics_test_64">64 位</string>
+    <string name="hero_input_tests_title">输入测试</string>
     <string name="library_games_add_custom_game">添加自定义游戏</string>
     <string name="library_games_game_name">游戏名称</string>
     <string name="library_games_game_folder_mapped_drive">游戏文件夹（映射的游戏驱动器）</string>
