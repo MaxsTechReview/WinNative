@@ -618,6 +618,57 @@ public abstract class FileUtils {
     }
   }
 
+  public static int syncDirectories(File source, File destination, boolean propagateDeletions) {
+    // Thanks to abduznik on Github. This is pretty much a rewrite of his sync function in abduznik/OmniSave from c to java.
+    if (!destination.isDirectory())
+      if (!destination.mkdirs()) return 0;
+    int allSuccess = 1;
+    File[] sourceFiles = source.listFiles();
+    if (sourceFiles == null)
+      return 0;
+
+    for (File file : sourceFiles) {
+      File destinationFile = new File(String.format("%s/%s", destination.getAbsolutePath(), file.getName()));
+      if (file.isDirectory()) {
+        allSuccess = syncDirectories(file, destinationFile, propagateDeletions);
+      } else {
+        if (!destinationFile.isFile() || file.lastModified() <= destinationFile.lastModified()) {
+          try {
+            Files.copy(file.toPath(), destinationFile.toPath(),  java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+          } catch (Exception e) {
+            allSuccess = 0;
+          }
+        }
+      }
+    }
+    if (!propagateDeletions)
+      return allSuccess;
+    File[] destinationFiles = destination.listFiles();
+    if (destinationFiles == null)
+      return 0;
+    File sourceFile;
+    File destinationFile;
+    boolean shouldNotDeleteFile;
+    for (File file : destinationFiles) {
+      sourceFile = new File(String.format("%s/%s", source.getAbsolutePath(), file.getName()));
+      destinationFile =  new File(String.format("%s/%s", destination.getAbsolutePath(), file.getName()));
+      shouldNotDeleteFile = destinationFile.isDirectory() ? sourceFile.isDirectory() : sourceFile.isFile();
+      if (shouldNotDeleteFile)
+        continue;
+
+      if (destinationFile.isDirectory()) {
+        try {
+          org.apache.commons.io.FileUtils.deleteDirectory(destinationFile);
+        }catch(Exception e) {
+          allSuccess = 0;
+        }
+      }
+      if (!destinationFile.delete())
+        allSuccess = 0;
+    }
+    return allSuccess;
+  }
+
   public static File getFileFromUri(Context context, Uri uri) {
     Log.d(TAG, "getFileFromUri called with URI: " + uri.toString());
 

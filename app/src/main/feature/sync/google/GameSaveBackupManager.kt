@@ -140,7 +140,7 @@ object GameSaveBackupManager {
     const val MAX_HISTORY_LABEL_LENGTH = 48
 
     /** Custom-game extra-data keys persisted on the Shortcut. */
-    const val CUSTOM_SAVE_CONTAINER_ID_KEY = "customSaveContainerId"
+    const val CUSTOM_LOCAL_SAVE_PATH_KEY = "customLocalSavePath"
     const val CUSTOM_SAVE_WINDOWS_PATH_KEY = "customSaveWindowsPath"
 
     /** Legacy key — an Android absolute path to a single custom-game folder. */
@@ -594,20 +594,31 @@ object GameSaveBackupManager {
 
     // ── Custom-game helpers (used by the "Select Save Folder" picker UI) ──
 
-    fun setCustomGameSavePath(shortcut: Shortcut, container: Container, windowsPath: String) {
-        shortcut.putExtra(CUSTOM_SAVE_CONTAINER_ID_KEY, container.id.toString())
+    fun setCustomGameSavePath(shortcut: Shortcut, windowsPath: String) {
         shortcut.putExtra(CUSTOM_SAVE_WINDOWS_PATH_KEY, windowsPath)
         shortcut.saveData()
     }
 
+    fun setCustomLocalGameSavePath(shortcut: Shortcut, localPath: String) {
+        shortcut.putExtra(CUSTOM_LOCAL_SAVE_PATH_KEY, localPath)
+        shortcut.saveData()
+    }
+
+    fun clearCustomLocalGameSavePath(shortcut: Shortcut) {
+        shortcut.putExtra(CUSTOM_LOCAL_SAVE_PATH_KEY, null)
+        shortcut.saveData()
+    }
+
     fun clearCustomGameSavePath(shortcut: Shortcut) {
-        shortcut.putExtra(CUSTOM_SAVE_CONTAINER_ID_KEY, null)
         shortcut.putExtra(CUSTOM_SAVE_WINDOWS_PATH_KEY, null)
         shortcut.saveData()
     }
 
     fun getCustomGameSaveWindowsPath(shortcut: Shortcut): String? =
         shortcut.getExtra(CUSTOM_SAVE_WINDOWS_PATH_KEY)?.takeIf { it.isNotEmpty() }
+
+    fun getCustomLocalGameSavePath(shortcut: Shortcut): String? =
+        shortcut.getExtra(CUSTOM_LOCAL_SAVE_PATH_KEY)?.takeIf { it.isNotEmpty() }
 
     /** Build the `gameId` token used for custom games when calling the public backup API. */
     fun customGameId(shortcut: Shortcut): String {
