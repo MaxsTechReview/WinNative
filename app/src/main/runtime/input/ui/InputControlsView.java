@@ -745,6 +745,7 @@ public class InputControlsView extends View {
               moveCursor = false;
             }
 
+            if (moveCursor) cursor.set(Math.round(x), Math.round(y));
             selectElement(element);
             break;
           }
@@ -753,6 +754,9 @@ public class InputControlsView extends View {
             if (selectedElement != null) {
               selectedElement.setX(Math.round(event.getX() - offsetX));
               selectedElement.setY(Math.round(event.getY() - offsetY));
+              invalidate();
+            } else if (moveCursor) {
+              cursor.set(Math.round(event.getX()), Math.round(event.getY()));
               invalidate();
             }
             break;
