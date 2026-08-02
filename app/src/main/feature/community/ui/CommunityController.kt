@@ -2,10 +2,12 @@ package com.winlator.cmod.feature.community.ui
 
 import android.app.Activity
 import android.app.Dialog
+import android.os.Build
+import android.util.Log
 import android.view.Gravity
 import android.view.ViewGroup
 import android.view.Window
-import android.util.Log
+import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.compose.ui.platform.ComposeView
@@ -190,10 +192,35 @@ class CommunityController(
     }
 
     private fun sizeToHost(dialog: Dialog) {
+        val metrics = activity.resources.displayMetrics
         val host = activity.window.decorView
-        val w = if (host.width > 0) host.width else activity.resources.displayMetrics.widthPixels
-        val h = if (host.height > 0) host.height else activity.resources.displayMetrics.heightPixels
-        dialog.window?.setLayout((w * 0.96f).toInt(), (h * 0.92f).toInt())
+        val w = if (host.width > 0) host.width else metrics.widthPixels
+        val h = if (host.height > 0) host.height else metrics.heightPixels
+
+        var horizontalInset = 0
+        var verticalInset = 0
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val insets = activity.windowManager.currentWindowMetrics.windowInsets
+            val bars = insets.getInsetsIgnoringVisibility(WindowInsets.Type.navigationBars())
+            val cutout = insets.getInsetsIgnoringVisibility(WindowInsets.Type.displayCutout())
+            val cap = (CUTOUT_PADDING_DP * metrics.density).toInt()
+            horizontalInset = maxOf(
+                maxOf(bars.left, cutout.left.coerceAtMost(cap)),
+                maxOf(bars.right, cutout.right.coerceAtMost(cap)),
+            )
+            verticalInset = maxOf(
+                maxOf(bars.top, cutout.top.coerceAtMost(cap)),
+                maxOf(bars.bottom, cutout.bottom.coerceAtMost(cap)),
+            )
+        }
+        val edge = (EDGE_PADDING_DP * metrics.density).toInt().coerceAtLeast(1)
+        val maxWidth = (w - (horizontalInset + edge) * 2).coerceAtLeast(1)
+        val maxHeight = (h - (verticalInset + edge) * 2).coerceAtLeast(1)
+
+        dialog.window?.setLayout(
+            (w * 0.96f).toInt().coerceAtMost(maxWidth),
+            (h * 0.92f).toInt().coerceAtMost(maxHeight),
+        )
         dialog.window?.setGravity(Gravity.CENTER)
     }
 
@@ -208,6 +235,8 @@ class CommunityController(
 
     private companion object {
         const val TAG = "CommunityController"
+        const val EDGE_PADDING_DP = 12f
+        const val CUTOUT_PADDING_DP = 8f
     }
 
     private suspend fun applyConfig(settings: JSONObject): List<ComponentChecker.Missing> {

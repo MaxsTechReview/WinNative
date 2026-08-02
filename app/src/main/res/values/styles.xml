@@ -155,7 +155,9 @@
         <item name="android:windowTranslucentNavigation">true</item>
     </style>
 
-    <style name="ContentDialog" parent="@android:style/Theme.Dialog">
+    <style name="ContentDialog" parent="ContentDialogBase" />
+
+    <style name="ContentDialogBase" parent="@android:style/Theme.Dialog">
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
