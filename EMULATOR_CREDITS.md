@@ -53,6 +53,7 @@ Each core is shipped as an unmodified `arm64-v8a` build and loaded through Libre
 | Component | Role | License | Source |
 | --- | --- | --- | --- |
 | LibretroDroid | libretro frontend the retro backend is built on | GPL-3.0 | https://github.com/Swordfish90/LibretroDroid |
+| LibretroDroid (WinNative fork) | the build WinNative ships, carrying the RetroAchievements, netplay and SGSR changes | GPL-3.0 | https://github.com/WinNative-Emu/LibretroDroid/tree/winnative |
 | Oboe | Audio output | Apache-2.0 | https://github.com/google/oboe |
 | rcheevos | RetroAchievements client library | MIT | https://github.com/RetroAchievements/rcheevos |
 | Snapdragon Game Super Resolution (SGSR) | Upscaling shader | BSD-3-Clause | https://github.com/quic/snapdragon-gsr |
@@ -62,6 +63,12 @@ Each core is shipped as an unmodified `arm64-v8a` build and loaded through Libre
 
 WinNative is released under the GPL-3.0. As required by that license and by the GPL-2.0
 cores above, the complete corresponding source for every copyleft component is obtainable
-from the upstream repositories linked in this document, and the bundled license texts are
-retained in the source tree (for example `libretrodroid/src/main/cpp/rcheevos/LICENSE`,
-`libretrodroid/src/main/cpp/SGSR_LICENSE`, and the top-level `LICENSE`).
+from the repositories linked in this document, and the bundled license texts are retained
+in the source tree of the repository that builds each component.
+
+The libretro frontend is no longer built from source in this repository. WinNative links
+against `libretrodroid.aar`, published from the `winnative` branch of
+https://github.com/WinNative-Emu/LibretroDroid, which is where its GPL-3.0 source, the
+rcheevos `LICENSE` and `SGSR_LICENSE` texts now live. The exact build WinNative ships is
+pinned by release tag and SHA-256 in `tools/libretrodroid.version`, so the corresponding
+source for any given APK is the commit that tag was built from.

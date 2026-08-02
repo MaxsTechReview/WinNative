@@ -18,6 +18,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "Winlator"
 include ':app'
-include ':libretrodroid'
 include ':armsx2'
 include ':dolphin'

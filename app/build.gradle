@@ -59,6 +59,60 @@ task checkSubmodules {
 
 preBuild.dependsOn(checkSubmodules)
 
+abstract class FetchLibretroDroidTask extends DefaultTask {
+    @Input
+    abstract Property<String> getTag()
+
+    @Input
+    abstract Property<String> getSha256()
+
+    @OutputFile
+    abstract RegularFileProperty getOutputFile()
+
+    static String digestOf(File file) {
+        def digest = java.security.MessageDigest.getInstance("SHA-256")
+        file.withInputStream { input ->
+            byte[] buffer = new byte[1 << 16]
+            int read
+            while ((read = input.read(buffer)) >= 0) digest.update(buffer, 0, read)
+        }
+        digest.digest().collect { String.format("%02x", it) }.join()
+    }
+
+    @TaskAction
+    void fetch() {
+        def expected = sha256.get()
+        def target = outputFile.get().asFile
+        if (target.isFile() && digestOf(target) == expected) return
+
+        target.parentFile.mkdirs()
+        def source = "https://github.com/WinNative-Emu/LibretroDroid/releases/download/${tag.get()}/libretrodroid.aar"
+        def staging = new File(target.parentFile, target.name + ".part")
+        new URL(source).withInputStream { input ->
+            staging.withOutputStream { output -> output << input }
+        }
+
+        def actual = digestOf(staging)
+        if (actual != expected) {
+            staging.delete()
+            throw new GradleException("libretrodroid.aar from ${tag.get()} has checksum ${actual}, expected ${expected}")
+        }
+        target.delete()
+        staging.renameTo(target)
+    }
+}
+
+def libretroDroidPin = rootProject.file("tools/libretrodroid.version").readLines()
+        .collect { it.trim() }
+        .findAll { !it.isEmpty() }
+def libretroDroidAar = layout.buildDirectory.file("libretrodroid/libretrodroid.aar")
+
+def fetchLibretroDroid = tasks.register("fetchLibretroDroid", FetchLibretroDroidTask) {
+    tag.set(libretroDroidPin[0])
+    sha256.set(libretroDroidPin[1])
+    outputFile.set(libretroDroidAar)
+}
+
 /*
 def installVulkanValidationLayer = tasks.register("installVulkanValidationLayer", InstallVulkanValidationLayerTask) {
     layerVersion.set("1.4.341.0")
@@ -292,7 +346,8 @@ dependencies {
 
     implementation libs.workRuntimeKtx
 
-    implementation project(':libretrodroid')
+    implementation files(libretroDroidAar) { builtBy fetchLibretroDroid }
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.5.1'
     implementation project(':armsx2')
     implementation project(':dolphin')
 }
