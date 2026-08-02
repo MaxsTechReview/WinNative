@@ -131,15 +131,21 @@ def appVersionName = providers.gradleProperty("VERSION_NAME")
 def coldClientVersionFile = rootProject.file("tools/gbe_fork.version")
 def coldClientVersion = coldClientVersionFile.exists() ? coldClientVersionFile.text.trim() : "unknown"
 
-// Community config-sharing HMAC secret (git-ignored file) + API base URL.
-// The secret is NEVER committed; it lives only in tools/community_hmac.secret
-// (or the COMMUNITY_HMAC_SECRET env var) and is embedded in the signed APK.
 def communityHmacFile = rootProject.file("tools/community_hmac.secret")
-def communityHmacSecret = communityHmacFile.exists() ? communityHmacFile.text.trim()
-        : (System.getenv("COMMUNITY_HMAC_SECRET") ?: "")
-def communityApiBase = providers.gradleProperty("COMMUNITY_API_BASE")
+def communityHmacFromFile = communityHmacFile.exists() ? communityHmacFile.text.trim() : ""
+def communityHmacFromEnv = providers.environmentVariable("COMMUNITY_HMAC_SECRET")
+        .getOrElse("").trim()
+def communityHmacSecret = communityHmacFromFile ?: communityHmacFromEnv
+def communityApiBaseOverride = providers.gradleProperty("COMMUNITY_API_BASE")
         .orElse(providers.environmentVariable("COMMUNITY_API_BASE"))
-        .getOrElse("https://api.winnative.dev/api/v1/")
+        .getOrElse("").trim()
+def communityApiBase = communityApiBaseOverride ?: "https://api.winnative.dev/api/v1/"
+if (!communityHmacSecret) {
+    logger.warn("WinNative: COMMUNITY_HMAC_SECRET is empty - community config sharing will be " +
+            "DISABLED in this build. Set tools/community_hmac.secret or export " +
+            "COMMUNITY_HMAC_SECRET. Note: GitHub does not pass secrets to pull_request runs " +
+            "from a forked repository.")
+}
 
 android {
     namespace 'com.winlator.cmod'
