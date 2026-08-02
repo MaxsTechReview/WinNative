@@ -2,16 +2,6 @@ package com.winlator.cmod.feature.community
 
 import android.os.Build
 
-/**
- * Builds the hardware-identity block used by the community filters.
- *
- *  - The "Chipset" filter keys on the SoC model (e.g. "SM8750"), which is
- *    identical across every brand/region/model that ships that chip.
- *  - The "Device" filter keys (server-side) on a canonical device derived from
- *    brand + codename/model, unifying regional variants of the same phone.
- *
- * SOC_MODEL/SOC_MANUFACTURER are API 31+; below that we fall back to getprop.
- */
 object DeviceIdentity {
 
     data class HardwareBlock(
@@ -49,7 +39,6 @@ object DeviceIdentity {
         )
     }
 
-    /** Stable key sent for the default "Chipset" filter. */
     fun chipsetKey(): String {
         val hw = current()
         return hw.socModel.ifBlank { hw.boardPlatform }

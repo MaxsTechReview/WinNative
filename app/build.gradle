@@ -401,3 +401,5 @@ tasks.register("checkKotlinFormatOnly") {
     description = "Checks Kotlin formatting only."
     dependsOn("spotlessKotlinCheck")
 }
+
+apply from: rootProject.file("gradle/community-settings-check.gradle")

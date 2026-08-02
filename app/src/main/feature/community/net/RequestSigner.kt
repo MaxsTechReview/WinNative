@@ -1,20 +1,17 @@
 package com.winlator.cmod.feature.community.net
 
 import com.winlator.cmod.BuildConfig
+import java.io.IOException
 import java.security.MessageDigest
 import java.util.UUID
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
-/**
- * Produces the HMAC authentication headers for every API request. The signature
- * is computed with a secret embedded in the signed release APK over:
- *   METHOD \n PATH \n TIMESTAMP \n NONCE \n SHA256(body)
- * matching the server's verification in auth.py.
- */
 object RequestSigner {
 
     private val secret: ByteArray = BuildConfig.COMMUNITY_HMAC_SECRET.toByteArray()
+
+    fun isConfigured(): Boolean = secret.isNotEmpty()
 
     fun headers(
         method: String,
@@ -23,6 +20,9 @@ object RequestSigner {
         uploaderHandle: String,
         googleBacked: Boolean,
     ): Map<String, String> {
+        if (!isConfigured()) {
+            throw IOException("Community sharing is not available in this build")
+        }
         val ts = (System.currentTimeMillis() / 1000L).toString()
         val nonce = UUID.randomUUID().toString()
         val bodyHash = sha256Hex(body)
@@ -32,7 +32,6 @@ object RequestSigner {
             "X-Wn-Nonce" to nonce,
             "X-Wn-Signature" to hmacHex(msg),
             "X-Wn-Uploader" to uploaderHandle,
-            // Identity class: gates upload/vote and ties bans to a Google account.
             "X-Wn-Auth" to (if (googleBacked) "google" else "device"),
         )
     }

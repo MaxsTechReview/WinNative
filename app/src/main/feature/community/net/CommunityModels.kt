@@ -31,6 +31,7 @@ data class ListResponse(
 data class UploadResult(
     val id: String = "",
     val exportName: String = "",
+    val droppedKeys: List<String> = emptyList(),
 )
 
 @Serializable
@@ -40,7 +41,6 @@ data class VoteResult(
     val myVote: Int = 0,
 )
 
-/** Filter modes for the download list. */
 enum class CommunityFilter(val wire: String) {
     CHIPSET("chipset"), DEVICE("device"), ALL("all")
 }

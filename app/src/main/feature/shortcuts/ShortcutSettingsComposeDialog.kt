@@ -121,7 +121,6 @@ class ShortcutSettingsComposeDialog private constructor(
     private var contentsManager: ContentsManager = ContentsManager(context)
     private var isArm64EC = false
 
-    // Community config sharing controller (Download/Upload header buttons).
     private val communityControllerLazy = lazy {
         com.winlator.cmod.feature.community.ui.CommunityController(
             activity, shortcut, contentsManager
@@ -129,10 +128,6 @@ class ShortcutSettingsComposeDialog private constructor(
     }
     private val communityController get() = communityControllerLazy.value
 
-    // Preview mode: this dialog edits a TEMP shortcut seeded from a community
-    // config; Apply writes the (edited) settings to the real shortcut. The temp
-    // file lives in cacheDir and is deleted on dismiss. The real shortcut and
-    // stored community config are untouched unless the user taps Apply.
     private var previewMode = false
     private var previewRealShortcut: Shortcut? = null
     private var previewTempFile: File? = null
@@ -267,7 +262,6 @@ class ShortcutSettingsComposeDialog private constructor(
             }
 
             override fun onUploadCommunityConfig() {
-                // Upload implies Save so we share the persisted, current settings.
                 saveSettings()
                 communityController.upload()
             }
@@ -412,7 +406,6 @@ class ShortcutSettingsComposeDialog private constructor(
     }
 
 
-    /** Reload all UI state after a community config is applied to the shortcut. */
     private fun reloadAfterCommunityApply() {
         loadInitialData()
         loadResourceArrays()
@@ -420,19 +413,14 @@ class ShortcutSettingsComposeDialog private constructor(
         shouldRefreshLibraryOnSave = true
     }
 
-    /**
-     * Preview "Apply": persist the user's (possibly edited) settings to the temp
-     * shortcut, then apply them to the REAL shortcut after a component check.
-     * If anything is missing, show the MISSING COMPONENT overlay and do nothing.
-     */
     private fun applyPreview() {
-        saveSettings()  // writes edited UI state into the temp shortcut
+        saveSettings()
         val real = previewRealShortcut ?: return
         val edited = com.winlator.cmod.feature.community.ConfigSerializer.serialize(shortcut)
-        Executors.newSingleThreadExecutor().execute {
+        CoroutineScope(Dispatchers.IO).launch {
             val miss = com.winlator.cmod.feature.community.ComponentChecker
                 .findMissing(context, contentsManager, edited)
-            activity.runOnUiThread {
+            withContext(Dispatchers.Main) {
                 if (miss.isEmpty()) {
                     com.winlator.cmod.feature.community.ConfigApplier.apply(real, edited)
                     previewOnApplied()
@@ -2577,14 +2565,6 @@ class ShortcutSettingsComposeDialog private constructor(
         private const val TAG = "ShortcutSettingsCompose"
         private const val EXTRA_USE_CONTAINER_DEFAULTS = "use_container_defaults"
 
-        /**
-         * Open this dialog in PREVIEW mode for a community config: it shows the
-         * real Shortcut-Settings UI (same tabs/toggles/dropdowns) seeded from
-         * [communitySettings] on a throwaway temp shortcut, with a green Preview
-         * badge and an Apply button. The user may edit anything; Apply writes the
-         * result to [realShortcut] (after a MISSING-COMPONENT check). The stored
-         * community config and the real shortcut are untouched until Apply.
-         */
         @JvmStatic
         fun preview(
             activity: Activity,
@@ -2592,10 +2572,8 @@ class ShortcutSettingsComposeDialog private constructor(
             communitySettings: org.json.JSONObject,
             onApplied: () -> Unit,
         ) {
-            // Keep the real file name so the shown title is the game name (the
-            // Shortcut derives its name from the file name). cacheDir keeps it out
-            // of any container Desktop dir, so it never appears as a real shortcut.
             val tempDir = File(activity.cacheDir, "wn_preview").apply { mkdirs() }
+            runCatching { tempDir.listFiles()?.forEach { it.delete() } }
             val tempFile = File(tempDir, realShortcut.file.name)
             FileUtils.copy(realShortcut.file, tempFile)
             val temp = Shortcut(realShortcut.container, tempFile)

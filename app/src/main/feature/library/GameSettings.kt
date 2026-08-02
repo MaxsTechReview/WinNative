@@ -201,12 +201,17 @@ class GameSettingsNav {
         private set
     var contentResetSignal by mutableStateOf(0)
         private set
+    var communityCount by mutableStateOf(0)
+    var communityCol by mutableStateOf(0)
     var onSelectSection: ((Int) -> Unit)? = null
     var onSave: (() -> Unit)? = null
     var onCancel: (() -> Unit)? = null
     var onContentBack: (() -> Boolean)? = null
+    var onCommunityAction: ((Int) -> Unit)? = null
 
     val onActionRow: Boolean get() = sidebarIndex >= sidebarCount
+
+    val onCommunityRow: Boolean get() = communityCount > 0 && sidebarIndex < 0
 
     private fun pushContent(dir: Int) {
         contentDir = dir
@@ -225,15 +230,24 @@ class GameSettingsNav {
         when (dir) {
             PANE_DIR_UP -> moveSidebar(-1)
             PANE_DIR_DOWN -> moveSidebar(1)
-            PANE_DIR_LEFT -> if (onActionRow && actionCol == 1) actionCol = 0
+            PANE_DIR_LEFT ->
+                if (onCommunityRow) {
+                    if (communityCol > 0) communityCol--
+                } else if (onActionRow && actionCol == 1) {
+                    actionCol = 0
+                }
             PANE_DIR_RIGHT ->
-                if (onActionRow) {
+                if (onCommunityRow) {
+                    if (communityCol < communityCount - 1) communityCol++
+                } else if (onActionRow) {
                     if (actionCol == 0) actionCol = 1
                 } else {
                     enterContent()
                 }
             PANE_DIR_ACTIVATE ->
-                if (onActionRow) {
+                if (onCommunityRow) {
+                    onCommunityAction?.invoke(communityCol)
+                } else if (onActionRow) {
                     if (actionCol == 0) onCancel?.invoke() else onSave?.invoke()
                 } else {
                     enterContent()
@@ -242,9 +256,10 @@ class GameSettingsNav {
     }
 
     private fun moveSidebar(delta: Int) {
-        val next = (sidebarIndex + delta).coerceIn(0, sidebarCount)
+        val lowest = if (communityCount > 0) -1 else 0
+        val next = (sidebarIndex + delta).coerceIn(lowest, sidebarCount)
         sidebarIndex = next
-        if (next < sidebarCount) onSelectSection?.invoke(next)
+        if (next in 0 until sidebarCount) onSelectSection?.invoke(next)
     }
 
     fun enterContent() {
@@ -268,6 +283,13 @@ class GameSettingsNav {
         inContent = false
         sidebarIndex = sidebarCount
         actionCol = col
+    }
+
+    fun tapCommunity(col: Int) {
+        active = false
+        inContent = false
+        sidebarIndex = -1
+        communityCol = col
     }
 
     fun tapContent() {
@@ -380,8 +402,6 @@ class GameSettingsStateHolder {
     // Container edits expose container-only fields and hide shortcut fields.
     val isContainerEditMode = mutableStateOf(false)
 
-    // Preview mode: rendering a community config (not a saved shortcut). Shows a
-    // green "Preview" badge and turns Save into Apply.
     val isPreview = mutableStateOf(false)
     val wineVersionEditable = mutableStateOf(false)
 
@@ -586,8 +606,6 @@ interface GameSettingsCallbacks {
     fun onDismiss()
     fun onAddToHomeScreen()
 
-    // Community config sharing (header buttons). Default no-ops so other
-    // implementers are unaffected.
     fun onDownloadCommunityConfig() {}
     fun onUploadCommunityConfig() {}
 
@@ -698,12 +716,18 @@ fun GameSettingsContent(
     val currentSectionId = sections.getOrNull(selectedIdx)?.first ?: SEC_GENERAL
     val saveEnabled by state.isLoaded
 
+    val showCommunity = !isContainer && !isPreview
     if (nav != null) {
         SideEffect {
             nav.sidebarCount = sections.size
+            nav.communityCount = if (showCommunity) 2 else 0
             nav.onSelectSection = { state.currentSection.intValue = it }
             nav.onSave = { if (saveEnabled) callbacks.onConfirm() }
             nav.onCancel = { callbacks.onDismiss() }
+            nav.onCommunityAction = { col ->
+                if (col == 0) callbacks.onDownloadCommunityConfig()
+                else callbacks.onUploadCommunityConfig()
+            }
         }
     }
 
@@ -722,7 +746,7 @@ fun GameSettingsContent(
                 saveEnabled = saveEnabled,
                 onSave = { callbacks.onConfirm() },
                 onCancel = { callbacks.onDismiss() },
-                showCommunity = !isContainer && !isPreview,
+                showCommunity = showCommunity,
                 onDownloadCommunity = { callbacks.onDownloadCommunityConfig() },
                 onUploadCommunity = { callbacks.onUploadCommunityConfig() },
                 isPreview = isPreview,
@@ -891,12 +915,12 @@ private fun Sidebar(
 ) {
     val cancelHighlighted = nav != null && nav.active && !nav.inContent && nav.onActionRow && nav.actionCol == 0
     val saveHighlighted = nav != null && nav.active && !nav.inContent && nav.onActionRow && nav.actionCol == 1
+    val communityRowActive = nav != null && nav.active && !nav.inContent && nav.onCommunityRow
     Column(
         modifier = modifier
             .background(SidebarBg)
             .padding(top = 14.dp, bottom = 12.dp)
     ) {
-        // Header: shortcut/game title being edited (+ green Preview badge)
         if (title.isNotBlank()) {
             Row(
                 modifier = Modifier
@@ -931,7 +955,6 @@ private fun Sidebar(
                     }
                 }
             }
-            // Community config sharing: Download / Upload for this game.
             if (showCommunity) {
                 Row(
                     modifier = Modifier
@@ -941,11 +964,15 @@ private fun Sidebar(
                 ) {
                     CommunityHeaderButton(
                         Icons.Outlined.Download, "Download",
-                        Modifier.weight(1f), onDownloadCommunity
+                        Modifier.weight(1f),
+                        communityRowActive && nav?.communityCol == 0,
+                        { nav?.tapCommunity(0); onDownloadCommunity() }
                     )
                     CommunityHeaderButton(
                         Icons.Outlined.Upload, "Upload",
-                        Modifier.weight(1f), onUploadCommunity
+                        Modifier.weight(1f),
+                        communityRowActive && nav?.communityCol == 1,
+                        { nav?.tapCommunity(1); onUploadCommunity() }
                     )
                 }
                 Spacer(Modifier.height(8.dp))
@@ -1069,6 +1096,7 @@ private fun CommunityHeaderButton(
     icon: ImageVector,
     label: String,
     modifier: Modifier = Modifier,
+    navHighlighted: Boolean = false,
     onClick: () -> Unit
 ) {
     Box(
@@ -1077,6 +1105,7 @@ private fun CommunityHeaderButton(
             .clip(RoundedCornerShape(8.dp))
             .border(1.dp, AccentBlue.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
             .background(AccentBlue.copy(alpha = 0.08f))
+            .paneHighlight(navHighlighted, cornerRadius = 8.dp, highlightColor = NavHighlight)
             .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {

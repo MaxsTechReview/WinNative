@@ -1,0 +1,74 @@
+def communitySettingsCheck = tasks.register("checkCommunitySettingsCoverage") {
+    group = "verification"
+    description = "Fails when a shortcut setting is neither shared by the community feature nor explicitly excluded."
+
+    def dialogFile = rootProject.file("app/src/main/feature/shortcuts/ShortcutSettingsComposeDialog.kt")
+    def registryFile = rootProject.file("app/src/main/feature/community/CommunitySettings.kt")
+    def reshadeFile = rootProject.file("app/src/main/runtime/reshade/ReshadeConfigWriter.java")
+    def applierFile = rootProject.file("app/src/main/feature/community/ConfigApplier.kt")
+    def serializerFile = rootProject.file("app/src/main/feature/community/ConfigSerializer.kt")
+
+    inputs.files(dialogFile, registryFile, reshadeFile, applierFile, serializerFile)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        [dialogFile, registryFile, reshadeFile].each {
+            if (!it.isFile()) throw new GradleException("checkCommunitySettingsCoverage: missing ${it}")
+        }
+
+        def reshadeConstants = [:]
+        reshadeFile.text.eachMatch(/String\s+(EXTRA_[A-Z_]+)\s*=\s*"([^"]+)"/) { m ->
+            reshadeConstants[m[1]] = m[2]
+        }
+
+        def dialogText = dialogFile.text
+        def persisted = [] as Set
+        dialogText.eachMatch(/shortcut\.putExtra\(\s*"([A-Za-z0-9_]+)"/) { m -> persisted << m[1] }
+        dialogText.eachMatch(/saveOverride\(\s*"([A-Za-z0-9_]+)"/) { m -> persisted << m[1] }
+        dialogText.eachMatch(/saveOverride\(\s*\n\s*"([A-Za-z0-9_]+)"/) { m -> persisted << m[1] }
+        dialogText.eachMatch(/(?:shortcut\.putExtra|saveOverride)\(\s*\n?\s*(?:[A-Za-z0-9_.]*\.)?(EXTRA_[A-Z_]+)\s*,/) { m ->
+            def resolved = reshadeConstants[m[1]]
+            if (resolved != null) persisted << resolved
+        }
+
+        def registryText = registryFile.text
+        def portable = [] as Set
+        registryText.eachMatch(/entry\(\s*"([A-Za-z0-9_]+)"/) { m -> portable << m[1] }
+        registryText.eachMatch(/entry\(\s*(?:[A-Za-z0-9_.]*\.)?(EXTRA_[A-Z_]+)\s*,/) { m ->
+            def resolved = reshadeConstants[m[1]]
+            if (resolved != null) portable << resolved
+        }
+
+        def excludedBlock = registryText =~ /(?s)NON_PORTABLE:\s*Set<String>\s*=\s*setOf\((.*?)\n\s*\)/
+        def excluded = [] as Set
+        if (excludedBlock.find()) {
+            excludedBlock.group(1).eachMatch(/"([A-Za-z0-9_]+)"/) { m -> excluded << m[1] }
+        }
+
+        if (portable.isEmpty()) {
+            throw new GradleException("checkCommunitySettingsCoverage: parsed no keys from CommunitySettings.kt")
+        }
+
+        def unclassified = (persisted - portable - excluded).toSorted()
+        if (!unclassified.isEmpty()) {
+            throw new GradleException(
+                "Community config sharing does not cover these shortcut settings: ${unclassified.join(', ')}.\n" +
+                "Add each key to CommunitySettings.ENTRIES (with a validator and a container default) " +
+                "so it is shared and applied, or to CommunitySettings.NON_PORTABLE when it is device-local, " +
+                "structural or personal. Server-side app/schema.py must accept any key added to ENTRIES.")
+        }
+
+        def applierText = applierFile.text
+        def serializerText = serializerFile.text
+        if (!applierText.contains("CommunitySettings.ENTRIES") ||
+            !serializerText.contains("CommunitySettings.ENTRIES")) {
+            throw new GradleException(
+                "ConfigSerializer and ConfigApplier must both derive their key set from " +
+                "CommunitySettings.ENTRIES so they can never drift apart.")
+        }
+    }
+}
+
+tasks.matching { it.name == "preBuild" }.configureEach {
+    dependsOn communitySettingsCheck
+}

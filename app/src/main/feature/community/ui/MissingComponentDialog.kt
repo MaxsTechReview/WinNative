@@ -1,46 +1,101 @@
 package com.winlator.cmod.feature.community.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.winlator.cmod.feature.community.ComponentChecker
+import com.winlator.cmod.shared.theme.GameSettingsStyle
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 
-/**
- * "⚠ MISSING COMPONENT" dialog. Lists the components the downloaded config needs
- * that are not installed. A single OK button just dismisses (per spec) — the
- * config is NOT applied when components are missing.
- */
 @Composable
 fun MissingComponentDialog(missing: List<ComponentChecker.Missing>, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = Color(0xFF1C1C2A),
-        titleContentColor = Color(0xFFFFB74D),
-        textContentColor = Color(0xFFF0F4FF),
-        title = { Text("⚠ Missing Component", fontWeight = FontWeight.SemiBold) },
-        text = {
-            Column {
-                Text(
-                    "This config needs components you don't have installed. Install them, " +
-                        "then try again:",
-                    fontSize = 13.sp,
-                )
-                missing.forEach { m ->
-                    Text("•  ${m.label}", fontSize = 13.sp, fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(top = 6.dp), color = Color(0xFFFFB74D))
+    Box(
+        Modifier.fillMaxWidth().fillMaxHeight().background(Color(0xFF000000).copy(alpha = 0.6f))
+            .clickable { onDismiss() },
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            Modifier.fillMaxWidth(0.82f).clip(RoundedCornerShape(14.dp))
+                .background(GameSettingsStyle.CardSurface)
+                .border(1.dp, GameSettingsStyle.CardBorder, RoundedCornerShape(14.dp))
+                .padding(16.dp)
+                .clickable(enabled = false) {},
+        ) {
+            Text(
+                "⚠ Missing Component",
+                color = GameSettingsStyle.WarningAmber,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                "This config needs components you don't have installed. Install them, then try again:",
+                color = GameSettingsStyle.TextPrimary,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+            Column(
+                Modifier.padding(top = 4.dp).verticalScroll(rememberScrollState()),
+            ) {
+                missing.forEach { item ->
+                    Text(
+                        "•  ${item.label}",
+                        color = GameSettingsStyle.WarningAmber,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("OK", color = Color(0xFF1A9FFF)) }
-        },
-    )
+            Spacer(Modifier.height(14.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Spacer(Modifier.weight(1f))
+                Box(
+                    Modifier.clip(RoundedCornerShape(8.dp))
+                        .background(GameSettingsStyle.AccentBlue.copy(alpha = 0.08f))
+                        .border(
+                            1.dp,
+                            GameSettingsStyle.AccentBlue.copy(alpha = 0.25f),
+                            RoundedCornerShape(8.dp),
+                        )
+                        .paneNavItem(
+                            cornerRadius = 8.dp,
+                            onActivate = onDismiss,
+                            highlightColor = GameSettingsStyle.NavHighlight,
+                            tapToSelect = true,
+                            isEntry = true,
+                        )
+                        .clickable { onDismiss() }
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                ) {
+                    Text(
+                        "OK",
+                        color = GameSettingsStyle.AccentBlue,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+            }
+        }
+    }
 }
