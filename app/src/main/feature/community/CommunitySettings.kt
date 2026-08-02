@@ -208,6 +208,19 @@ object CommunitySettings {
 
     val KEYS: Set<String> = BY_KEY.keys
 
+    private val ADDED_IN_V2: Set<String> = setOf(
+        "zinkMode",
+        "useUnixLibs",
+        "screenTouchMode",
+        ReshadeConfigWriter.EXTRA_LOADOUT,
+        ReshadeConfigWriter.EXTRA_MODE,
+        ReshadeConfigWriter.EXTRA_PARAMS,
+        ReshadeConfigWriter.EXTRA_EFFECT,
+    )
+
+    fun keysForSchema(version: Int): Set<String> =
+        if (version >= 2) KEYS else KEYS - ADDED_IN_V2
+
     val NON_PORTABLE: Set<String> = setOf(
         "custom_name",
         "container_id",

@@ -18,6 +18,8 @@ import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
+class CommunityApiException(val code: Int, val detail: String) : IOException(detail)
+
 class CommunityApiClient(private val context: Context) {
 
     companion object {
@@ -86,8 +88,40 @@ class CommunityApiClient(private val context: Context) {
         settings: JSONObject,
         hw: DeviceIdentity.HardwareBlock,
     ): UploadResult = withContext(Dispatchers.IO) {
+        val url = requireBase().newBuilder().addPathSegment("configs").build()
+        try {
+            send(url, gameKey, store, settings, hw, CommunitySettings.SCHEMA_VERSION)
+        } catch (e: CommunityApiException) {
+            if (!isLegacySchemaRejection(e)) throw e
+            val version = CommunitySettings.MIN_SCHEMA_VERSION
+            val allowed = CommunitySettings.keysForSchema(version)
+            val reduced = JSONObject()
+            val dropped = mutableListOf<String>()
+            val keys = settings.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                if (key in allowed) reduced.put(key, settings.optString(key, ""))
+                else dropped += key
+            }
+            val result = send(url, gameKey, store, reduced, hw, version)
+            result.copy(droppedKeys = (result.droppedKeys + dropped).distinct())
+        }
+    }
+
+    private fun isLegacySchemaRejection(e: CommunityApiException): Boolean =
+        e.code in 400..499 &&
+            (e.detail.contains("schemaVersion") || e.detail.contains("unknown setting key"))
+
+    private fun send(
+        url: HttpUrl,
+        gameKey: String,
+        store: String,
+        settings: JSONObject,
+        hw: DeviceIdentity.HardwareBlock,
+        schemaVersion: Int,
+    ): UploadResult {
         val payload = JSONObject()
-            .put("schemaVersion", CommunitySettings.SCHEMA_VERSION)
+            .put("schemaVersion", schemaVersion)
             .put("gameKey", gameKey)
             .put("store", store)
             .put("uploaderName", UploaderIdentity.displayName())
@@ -104,8 +138,7 @@ class CommunityApiClient(private val context: Context) {
                     .put("brand", hw.brand)
                     .put("marketName", hw.marketName),
             )
-        val url = requireBase().newBuilder().addPathSegment("configs").build()
-        json.decodeFromString(
+        return json.decodeFromString(
             UploadResult.serializer(),
             exec("POST", url, payload.toString().toByteArray()),
         )
@@ -151,7 +184,10 @@ class CommunityApiClient(private val context: Context) {
             val text = resp.peekBody(MAX_RESPONSE_BYTES).string()
             if (!resp.isSuccessful) {
                 val detail = runCatching { JSONObject(text).optString("detail") }.getOrDefault("")
-                throw IOException(if (detail.isNotBlank()) detail else "HTTP ${resp.code}")
+                throw CommunityApiException(
+                    resp.code,
+                    if (detail.isNotBlank()) detail else "HTTP ${resp.code}",
+                )
             }
             return text
         }
