@@ -531,15 +531,6 @@ class RetroInputView(
     private val TAP_MAX_MAG = 0.35f
     private val DEAD_ZONE_PX = 10f
 
-    /**
-     * How much further along the other axis the thumb must travel before the
-     * D-pad gives up the direction it is already sending.
-     *
-     * Only used when the touch is over both axes at once. 1.35 is roughly a
-     * 36-degree band around the held direction: wide enough that a thumb rolling
-     * around the pad does not flicker, narrow enough that deliberately changing
-     * direction still feels immediate.
-     */
     private val DPAD_AXIS_SWAP_BIAS = 1.35f
     private val FACE_KEYCODES = setOf(
         KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_B,
@@ -2455,18 +2446,6 @@ class RetroInputView(
                     var wantX = if (dxToPad > dz) 1f else if (dxToPad < -dz) -1f else 0f
                     var wantY = if (dyToPad > dz) 1f else if (dyToPad < -dz) -1f else 0f
 
-                    // One direction at a time. A thumb resting on a round pad
-                    // covers two directions constantly, and on these systems a
-                    // diagonal is rarely what the player meant -- it walks them
-                    // into a wall, or picks the wrong menu row. Whichever axis
-                    // the thumb has travelled further along wins, so pressing
-                    // "more" up than left gives up.
-                    //
-                    // The held axis is favoured by a margin rather than the two
-                    // being compared outright. Dead on the diagonal the larger
-                    // axis swaps on a pixel of jitter, and without the margin
-                    // the direction would chatter between the two while the
-                    // thumb sits still.
                     if (wantX != 0f && wantY != 0f) {
                         val alongX = abs(dxToPad)
                         val alongY = abs(dyToPad)

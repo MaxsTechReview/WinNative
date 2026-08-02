@@ -133,8 +133,6 @@ class RetroSettingsState(
             .ifEmpty { if (context != null && sysId != null) RetroDefaults.upscale(context, sysId) else "native" }
             .lowercase().let { if (it in UPSCALE_KEYS) it else "native" },
     )
-    // Off unless the player asks for it: the 3D engine replaces the libretro
-    // core entirely, so it must never become the default for a game.
     var engine3d by mutableStateOf(shortcut.getExtra(Gen1EmbedLaunch.KEY_ENGINE_3D) == "1")
     var touchControls by mutableStateOf(
         shortcut.getExtra(RetroShortcuts.KEY_TOUCH_CONTROLS)
@@ -1083,14 +1081,6 @@ private fun RetroGraphicsSection(state: RetroSettingsState) {
         RetroPs2GraphicsSection()
         return
     }
-    // First on the Graphics pane, because it decides what draws the game at
-    // all -- every row below it configures the standard core, which this
-    // replaces. It lived under Input for a while, next to the on-screen
-    // controls, which is where nobody looked for it.
-    //
-    // Only offered for the handful of games the 3D engine actually supports.
-    // Compatibility is the ROM's SHA-1, so it means hashing a file: resolved
-    // once off the composition thread rather than on every recomposition.
     val engineCtx = androidx.compose.ui.platform.LocalContext.current
     var engine3dSupported by remember { mutableStateOf(false) }
     LaunchedEffect(state.shortcut.file.absolutePath) {

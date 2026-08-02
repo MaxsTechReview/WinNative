@@ -172,33 +172,12 @@ sealed class RetroMenuEntry {
         val onSelect: () -> Unit,
     ) : RetroMenuEntry()
 
-    /**
-     * A setting that cycles, where the host knows the current value but not the
-     * set of values it cycles through.
-     *
-     * Choice cannot express that: it needs the whole list up front to render its
-     * dropdown and to know where the current value sits in it. This is for
-     * settings owned by something outside WinNative -- the hosted Gen 1 engine
-     * publishes each of its option rows as a label and a value string, and
-     * stepping one runs the engine's own handler, which is what keeps the engine
-     * the single owner of its settings rather than the host mirroring them.
-     */
     class Stepper(
         val label: String,
         val valueText: String,
         val onStep: (Int) -> Unit,
     ) : RetroMenuEntry()
 
-    /**
-     * Two on/off settings sharing one row, side by side.
-     *
-     * A pane is a single column, which is right for a setting whose value needs
-     * the width -- a dropdown showing MEDIUM or BORDERLESS. A plain on/off
-     * needs none of it, and two of them stacked leave a column of mostly empty
-     * cards. Pairing them keeps the row height the rest of the pane uses while
-     * fitting both, which is why this is a distinct entry rather than a column
-     * count the whole pane would have to share.
-     */
     class TogglePair(
         val left: Toggle,
         val right: Toggle,
@@ -310,9 +289,6 @@ class RetroMenuController {
         when (val entry = entries.getOrNull(contentIndex)) {
             is RetroMenuEntry.Action -> if (direction == 0) entry.onClick()
             is RetroMenuEntry.Toggle -> entry.onChange(!entry.checked)
-            // Left and Right pick the half, which is what they do everywhere
-            // else on a row; a centre press takes the left one, the same half
-            // the cursor arrives on.
             is RetroMenuEntry.TogglePair -> {
                 val half = if (direction > 0) entry.right else entry.left
                 half.onChange(!half.checked)
@@ -325,8 +301,6 @@ class RetroMenuController {
                 }
             }
             is RetroMenuEntry.Radio -> if (direction == 0) entry.onSelect()
-            // Centre steps forward, matching how a cycling row behaves when it
-            // is tapped rather than nudged left or right.
             is RetroMenuEntry.Stepper -> entry.onStep(if (direction < 0) -1 else 1)
             is RetroMenuEntry.Slider ->
                 if (direction != 0) {
@@ -1086,15 +1060,6 @@ private fun RetroBooleanRow(
     }
 }
 
-/**
- * Two on/off settings on one row; see [RetroMenuEntry.TogglePair].
- *
- * Each half is a button rather than a labelled switch. A Switch beside a label
- * needs the full width of a row to read cleanly, and at half width the two
- * would crowd each other -- so the state is the button itself: ON or OFF in the
- * accent colour, with the border lit while it is on. Same height as every other
- * row on the pane, so the column still scans as a list.
- */
 @Composable
 private fun RetroTogglePairRow(
     entry: RetroMenuEntry.TogglePair,
@@ -1238,16 +1203,6 @@ private fun RetroChoiceRow(
     }
 }
 
-/**
- * A cycling row whose value set the host does not know; see
- * [RetroMenuEntry.Stepper].
- *
- * Laid out like [RetroChoiceRow] so the two are indistinguishable to the
- * player, but with explicit arrows instead of a dropdown: with no list of
- * values there is nothing to drop down, and stepping is the only thing the
- * owner of the setting exposes. Tapping the row steps forward, which is what
- * the chevron on a Choice row does too.
- */
 @Composable
 private fun RetroStepperRow(
     entry: RetroMenuEntry.Stepper,
@@ -1279,8 +1234,6 @@ private fun RetroStepperRow(
                 fontWeight = FontWeight.SemiBold,
             )
         }
-        // Separately tappable, so a value can be walked backwards without
-        // cycling all the way round -- some engine ladders are long.
         Text(
             text = "◂",
             color = DrawerTextSecondary,

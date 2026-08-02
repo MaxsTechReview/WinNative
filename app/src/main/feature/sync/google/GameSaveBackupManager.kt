@@ -656,10 +656,11 @@ object GameSaveBackupManager {
     }
 
     private fun parseCustomGameId(gameId: String): Pair<Int, String>? {
-        val sep = gameId.indexOf(':')
-        if (sep <= 0 || sep == gameId.length - 1) return null
-        val cid = gameId.substring(0, sep).toIntOrNull() ?: return null
-        return cid to gameId.substring(sep + 1)
+        val base = gameId.removeSuffix(ENGINE_SAVE_SUFFIX)
+        val sep = base.indexOf(':')
+        if (sep <= 0 || sep == base.length - 1) return null
+        val cid = base.substring(0, sep).toIntOrNull() ?: return null
+        return cid to base.substring(sep + 1)
     }
 
     private fun findCustomShortcutByContainerAndFile(
@@ -742,19 +743,22 @@ object GameSaveBackupManager {
         }
     }
 
-    fun retroSaveDir(context: Context, shortcut: Shortcut?): File? {
+    fun retroSaveDir(context: Context, shortcut: Shortcut?, gameId: String? = null): File? {
         val system = shortcut
             ?.getExtra(com.winlator.cmod.feature.retro.RetroShortcuts.KEY_SYSTEM)
             ?.takeIf { it.isNotBlank() } ?: return null
         val gameName = shortcut.getExtra("custom_name", shortcut.name)
+        val engine =
+            if (gameId != null) {
+                isEngineGameId(gameId)
+            } else {
+                com.winlator.cmod.feature.retro.Gen1CloudSync.isEngineShortcut(shortcut)
+            }
         return when {
-            // Checked before the system, because a Game Boy shortcut with the
-            // 3D toggle on keeps its progress inside the engine rather than in
-            // a libretro .srm -- same system, different saves, different place.
-            com.winlator.cmod.feature.retro.Gen1CloudSync.isEngineShortcut(shortcut) ->
+            engine ->
                 com.winlator.cmod.feature.retro.Gen1CloudSync.stagingDir(
                     context,
-                    com.winlator.cmod.feature.retro.Gen1CloudSync.cloudId(shortcut),
+                    gameId ?: com.winlator.cmod.feature.retro.Gen1CloudSync.cloudId(shortcut),
                 )
             system == com.winlator.cmod.feature.retro.RetroSystems.PS2.id ->
                 File(com.armsx2.runtime.MainActivityRuntime.assetCopyRoot(context), "memcards")
@@ -769,6 +773,13 @@ object GameSaveBackupManager {
     }
 
     fun customGameId(containerId: Int, shortcutFileName: String): String = "$containerId:$shortcutFileName"
+
+    const val ENGINE_SAVE_SUFFIX = ":3d"
+
+    fun isEngineGameId(gameId: String): Boolean = gameId.endsWith(ENGINE_SAVE_SUFFIX)
+
+    fun engineGameId(gameId: String): String =
+        if (isEngineGameId(gameId)) gameId else gameId + ENGINE_SAVE_SUFFIX
 
     /** Custom-game save sources in priority order: explicit customSaveDir, then the customSaveWindowsPath extra, then the legacy custom_game_folder extra, then the prefix's users/xuser/{Documents,Saved Games,AppData}. */
     private fun getCustomSaveSources(
@@ -794,7 +805,7 @@ object GameSaveBackupManager {
             // than whenever the game last happened to stage one.
             com.winlator.cmod.feature.retro.Gen1CloudSync.refreshForBackup(context, retroShortcut)
         }
-        val dir = retroSaveDir(context, retroShortcut)
+        val dir = retroSaveDir(context, retroShortcut, gameId)
         if (dir != null) {
             return if (forRestore || (dir.exists() && !dir.listFiles().isNullOrEmpty())) {
                 listOf(SaveBackupSource("retro/save", dir))

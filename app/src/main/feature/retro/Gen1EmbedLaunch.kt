@@ -7,21 +7,9 @@ import com.winlator.cmod.runtime.container.Shortcut
 import java.io.File
 import java.security.MessageDigest
 
-/**
- * Launches a compatible Game Boy title into the 3D engine instead of the
- * libretro core, mirroring DolphinEmbedLaunch: WinNative resolves the settings
- * and hands them to the hosting activity, so the engine never shows a UI of its
- * own.
- *
- * Compatibility is decided by the ROM's SHA-1 rather than its filename, because
- * that is what the engine itself verifies on import -- a renamed or hacked dump
- * that would be rejected there must not be offered the toggle here.
- */
 object Gen1EmbedLaunch {
-    /** Per-game extra: "1" launches into the 3D engine. */
     const val KEY_ENGINE_3D = "retro_engine_3d"
 
-    /** Mod id of the voxel renderer, as it appears in the engine's options. */
     const val VOXEL_MOD_ID = "DRAMATIC_SHAPE"
 
     private val COMPATIBLE = mapOf(
@@ -30,11 +18,6 @@ object Gen1EmbedLaunch {
         "cc7d03262ebfaf2f06772c1a480c7d9d5f4a38e1" to "yellow",
     )
 
-    /**
-     * The engine's version id for this ROM, or null when the ROM is not one of
-     * the three the engine accepts. Hashing a 1 MiB file is cheap, but this is
-     * still called off the UI thread by its callers.
-     */
     fun versionForRom(rom: File): String? {
         if (!rom.isFile || rom.length() != 1024L * 1024L) return null
         val digest = MessageDigest.getInstance("SHA-1")
@@ -50,12 +33,10 @@ object Gen1EmbedLaunch {
         return COMPATIBLE[sha1]
     }
 
-    /** Whether this shortcut is a game the 3D engine can run at all. */
     fun isCompatible(context: Context, shortcut: Shortcut): Boolean =
         Gen1EngineActivity.isInstalled(context) &&
             versionForRom(File(RetroShortcuts.romPath(shortcut))) != null
 
-    /** Whether the user has actually turned the 3D toggle on for this game. */
     fun isEnabled(shortcut: Shortcut): Boolean =
         shortcut.getExtra(KEY_ENGINE_3D) == "1"
 
@@ -68,37 +49,13 @@ object Gen1EmbedLaunch {
         context.startActivity(intent)
     }
 
-    /**
-     * The Intent for this shortcut, or null if the 3D engine cannot run it.
-     *
-     * Deciding and building are one step on purpose. Both need the ROM's
-     * version, and working that out means hashing the file -- so a caller that
-     * asked [shouldLaunch] first and then built the Intent hashed the same
-     * megabyte twice, and the second time was usually on the main thread. Call
-     * this from a background thread and start the Intent it returns.
-     */
     fun launchIntentIfSupported(context: Context, shortcut: Shortcut): Intent? {
         if (!Gen1EngineActivity.isInstalled(context)) return null
         val intent = launchIntent(context, shortcut) ?: return null
-        // After the Intent, because building it is what resolves the version,
-        // and before the Intent is started, because the engine reads its saves
-        // as it boots.
         prepareLaunch(context, shortcut, intent.getStringExtra(Gen1EngineActivity.EXTRA_VERSION).orEmpty())
         return intent
     }
 
-    /**
-     * Brings this game's engine saves down from the cloud before it starts, if
-     * the cloud has something newer.
-     *
-     * The same shape as the Dolphin path: a restore writes into the staging
-     * directory, which is then copied into the engine's own save directory --
-     * it has to happen before the engine boots, because the engine reads its
-     * slot registry once at startup.
-     *
-     * Runs on the caller's thread and blocks; call it from the launch worker,
-     * not the main thread.
-     */
     private fun syncCloudSaves(context: Context, shortcut: Shortcut) {
         if (context !is android.app.Activity) return
         if (shortcut.getExtra("cloud_sync_enabled", "1") == "0") return
@@ -134,15 +91,11 @@ object Gen1EmbedLaunch {
                         }
                     }
                     if (localTs == 0L) {
-                        // Nothing here yet: a new device, or this game's first
-                        // run. Take the cloud copy without asking.
                         restore()
                     } else if (latest.timestampMs > localTs + 120_000L && latest.timestampMs > mark) {
                         if (askCloudConflict(context, gameName)) {
                             restore()
                         } else {
-                            // Remembered so the same choice is not asked again
-                            // for the same cloud save.
                             prefs.edit().putLong("retro_cloud_mark_$cloudId", latest.timestampMs).apply()
                         }
                     }
@@ -174,16 +127,9 @@ object Gen1EmbedLaunch {
         return useCloud.get()
     }
 
-    /**
-     * Everything that must happen before the engine starts: pull a newer cloud
-     * save down, and record which game version this shortcut is so a later
-     * backup does not have to hash the ROM again to find out.
-     */
     fun prepareLaunch(context: Context, shortcut: Shortcut, version: String) {
         val cloudId = Gen1CloudSync.cloudId(shortcut)
         Gen1CloudSync.rememberVersion(context, cloudId, version)
-        // A restore made from the Cloud Saves screen landed in the staging
-        // directory and has been waiting for a launch to be copied in.
         Gen1CloudSync.applyRestoreIfPending(context, cloudId)
         syncCloudSaves(context, shortcut)
     }
@@ -193,9 +139,6 @@ object Gen1EmbedLaunch {
         val version = versionForRom(rom) ?: return null
 
         return Intent(context, Gen1EngineActivity::class.java).apply {
-            // GameActivity takes its game path from the Intent data when the
-            // embed resource is false, which is how the engine archive can live
-            // in the retro bundle and still be found.
             data = Uri.fromFile(Gen1EngineActivity.gameArchive(context))
             putExtra(Gen1EngineActivity.EXTRA_ROM_PATH, rom.absolutePath)
             putExtra(Gen1EngineActivity.EXTRA_VERSION, version)
@@ -204,9 +147,6 @@ object Gen1EmbedLaunch {
                 shortcut.getExtra("custom_name", shortcut.name),
             )
             putExtra(Gen1EngineActivity.EXTRA_SHORTCUT_PATH, shortcut.file.absolutePath)
-            // The loading screen shown during a first-boot ROM import uses the
-            // game's own artwork, so the player sees the game they picked
-            // rather than the engine's splash.
             putExtra(
                 Gen1EngineActivity.EXTRA_ARTWORK_PATH,
                 shortcut.getExtra("customCoverArtPath"),

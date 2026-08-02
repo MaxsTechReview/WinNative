@@ -2143,12 +2143,6 @@ Installed path:
     <string name="retro_gs_dnas_bypass">DNAS Auth Bypass</string>
     <string name="retro_gs_dnas_bypass_subtitle">Auto-skip Sony\'s dead DNAS login for supported online games (SOCOM, Syphon Filter, etc.)</string>
     <string name="retro_gs_group_input">INPUT</string>
-    <!--
-      The 3D engine path. Its settings rows are not listed here: the engine
-      publishes its own labels (including the 3D mod's), so the menu shows
-      whatever the running engine and its mods actually offer rather than a
-      copy that could fall out of step with them.
-    -->
     <string name="retro_engine_save">Save</string>
     <string name="retro_engine_saved">Game saved</string>
     <string name="retro_engine_loading">Loading…</string>
