@@ -1,7 +1,9 @@
 package com.winlator.cmod.feature.stores.ubisoft
 
 import android.content.Context
+import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.display.environment.ImageFs
+import com.winlator.cmod.shared.io.FileUtils
 import java.io.File
 
 /**
@@ -22,8 +24,14 @@ object UbisoftConnect {
     // The Windows install location Ubisoft Connect uses; this path is symlinked to the shared store.
     private const val LAUNCHER_WINDOWS_DIR = "C:\\Program Files (x86)\\Ubisoft\\Ubisoft Game Launcher"
 
-    // Keep in sync with XServerDisplayActivity.UBISOFT_STORE_RELATIVE_PATH + UBISOFT_LAUNCHER_STORE_NAME.
-    private const val STORE_LAUNCHER_REL = "home/.ubisoft-store/launcher"
+    // Keep in sync with XServerDisplayActivity.UBISOFT_STORE_RELATIVE_PATH (+ launcher subdir).
+    private const val STORE_REL = "home/.ubisoft-store"
+    private const val STORE_LAUNCHER_REL = "$STORE_REL/launcher"
+
+    // In-prefix Ubisoft directories (symlinked to the shared store) and the installer's shortcuts.
+    private const val LAUNCHER_PREFIX_REL = ".wine/drive_c/Program Files (x86)/Ubisoft/Ubisoft Game Launcher"
+    private val LOCALAPPDATA_PREFIX_REL = ".wine/drive_c/users/${ImageFs.USER}/AppData/Local/Ubisoft Game Launcher"
+    private val DESKTOP_PREFIX_REL = ".wine/drive_c/users/${ImageFs.USER}/Desktop"
 
     /** The single shared directory that every container's launcher dir is symlinked to. */
     fun sharedLauncherDir(context: Context): File =
@@ -54,4 +62,26 @@ object UbisoftConnect {
             file_name: "$INSTALLER_FILE"
             arguments: "/S"
         """.trimIndent()
+
+    /**
+     * Fully uninstalls Ubisoft Connect: deletes the shared store (client binaries + login token),
+     * then clears each container's symlinks to it and the installer's leftover desktop shortcuts.
+     * After this, isInstalled() is false and the store re-creates itself empty on the next launch.
+     * Run off the main thread — deleting the store touches hundreds of MB.
+     */
+    fun uninstall(context: Context) {
+        val rootDir = ImageFs.find(context).rootDir
+        // Remove per-container symlinks + leftover launcher shortcuts.
+        runCatching {
+            for (c in ContainerManager(context).containers) {
+                FileUtils.delete(File(c.rootDir, LAUNCHER_PREFIX_REL))
+                FileUtils.delete(File(c.rootDir, LOCALAPPDATA_PREFIX_REL))
+                val desktop = File(c.rootDir, DESKTOP_PREFIX_REL)
+                FileUtils.delete(File(desktop, "Ubisoft Connect.lnk"))
+                FileUtils.delete(File(desktop, "Ubisoft Connect.desktop"))
+            }
+        }
+        // Remove the shared store itself — this is the actual uninstall.
+        runCatching { FileUtils.delete(File(rootDir, STORE_REL)) }
+    }
 }

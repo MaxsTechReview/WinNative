@@ -78,6 +78,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.winlator.cmod.R
+import com.winlator.cmod.shared.theme.WinNativeDanger
+import com.winlator.cmod.shared.theme.WinNativeOutline
+import com.winlator.cmod.shared.theme.WinNativeTextPrimary
+import com.winlator.cmod.shared.theme.WinNativeTextSecondary
+import com.winlator.cmod.shared.ui.dialog.WinNativeDialogButton
+import com.winlator.cmod.shared.ui.dialog.WinNativeDialogShell
 import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
 import com.winlator.cmod.shared.ui.nav.LocalPaneNav
 import com.winlator.cmod.shared.ui.nav.paneNavItem
@@ -128,6 +134,7 @@ fun StoresScreen(
     onGogSignIn: () -> Unit,
     onGogSignOut: () -> Unit,
     onUbisoftInstall: () -> Unit,
+    onUbisoftUninstall: () -> Unit,
     onSharedFolderChanged: (Boolean) -> Unit,
     onDownloadSpeedChanged: (Int) -> Unit,
     onDownloadServerChanged: (Int) -> Unit,
@@ -204,6 +211,7 @@ fun StoresScreen(
                 isBusy = state.ubisoftBusy,
                 statusText = state.ubisoftStatus,
                 onDownload = onUbisoftInstall,
+                onUninstall = onUbisoftUninstall,
             )
 
             SectionLabel(stringResource(R.string.stores_accounts_download_settings), modifier = Modifier.padding(top = 8.dp))
@@ -509,7 +517,15 @@ private fun UbisoftStoreCard(
     isBusy: Boolean,
     statusText: String,
     onDownload: () -> Unit,
+    onUninstall: () -> Unit,
 ) {
+    var showUninstallDialog by remember { mutableStateOf(false) }
+    if (showUninstallDialog) {
+        UninstallConfirmDialog(
+            onConfirm = onUninstall,
+            onDismiss = { showUninstallDialog = false },
+        )
+    }
     Box(
         modifier =
             Modifier
@@ -597,23 +613,11 @@ private fun UbisoftStoreCard(
                     )
                 }
             } else if (isInstalled) {
-                // Already downloaded + installed: grayed-out, non-interactive Download button.
-                Box(
-                    modifier =
-                        Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFF1B1B27))
-                            .border(1.dp, TextSecondary.copy(alpha = 0.18f), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 12.dp, vertical = 7.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = stringResource(R.string.stores_accounts_ubisoft_download),
-                        color = TextSecondary.copy(alpha = 0.5f),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
+                ActionButton(
+                    label = stringResource(R.string.stores_accounts_ubisoft_uninstall),
+                    textColor = DangerRed,
+                    onClick = { showUninstallDialog = true },
+                )
             } else {
                 ActionButton(
                     label = stringResource(R.string.stores_accounts_ubisoft_download),
@@ -621,6 +625,52 @@ private fun UbisoftStoreCard(
                     onClick = onDownload,
                 )
             }
+        }
+    }
+}
+
+// Ubisoft Connect uninstall confirmation — uses the app's standard dialog shell + buttons so it
+// matches every other confirm dialog in the app (WinNativeComposeDialogs.showConfirm style).
+@Composable
+private fun UninstallConfirmDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    WinNativeDialogShell(onDismiss = onDismiss) {
+        Text(
+            text = stringResource(R.string.stores_accounts_ubisoft_uninstall_confirm),
+            color = WinNativeTextSecondary,
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
+        )
+        Spacer(Modifier.height(16.dp))
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(WinNativeOutline),
+        )
+        Spacer(Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
+        ) {
+            WinNativeDialogButton(
+                label = stringResource(R.string.common_ui_cancel),
+                textColor = WinNativeTextPrimary,
+                onClick = onDismiss,
+            )
+            WinNativeDialogButton(
+                label = stringResource(R.string.stores_accounts_ubisoft_uninstall),
+                textColor = WinNativeDanger,
+                backgroundColor = WinNativeDanger.copy(alpha = 0.12f),
+                borderColor = WinNativeDanger.copy(alpha = 0.3f),
+                onClick = {
+                    onConfirm()
+                    onDismiss()
+                },
+            )
         }
     }
 }

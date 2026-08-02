@@ -142,6 +142,7 @@ class StoresFragment : Fragment() {
                             }
                         },
                         onUbisoftInstall = { installUbisoftConnect() },
+                        onUbisoftUninstall = { uninstallUbisoftConnect() },
                         onSharedFolderChanged = {
                             PrefManager.useSingleDownloadFolder = it
                             refresh()
@@ -259,6 +260,21 @@ class StoresFragment : Fragment() {
     private fun postUbisoftStatus(text: String) {
         view?.post {
             if (storeState.ubisoftBusy) storeState = storeState.copy(ubisoftStatus = text)
+        }
+    }
+
+    // Fully uninstall Ubisoft Connect (delete the shared store) after the user confirms.
+    private fun uninstallUbisoftConnect() {
+        val ctx = context ?: return
+        if (storeState.ubisoftBusy) return
+        val appCtx = ctx.applicationContext
+        storeState = storeState.copy(ubisoftBusy = true, ubisoftStatus = "")
+        CoroutineScope(Dispatchers.IO).launch {
+            UbisoftConnect.uninstall(appCtx)
+            withContext(Dispatchers.Main) {
+                storeState = storeState.copy(ubisoftBusy = false, ubisoftStatus = "")
+                refresh()
+            }
         }
     }
 
