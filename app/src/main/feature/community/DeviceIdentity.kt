@@ -4,6 +4,9 @@ import android.os.Build
 
 object DeviceIdentity {
 
+    @Volatile
+    private var cached: HardwareBlock? = null
+
     data class HardwareBlock(
         val socModel: String,
         val socManufacturer: String,
@@ -16,6 +19,11 @@ object DeviceIdentity {
     )
 
     fun current(): HardwareBlock {
+        cached?.let { return it }
+        return build().also { cached = it }
+    }
+
+    private fun build(): HardwareBlock {
         val soc = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
             Build.SOC_MODEL.orEmptyClean() else getprop("ro.soc.model")
         val socMfr = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)

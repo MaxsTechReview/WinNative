@@ -955,28 +955,6 @@ private fun Sidebar(
                     }
                 }
             }
-            if (showCommunity) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    CommunityHeaderButton(
-                        Icons.Outlined.Download, "Download",
-                        Modifier.weight(1f),
-                        communityRowActive && nav?.communityCol == 0,
-                        { nav?.tapCommunity(0); onDownloadCommunity() }
-                    )
-                    CommunityHeaderButton(
-                        Icons.Outlined.Upload, "Upload",
-                        Modifier.weight(1f),
-                        communityRowActive && nav?.communityCol == 1,
-                        { nav?.tapCommunity(1); onUploadCommunity() }
-                    )
-                }
-                Spacer(Modifier.height(8.dp))
-            }
             Box(
                 modifier = Modifier
                     .padding(horizontal = 12.dp)
@@ -994,6 +972,28 @@ private fun Sidebar(
                 .padding(bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(1.dp)
         ) {
+            if (showCommunity) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    CommunityHeaderButton(
+                        Icons.Outlined.Download, "Download",
+                        Modifier.weight(1f),
+                        communityRowActive && nav?.communityCol == 0,
+                        { nav?.tapCommunity(0); onDownloadCommunity() }
+                    )
+                    CommunityHeaderButton(
+                        Icons.Outlined.Upload, "Upload",
+                        Modifier.weight(1f),
+                        communityRowActive && nav?.communityCol == 1,
+                        { nav?.tapCommunity(1); onUploadCommunity() }
+                    )
+                }
+            }
             sections.forEachIndexed { index, section ->
                 SidebarItem(
                     icon = section.icon,
@@ -1091,6 +1091,7 @@ private fun SaveButton(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun CommunityHeaderButton(
     icon: ImageVector,
@@ -1099,9 +1100,14 @@ private fun CommunityHeaderButton(
     navHighlighted: Boolean = false,
     onClick: () -> Unit
 ) {
+    val bringIntoView = remember { BringIntoViewRequester() }
+    LaunchedEffect(navHighlighted) {
+        if (navHighlighted) runCatching { bringIntoView.bringIntoView() }
+    }
     Box(
         modifier = modifier
             .height(28.dp)
+            .bringIntoViewRequester(bringIntoView)
             .clip(RoundedCornerShape(8.dp))
             .border(1.dp, AccentBlue.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
             .background(AccentBlue.copy(alpha = 0.08f))

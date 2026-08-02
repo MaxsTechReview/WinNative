@@ -5,6 +5,7 @@ import android.app.Dialog
 import android.view.Gravity
 import android.view.ViewGroup
 import android.view.Window
+import android.util.Log
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.compose.ui.platform.ComposeView
@@ -45,11 +46,22 @@ class CommunityController(
 
     var onConfigApplied: () -> Unit = {}
 
+    private fun guard(what: String, block: () -> Unit) {
+        try {
+            block()
+        } catch (t: Throwable) {
+            Log.e(TAG, "community $what failed", t)
+            toast("Community $what failed: ${t.javaClass.simpleName}: ${t.message ?: "no message"}")
+        }
+    }
+
     init {
         UploaderIdentity.resolveGoogle(activity)
     }
 
-    fun upload() {
+    fun upload() = guard("upload") { uploadInternal() }
+
+    private fun uploadInternal() {
         if (!CommunityApiClient.isConfigured()) {
             toast("Community sharing is not available in this build")
             return
@@ -101,7 +113,9 @@ class CommunityController(
         activity.runOnUiThread { Toast.makeText(activity, msg, Toast.LENGTH_LONG).show() }
     }
 
-    fun openDownload() {
+    fun openDownload() = guard("download") { openDownloadInternal() }
+
+    private fun openDownloadInternal() {
         val lifecycleOwner = activity as? LifecycleOwner
         val savedStateOwner = activity as? SavedStateRegistryOwner
         if (lifecycleOwner == null || savedStateOwner == null) {
@@ -190,6 +204,10 @@ class CommunityController(
             onConfigApplied()
             downloadDialog?.dismiss()
         }
+    }
+
+    private companion object {
+        const val TAG = "CommunityController"
     }
 
     private suspend fun applyConfig(settings: JSONObject): List<ComponentChecker.Missing> {
