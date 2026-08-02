@@ -40,7 +40,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -65,7 +64,7 @@ const val XSERVER_DRAWER_OPEN_TRIGGER_DP = 32
 // Open only on a clearly rightward swipe: dx must exceed this * |dy| (~27deg of horizontal).
 const val XSERVER_DRAWER_OPEN_HORIZONTAL_RATIO = 2f
 
-private val DrawerWidth = 290.dp
+private val DrawerWidth = 300.dp
 private val DrawerStartPadding = 6.dp
 private val DrawerVerticalPadding = 6.dp
 private const val DrawerSettleAnimationMs = 200
@@ -87,6 +86,8 @@ interface XServerDisplayHostCallbacks {
     fun onDrawerGestureClaimed()
 
     fun onDialogVisibilityChanged(visible: Boolean)
+
+    fun isControllerConnected(): Boolean
 }
 
 fun setupXServerDisplayHost(
@@ -127,11 +128,12 @@ private fun XServerDisplayHost(
             closedFallbackPx
         }
     val drawerOpenOffset = 0f
-    // The sheet is "engaged" whenever it is on (or sliding onto) the screen. Used
-    // to trigger the card-reveal animation; the content itself is always composed.
+    // "Engaged" = on or sliding onto the screen; drives the card-reveal animation (the content itself is always composed).
     val drawerEngaged = drawerWidthPx <= 0f ||
         drawerOffsetPx > drawerClosedOffset + 1f ||
         stateHolder.isDrawerOpen
+    val drawerContentComposed = stateHolder.isDrawerOpen ||
+        (drawerWidthPx > 0f && drawerOffsetPx > drawerClosedOffset + 1f)
     val dialogVisible = false
 
     DisposableEffect(stateHolder) {
@@ -197,7 +199,8 @@ private fun XServerDisplayHost(
                                     down.position.x <= edgeWidthPx
                                 }
                             if (!canStartFromHere) {
-                                if (stateHolder.isDrawerOpen && down.position.x > drawerWidthPx) {
+                                if (stateHolder.isDrawerOpen && down.position.x > drawerWidthPx
+                                    && !callbacks.isControllerConnected()) {
                                     stateHolder.closeDrawer()
                                 }
                                 return@awaitEachGesture
@@ -294,6 +297,11 @@ private fun XServerDisplayHost(
                     1f
                 }
             val scaledDrawerWidth = DrawerWidth * evenScale
+            // Derived, not measured, so the sheet need not exist while closed.
+            val scaledDrawerWidthPx = with(density) { scaledDrawerWidth.toPx() }
+            LaunchedEffect(scaledDrawerWidthPx) {
+                drawerWidthPx = scaledDrawerWidthPx
+            }
 
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                 AndroidView(
@@ -306,8 +314,7 @@ private fun XServerDisplayHost(
                 )
             }
 
-            // Performance HUD: half the screen (left in landscape, top in portrait), consuming its own
-            // touches so the rest stays a trackpad. Rendered in the host (not a nested ComposeView).
+            // Performance HUD: half the screen (left in landscape, top in portrait), consuming its own touches so the rest stays a trackpad. Hosted here, not a nested ComposeView.
             val perfHudVisible by PerformanceHudState.visible.collectAsState()
             if (perfHudVisible) {
                 val landscape =
@@ -335,42 +342,49 @@ private fun XServerDisplayHost(
                 }
             }
 
-            ModalDrawerSheet(
-                drawerShape = RoundedCornerShape(20.dp),
-                drawerContainerColor = PaneSurfaceColor,
-                drawerContentColor = Color.Unspecified,
-                drawerTonalElevation = 0.dp,
-                windowInsets = WindowInsets(0, 0, 0, 0),
-                modifier =
-                    Modifier
-                        .zIndex(2f)
-                        .padding(start = DrawerStartPadding, top = drawerTopInset, bottom = DrawerVerticalPadding)
-                        .fillMaxHeight()
-                        .width(scaledDrawerWidth)
-                        .onSizeChanged { size ->
-                            drawerWidthPx = size.width.toFloat()
-                        }
-                        .offset {
-                            androidx.compose.ui.unit.IntOffset(
-                                drawerOffsetPx.roundToInt(),
-                                0,
-                            )
-                        },
-            ) {
-                // Keep the drawer content composed at all times. When closed the sheet
-                // is fully translated off-screen (drawerOffsetPx), so nothing is drawn,
-                // but the composition stays warm — opening becomes a cheap slide instead
-                // of rebuilding the whole tree on the first animation frame.
-                XServerDrawerContent(
-                    state = stateHolder.state,
-                    taskManagerState = stateHolder.taskManagerState,
-                    logsState = stateHolder.logsState,
-                    openPane = stateHolder.openPane,
-                    onOpenPaneChange = { stateHolder.setOpenPaneAndNotify(it) },
-                    listener = listener,
-                    onDismiss = { stateHolder.closeDrawer() },
-                    revealCards = drawerEngaged,
-                )
+            // Closed, the sheet sits flush on the edge and its rounded corners leak a hairline.
+            if (drawerContentComposed) {
+                ModalDrawerSheet(
+                    drawerShape = RoundedCornerShape(20.dp),
+                    drawerContainerColor = PaneSurfaceColor,
+                    drawerContentColor = Color.Unspecified,
+                    drawerTonalElevation = 0.dp,
+                    windowInsets = WindowInsets(0, 0, 0, 0),
+                    modifier =
+                        Modifier
+                            .zIndex(2f)
+                            .padding(start = DrawerStartPadding, top = drawerTopInset, bottom = DrawerVerticalPadding)
+                            .fillMaxHeight()
+                            .width(scaledDrawerWidth)
+                            .offset {
+                                androidx.compose.ui.unit.IntOffset(
+                                    drawerOffsetPx.roundToInt(),
+                                    0,
+                                )
+                            },
+                ) {
+                    XServerDrawerContent(
+                        state = stateHolder.state,
+                        taskManagerState = stateHolder.taskManagerState,
+                        logsState = stateHolder.logsState,
+                        openPane = stateHolder.openPane,
+                        onOpenPaneChange = { stateHolder.setOpenPaneAndNotify(it) },
+                        listener = listener,
+                        onDismiss = { stateHolder.closeDrawer() },
+                        revealCards = drawerEngaged,
+                        menuNavRegion = stateHolder.menuNavRegion,
+                        menuNavIndex = stateHolder.menuNavIndex,
+                        menuActivateSignal = stateHolder.menuActivateSignal,
+                        onSetTabCount = { stateHolder.setMenuTabCount(it) },
+                        onSetCardLayout = { c, cols -> stateHolder.setMenuCardLayout(c, cols) },
+                        onSetBottomCount = { stateHolder.setMenuBottomCount(it) },
+                        onCursor = { r, i -> stateHolder.setMenuNav(r, i) },
+                        paneNavSignal = stateHolder.paneNavSignal,
+                        paneNavDir = stateHolder.paneNavDir,
+                        controllerActive = stateHolder.controllerConnected,
+                        onOverlayCloserChange = { stateHolder.paneOverlayCloser = it },
+                    )
+                }
             }
         }
     }

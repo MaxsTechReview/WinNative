@@ -36,6 +36,7 @@ import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags;
 import com.winlator.cmod.runtime.display.winhandler.WinHandler;
 import com.winlator.cmod.runtime.display.xserver.Pointer;
 import com.winlator.cmod.runtime.display.xserver.XServer;
+import com.winlator.cmod.runtime.input.controls.AccentTheme;
 import com.winlator.cmod.runtime.input.controls.Binding;
 import com.winlator.cmod.runtime.input.controls.ControlElement;
 import com.winlator.cmod.runtime.input.controls.ControlsProfile;
@@ -43,7 +44,6 @@ import com.winlator.cmod.runtime.input.controls.ExternalController;
 import com.winlator.cmod.runtime.input.controls.ExternalControllerBinding;
 import com.winlator.cmod.runtime.input.controls.GamepadState;
 import com.winlator.cmod.runtime.input.controls.InputControlsManager;
-import com.winlator.cmod.runtime.input.controls.LabelTheme;
 import com.winlator.cmod.runtime.input.controls.VisualStyle;
 import com.winlator.cmod.shared.math.Mathf;
 import java.io.IOException;
@@ -75,8 +75,8 @@ public class InputControlsView extends View {
   private volatile float mouseMoveOffsetX = 0f;
   private volatile float mouseMoveOffsetY = 0f;
   private boolean showTouchscreenControls = false;
-  private VisualStyle visualStyle = VisualStyle.ORIGINAL;
-  private LabelTheme labelTheme = LabelTheme.DEFAULT;
+  private VisualStyle visualStyle = VisualStyle.SLATE;
+  private AccentTheme accentTheme = AccentTheme.CYAN;
   private InputControlsManager inputControlsManager;
 
   private Handler timeoutHandler; // Reference to the activity's timeout handler
@@ -182,32 +182,36 @@ public class InputControlsView extends View {
     return overlayOpacity;
   }
 
+  private boolean reverseBindingOrder = false;
+
+  public boolean isReverseBindingOrder() {
+    return reverseBindingOrder;
+  }
+
+  public void setReverseBindingOrder(boolean reverseBindingOrder) {
+    this.reverseBindingOrder = reverseBindingOrder;
+  }
+
   public VisualStyle getVisualStyle() {
     return visualStyle;
   }
 
   public void setVisualStyle(VisualStyle style) {
-    this.visualStyle = style != null ? style : VisualStyle.ORIGINAL;
+    this.visualStyle = style != null ? style : VisualStyle.SLATE;
     invalidate();
   }
 
-  /** Same as {@link #setVisualStyle} but without {@link #invalidate()}, for internal draw-time
-   * fallbacks where requesting another redraw would loop. */
-  public void setVisualStyleSilent(VisualStyle style) {
-    this.visualStyle = style != null ? style : VisualStyle.ORIGINAL;
+  public AccentTheme getAccentTheme() {
+    return accentTheme;
   }
 
-  public LabelTheme getLabelTheme() {
-    return labelTheme;
+  public void setAccentTheme(AccentTheme theme) {
+    this.accentTheme = theme != null ? theme : AccentTheme.CYAN;
+    invalidate();
   }
 
   public InputControlsManager getInputControlsManager() {
     return inputControlsManager;
-  }
-
-  public void setLabelTheme(LabelTheme theme) {
-    this.labelTheme = theme != null ? theme : LabelTheme.DEFAULT;
-    invalidate();
   }
 
   public int getSnappingSize() {
@@ -741,14 +745,18 @@ public class InputControlsView extends View {
               moveCursor = false;
             }
 
+            if (moveCursor) cursor.set(Math.round(x), Math.round(y));
             selectElement(element);
             break;
           }
         case MotionEvent.ACTION_MOVE:
           {
             if (selectedElement != null) {
-              selectedElement.setX((int) Mathf.roundTo(event.getX() - offsetX, snappingSize));
-              selectedElement.setY((int) Mathf.roundTo(event.getY() - offsetY, snappingSize));
+              selectedElement.setX(Math.round(event.getX() - offsetX));
+              selectedElement.setY(Math.round(event.getY() - offsetY));
+              invalidate();
+            } else if (moveCursor) {
+              cursor.set(Math.round(event.getX()), Math.round(event.getY()));
               invalidate();
             }
             break;
@@ -757,9 +765,7 @@ public class InputControlsView extends View {
           {
             if (selectedElement != null && profile != null) profile.save();
             if (moveCursor)
-              cursor.set(
-                  (int) Mathf.roundTo(event.getX(), snappingSize),
-                  (int) Mathf.roundTo(event.getY(), snappingSize));
+              cursor.set(Math.round(event.getX()), Math.round(event.getY()));
             invalidate();
             break;
           }
@@ -795,22 +801,7 @@ public class InputControlsView extends View {
                   eventHandled = true;
                   activeTouchElements.put(pointerId, element);
 
-                  // Trigger haptic feedback for input controls
-                  if (hapticsEnabled) {
-                    Vibrator vibrator;
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                      VibratorManager vibratorManager =
-                          getContext().getSystemService(VibratorManager.class);
-                      vibrator =
-                          vibratorManager != null ? vibratorManager.getDefaultVibrator() : null;
-                    } else {
-                      vibrator = getContext().getSystemService(Vibrator.class);
-                    }
-                    if (vibrator != null && vibrator.hasVibrator()) {
-                      vibrator.vibrate(
-                          VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE));
-                    }
-                  }
+                  if (hapticsEnabled) triggerTouchHaptic();
                   break;
                 }
               }
@@ -832,8 +823,49 @@ public class InputControlsView extends View {
               float y = event.getY(i);
 
               ControlElement activeElement = activeTouchElements.get(movePointerId);
-              boolean pointerHandled =
-                  activeElement != null && activeElement.handleTouchMove(movePointerId, x, y);
+              boolean swipeAllowed =
+                  touchpadView == null
+                      || touchpadView.getScreenTouchMode() != TouchpadView.MODE_MAP_TO_RIGHT_STICK;
+              boolean pointerHandled = false;
+
+              if (swipeAllowed
+                  && activeElement != null
+                  && activeElement.isCapturing(movePointerId)
+                  && (activeElement.getType() == ControlElement.Type.RADIAL_MENU
+                      || activeElement.getType() == ControlElement.Type.D_PAD)
+                  && !activeElement.containsPoint(x, y)) {
+                for (ControlElement element : profile.getElements()) {
+                  if (element.isSwipeTarget() && element.handleTouchDown(movePointerId, x, y)) {
+                    activeElement.handleTouchUp(movePointerId, x, y);
+                    activeTouchElements.put(movePointerId, element);
+                    activeElement = element;
+                    pointerHandled = true;
+                    capturesChanged = true;
+                    if (hapticsEnabled) triggerTouchHaptic();
+                    break;
+                  }
+                }
+              }
+
+              if (!pointerHandled) {
+                pointerHandled =
+                    activeElement != null && activeElement.handleTouchMove(movePointerId, x, y);
+              }
+
+              if (swipeAllowed
+                  && activeElement != null
+                  && activeElement.getType() == ControlElement.Type.BUTTON
+                  && !activeElement.isCapturing(movePointerId)) {
+                for (ControlElement element : profile.getElements()) {
+                  if (element.isSwipeTarget() && element.handleTouchDown(movePointerId, x, y)) {
+                    activeTouchElements.put(movePointerId, element);
+                    pointerHandled = true;
+                    capturesChanged = true;
+                    if (hapticsEnabled) triggerTouchHaptic();
+                    break;
+                  }
+                }
+              }
 
               if (!pointerHandled && activeElement == null) {
                 if (stickElement != null && stickElement.handleTouchMove(movePointerId, x, y)) {
@@ -906,6 +938,19 @@ public class InputControlsView extends View {
       releaseStaleCaptures(event);
     }
     return true;
+  }
+
+  private void triggerTouchHaptic() {
+    Vibrator vibrator;
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+      VibratorManager vibratorManager = getContext().getSystemService(VibratorManager.class);
+      vibrator = vibratorManager != null ? vibratorManager.getDefaultVibrator() : null;
+    } else {
+      vibrator = getContext().getSystemService(Vibrator.class);
+    }
+    if (vibrator != null && vibrator.hasVibrator()) {
+      vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE));
+    }
   }
 
   private void syncCapturedPointers() {

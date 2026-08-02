@@ -38,6 +38,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.winlator.cmod.R
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 
 private val DefaultAccent = Color(0xFFFF6B6B)
 private val DefaultCard = Color(0xFF12121B)
@@ -271,10 +273,17 @@ fun PopupTextAction(
     textColor: Color,
     onClick: () -> Unit,
 ) {
+    val nav = LocalPaneNav.current
+    val clickModifier =
+        if (nav != null) {
+            Modifier.paneNavItem(cornerRadius = 8.dp, onActivate = onClick, tapToSelect = true)
+        } else {
+            Modifier.clickable(onClick = onClick)
+        }
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
+            .then(clickModifier)
             .padding(horizontal = 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,
     ) {

@@ -26,6 +26,7 @@ import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
 import com.winlator.cmod.R
 import com.winlator.cmod.app.config.SettingsConfig
+import com.winlator.cmod.app.shell.UnifiedActivity
 import com.winlator.cmod.app.update.UpdateChecker
 import com.winlator.cmod.feature.shortcuts.FrontendExporter
 import com.winlator.cmod.feature.setup.SetupWizardActivity
@@ -83,6 +84,7 @@ class OtherSettingsFragment : Fragment() {
                         ),
                 ) {
                     OtherSettingsScreen(
+                        bridge = (requireActivity() as? UnifiedActivity)?.settingsNavBridge,
                         state = uiState,
                         onCheckForUpdatesChanged = { checked ->
                             preferences.edit { putBoolean("check_for_updates", checked) }
@@ -154,6 +156,11 @@ class OtherSettingsFragment : Fragment() {
                             WinToast.show(ctx, R.string.settings_general_take_effect_next_startup)
                             refresh()
                         },
+                        onAutoScrapingChanged = { checked ->
+                            preferences.edit { putBoolean("enable_auto_scraping", checked) }
+                            WinToast.show(ctx, R.string.settings_general_take_effect_next_startup)
+                            refresh()
+                        },
                         onOpenInBrowserChanged = { checked ->
                             preferences.edit { putBoolean("open_with_android_browser", checked) }
                             refresh()
@@ -162,12 +169,12 @@ class OtherSettingsFragment : Fragment() {
                             preferences.edit { putBoolean("share_android_clipboard", checked) }
                             refresh()
                         },
-                        onRecordPerformanceToFileChanged = { checked ->
-                            preferences.edit { putBoolean("hud_record_to_file", checked) }
-                            refresh()
-                        },
                         onEnableBackgroundSessionChanged = { checked ->
                             preferences.edit { putBoolean("enable_background_session", checked) }
+                            refresh()
+                        },
+                        onExternalDisplayOutputChanged = { checked ->
+                            preferences.edit { putBoolean("external_display_output", checked) }
                             refresh()
                         },
                         onRunSetupWizard = {
@@ -228,13 +235,15 @@ class OtherSettingsFragment : Fragment() {
                     (preferences.getFloat("cursor_speed", 1.0f) * 100)
                         .toInt()
                         .coerceIn(10, 300),
+
                 cursorLock = preferences.getBoolean("cursor_lock", false),
                 xinputDisabled = preferences.getBoolean("xinput_toggle", false),
+                enableAutoScraping = preferences.getBoolean("enable_auto_scraping", false),
                 enableFileProvider = preferences.getBoolean("enable_file_provider", true),
                 openInBrowser = preferences.getBoolean("open_with_android_browser", false),
                 shareClipboard = preferences.getBoolean("share_android_clipboard", false),
-                recordPerformanceToFile = preferences.getBoolean("hud_record_to_file", false),
                 enableBackgroundSession = preferences.getBoolean("enable_background_session", false),
+                externalDisplayOutput = preferences.getBoolean("external_display_output", false),
                 imagefsInstallProgress = uiState.imagefsInstallProgress,
             )
     }

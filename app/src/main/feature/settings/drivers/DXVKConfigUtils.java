@@ -19,20 +19,6 @@ public final class DXVKConfigUtils {
     }
 
     public static void setEnvVars(Context context, KeyValueSet config, EnvVars envVars) {
-        setEnvVars(context, config, envVars, 0);
-    }
-
-    public static void setEnvVars(Context context, KeyValueSet config, EnvVars envVars, int refreshRateOverride) {
-        String content = "";
-
-        if (refreshRateOverride > 0) {
-            String rateStr = String.valueOf(refreshRateOverride);
-            content += "dxgi.syncInterval = 0; ";
-            content += "dxgi.maxFrameRate = " + rateStr + "; ";
-            content += "d3d9.maxFrameRate = " + rateStr;
-            envVars.put("DXVK_FRAME_RATE", rateStr);
-        }
-
         String async = config.get("async");
         if (!async.isEmpty() && !async.equals("0")) {
             envVars.put("DXVK_ASYNC", "1");
@@ -41,10 +27,6 @@ public final class DXVKConfigUtils {
         String asyncCache = config.get("asyncCache");
         if (!asyncCache.isEmpty() && !asyncCache.equals("0")) {
             envVars.put("DXVK_GPLASYNCCACHE", "1");
-        }
-
-        if (!content.isEmpty()) {
-            envVars.put("DXVK_CONFIG", content);
         }
 
         envVars.put("VKD3D_FEATURE_LEVEL", config.get("vkd3dLevel"));

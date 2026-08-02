@@ -4,6 +4,7 @@ import android.app.Activity
 import com.winlator.cmod.R
 import com.winlator.cmod.feature.stores.steam.service.SteamService
 import com.winlator.cmod.feature.sync.google.GameSaveBackupManager
+import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.runtime.container.Shortcut
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,6 +30,7 @@ object SteamExitCloudSync {
     fun syncOnExit(
         activity: Activity,
         shortcut: Shortcut?,
+        sessionContainer: Container?,
         statusSink: StatusSink,
         callback: ResultCallback,
     ) {
@@ -36,6 +38,10 @@ object SteamExitCloudSync {
             callback.onComplete(Result(success = true, message = "", retryable = false))
             return
         }
+
+        // Sync the wineprefix the session actually ran in; shortcut.container goes stale after a container reassignment.
+        val syncContainer =
+            sessionContainer ?: SteamCloudSyncHelper.resolveShortcutContainer(activity, shortcut)
 
         val appId = shortcut.getExtra("app_id").toIntOrNull()
         if (appId == null) {
@@ -74,7 +80,7 @@ object SteamExitCloudSync {
                                         activity.applicationContext,
                                         appId,
                                         GameSaveBackupManager.BackupOrigin.AUTO,
-                                        shortcut.container,
+                                        syncContainer,
                                     )
                                 }.onFailure {
                                     Timber.tag("SteamExitCloudSync").w(
@@ -94,7 +100,7 @@ object SteamExitCloudSync {
                         )
                     }
                 },
-                shortcut.container,
+                syncContainer,
             )
         } catch (e: Exception) {
             Timber.tag("SteamExitCloudSync").w(e, "Failed to initiate Steam cloud sync")

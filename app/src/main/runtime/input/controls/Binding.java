@@ -290,4 +290,24 @@ public enum Binding {
     for (Binding binding : Binding.values()) if (binding.isGamepad()) labels.add(binding);
     return labels.toArray(new Binding[0]);
   }
+
+  // Inputs usable as a hold/toggle activator: discrete presses only, no analog directions.
+  public static Binding[] activatorBindingValues() {
+    ArrayList<Binding> values = new ArrayList<>();
+    values.add(NONE);
+    values.add(MOUSE_LEFT_BUTTON);
+    values.add(MOUSE_MIDDLE_BUTTON);
+    values.add(MOUSE_RIGHT_BUTTON);
+    for (Binding binding : Binding.values()) if (binding.isKeyboard()) values.add(binding);
+    for (Binding binding : Binding.values())
+      if (binding.isGamepad() && !binding.name().contains("_THUMB_")) values.add(binding);
+    return values.toArray(new Binding[0]);
+  }
+
+  public static String[] activatorBindingLabels() {
+    Binding[] bindings = activatorBindingValues();
+    String[] labels = new String[bindings.length];
+    for (int i = 0; i < bindings.length; i++) labels[i] = bindings[i].toString();
+    return labels;
+  }
 }

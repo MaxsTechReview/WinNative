@@ -76,19 +76,13 @@ object SteamCloudSyncHelper {
         containerHint: Container? = null,
     ): Boolean =
         try {
-            // MD-5: abort if we can't activate this game's container — proceeding would resolve
-            // every path against the wrong wineprefix and overwrite another game's saves.
+            // MD-5: abort if container activation fails — proceeding would resolve paths against the wrong wineprefix and overwrite another game's saves.
             if (!activateContainerForCloudOp(context, appId, containerHint)) {
                 Timber.e("forceDownloadById: aborting — container activation failed for appId=%d", appId)
                 false
             } else {
                 val prefixToPath = steamPrefixResolver(context, appId, containerHint)
-                // Safety net: snapshot the current local save BEFORE the forced download overwrites
-                // and/or deletes local files. This download path forces cloud-wins
-                // (overrideLocalChangeNumber = -1) and has no rollback of its own — if the cloud
-                // copy turns out to be wrong, corrupt, or a transient API artifact, this snapshot
-                // lets the user recover the pre-download local state from Save History. Deduped +
-                // best-effort.
+                // Snapshot the local save BEFORE the forced cloud-wins download (no rollback of its own) so the pre-download state is recoverable from Save History. Best-effort.
                 if (hasActualLocalSaves(context, appId, containerHint)) {
                     runCatching {
                         SteamSaveSnapshotManager.recordSnapshot(
@@ -388,20 +382,14 @@ object SteamCloudSyncHelper {
             syncBeforeLaunch(context, shortcut, preferredSave, ignorePendingOperations)
         }
 
-    /**
-     * Uploads local Steam save files for [appId] so they overwrite Steam Cloud.
-     *
-     * Used after "Use Local" in the launch-time conflict dialog. The explicit upload bumps
-     * Steam's local change number and prevents the same conflict from recurring.
-     */
+    /** Upload local Steam saves over Steam Cloud (after "Use Local"); bumps the local change number so the conflict doesn't recur. */
     suspend fun uploadLocalSaves(
         context: Context,
         appId: Int,
         containerHint: Container? = null,
     ): Boolean =
         try {
-            // MD-5: abort if container activation fails — otherwise we'd upload the wrong game's
-            // wineprefix over this game's Steam Cloud.
+            // MD-5: abort if container activation fails — otherwise we'd upload the wrong game's wineprefix over this game's Steam Cloud.
             if (!activateContainerForCloudOp(context, appId, containerHint)) {
                 Timber.e("uploadLocalSaves: aborting — container activation failed for appId=%d", appId)
                 false
@@ -446,12 +434,7 @@ object SteamCloudSyncHelper {
         return runBlocking { uploadLocalSaves(context, appId, resolveShortcutContainer(context, shortcut)) }
     }
 
-    /**
-     * Resolve the container a shortcut actually runs/saves in: the `container_id` override wins over
-     * shortcut.container (which is only the container whose folder holds the .desktop file and goes
-     * stale once a game is reassigned). Mirrors the launcher's resolveShortcutLaunchContainer so
-     * cloud ops activate the same wineprefix the game runs in.
-     */
+    /** Resolve the container a shortcut actually runs/saves in: the `container_id` override wins over shortcut.container (which goes stale once a game is reassigned). */
     fun resolveShortcutContainer(
         context: Context,
         shortcut: Shortcut,
@@ -495,12 +478,7 @@ object SteamCloudSyncHelper {
         appId: Int,
         containerHint: Container? = null,
     ): (String) -> String {
-        // PathType resolves Windows-side save roots through the active `home/xuser`
-        // symlink. Activate the game's container first so launcher restores, manual syncs,
-        // and pre-launch checks do not read or write another game's wineprefix.
-        //
-        // Prefer the shortcut container when available. The appId fallback is only for
-        // callers that do not have shortcut context.
+        // PathType resolves save roots through the active `home/xuser` symlink, so activate the game's container first or paths read/write another game's wineprefix. (appId fallback is only for callers without shortcut context.)
         activateContainerForCloudOp(context, appId, containerHint)
 
         val accountId =
@@ -527,11 +505,7 @@ object SteamCloudSyncHelper {
         context: Context,
         container: Container,
     ): Boolean {
-        // MD-5: ContainerManager.activateContainer returns false (WITHOUT throwing) when it can't
-        // re-point the global `home/xuser` symlink at this container. The old code only caught
-        // thrown exceptions via runCatching{}.onFailure{}, so that false return was silently
-        // swallowed — and every subsequent path resolution then read/wrote the PREVIOUSLY-active
-        // container's wineprefix, i.e. the wrong game's saves. Honor the boolean and surface it.
+        // MD-5: activateContainer returns false (no throw) when it can't re-point the `home/xuser` symlink; honor the boolean or every later path read/writes the previously-active container's saves.
         val ok =
             runCatching {
                 ContainerManager(context).activateContainer(container)

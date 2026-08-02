@@ -182,7 +182,7 @@ object ContainerCreation {
             put("box64Version", defaults.box64Version)
             put("box64Preset", Box64Preset.PERFORMANCE)
             put("fexcoreVersion", defaults.fexcoreVersion)
-            put("fexcorePreset", FEXCorePreset.PERFORMANCE)
+            put("fexcorePreset", FEXCorePreset.PERFORMANCE_TSO)
             put("desktopTheme", WineThemeManager.DEFAULT_DESKTOP_THEME)
             put("midiSoundFont", "")
             put("lc_all", "")
@@ -320,7 +320,7 @@ object ContainerCreation {
         container.setBox64Version(defaults.box64Version)
         container.setFEXCoreVersion(defaults.fexcoreVersion)
         container.setBox64Preset(Box64Preset.PERFORMANCE)
-        container.setFEXCorePreset(FEXCorePreset.PERFORMANCE)
+        container.setFEXCorePreset(FEXCorePreset.PERFORMANCE_TSO)
         container.saveData()
     }
 

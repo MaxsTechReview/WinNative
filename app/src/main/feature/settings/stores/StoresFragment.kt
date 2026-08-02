@@ -18,12 +18,14 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
 import com.winlator.cmod.R
+import com.winlator.cmod.app.shell.UnifiedActivity
 import com.winlator.cmod.feature.stores.epic.service.EpicAuthManager
 import com.winlator.cmod.feature.stores.epic.ui.auth.EpicOAuthActivity
 import com.winlator.cmod.feature.stores.gog.service.GOGAuthManager
 import com.winlator.cmod.feature.stores.gog.service.GOGService
 import com.winlator.cmod.feature.stores.gog.ui.auth.GOGOAuthActivity
 import com.winlator.cmod.feature.stores.steam.SteamLoginActivity
+import com.winlator.cmod.feature.stores.steam.enums.Language
 import com.winlator.cmod.feature.stores.steam.service.SteamService
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager
 import com.winlator.cmod.shared.android.DirectoryPickerDialog
@@ -149,6 +151,12 @@ class StoresFragment : Fragment() {
                         onPickSteamFolder = { pickFolder(PrefManager.steamDownloadFolder) { PrefManager.steamDownloadFolder = it } },
                         onPickEpicFolder = { pickFolder(PrefManager.epicDownloadFolder) { PrefManager.epicDownloadFolder = it } },
                         onPickGogFolder = { pickFolder(PrefManager.gogDownloadFolder) { PrefManager.gogDownloadFolder = it } },
+                        onContainerLanguageSelected = { index ->
+                            val langName = Language.containerLangForIndex(index)
+                            PrefManager.containerLanguage = langName
+                            refresh()
+                        },
+                        bridge = (requireActivity() as? UnifiedActivity)?.settingsNavBridge,
                     )
                 }
             }
@@ -163,6 +171,8 @@ class StoresFragment : Fragment() {
     // Helpers
     private fun refresh() {
         val ctx = context ?: return
+        val containerLanguageLabels = Language.displayLabels()
+        val containerLanguageIndex = Language.indexForContainerLang(PrefManager.containerLanguage)
         storeState =
             StoreState(
                 isSteamLoggedIn = SteamService.isLoggedIn,
@@ -176,6 +186,8 @@ class StoresFragment : Fragment() {
                 steamFolder = resolveUri(PrefManager.steamDownloadFolder, ctx),
                 epicFolder = resolveUri(PrefManager.epicDownloadFolder, ctx),
                 gogFolder = resolveUri(PrefManager.gogDownloadFolder, ctx),
+                containerLanguageLabels = containerLanguageLabels,
+                containerLanguageIndex = containerLanguageIndex,
             )
     }
 

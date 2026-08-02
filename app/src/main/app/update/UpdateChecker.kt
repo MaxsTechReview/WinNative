@@ -256,6 +256,7 @@ object UpdateChecker {
             when (context.packageName) {
                 "com.ludashi.benchmark" -> "ludashi"
                 "com.tencent.ig" -> null
+                "com.antutu.ABenchMark" -> null
                 else -> "standard"
             } ?: return null
         val downloadUrl = "${DOWNLOADS_PAGE_URL}download.php?type=$apkType"

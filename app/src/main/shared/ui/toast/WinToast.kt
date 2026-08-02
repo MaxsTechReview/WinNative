@@ -88,6 +88,12 @@ object WinToast {
     }
 
     @JvmStatic
+    fun show(context: Context, @StringRes textResId: Int, icon: Bitmap?, anchor: android.view.View?) {
+        val text = context.getString(textResId)
+        show(context, text, icon, autoDurationMs(text), anchor)
+    }
+
+    @JvmStatic
     fun show(context: Context, text: String, anchor: android.view.View?) {
         show(context, text, null, autoDurationMs(text), anchor)
     }

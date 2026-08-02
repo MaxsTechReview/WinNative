@@ -205,16 +205,6 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
     return Collections.unmodifiableList(elements);
   }
 
-  public int findColorForBinding(Binding binding) {
-    if (binding == null || binding == Binding.NONE) return -1;
-    for (ControlElement element : elements) {
-      for (Binding b : element.getBindings()) {
-        if (b == binding) return element.getCustomColor();
-      }
-    }
-    return -1;
-  }
-
   public int getElementCountFromFile() {
     File file = getProfileFile(context, id);
     if (file.isFile()) {
@@ -298,8 +288,11 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
         element.setType(ControlElement.Type.valueOf(elementJSONObject.getString("type")));
         element.setShape(ControlElement.Shape.valueOf(elementJSONObject.getString("shape")));
         element.setToggleSwitch(elementJSONObject.getBoolean("toggleSwitch"));
-        element.setX((int) (elementJSONObject.getDouble("x") * inputControlsView.getMaxWidth()));
-        element.setY((int) (elementJSONObject.getDouble("y") * inputControlsView.getMaxHeight()));
+        element.setSwipeable(elementJSONObject.optBoolean("swipeable", true));
+        element.setX(
+            (int) Math.round(elementJSONObject.getDouble("x") * inputControlsView.getMaxWidth()));
+        element.setY(
+            (int) Math.round(elementJSONObject.getDouble("y") * inputControlsView.getMaxHeight()));
         element.setScale((float) elementJSONObject.getDouble("scale"));
         element.setText(elementJSONObject.getString("text"));
         element.setIconId(elementJSONObject.getInt("iconId"));

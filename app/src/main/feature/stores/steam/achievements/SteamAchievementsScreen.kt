@@ -1,25 +1,32 @@
 package com.winlator.cmod.feature.stores.steam.achievements
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -27,6 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,22 +51,29 @@ import com.winlator.cmod.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.winlator.cmod.feature.stores.steam.service.SteamService
 import com.winlator.cmod.feature.stores.steam.statsgen.Achievement
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.DateFormat
 import java.util.Date
 
-private val BgDark = Color(0xFF18181D)
-private val SurfaceDark = Color(0xFF1E252E)
+private val BgDark = Color(0xFF12121B)
+private val SurfaceDark = Color(0xFF171722)
 private val CardBorder = Color(0xFF2A2A3A)
 private val Accent = Color(0xFF1A9FFF)
+private val AccentGlow = Color(0xFF58A6FF)
 private val TextPrimary = Color(0xFFF0F4FF)
-private val TextSecondary = Color(0xFF7A8FA8)
+private val TextSecondary = Color(0xFF93A6BC)
 private val StatusOnline = Color(0xFF3FB950)
+private val Scrim = Color(0xFF000000)
 
 private fun iconUrl(appId: Int, icon: String?): String? {
     val raw = icon?.trim().orEmpty()
@@ -82,6 +97,7 @@ fun SteamAchievementsScreen(
     val context = LocalContext.current
     var loading by remember { mutableStateOf(true) }
     var achievements by remember { mutableStateOf<List<Achievement>>(emptyList()) }
+    val registry = remember { PaneNavRegistry() }
 
     LaunchedEffect(appId) {
         loading = true
@@ -99,73 +115,130 @@ fun SteamAchievementsScreen(
             .thenByDescending { it.unlockTimestamp ?: 0 },
     )
 
-    Surface(color = BgDark, modifier = Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().statusBarsPadding()) {
-            Column(Modifier.fillMaxWidth().background(SurfaceDark).padding(bottom = 12.dp)) {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(onClick = onClose) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.steam_common_back), tint = TextPrimary)
-                    }
-                    Spacer(Modifier.width(4.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            appName,
-                            color = TextPrimary,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            stringResource(R.string.steam_achievements_title),
-                            color = TextSecondary,
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    }
-                    if (total > 0) {
-                        Text(
-                            "$unlockedCount / $total",
-                            color = Accent,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.padding(end = 14.dp),
-                        )
-                    }
-                }
+    CompositionLocalProvider(LocalPaneNav provides registry) {
+    DialogPaneNav(registry, onDismiss = onClose)
+    BoxWithConstraints(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Scrim.copy(alpha = 0.6f))
+                .windowInsetsPadding(WindowInsets.navigationBars),
+        contentAlignment = Alignment.Center,
+    ) {
+        val dialogWidth = (maxWidth - 32.dp).coerceAtMost(560.dp)
+        val dialogHeight = (maxHeight - 48.dp).coerceIn(360.dp, 640.dp)
+        Surface(
+            modifier =
+                Modifier
+                    .widthIn(min = 320.dp, max = dialogWidth)
+                    .fillMaxWidth()
+                    .height(dialogHeight),
+            shape = RoundedCornerShape(14.dp),
+            color = BgDark,
+            border = BorderStroke(1.dp, CardBorder),
+            tonalElevation = 8.dp,
+        ) {
+            Column(Modifier.fillMaxSize()) {
+                AchievementsHeader(appName = appName, unlocked = unlockedCount, total = total, onClose = onClose)
+                HorizontalDivider(color = CardBorder, thickness = 0.5.dp)
                 if (total > 0) {
                     LinearProgressIndicator(
                         progress = { unlockedCount.toFloat() / total },
                         color = StatusOnline,
-                        trackColor = BgDark,
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(6.dp).clip(RoundedCornerShape(3.dp)),
+                        trackColor = SurfaceDark,
+                        modifier = Modifier.fillMaxWidth().height(4.dp),
                     )
                 }
-            }
-
-            Box(Modifier.weight(1f).fillMaxWidth()) {
-                when {
-                    loading -> CircularProgressIndicator(
-                        color = Accent,
-                        modifier = Modifier.size(30.dp).align(Alignment.Center),
-                    )
-                    achievements.isEmpty() -> Text(
-                        stringResource(R.string.steam_achievements_empty),
-                        color = TextSecondary,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.align(Alignment.Center).padding(24.dp),
-                    )
-                    else -> LazyColumn(
-                        Modifier.fillMaxSize().padding(horizontal = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp),
-                    ) {
-                        items(ordered) { ach -> AchievementRow(appId, ach) }
+                Box(Modifier.fillMaxWidth().weight(1f)) {
+                    when {
+                        loading -> CircularProgressIndicator(
+                            color = Accent,
+                            modifier = Modifier.size(30.dp).align(Alignment.Center),
+                        )
+                        achievements.isEmpty() -> Text(
+                            stringResource(R.string.steam_achievements_empty),
+                            color = TextSecondary,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.align(Alignment.Center).padding(24.dp),
+                        )
+                        else -> Column(
+                            Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            ordered.forEach { ach -> AchievementRow(appId, ach) }
+                        }
                     }
                 }
             }
+        }
+    }
+    }
+}
+
+@Composable
+private fun AchievementsHeader(
+    appName: String,
+    unlocked: Int,
+    total: Int,
+    onClose: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(
+            Modifier
+                .size(34.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(Accent.copy(alpha = 0.16f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Outlined.EmojiEvents,
+                contentDescription = null,
+                tint = AccentGlow,
+                modifier = Modifier.size(19.dp),
+            )
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(
+                stringResource(R.string.steam_achievements_title).uppercase(),
+                color = TextSecondary,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.9.sp,
+            )
+            Text(
+                appName,
+                style = MaterialTheme.typography.titleSmall,
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (total > 0) {
+            Surface(color = Accent.copy(alpha = 0.14f), shape = RoundedCornerShape(7.dp)) {
+                Text(
+                    "$unlocked / $total",
+                    color = AccentGlow,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
+                )
+            }
+        }
+        IconButton(onClick = onClose, modifier = Modifier.size(36.dp).paneNavItem(onActivate = onClose)) {
+            Icon(
+                Icons.Outlined.Close,
+                contentDescription = stringResource(R.string.steam_common_back),
+                tint = TextSecondary,
+                modifier = Modifier.size(20.dp),
+            )
         }
     }
 }
@@ -179,7 +252,7 @@ private fun AchievementRow(appId: Int, ach: Achievement) {
         shape = RoundedCornerShape(12.dp),
         color = if (unlocked) Accent.copy(alpha = 0.06f) else SurfaceDark.copy(alpha = 0.5f),
         border = androidx.compose.foundation.BorderStroke(1.dp, if (unlocked) Accent.copy(alpha = 0.25f) else CardBorder),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().paneNavItem(cornerRadius = 12.dp, onActivate = {}),
     ) {
         Row(
             Modifier.padding(10.dp),

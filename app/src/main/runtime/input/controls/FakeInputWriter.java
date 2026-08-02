@@ -21,7 +21,7 @@ public class FakeInputWriter {
   private static final int BUFFER_SIZE = 768;
   private static final int EVENT_SIZE = 24;
   private static final int MAX_FAKE_INPUT_SLOTS = 4;
-  private static final int RING_CAPACITY_EVENTS = 512;
+  private static final int RING_CAPACITY_EVENTS = 4096;
   private static final int RING_HEADER_SIZE = 64;
   private static final int RING_SIZE = RING_HEADER_SIZE + (RING_CAPACITY_EVENTS * EVENT_SIZE);
   private static final int RING_MAGIC = 0x46494252; // FIBR
@@ -49,6 +49,12 @@ public class FakeInputWriter {
   private static final String TAG = "FakeInputWriter";
   private static final Object RING_LOCK = new Object();
   private static final RingSlot[] RING_SLOTS = new RingSlot[MAX_FAKE_INPUT_SLOTS];
+
+  static {
+    System.loadLibrary("winlator");
+  }
+
+  private static native void nativeStoreFence();
   private final File eventFile;
   private final int slot;
   private int prevHatX;
@@ -363,15 +369,15 @@ public class FakeInputWriter {
       // Publish the resulting absolute state. prev* now hold the post-update
       // values, i.e. exactly the state the events just written transition to.
       writeSnapshotLocked(ring);
+      nativeStoreFence();
       ring.putLong(RING_WRITE_SEQ_OFFSET, writeSeq);
     }
     return true;
   }
 
   // Publishes the full absolute controller state for the native reader to replay
-  // as a keyframe. seqlock: bump to odd, write fields, bump to even. Mirrors the
-  // write_seq publication model (plain mapped-buffer stores); the reader retries
-  // on a torn read.
+  // as a keyframe. seqlock: bump to odd, write fields, bump to even, with
+  // store-store fences so the reader's acquire loads see consistent payloads.
   private void writeSnapshotLocked(ByteBuffer ring) {
     int buttons = 0;
     for (int i = 0; i < BUTTON_MAP.length; i++) {
@@ -381,6 +387,7 @@ public class FakeInputWriter {
     }
     long seq = ring.getLong(RING_SNAPSHOT_SEQ_OFFSET);
     ring.putLong(RING_SNAPSHOT_SEQ_OFFSET, seq + 1); // odd: write in progress
+    nativeStoreFence();
     ring.putInt(RING_SNAPSHOT_BUTTONS_OFFSET, buttons);
     // Axis order must match the native kSnapshotAxisCodes:
     // X, Y, RX, RY, GAS(=triggerR), BRAKE(=triggerL), HAT0X, HAT0Y.
@@ -392,6 +399,7 @@ public class FakeInputWriter {
     ring.putShort(RING_SNAPSHOT_AXES_OFFSET + 10, clampShort(this.prevTriggerL));
     ring.putShort(RING_SNAPSHOT_AXES_OFFSET + 12, clampShort(this.prevHatX));
     ring.putShort(RING_SNAPSHOT_AXES_OFFSET + 14, clampShort(this.prevHatY));
+    nativeStoreFence();
     ring.putLong(RING_SNAPSHOT_SEQ_OFFSET, seq + 2); // even: write complete
   }
 
@@ -408,10 +416,12 @@ public class FakeInputWriter {
   private static void clearSnapshotLocked(ByteBuffer ring) {
     long seq = ring.getLong(RING_SNAPSHOT_SEQ_OFFSET);
     ring.putLong(RING_SNAPSHOT_SEQ_OFFSET, seq + 1);
+    nativeStoreFence();
     ring.putInt(RING_SNAPSHOT_BUTTONS_OFFSET, 0);
     for (int i = 0; i < 8; i++) {
       ring.putShort(RING_SNAPSHOT_AXES_OFFSET + (i * 2), (short) 0);
     }
+    nativeStoreFence();
     ring.putLong(RING_SNAPSHOT_SEQ_OFFSET, seq + 2);
   }
 

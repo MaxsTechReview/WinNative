@@ -28,11 +28,7 @@ object AppTerminationHelper {
         val keepChatAlive = !forceStopChat && PrefManager.chatStayRunningOnExit
         Timber.i("Stopping managed services for app shutdown (%s), keepChatAlive=%b", reason, keepChatAlive)
 
-        // Do NOT call DownloadService.pauseAll() here. The DownloadCoordinator persists every
-        // download's status in the records table, so downloads that were DOWNLOADING when the
-        // app exited will be auto-resumed on next launch. Calling pauseAll would mark them
-        // PAUSED, which would make the user have to manually resume each one — the opposite
-        // of what they expect. PAUSED downloads (paused by the user) stay PAUSED.
+        // Don't pauseAll() here: DOWNLOADING statuses persist and auto-resume next launch; pausing would force manual resume.
         runCatching {
             com.winlator.cmod.app.service.download.DownloadCoordinator.onAppExit()
         }.onFailure { Timber.w(it, "Failed to notify DownloadCoordinator during shutdown") }

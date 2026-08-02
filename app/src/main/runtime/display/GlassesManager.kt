@@ -7,9 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.concurrent.CopyOnWriteArrayList
 
-// App-wide owner of the single Viture USB controller plus the persisted glasses settings, shared by
-// the library (pre-container control) and the in-game external-display swap so only one component
-// ever claims the USB interface. Settings set anywhere persist and re-apply on every (re)connect.
+// App-wide owner of the single Viture USB controller + persisted settings, shared by the library and the in-game swap so only one component claims the USB. Settings persist and re-apply on every (re)connect.
 object GlassesManager {
 
     data class Settings(

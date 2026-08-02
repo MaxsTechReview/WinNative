@@ -15,6 +15,8 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import androidx.preference.PreferenceManager;
 import com.winlator.cmod.runtime.display.XServerDisplayActivity;
+import com.winlator.cmod.runtime.display.xserver.Pointer;
+import com.winlator.cmod.runtime.display.xserver.XKeycode;
 import com.winlator.cmod.runtime.display.xserver.XServer;
 import com.winlator.cmod.runtime.input.controls.ControllerManager;
 import com.winlator.cmod.runtime.input.controls.Binding;
@@ -122,6 +124,7 @@ public class WinHandler {
   private float accumulatedGyroY = 0.0f;
   private boolean gyroToggleEnabled = false;
   private boolean gyroActivatorPressed = false;
+  private boolean gyroMouseActivatorPressed = false;
   private int lastGyroTargetSource = 0;
   private ExternalController lastGyroTargetController;
   // Cached activation; read by shouldApplyGyroToTarget so the query stays side-effect free.
@@ -409,6 +412,7 @@ public class WinHandler {
   }
 
   public void mouseEvent(final int flags, final int dx, final int dy, final int wheelDelta) {
+    checkGyroActivatorMouseFlags(flags);
     if (!this.initReceived) {
       return;
     }
@@ -547,18 +551,51 @@ public class WinHandler {
     if (this.vibrationExecutor != null) this.vibrationExecutor.shutdownNow();
   }
 
+  // Hand the socket/threads to a replacement handler while keeping the fake-input writers/rings the running guest is mapped to (unlike stop()).
+  public void stopForReattach() {
+    synchronized (this.actions) {
+      this.running = false;
+      this.actions.clear();
+      this.actions.notifyAll();
+    }
+    this.vibrationRunning = false;
+    if (this.socket != null) {
+      this.socket.close();
+      this.socket = null;
+    }
+    if (this.vibrationServer != null) {
+      try {
+        this.vibrationServer.close();
+      } catch (IOException ignored) {
+      }
+      this.vibrationServer = null;
+    }
+    if (this.sendExecutor != null) this.sendExecutor.shutdownNow();
+    if (this.receiveExecutor != null) this.receiveExecutor.shutdownNow();
+    if (this.vibrationExecutor != null) this.vibrationExecutor.shutdownNow();
+  }
+
+  private void applyInitHandshake() {
+    this.initReceived = true;
+    this.preferences =
+        PreferenceManager.getDefaultSharedPreferences(this.activity.getBaseContext());
+    if (!this.xinputDisabledInitialized) {
+      this.xinputDisabled = this.preferences.getBoolean("xinput_toggle", false);
+    }
+    synchronized (this.actions) {
+      this.actions.notifyAll();
+    }
+  }
+
+  // Reused session: the guest already handshook and won't repeat it, so adopt init state or mouse/keyboard input stays gated off.
+  public void markSessionInitialized() {
+    applyInitHandshake();
+  }
+
   private void handleRequest(byte requestCode, int port) {
     switch (requestCode) {
       case 1:
-        this.initReceived = true;
-        this.preferences =
-            PreferenceManager.getDefaultSharedPreferences(this.activity.getBaseContext());
-        if (!this.xinputDisabledInitialized) {
-          this.xinputDisabled = this.preferences.getBoolean("xinput_toggle", false);
-        }
-        synchronized (this.actions) {
-          this.actions.notifyAll();
-        }
+        applyInitHandshake();
         return;
       case 5:
         if (this.onGetProcessInfoListener != null) {
@@ -729,6 +766,35 @@ public class WinHandler {
         controller, shouldApplyGyroToTarget(GAMEPAD_SOURCE_CONTROLLER, controller));
     XServer xServer = activity.getXServer();
     if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
+  }
+
+  // Menu owns the controller while open; zero tracked state and push it once so nothing stays held in the guest.
+  public void neutralizeControllers() {
+    for (ExternalController controller : this.controllers.values()) {
+      if (controller == null) {
+        continue;
+      }
+      clearGamepadState(controller.state);
+      clearGamepadState(controller.remappedState);
+      int slot = assignSlot(controller.getDeviceId());
+      if (slot >= 0 && this.writers[slot] != null) {
+        try {
+          this.writers[slot].writeGamepadState(controller.state);
+        } catch (IOException ignored) {
+        }
+      }
+    }
+  }
+
+  private static void clearGamepadState(GamepadState state) {
+    state.thumbLX = 0;
+    state.thumbLY = 0;
+    state.thumbRX = 0;
+    state.thumbRY = 0;
+    state.triggerL = 0;
+    state.triggerR = 0;
+    state.buttons = 0;
+    state.dpad[0] = state.dpad[1] = state.dpad[2] = state.dpad[3] = false;
   }
 
   private void writeControllerGamepadState(
@@ -1508,6 +1574,7 @@ public class WinHandler {
     this.currentGyroStickY = 0.0f;
     this.gyroToggleEnabled = false;
     this.gyroActivatorPressed = false;
+    this.gyroMouseActivatorPressed = false;
     this.accumulatedGyroX = 0.0f;
     this.accumulatedGyroY = 0.0f;
     this.lastGyroActive = false;
@@ -1605,9 +1672,16 @@ public class WinHandler {
     this.currentGyroStickX = 0.0f;
     this.currentGyroStickY = 0.0f;
 
-    // Gate on the activator; stay always-on when no controller target exists (controllerless use).
-    GyroTarget target = resolveActiveGyroTarget(gyroSettings);
-    boolean active = target == null || target.active;
+    Binding activator = getGyroMouseActivator();
+    boolean active;
+    if (activator.isMouse() || activator.isKeyboard()) {
+      active = gyroSettings.mode == 1 ? this.gyroToggleEnabled : this.gyroMouseActivatorPressed;
+      this.lastGyroActive = active;
+    } else {
+      // Gate on the activator; stay always-on when no controller target exists (controllerless use).
+      GyroTarget target = resolveActiveGyroTarget(gyroSettings);
+      active = target == null || target.active;
+    }
     if (!active) {
       this.accumulatedGyroX = 0.0f;
       this.accumulatedGyroY = 0.0f;
@@ -1630,6 +1704,7 @@ public class WinHandler {
     int dy = (int) this.accumulatedGyroY;
     if (dx != 0 || dy != 0) {
       mouseMoveDelta(dx, dy);
+      this.activity.notifyPointerActivity();
       this.accumulatedGyroX -= dx;
       this.accumulatedGyroY -= dy;
     }
@@ -1641,6 +1716,10 @@ public class WinHandler {
     settings.mode = this.preferences.getInt("gyro_mode", 0);
     settings.activatorKeyCode =
         this.preferences.getInt("gyro_trigger_button", KeyEvent.KEYCODE_BUTTON_L1);
+    if (this.preferences.getBoolean("mouse_gyro_enabled", false)) {
+      Binding activator = getGyroMouseActivator();
+      settings.activatorBinding = activator.isGamepad() ? activator : null;
+    }
     settings.applyToRightStick =
         this.preferences.getBoolean("process_gyro_with_left_trigger", false);
     float sensitivityOffset =
@@ -1785,9 +1864,13 @@ public class WinHandler {
 
   private boolean updateGyroActivation(GamepadState targetState, GamepadState rawState, GyroSettings gyroSettings) {
     // Check both remapped and raw state for the activator
-    boolean activatorPressed = isActivatorPressed(targetState, gyroSettings.activatorKeyCode) ||
-                               isActivatorPressed(rawState, gyroSettings.activatorKeyCode);
-    
+    boolean activatorPressed =
+        gyroSettings.activatorBinding != null
+            ? isActivatorPressed(targetState, gyroSettings.activatorBinding)
+                || isActivatorPressed(rawState, gyroSettings.activatorBinding)
+            : isActivatorPressed(targetState, gyroSettings.activatorKeyCode)
+                || isActivatorPressed(rawState, gyroSettings.activatorKeyCode);
+
     if (gyroSettings.mode == 1 && activatorPressed && !this.gyroActivatorPressed) {
       this.gyroToggleEnabled = !this.gyroToggleEnabled;
     }
@@ -1809,6 +1892,103 @@ public class WinHandler {
           || state.isButtonPressed(GamepadState.BUTTON_R2);
     }
     return buttonIdx != -1 && state.isButtonPressed(buttonIdx);
+  }
+
+  private boolean isActivatorPressed(GamepadState state, Binding binding) {
+    if (state == null || !binding.isGamepad()) {
+      return false;
+    }
+    int buttonIdx = gamepadButtonIdxOf(binding);
+    if (buttonIdx == GamepadState.BUTTON_L2) {
+      return state.triggerL > GYRO_TRIGGER_PRESS_THRESHOLD
+          || state.isButtonPressed(GamepadState.BUTTON_L2);
+    }
+    if (buttonIdx == GamepadState.BUTTON_R2) {
+      return state.triggerR > GYRO_TRIGGER_PRESS_THRESHOLD
+          || state.isButtonPressed(GamepadState.BUTTON_R2);
+    }
+    return state.isButtonPressed(buttonIdx);
+  }
+
+  // Binding gamepad ordinals line up with GamepadState button indices, except the d-pad.
+  private static int gamepadButtonIdxOf(Binding binding) {
+    switch (binding) {
+      case GAMEPAD_DPAD_UP:
+        return GamepadState.BUTTON_DPAD_UP;
+      case GAMEPAD_DPAD_DOWN:
+        return GamepadState.BUTTON_DPAD_DOWN;
+      case GAMEPAD_DPAD_LEFT:
+        return GamepadState.BUTTON_DPAD_LEFT;
+      case GAMEPAD_DPAD_RIGHT:
+        return GamepadState.BUTTON_DPAD_RIGHT;
+      default:
+        return binding.ordinal() - Binding.GAMEPAD_BUTTON_A.ordinal();
+    }
+  }
+
+  public static Binding getGyroMouseActivator(SharedPreferences preferences) {
+    try {
+      return Binding.valueOf(
+          preferences.getString("gyro_mouse_trigger_binding", Binding.MOUSE_RIGHT_BUTTON.name()));
+    } catch (Exception e) {
+      return Binding.MOUSE_RIGHT_BUTTON;
+    }
+  }
+
+  private Binding getGyroMouseActivator() {
+    return getGyroMouseActivator(this.preferences);
+  }
+
+  // Called for every pointer button heading to the guest, from any source.
+  public void onPointerButtonInjected(Pointer.Button button, boolean pressed) {
+    if (button == null || !isGyroMouseGated()) {
+      return;
+    }
+    if (getGyroMouseActivator().getPointerButton() == button) {
+      updateGyroMouseActivation(pressed);
+    }
+  }
+
+  // Called for every key heading to the guest, from any source.
+  public void onKeyInjected(XKeycode keycode, boolean pressed) {
+    if (keycode == null || !isGyroMouseGated()) {
+      return;
+    }
+    Binding activator = getGyroMouseActivator();
+    if (activator.isKeyboard() && activator.keycode == keycode) {
+      updateGyroMouseActivation(pressed);
+    }
+  }
+
+  private boolean isGyroMouseGated() {
+    return this.preferences.getBoolean("gyro_enabled", false)
+        && this.preferences.getBoolean("mouse_gyro_enabled", false);
+  }
+
+  // Rising-edge guarded, so the same press arriving on more than one path stays idempotent.
+  private void updateGyroMouseActivation(boolean pressed) {
+    if (pressed
+        && !this.gyroMouseActivatorPressed
+        && this.preferences.getInt("gyro_mode", 0) == 1) {
+      this.gyroToggleEnabled = !this.gyroToggleEnabled;
+    }
+    this.gyroMouseActivatorPressed = pressed;
+  }
+
+  private void checkGyroActivatorMouseFlags(int flags) {
+    if ((flags & MouseEventFlags.LEFTDOWN) != 0) {
+      onPointerButtonInjected(Pointer.Button.BUTTON_LEFT, true);
+    } else if ((flags & MouseEventFlags.LEFTUP) != 0) {
+      onPointerButtonInjected(Pointer.Button.BUTTON_LEFT, false);
+    } else if ((flags & MouseEventFlags.RIGHTDOWN) != 0) {
+      onPointerButtonInjected(Pointer.Button.BUTTON_RIGHT, true);
+    } else if ((flags & MouseEventFlags.RIGHTUP) != 0) {
+      onPointerButtonInjected(Pointer.Button.BUTTON_RIGHT, false);
+    } else if ((flags & MouseEventFlags.MIDDLEDOWN) != 0) {
+      onPointerButtonInjected(Pointer.Button.BUTTON_MIDDLE, true);
+    } else if ((flags & MouseEventFlags.MIDDLEUP) != 0) {
+      onPointerButtonInjected(Pointer.Button.BUTTON_MIDDLE, false);
+    }
   }
 
   private GamepadState getOutputGamepadState(GamepadState baseState, boolean applyGyroOverlay) {
@@ -1875,6 +2055,7 @@ public class WinHandler {
     boolean enabled;
     int mode;
     int activatorKeyCode;
+    Binding activatorBinding;
     boolean applyToRightStick;
     float sensitivityX;
     float sensitivityY;
