@@ -6,14 +6,16 @@
 > the app downloads at runtime. The build/patch details below describe how that fork
 > produces the binary and remain accurate for the fork.
 
-Ships as a **prebuilt** libretro core (not built via `build-cores.sh`), placed only in
-the always-merged jniLibs dir (same as the N64/mupen64 core):
+Built from source like every other libretro core, in
+[WinNative-Emu/dolphin-libretro](https://github.com/WinNative-Emu/dolphin-libretro) on the
+`winnative` branch (fork of `libretro/dolphin`). Its `winnative-core.yml` publishes
+`libdolphin_libretro_android.so` to the rolling `latest` release, `Retro-Consoles` packs it
+into the bundle via `cores.list`, and the app resolves it from
+`files/retro/bundle/cores/` like the rest — no copy in the APK and none in Git LFS.
 
-- `app/src/main/jniLibs/arm64-v8a/libdolphin_libretro_android.so`
-
-Do **not** also copy it into `app/prebuilt/libretro-cores/` — that dir mirrors the
-source-built cores and is merged alongside jniLibs when `-PbuildLibretroCores=false`,
-so a copy there collides with the jniLibs one (duplicate JNI lib merge failure).
+It was previously a hand-placed libretro buildbot nightly committed to
+`app/src/main/jniLibs/arm64-v8a/`, which is why `RetroCoreManager.resolveCore` used to
+special-case it to `nativeLibraryDir`. That special case is gone.
 
 Sys data (game INIs, fonts) is under `app/src/main/assets/retro/dolphin-emu/Sys` and
 copied to app files on first launch (`RetroCoreManager.ensureDolphinSys`).

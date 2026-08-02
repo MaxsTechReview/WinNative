@@ -7,12 +7,7 @@ object RetroCoreManager {
     private fun resolveCore(
         context: Context,
         fileName: String,
-    ): File =
-        if (fileName == RetroSystems.DOLPHIN_LIBRETRO_CORE) {
-            File(context.applicationInfo.nativeLibraryDir, fileName)
-        } else {
-            File(RetroBundle.coresDir(context), fileName)
-        }
+    ): File = File(RetroBundle.coresDir(context), fileName)
 
     fun coreFile(
         context: Context,
