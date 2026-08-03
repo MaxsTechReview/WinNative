@@ -8,9 +8,8 @@ import com.winlator.cmod.feature.stores.steam.enums.AppType
  * GOG Game entity for Room database
  * Represents a game from the GOG platform
  */
-@Entity(tableName = "gog_games")
+@Entity(tableName = "gog_games", primaryKeys = ["id","user_id"])
 data class GOGGame(
-    @PrimaryKey
     @ColumnInfo("id")
     val id: String,
     @ColumnInfo("title")
@@ -51,6 +50,10 @@ data class GOGGame(
     val type: AppType = AppType.game,
     @ColumnInfo(name = "exclude", defaultValue = "0")
     val exclude: Boolean = false,
+    @ColumnInfo("user_id")
+    val userId: String,
+    @ColumnInfo("categories")
+    val categories: String,
 ) {
     companion object {
         const val GOG_IMAGE_BASE_URL = "https://images.gog.com/images"

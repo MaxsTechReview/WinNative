@@ -28,6 +28,8 @@ import com.winlator.cmod.feature.stores.steam.db.dao.SteamAppDao
 import com.winlator.cmod.feature.stores.steam.db.dao.SteamLicenseDao
 import com.winlator.cmod.app.db.download.DownloadRecord
 import com.winlator.cmod.app.db.download.DownloadRecordDao
+import com.winlator.cmod.feature.stores.steam.utils.PrefManager
+import com.winlator.cmod.feature.stores.gog.service.GOGService
 
 const val DATABASE_NAME = "pluvia_database"
 
@@ -45,7 +47,7 @@ const val DATABASE_NAME = "pluvia_database"
         DownloadingAppInfo::class,
         DownloadRecord::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = false,
 )
 @TypeConverters(
@@ -91,7 +93,7 @@ abstract class PluviaDatabase : RoomDatabase() {
                         context.applicationContext,
                         PluviaDatabase::class.java,
                         DATABASE_NAME,
-                    ).addMigrations(MIGRATION_6_7, MIGRATION_7_8)
+                    ).addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                     .fallbackToDestructiveMigration(true)
                     .build()
                     .also { instance = it }
@@ -100,6 +102,24 @@ abstract class PluviaDatabase : RoomDatabase() {
         fun getInstance(context: android.content.Context): PluviaDatabase = init(context)
 
         fun getInstance(): PluviaDatabase = instance ?: throw IllegalStateException("PluviaDatabase not initialized")
+
+        private val MIGRATION_8_9 =
+            object : Migration(8, 9) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("CREATE TABLE gog_games_new (id TEXT NOT NULL, title TEXT NOT NULL, slug TEXT NOT NULL, download_size INTEGER NOT NULL, install_size INTEGER NOT NULL, is_installed INTEGER NOT NULL, install_path TEXT NOT NULL, image_url TEXT NOT NULL, hero_image_url TEXT NOT NULL, icon_url TEXT NOT NULL, description TEXT NOT NULL, release_date TEXT NOT NULL, developer TEXT NOT NULL, publisher TEXT NOT NULL, genres TEXT NOT NULL, languages TEXT NOT NULL, last_played INTEGER NOT NULL, play_time INTEGER NOT NULL, type INTEGER NOT NULL, exclude INTEGER NOT NULL DEFAULT 0, user_id TEXT NOT NULL, categories TEXT NOT NULL, PRIMARY KEY(id, user_id))")
+                    if (PrefManager.gogCurrentAccountId.isEmpty() || !GOGService.isRunning) {
+                        db.execSQL("DROP TABLE gog_games")
+                        db.execSQL("ALTER TABLE gog_games_new RENAME TO gog_games")
+                    } else {
+                        db.execSQL("ALTER TABLE gog_games ADD COLUMN user_id TEXT NOT NULL DEFAULT ${PrefManager.gogCurrentAccountId}")
+                        db.execSQL("ALTER TABLE gog_games ADD COLUMN categories TEXT NOT NULL DEFAULT ''")
+
+                        db.execSQL("INSERT INTO gog_games_new SELECT * FROM gog_games")
+                        db.execSQL("DROP TABLE gog_games")
+                        db.execSQL("ALTER TABLE gog_games_new RENAME TO gog_games")
+                    }
+                }
+            }
 
         private val MIGRATION_7_8 =
             object : Migration(7, 8) {

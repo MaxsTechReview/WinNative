@@ -1,4 +1,5 @@
 package com.winlator.cmod.feature.settings
+import android.content.Context
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -47,7 +48,6 @@ import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Speed
-import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -78,10 +78,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.winlator.cmod.R
+import com.winlator.cmod.feature.stores.gog.service.GOGAuthManager
+import com.winlator.cmod.feature.stores.gog.service.GOGService
+import com.winlator.cmod.feature.stores.steam.utils.PrefManager
 import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
 import com.winlator.cmod.shared.ui.nav.LocalPaneNav
 import com.winlator.cmod.shared.ui.nav.paneNavItem
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 // Palette
 private val BgDark = Color(0xFF11111C)
@@ -116,6 +122,7 @@ data class StoreState(
 
 @Composable
 fun StoresScreen(
+    context: Context,
     state: StoreState,
     serverOptions: List<Pair<Int, String>>,
     onSteamSignIn: () -> Unit,
@@ -165,28 +172,37 @@ fun StoresScreen(
             SectionLabel(stringResource(R.string.stores_accounts_connected_stores))
 
             StoreCard(
+                context = context,
                 name = stringResource(R.string.stores_accounts_steam_integration_title),
                 icon = Icons.Outlined.Gamepad,
                 accentColor = Color(0xFF66C0F4),
                 isLoggedIn = state.isSteamLoggedIn,
                 onSignIn = onSteamSignIn,
                 onSignOut = onSteamSignOut,
+                onSwitch = null,
+                onGetAccounts = null
             )
             StoreCard(
+                context = context,
                 name = stringResource(R.string.preloader_platform_epic),
                 icon = Icons.Outlined.Gamepad,
                 accentColor = Color(0xFF8BAFD4),
                 isLoggedIn = state.isEpicLoggedIn,
                 onSignIn = onEpicSignIn,
                 onSignOut = onEpicSignOut,
+                onSwitch = null,
+                onGetAccounts = null
             )
             StoreCard(
+                context = context,
                 name = stringResource(R.string.preloader_platform_gog),
                 icon = Icons.Outlined.Gamepad,
                 accentColor = Color(0xFFA855F7),
                 isLoggedIn = state.isGogLoggedIn,
                 onSignIn = onGogSignIn,
                 onSignOut = onGogSignOut,
+                onSwitch = GOGService::switchAccount,
+                onGetAccounts = GOGAuthManager::getAccounts
             )
 
             SectionLabel(stringResource(R.string.stores_accounts_download_settings), modifier = Modifier.padding(top = 8.dp))
@@ -352,13 +368,16 @@ private fun SignOutConfirmDialog(
 // Store card
 @Composable
 private fun StoreCard(
+    context: Context,
     name: String,
     icon: ImageVector,
     accentColor: Color,
     isLoggedIn: Boolean,
     onSignIn: () -> Unit,
     onSignOut: () -> Unit,
-) {
+    onSwitch: ((String) -> Unit)?,
+    onGetAccounts: ((context: Context) -> Map<String, String>?)?,
+    ) {
     var showSignOutDialog by remember { mutableStateOf(false) }
     if (showSignOutDialog) {
         SignOutConfirmDialog(
@@ -479,6 +498,117 @@ private fun StoreCard(
                 textColor = if (isLoggedIn) DangerRed else accentColor,
                 onClick = if (isLoggedIn) ({ showSignOutDialog = true }) else onSignIn,
             )
+
+            if (!isLoggedIn || onGetAccounts == null) return@Box
+            Box(modifier = Modifier.padding(4.dp)) {
+                ActionButton(
+                    label = stringResource(R.string.common_ui_add_more),
+                    textColor = accentColor,
+                    onClick = {
+                        onSignIn()
+                    },
+                )
+            }
+
+            onGetAccounts.invoke(context)?.let {
+                 if (it.isNotEmpty() && onSwitch != null) {
+                     val usernames = it.map {  itt -> itt.value }
+                     SettingsDropDownMenu(
+                         options = usernames,
+                         selectedIndex = usernames.indexOf(it[PrefManager.gogCurrentAccountId]),
+                         onOptionSelected = { selectedIndex ->
+                             CoroutineScope(Dispatchers.IO).launch {
+                                 val userId = it.entries.firstOrNull { entry -> usernames[selectedIndex] == entry.value }?.key ?: return@launch
+                                 onSwitch(userId)
+                             }
+                         },
+                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsDropDownMenu(
+    options: List<String>,
+    selectedIndex: Int,
+    onOptionSelected: (Int) -> Unit,
+    accentColor: Color = Accent,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val safeIndex = selectedIndex.coerceIn(0, (options.size - 1).coerceAtLeast(0))
+    val selectedLabel = options.getOrNull(safeIndex) ?: ""
+
+    Box {
+        Row(
+            modifier =
+                Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF222232))
+                    .border(1.dp, accentColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                    .paneNavItem(
+                        cornerRadius = 8.dp,
+                        onActivate = { if (options.isNotEmpty()) expanded = true },
+                        highlightColor = NavHighlight,
+                        tapToSelect = true,
+                    ).padding(horizontal = 10.dp, vertical = 7.dp)
+                    .widthIn(max = 180.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = selectedLabel,
+                color = accentColor,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Icon(
+                imageVector = Icons.Outlined.KeyboardArrowDown,
+                contentDescription = null,
+                tint = accentColor,
+                modifier = Modifier.size(14.dp),
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            shape = RoundedCornerShape(8.dp),
+            containerColor = Color(0xFF24243B),
+            border = BorderStroke(1.dp, CardBorder),
+            modifier = Modifier.widthIn(max = 260.dp),
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .heightIn(max = 260.dp)
+                        .verticalScroll(rememberScrollState()),
+            ) {
+                options.forEachIndexed { index, label ->
+                    val isSelected = index == safeIndex
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = label,
+                                color = if (isSelected) accentColor else TextPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                softWrap = true,
+                            )
+                        },
+                        onClick = {
+                            onOptionSelected(index)
+                            expanded = false
+                        },
+                        modifier =
+                            Modifier.background(
+                                if (isSelected) accentColor.copy(alpha = 0.08f) else Color.Transparent,
+                            ),
+                    )
+                }
+            }
         }
     }
 }

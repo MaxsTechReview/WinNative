@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
 import com.winlator.cmod.feature.stores.gog.data.GOGGame
+import com.winlator.cmod.feature.stores.steam.utils.PrefManager
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -26,32 +27,32 @@ interface GOGGameDao {
     @Delete
     suspend fun delete(game: GOGGame)
 
-    @Query("DELETE FROM gog_games WHERE id = :gameId")
-    suspend fun deleteById(gameId: String)
+    @Query("DELETE FROM gog_games WHERE id = :gameId AND user_id = :gogAccountId")
+    suspend fun deleteById(gameId: String, gogAccountId: String=PrefManager.gogCurrentAccountId)
 
-    @Query("SELECT * FROM gog_games WHERE id = :gameId")
-    suspend fun getById(gameId: String): GOGGame?
+    @Query("SELECT * FROM gog_games WHERE id = :gameId AND user_id = :gogAccountId")
+    suspend fun getById(gameId: String, gogAccountId: String=PrefManager.gogCurrentAccountId): GOGGame?
 
-    @Query("SELECT * FROM gog_games WHERE exclude = 0 ORDER BY title ASC")
-    fun getAll(): Flow<List<GOGGame>>
+    @Query("SELECT * FROM gog_games WHERE exclude = 0 AND user_id = :gogAccountId ORDER BY title ASC")
+    fun getAll(gogAccountId: String=PrefManager.gogCurrentAccountId): Flow<List<GOGGame>>
 
-    @Query("SELECT * FROM gog_games WHERE exclude = 0 ORDER BY title ASC")
-    suspend fun getAllAsList(): List<GOGGame>
+    @Query("SELECT * FROM gog_games WHERE exclude = 0 AND user_id = :gogAccountId ORDER BY title ASC")
+    suspend fun getAllAsList(gogAccountId: String=PrefManager.gogCurrentAccountId): List<GOGGame>
 
-    @Query("SELECT * FROM gog_games WHERE is_installed = :isInstalled AND exclude = 0 ORDER BY title ASC")
-    fun getByInstallStatus(isInstalled: Boolean): Flow<List<GOGGame>>
+    @Query("SELECT * FROM gog_games WHERE is_installed = :isInstalled AND exclude = 0 AND user_id = :gogAccountId ORDER BY title ASC")
+    fun getByInstallStatus(isInstalled: Boolean, gogAccountId: String=PrefManager.gogCurrentAccountId): Flow<List<GOGGame>>
 
-    @Query("SELECT * FROM gog_games WHERE exclude = 0 AND title LIKE '%' || :searchQuery || '%' ORDER BY title ASC")
-    fun searchByTitle(searchQuery: String): Flow<List<GOGGame>>
+    @Query("SELECT * FROM gog_games WHERE exclude = 0 AND user_id = :gogAccountId AND title LIKE '%' || :searchQuery || '%' ORDER BY title ASC")
+    fun searchByTitle(searchQuery: String, gogAccountId: String=PrefManager.gogCurrentAccountId): Flow<List<GOGGame>>
 
-    @Query("DELETE FROM gog_games WHERE is_installed = 0")
-    suspend fun deleteAllNonInstalledGames()
+    @Query("DELETE FROM gog_games WHERE is_installed = 0 AND user_id = :gogAccountId")
+    suspend fun deleteAllNonInstalledGames(gogAccountId: String=PrefManager.gogCurrentAccountId)
 
-    @Query("SELECT COUNT(*) FROM gog_games WHERE exclude = 0")
-    fun getCount(): Flow<Int>
+    @Query("SELECT COUNT(*) FROM gog_games WHERE exclude = 0 AND user_id = :gogAccountId")
+    fun getCount(gogAccountId: String=PrefManager.gogCurrentAccountId): Flow<Int>
 
-    @Query("SELECT id FROM gog_games")
-    suspend fun getAllGameIdsIncludingExcluded(): List<String>
+    @Query("SELECT id FROM gog_games WHERE user_id = :gogAccountId")
+    suspend fun getAllGameIdsIncludingExcluded(gogAccountId: String=PrefManager.gogCurrentAccountId): List<String>
 
     /**
      * Upsert GOG games while preserving install status and paths

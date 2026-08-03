@@ -28,6 +28,7 @@ import com.winlator.cmod.feature.stores.steam.utils.ContainerUtils
 import com.winlator.cmod.feature.stores.steam.utils.FileUtils
 import com.winlator.cmod.feature.stores.steam.utils.MarkerUtils
 import com.winlator.cmod.feature.stores.steam.utils.Net
+import com.winlator.cmod.feature.stores.steam.utils.PrefManager
 import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.display.environment.components.GuestProgramLauncherComponent
@@ -616,7 +617,7 @@ class GOGManager
                                 val gameDetails = result.getOrNull()
                                 if (gameDetails != null) {
                                     Timber.tag("GOG").d("Got Game Details for ID: $id")
-                                    val game = parseGameObject(gameDetails)
+                                    val game = parseGameObject(PrefManager.gogCurrentAccountId, gameDetails)
                                     if (game != null) {
                                         games.add(game)
                                         Timber.tag("GOG").d("Refreshed Game: ${game.title}")
@@ -649,8 +650,7 @@ class GOGManager
                     return@withContext Result.failure(e)
                 }
             }
-
-        private fun parseGameObject(parsedGame: ParsedGogGame): GOGGame? {
+        private fun parseGameObject(userId: String, parsedGame: ParsedGogGame): GOGGame? {
             val title = parsedGame.title
             val id = parsedGame.id
             val downloadSize = parsedGame.downloadSize
@@ -683,6 +683,8 @@ class GOGManager
                 installPath = "",
                 lastPlayed = 0L,
                 playTime = 0L,
+                userId = userId,
+                categories = ""
             )
         }
 
@@ -838,7 +840,7 @@ class GOGManager
                     return Result.success(null)
                 }
 
-                val game = parseGameObject(gameDetails)
+                val game = parseGameObject(PrefManager.gogCurrentAccountId, gameDetails)
                 if (game == null) {
                     Timber.tag("GOG").w("Skipping Invalid GOG App with id: $gameId")
                     return Result.success(null)

@@ -146,6 +146,7 @@
     <string name="common_ui_change">Change</string>
     <string name="common_ui_proceed">Proceed</string>
     <string name="common_ui_sign_out">Sign Out</string>
+    <string name="common_ui_add_more">Add More</string>
     <string name="common_ui_name_cannot_be_empty">Name cannot be empty</string>
     <string name="common_ui_error_with_message">Error: %1$s</string>
     <string name="common_ui_64_bit">64-BIT</string>
