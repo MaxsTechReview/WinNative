@@ -45,7 +45,11 @@ object UploaderIdentity {
         }.onFailure { onDone(false) }
     }
 
-    fun signInAndResolve(activity: Activity, onDone: (Boolean) -> Unit) {
+    fun signInAndResolve(
+        activity: Activity,
+        onInteractiveSignIn: () -> Unit = {},
+        onDone: (Boolean) -> Unit,
+    ) {
         if (isGoogleBacked()) {
             onDone(true)
             return
@@ -57,6 +61,7 @@ object UploaderIdentity {
                 if (t.isSuccessful && t.result?.isAuthenticated == true) {
                     resolveGoogle(activity, onDone)
                 } else {
+                    onInteractiveSignIn()
                     client.signIn().addOnCompleteListener { s ->
                         if (s.isSuccessful && s.result?.isAuthenticated == true) {
                             resolveGoogle(activity, onDone)

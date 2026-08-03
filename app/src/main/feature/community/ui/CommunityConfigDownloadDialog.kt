@@ -89,11 +89,13 @@ internal fun CommunityConfigDownloadScreen(
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var deviceDisplay by remember { mutableStateOf("") }
+    var chipsetDisplay by remember { mutableStateOf("") }
     var missing by remember { mutableStateOf<List<ComponentChecker.Missing>?>(null) }
     var reportTarget by remember { mutableStateOf<String?>(null) }
+    var deleteTarget by remember { mutableStateOf<String?>(null) }
 
     val overlayRegistry = remember { PaneNavRegistry() }
-    val overlayOpen = missing != null || reportTarget != null
+    val overlayOpen = missing != null || reportTarget != null || deleteTarget != null
 
     SideEffect {
         registry.overlay = if (overlayOpen) overlayRegistry else null
@@ -101,6 +103,7 @@ internal fun CommunityConfigDownloadScreen(
             when {
                 missing != null -> { missing = null; true }
                 reportTarget != null -> { reportTarget = null; true }
+                deleteTarget != null -> { deleteTarget = null; true }
                 else -> false
             }
         }
@@ -112,7 +115,12 @@ internal fun CommunityConfigDownloadScreen(
         loading = true
         error = null
         runCatching { api.listConfigs(gameKey, filter, hw) }
-            .onSuccess { configs = it.configs; deviceDisplay = it.deviceDisplay; loading = false }
+            .onSuccess {
+                configs = it.configs
+                deviceDisplay = it.deviceDisplay
+                chipsetDisplay = it.chipsetDisplay
+                loading = false
+            }
             .onFailure { error = it.message ?: "Failed to load"; loading = false }
     }
     LaunchedEffect(filter) { reload() }
@@ -167,7 +175,8 @@ internal fun CommunityConfigDownloadScreen(
                     Pill("Close", TextSecondary, onClick = onClose)
                 }
                 val sub = when (filter) {
-                    CommunityFilter.CHIPSET -> "Chipset: ${hw.socModel.ifBlank { hw.boardPlatform }}"
+                    CommunityFilter.CHIPSET ->
+                        "Chipset: ${chipsetDisplay.ifBlank { hw.socModel.ifBlank { hw.boardPlatform } }}"
                     CommunityFilter.DEVICE -> "Device: ${deviceDisplay.ifBlank { hw.modelNumber }}"
                     CommunityFilter.ALL -> "All devices"
                 }
@@ -206,16 +215,7 @@ internal fun CommunityConfigDownloadScreen(
                                         }
                                     },
                                     onReport = { reportTarget = cfg.id },
-                                    onDelete = {
-                                        scope.launch {
-                                            runCatching { api.deleteConfig(cfg.id) }
-                                                .onSuccess {
-                                                    configs = configs.filterNot { c -> c.id == cfg.id }
-                                                    toast("Deleted")
-                                                }
-                                                .onFailure { toast(it.message ?: "Delete failed") }
-                                        }
-                                    },
+                                    onDelete = { deleteTarget = cfg.id },
                                 )
                             }
                         }
@@ -226,6 +226,28 @@ internal fun CommunityConfigDownloadScreen(
 
         CompositionLocalProvider(LocalPaneNav provides overlayRegistry) {
             missing?.let { MissingComponentDialog(it) { missing = null } }
+
+            deleteTarget?.let { id ->
+                ConfirmDialog(
+                    title = "Delete this config?",
+                    message = "It will be removed from the community list for everyone. " +
+                        "This cannot be undone.",
+                    confirmLabel = "Delete",
+                    confirmTint = Down,
+                    onConfirm = {
+                        deleteTarget = null
+                        scope.launch {
+                            runCatching { api.deleteConfig(id) }
+                                .onSuccess {
+                                    configs = configs.filterNot { c -> c.id == id }
+                                    toast("Deleted")
+                                }
+                                .onFailure { toast(it.message ?: "Delete failed") }
+                        }
+                    },
+                    onCancel = { deleteTarget = null },
+                )
+            }
 
             reportTarget?.let { id ->
                 ReportDialog(
@@ -354,7 +376,13 @@ private fun Chip(label: String, selected: Boolean, isEntry: Boolean = false, onC
 }
 
 @Composable
-private fun Pill(label: String, tint: Color, enabled: Boolean = true, onClick: () -> Unit) {
+private fun Pill(
+    label: String,
+    tint: Color,
+    enabled: Boolean = true,
+    isEntry: Boolean = false,
+    onClick: () -> Unit,
+) {
     Box(
         Modifier.clip(RoundedCornerShape(8.dp)).background(tint.copy(alpha = 0.08f))
             .border(1.dp, tint.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
@@ -363,6 +391,7 @@ private fun Pill(label: String, tint: Color, enabled: Boolean = true, onClick: (
                 onActivate = { if (enabled) onClick() },
                 highlightColor = NavHighlight,
                 tapToSelect = true,
+                isEntry = isEntry,
             )
             .clickable(enabled = enabled) { onClick() }.padding(horizontal = 12.dp, vertical = 6.dp),
     ) {
@@ -377,6 +406,39 @@ private fun Pill(label: String, tint: Color, enabled: Boolean = true, onClick: (
 private fun CenterText(text: String, color: Color) {
     Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) {
         Text(text, color = color, fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun ConfirmDialog(
+    title: String,
+    message: String,
+    confirmLabel: String,
+    confirmTint: Color,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    Box(
+        Modifier.fillMaxWidth().fillMaxHeight().background(Scrim.copy(alpha = 0.6f))
+            .clickable { onCancel() },
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            Modifier.fillMaxWidth(0.78f).clip(RoundedCornerShape(14.dp)).background(Card)
+                .border(1.dp, CardBorder, RoundedCornerShape(14.dp)).padding(16.dp)
+                .clickable(enabled = false) {},
+        ) {
+            Text(title, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                message, color = TextDim, fontSize = 11.sp,
+                modifier = Modifier.padding(top = 6.dp, bottom = 14.dp),
+            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Spacer(Modifier.weight(1f))
+                Pill("Cancel", TextSecondary, isEntry = true, onClick = onCancel)
+                Pill(confirmLabel, confirmTint, onClick = onConfirm)
+            }
+        }
     }
 }
 

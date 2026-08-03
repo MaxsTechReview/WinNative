@@ -25,6 +25,7 @@ data class ListResponse(
     val configs: List<ConfigSummary> = emptyList(),
     val filter: String = "chipset",
     val deviceDisplay: String = "",
+    val chipsetDisplay: String = "",
 )
 
 @Serializable

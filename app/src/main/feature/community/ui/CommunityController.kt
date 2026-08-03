@@ -97,8 +97,10 @@ class CommunityController(
             action()
             return
         }
-        toast("Sign in with a Google account…")
-        UploaderIdentity.signInAndResolve(activity) { ok ->
+        UploaderIdentity.signInAndResolve(
+            activity,
+            onInteractiveSignIn = { toast("Sign in with a Google account…") },
+        ) { ok ->
             if (ok) action() else toast("Google sign-in is required to upload or vote")
         }
     }
