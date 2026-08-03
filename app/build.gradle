@@ -79,14 +79,11 @@ abstract class FetchLibretroDroidTask extends DefaultTask {
         digest.digest().collect { String.format("%02x", it) }.join()
     }
 
-    @TaskAction
-    void fetch() {
-        def expected = sha256.get()
-        def target = outputFile.get().asFile
+    static void download(File target, String tag, String expected) {
         if (target.isFile() && digestOf(target) == expected) return
 
         target.parentFile.mkdirs()
-        def source = "https://github.com/WinNative-Emu/LibretroDroid/releases/download/${tag.get()}/libretrodroid.aar"
+        def source = "https://github.com/WinNative-Emu/LibretroDroid/releases/download/${tag}/libretrodroid.aar"
         def staging = new File(target.parentFile, target.name + ".part")
         new URL(source).withInputStream { input ->
             staging.withOutputStream { output -> output << input }
@@ -95,10 +92,15 @@ abstract class FetchLibretroDroidTask extends DefaultTask {
         def actual = digestOf(staging)
         if (actual != expected) {
             staging.delete()
-            throw new GradleException("libretrodroid.aar from ${tag.get()} has checksum ${actual}, expected ${expected}")
+            throw new GradleException("libretrodroid.aar from ${tag} has checksum ${actual}, expected ${expected}")
         }
         target.delete()
         staging.renameTo(target)
+    }
+
+    @TaskAction
+    void fetch() {
+        download(outputFile.get().asFile, tag.get(), sha256.get())
     }
 }
 
@@ -111,6 +113,15 @@ def fetchLibretroDroid = tasks.register("fetchLibretroDroid", FetchLibretroDroid
     tag.set(libretroDroidPin[0])
     sha256.set(libretroDroidPin[1])
     outputFile.set(libretroDroidAar)
+}
+
+def libretroDroidAarFile = libretroDroidAar.get().asFile
+if (!libretroDroidAarFile.isFile()) {
+    try {
+        FetchLibretroDroidTask.download(libretroDroidAarFile, libretroDroidPin[0], libretroDroidPin[1])
+    } catch (Exception failure) {
+        logger.lifecycle("libretrodroid.aar is not available yet (${failure.message}). IDE symbols stay unresolved until the next build, which fetches it.")
+    }
 }
 
 /*
