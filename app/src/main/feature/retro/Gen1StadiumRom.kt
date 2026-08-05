@@ -27,9 +27,13 @@ object Gen1StadiumRom {
 
     private fun romDir(context: Context): File = File(saveRoot(context), ROM_SUBDIR)
 
-    fun isReady(value: String): Boolean = value.trim().equals("READY", ignoreCase = true)
-
     fun isBuilding(value: String): Boolean = value.trim().equals("BUILDING", ignoreCase = true)
+
+    fun isInstalled(context: Context): Boolean {
+        val marker = File(packDir(context), "pack.info")
+        if (!marker.isFile) return false
+        return runCatching { marker.readText().trim().isNotEmpty() }.getOrDefault(false)
+    }
 
     fun stage(
         context: Context,

@@ -1951,6 +1951,8 @@
     <string name="retro_engine_loading_subtitle">Первичная подготовка данных игры</string>
     <string name="retro_gs_engine_3d">Воксельный 3D</string>
     <string name="retro_gs_engine_3d_subtitle">Играть в эту игру в воксельном 3D-движке вместо стандартного ядра</string>
+    <string name="retro_gs_engine_3d_note">Собственные настройки 3D-движка находятся в игровом меню.</string>
+    <string name="retro_gs_engine_3d_audio_note">Звуком управляет 3D-движок. Используйте вкладку «Звук» в игровом меню.</string>
     <string name="retro_stadium_row">ROM Stadium</string>
     <string name="retro_stadium_ready">Готово</string>
     <string name="retro_stadium_import">Импортировать ROM</string>
@@ -1962,7 +1964,7 @@
     <string name="retro_stadium_keep">Оставить</string>
     <string name="retro_stadium_delete">Удалить</string>
     <string name="retro_stadium_delete_body">Боевые модели Stadium установлены. Удалить их?</string>
-    <string name="retro_stadium_deleted">Боевые модели Stadium удалены</string>
+    <string name="retro_stadium_deleted">Боевые модели Stadium удалены. Перезапустите игру, чтобы завершить удаление.</string>
     <string name="retro_stadium_delete_failed">Не удалось удалить модели Stadium</string>
     <string name="retro_gs_on_screen_controls">Экранные кнопки</string>
     <string name="retro_gs_haptic_feedback">Виброотклик</string>

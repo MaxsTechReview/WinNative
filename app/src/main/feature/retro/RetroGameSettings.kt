@@ -77,6 +77,7 @@ import com.winlator.cmod.shared.ui.nav.paneHighlight
 import com.winlator.cmod.shared.ui.nav.paneNavItem
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import com.winlator.cmod.shared.ui.widget.chasingBorder
+import kotlinx.coroutines.launch
 
 private val BgDeep = GameSettingsStyle.BgDeep
 private val SidebarBg = GameSettingsStyle.SidebarBg
@@ -1113,6 +1114,16 @@ private fun RetroGraphicsSection(state: RetroSettingsState) {
     val embeddedDolphin =
         RetroCoreManager.usesDolphinCore(state.system) &&
             RetroShortcuts.embeddedDolphinEnabled(embeddedDolphinContext)
+    val voxelEngine = state.engine3d
+    if (voxelEngine) {
+        Spacer(Modifier.height(12.dp))
+        RetroSettingGroup {
+            RetroGroupTitle(stringResource(R.string.retro_gs_engine_3d).uppercase())
+            RetroStadiumRomSetting()
+            RetroSettingNote(stringResource(R.string.retro_gs_engine_3d_note))
+        }
+    }
+    if (!voxelEngine) {
     RetroSettingGroup {
         RetroGroupTitle(stringResource(R.string.retro_gs_group_video))
         if (embeddedDolphin) {
@@ -1140,7 +1151,8 @@ private fun RetroGraphicsSection(state: RetroSettingsState) {
             }
         }
     }
-    if (state.coreOptions.isNotEmpty()) {
+    }
+    if (state.coreOptions.isNotEmpty() && !voxelEngine) {
         Spacer(Modifier.height(12.dp))
         RetroSettingGroup {
             RetroGroupTitle((state.system?.shortName ?: stringResource(R.string.retro_gs_group_core)).uppercase())
@@ -1157,6 +1169,116 @@ private fun RetroGraphicsSection(state: RetroSettingsState) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun RetroSettingNote(text: String) {
+    Text(
+        text = text,
+        color = TextDim,
+        fontSize = 11.sp,
+        modifier = Modifier.padding(top = 6.dp),
+    )
+}
+
+@Composable
+private fun RetroStadiumRomSetting() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var refresh by remember { mutableIntStateOf(0) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    val installed = remember(refresh) { Gen1StadiumRom.isInstalled(context) }
+    val staged = remember(refresh) { Gen1StadiumRom.hasStagedPick(context) }
+
+    val picker =
+        androidx.activity.compose.rememberLauncherForActivityResult(
+            androidx.activity.result.contract.ActivityResultContracts.OpenDocument(),
+        ) { uri ->
+            if (uri != null) {
+                scope.launch {
+                    val result =
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            Gen1StadiumRom.stage(context, uri)
+                        }
+                    result
+                        .onSuccess {
+                            android.widget.Toast.makeText(
+                                context,
+                                context.getString(R.string.retro_stadium_imported),
+                                android.widget.Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                        .onFailure {
+                            android.widget.Toast.makeText(
+                                context,
+                                it.message ?: context.getString(R.string.retro_stadium_import_failed),
+                                android.widget.Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                    refresh++
+                }
+            }
+        }
+
+    val status =
+        when {
+            staged -> stringResource(R.string.retro_stadium_building)
+            installed -> stringResource(R.string.retro_stadium_ready)
+            else -> stringResource(R.string.retro_stadium_import)
+        }
+
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(FieldCorner))
+                .background(InputSurface)
+                .border(1.dp, InputBorder, RoundedCornerShape(FieldCorner))
+                .clickable {
+                    when {
+                        staged -> Unit
+                        installed -> confirmDelete = true
+                        else -> picker.launch(arrayOf("*/*"))
+                    }
+                }
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            stringResource(R.string.retro_stadium_row),
+            color = TextPrimary,
+            fontSize = ValueSize,
+            modifier = Modifier.weight(1f),
+        )
+        Text(status, color = if (installed) TextPrimary else TextDim, fontSize = ValueSize)
+    }
+
+    if (confirmDelete) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text(stringResource(R.string.retro_stadium_row)) },
+            text = { Text(stringResource(R.string.retro_stadium_delete_body)) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    confirmDelete = false
+                    val gone = Gen1StadiumRom.delete(context)
+                    android.widget.Toast.makeText(
+                        context,
+                        context.getString(
+                            if (gone) R.string.retro_stadium_deleted else R.string.retro_stadium_delete_failed,
+                        ),
+                        android.widget.Toast.LENGTH_LONG,
+                    ).show()
+                    refresh++
+                }) { Text(stringResource(R.string.retro_stadium_delete)) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { confirmDelete = false }) {
+                    Text(stringResource(R.string.retro_stadium_keep))
+                }
+            },
+        )
     }
 }
 
@@ -1900,12 +2022,14 @@ private fun RetroInputSection(state: RetroSettingsState) {
                 checked = state.touchControls,
                 onCheckedChange = { state.touchControls = it },
             )
-            RetroSettingSwitch(
-                label = stringResource(R.string.retro_gs_adaptive_sticks),
-                checked = state.adaptiveSticks,
-                subtitle = stringResource(R.string.retro_gs_adaptive_sticks_subtitle),
-                onCheckedChange = { state.adaptiveSticks = it },
-            )
+            if (!state.engine3d) {
+                RetroSettingSwitch(
+                    label = stringResource(R.string.retro_gs_adaptive_sticks),
+                    checked = state.adaptiveSticks,
+                    subtitle = stringResource(R.string.retro_gs_adaptive_sticks_subtitle),
+                    onCheckedChange = { state.adaptiveSticks = it },
+                )
+            }
             val sysId = state.system?.id
             if (sysId == RetroSystems.PSX.id || RetroCoreManager.usesDolphinCore(state.system)) {
                 var invVer by remember { androidx.compose.runtime.mutableIntStateOf(0) }
@@ -2006,10 +2130,14 @@ private fun RetroAudioSection(state: RetroSettingsState) {
     }
     RetroSettingGroup {
         RetroGroupTitle(stringResource(R.string.retro_gs_group_audio))
-        RetroSettingSwitch(
-            label = stringResource(R.string.retro_gs_sound),
-            checked = state.audio,
-            onCheckedChange = { state.audio = it },
-        )
+        if (state.engine3d) {
+            RetroSettingNote(stringResource(R.string.retro_gs_engine_3d_audio_note))
+        } else {
+            RetroSettingSwitch(
+                label = stringResource(R.string.retro_gs_sound),
+                checked = state.audio,
+                onCheckedChange = { state.audio = it },
+            )
+        }
     }
 }

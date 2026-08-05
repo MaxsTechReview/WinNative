@@ -2044,6 +2044,8 @@ Asennuspolku:
     <string name="retro_engine_loading_subtitle">Valmistellaan pelitietoja ensimmäistä kertaa</string>
     <string name="retro_gs_engine_3d">Voxel 3D</string>
     <string name="retro_gs_engine_3d_subtitle">Pelaa tätä peliä 3D-voxelmoottorilla vakioytimen sijaan</string>
+    <string name="retro_gs_engine_3d_note">3D-moottorin omat asetukset ovat pelin sisäisessä valikossa.</string>
+    <string name="retro_gs_engine_3d_audio_note">Äänestä vastaa 3D-moottori. Käytä pelin valikon Ääni-välilehteä.</string>
     <string name="retro_stadium_row">Stadium-ROM</string>
     <string name="retro_stadium_ready">Valmis</string>
     <string name="retro_stadium_import">Tuo ROM</string>
@@ -2055,7 +2057,7 @@ Asennuspolku:
     <string name="retro_stadium_keep">Säilytä</string>
     <string name="retro_stadium_delete">Poista</string>
     <string name="retro_stadium_delete_body">Stadiumin taistelumallit on asennettu. Poistetaanko ne?</string>
-    <string name="retro_stadium_deleted">Stadiumin taistelumallit poistettu</string>
+    <string name="retro_stadium_deleted">Stadiumin taistelumallit poistettu. Käynnistä peli uudelleen viimeistelläksesi poiston.</string>
     <string name="retro_stadium_delete_failed">Stadium-malleja ei voitu poistaa</string>
     <string name="retro_gs_on_screen_controls">Näytön ohjaimet</string>
     <string name="retro_gs_haptic_feedback">Haptinen palaute</string>

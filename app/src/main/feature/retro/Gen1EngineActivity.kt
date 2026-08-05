@@ -190,6 +190,24 @@ class Gen1EngineActivity :
         return super.dispatchKeyEvent(event)
     }
 
+    override fun dispatchGenericMotionEvent(event: android.view.MotionEvent): Boolean {
+        val joystick =
+            event.source and android.view.InputDevice.SOURCE_JOYSTICK ==
+                android.view.InputDevice.SOURCE_JOYSTICK
+        if (menu.visible && joystick) {
+            val hatX = event.getAxisValue(android.view.MotionEvent.AXIS_HAT_X)
+            val hatY = event.getAxisValue(android.view.MotionEvent.AXIS_HAT_Y)
+            val x =
+                if (kotlin.math.abs(hatX) > 0.5f) hatX else event.getAxisValue(android.view.MotionEvent.AXIS_X)
+            val y =
+                if (kotlin.math.abs(hatY) > 0.5f) hatY else event.getAxisValue(android.view.MotionEvent.AXIS_Y)
+            menu.handleAxis(x, y)
+            return true
+        }
+        if (menu.visible) return true
+        return super.dispatchGenericMotionEvent(event)
+    }
+
     private fun buildTabs(): List<RetroTabSpec> =
         listOf(
             RetroTabSpec(null, RetroDrawerIcons.Play, getString(R.string.retro_tab_menu)),
@@ -241,24 +259,27 @@ class Gen1EngineActivity :
             source and android.view.InputDevice.SOURCE_JOYSTICK == android.view.InputDevice.SOURCE_JOYSTICK
     }
 
-    private fun stadiumRomEntry(row: Gen1EngineBridge.Row): RetroMenuEntry =
-        RetroMenuEntry.Action(
+    private fun stadiumRomEntry(row: Gen1EngineBridge.Row): RetroMenuEntry {
+        val building = Gen1StadiumRom.isBuilding(row.value) || Gen1StadiumRom.hasStagedPick(this)
+        val installed = Gen1StadiumRom.isInstalled(this)
+        return RetroMenuEntry.Action(
             label = row.label,
             icon = RetroDrawerIcons.EditLayout,
+            danger = installed && !building,
             subtitle =
                 when {
-                    Gen1StadiumRom.isBuilding(row.value) -> getString(R.string.retro_stadium_building)
-                    Gen1StadiumRom.isReady(row.value) -> getString(R.string.retro_stadium_ready)
-                    Gen1StadiumRom.hasStagedPick(this) -> getString(R.string.retro_stadium_building)
+                    building -> getString(R.string.retro_stadium_building)
+                    installed -> getString(R.string.retro_stadium_ready)
                     else -> getString(R.string.retro_stadium_import)
                 },
         ) {
             when {
-                Gen1StadiumRom.isBuilding(row.value) -> Unit
-                Gen1StadiumRom.isReady(row.value) -> promptStadiumDelete()
+                building -> Unit
+                installed -> promptStadiumDelete()
                 else -> pickStadiumRom()
             }
         }
+    }
 
     private fun pickStadiumRom() {
         menu.close()
@@ -272,21 +293,29 @@ class Gen1EngineActivity :
     }
 
     private fun promptStadiumDelete() {
-        android.app.AlertDialog.Builder(this)
-            .setTitle(R.string.retro_stadium_row)
-            .setMessage(R.string.retro_stadium_delete_body)
-            .setPositiveButton(R.string.retro_stadium_keep) { d, _ -> d.dismiss() }
-            .setNegativeButton(R.string.retro_stadium_delete) { d, _ ->
-                d.dismiss()
-                val gone = Gen1StadiumRom.delete(this)
-                toast(
-                    getString(
-                        if (gone) R.string.retro_stadium_deleted else R.string.retro_stadium_delete_failed,
-                    ),
-                )
-                pollFaster()
-            }
-            .show()
+        menu.confirmPrompt =
+            RetroConfirmPrompt(
+                title = getString(R.string.retro_stadium_row),
+                message = getString(R.string.retro_stadium_delete_body),
+                confirmLabel = getString(R.string.retro_stadium_delete),
+                dismissLabel = getString(R.string.retro_stadium_keep),
+                onConfirm = {
+                    menu.confirmPrompt = null
+                    val gone = Gen1StadiumRom.delete(this)
+                    toast(
+                        getString(
+                            if (gone) {
+                                R.string.retro_stadium_deleted
+                            } else {
+                                R.string.retro_stadium_delete_failed
+                            },
+                        ),
+                    )
+                    menu.rebuild()
+                    pollFaster()
+                },
+                onDismiss = { menu.confirmPrompt = null },
+            )
     }
 
     override fun onActivityResult(

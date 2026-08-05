@@ -1981,6 +1981,8 @@
     <string name="retro_engine_loading_subtitle">पहली बार गेम डेटा तैयार किया जा रहा है</string>
     <string name="retro_gs_engine_3d">वॉक्सेल 3D</string>
     <string name="retro_gs_engine_3d_subtitle">इस गेम को मानक कोर के बजाय 3D वॉक्सेल इंजन में खेलें</string>
+    <string name="retro_gs_engine_3d_note">3D इंजन की अपनी सेटिंग्स इन-गेम मेन्यू में हैं।</string>
+    <string name="retro_gs_engine_3d_audio_note">ध्वनि 3D इंजन द्वारा नियंत्रित होती है। इन-गेम मेन्यू में ध्वनि टैब का उपयोग करें।</string>
     <string name="retro_stadium_row">Stadium ROM</string>
     <string name="retro_stadium_ready">तैयार</string>
     <string name="retro_stadium_import">ROM आयात करें</string>
@@ -1992,7 +1994,7 @@
     <string name="retro_stadium_keep">रखें</string>
     <string name="retro_stadium_delete">हटाएँ</string>
     <string name="retro_stadium_delete_body">Stadium बैटल मॉडल इंस्टॉल हैं। उन्हें हटाएँ?</string>
-    <string name="retro_stadium_deleted">Stadium बैटल मॉडल हटाए गए</string>
+    <string name="retro_stadium_deleted">Stadium बैटल मॉडल हटाए गए। उन्हें पूरी तरह हटाने के लिए गेम पुनः आरंभ करें।</string>
     <string name="retro_stadium_delete_failed">Stadium मॉडल हटाए नहीं जा सके</string>
     <string name="retro_gs_on_screen_controls">ऑन-स्क्रीन नियंत्रण</string>
     <string name="retro_gs_haptic_feedback">हैप्टिक फ़ीडबैक</string>
