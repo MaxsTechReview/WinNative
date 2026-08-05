@@ -62,6 +62,7 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Inventory
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.Search
@@ -1069,7 +1070,7 @@ private fun GeneralSection(
     ) {
         @Composable
         fun ActionButton(
-            text: String,
+            icon: ImageVector,
             tint: Color,
             onClick: () -> Unit,
         ) {
@@ -1082,11 +1083,11 @@ private fun GeneralSection(
                     .clickable { onClick() }
                     .padding(horizontal = 10.dp, vertical = 6.dp)
             ) {
-                Text(
-                    text = text,
-                    color = tint,
-                    fontSize = SettingLabelSize,
-                    fontWeight = FontWeight.Medium
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = tint,
+                    modifier = Modifier.size(SettingIconSize)
                 )
             }
         }
@@ -1133,7 +1134,7 @@ private fun GeneralSection(
                 ) {
                     if (!selected) {
                         ActionButton(
-                            text = stringResource(R.string.shortcuts_library_artwork_set),
+                            icon = Icons.Outlined.Image,
                             tint = AccentBlue,
                             onClick = onPick
                         )
@@ -1141,7 +1142,7 @@ private fun GeneralSection(
 
                     if (selected) {
                         ActionButton(
-                            text = stringResource(R.string.common_ui_remove),
+                            icon = Icons.Outlined.Delete,
                             tint = DangerRed,
                             onClick = onRemove
                         )
