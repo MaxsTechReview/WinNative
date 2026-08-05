@@ -20,8 +20,12 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
@@ -163,6 +167,12 @@ class Gen1EngineActivity :
 
     override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
         val keyCode = event.keyCode
+        if (keyCode == android.view.KeyEvent.KEYCODE_BUTTON_MODE && isGamepadSource(event)) {
+            if (event.action == android.view.KeyEvent.ACTION_UP) {
+                if (menu.visible) menu.close() else openMenu()
+            }
+            return true
+        }
         if (keyCode == android.view.KeyEvent.KEYCODE_BACK) {
             if (event.action == android.view.KeyEvent.ACTION_UP) {
                 if (menu.visible) {
@@ -225,8 +235,88 @@ class Gen1EngineActivity :
             else -> RetroPane.SYSTEM
         }
 
+    private fun isGamepadSource(event: android.view.KeyEvent): Boolean {
+        val source = event.device?.sources ?: return false
+        return source and android.view.InputDevice.SOURCE_GAMEPAD == android.view.InputDevice.SOURCE_GAMEPAD ||
+            source and android.view.InputDevice.SOURCE_JOYSTICK == android.view.InputDevice.SOURCE_JOYSTICK
+    }
+
+    private fun stadiumRomEntry(row: Gen1EngineBridge.Row): RetroMenuEntry =
+        RetroMenuEntry.Action(
+            label = row.label,
+            icon = RetroDrawerIcons.EditLayout,
+            subtitle =
+                when {
+                    Gen1StadiumRom.isBuilding(row.value) -> getString(R.string.retro_stadium_building)
+                    Gen1StadiumRom.isReady(row.value) -> getString(R.string.retro_stadium_ready)
+                    Gen1StadiumRom.hasStagedPick(this) -> getString(R.string.retro_stadium_building)
+                    else -> getString(R.string.retro_stadium_import)
+                },
+        ) {
+            when {
+                Gen1StadiumRom.isBuilding(row.value) -> Unit
+                Gen1StadiumRom.isReady(row.value) -> promptStadiumDelete()
+                else -> pickStadiumRom()
+            }
+        }
+
+    private fun pickStadiumRom() {
+        menu.close()
+        val intent =
+            android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(android.content.Intent.CATEGORY_OPENABLE)
+                type = "*/*"
+            }
+        runCatching { startActivityForResult(intent, REQUEST_STADIUM_ROM) }
+            .onFailure { toast(getString(R.string.retro_stadium_no_picker)) }
+    }
+
+    private fun promptStadiumDelete() {
+        android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.retro_stadium_row)
+            .setMessage(R.string.retro_stadium_delete_body)
+            .setPositiveButton(R.string.retro_stadium_keep) { d, _ -> d.dismiss() }
+            .setNegativeButton(R.string.retro_stadium_delete) { d, _ ->
+                d.dismiss()
+                val gone = Gen1StadiumRom.delete(this)
+                toast(
+                    getString(
+                        if (gone) R.string.retro_stadium_deleted else R.string.retro_stadium_delete_failed,
+                    ),
+                )
+                pollFaster()
+            }
+            .show()
+    }
+
+    override fun onActivityResult(
+        requestCode: Int,
+        resultCode: Int,
+        data: android.content.Intent?,
+    ) {
+        if (requestCode != REQUEST_STADIUM_ROM) {
+            super.onActivityResult(requestCode, resultCode, data)
+            return
+        }
+        val uri = data?.data
+        if (resultCode != RESULT_OK || uri == null) return
+        toast(getString(R.string.retro_stadium_importing))
+        lifecycleScope.launch(Dispatchers.IO) {
+            val result = Gen1StadiumRom.stage(this@Gen1EngineActivity, uri)
+            withContext(Dispatchers.Main) {
+                result
+                    .onSuccess {
+                        toast(getString(R.string.retro_stadium_imported))
+                        pollFaster()
+                    }
+                    .onFailure { toast(it.message ?: getString(R.string.retro_stadium_import_failed)) }
+            }
+        }
+    }
+
     private fun rowEntry(row: Gen1EngineBridge.Row): RetroMenuEntry =
         when {
+            row.id == Gen1StadiumRom.ROW_ID -> stadiumRomEntry(row)
             row.values.isNotEmpty() ->
                 RetroMenuEntry.Choice(row.label, row.values, row.selectedIndex) { index ->
                     bridge.setRow(row.id, index)
@@ -851,6 +941,8 @@ class Gen1EngineActivity :
 
     companion object {
         private const val TAG = "WnGen1Engine"
+
+        private const val REQUEST_STADIUM_ROM = 0x5D01
 
         const val EXTRA_ROM_PATH = "wn.engine.rom"
         const val EXTRA_VERSION = "wn.engine.version"
