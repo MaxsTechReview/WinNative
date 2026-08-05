@@ -49,6 +49,7 @@ class Gen1EngineActivity :
     private lateinit var bridge: Gen1EngineBridge
 
     private var touchControls = true
+    private var engineVarsApplied = false
 
     private var persistShortcut: Shortcut? = null
 
@@ -750,6 +751,16 @@ class Gen1EngineActivity :
     private fun onEngineState(state: Gen1EngineBridge.State, menuChanged: Boolean) {
         importState = state.import
         if (loadingVisible && state.booted) loadingVisible = false
+        if (state.booted && state.rows.isNotEmpty()) {
+            if (!engineVarsApplied) {
+                engineVarsApplied = true
+                @Suppress("UNCHECKED_CAST")
+                val wanted =
+                    intent.getSerializableExtra(EXTRA_ENGINE_VARS) as? HashMap<String, String>
+                if (wanted != null) Gen1EngineSettings.applyTo(bridge, wanted)
+            }
+            Gen1EngineSettings.cache(this, state.rows)
+        }
         if (menuChanged && menu.visible) menu.rebuild()
     }
 
@@ -977,6 +988,7 @@ class Gen1EngineActivity :
         const val EXTRA_VERSION = "wn.engine.version"
         const val EXTRA_GAME_NAME = "wn.engine.game_name"
         const val EXTRA_SHORTCUT_PATH = "wn.engine.shortcut"
+        const val EXTRA_ENGINE_VARS = "wn.engine.vars"
         const val EXTRA_ARTWORK_PATH = "wn.engine.artwork"
 
         private const val DPAD_DEADZONE = 0.35f

@@ -2052,6 +2052,8 @@ Zainstalowana ścieżka:
     <string name="retro_gs_engine_3d">Voxel 3D</string>
     <string name="retro_gs_engine_3d_subtitle">Graj w tę grę w silniku wokselowym 3D zamiast standardowego rdzenia</string>
     <string name="retro_gs_engine_3d_note">Własne ustawienia silnika 3D znajdują się w menu w grze.</string>
+    <string name="retro_gs_engine_3d_uncached">Uruchom grę raz, aby ustawienia silnika 3D pojawiły się tutaj.</string>
+    <string name="retro_gs_engine_3d_leave">Pozostaw jak w grze</string>
     <string name="retro_gs_engine_3d_audio_note">Dźwiękiem zarządza silnik 3D. Użyj karty Dźwięk w menu w grze.</string>
     <string name="retro_stadium_row">ROM Stadium</string>
     <string name="retro_stadium_ready">Gotowe</string>

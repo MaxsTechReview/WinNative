@@ -135,6 +135,15 @@ class RetroSettingsState(
             .lowercase().let { if (it in UPSCALE_KEYS) it else "native" },
     )
     var engine3d by mutableStateOf(shortcut.getExtra(Gen1EmbedLaunch.KEY_ENGINE_3D) == "1")
+
+    val engineValues: androidx.compose.runtime.snapshots.SnapshotStateMap<String, String> =
+        androidx.compose.runtime.mutableStateMapOf<String, String>().apply {
+            if (context != null) {
+                Gen1EngineSettings.cached(context).forEach { row ->
+                    Gen1EngineSettings.selection(shortcut, row)?.let { put(row.id, it) }
+                }
+            }
+        }
     var touchControls by mutableStateOf(
         shortcut.getExtra(RetroShortcuts.KEY_TOUCH_CONTROLS)
             .ifEmpty { if (context != null && sysId != null) (if (RetroDefaults.touchControls(context, sysId)) "1" else "0") else "1" } != "0",
@@ -206,6 +215,11 @@ class RetroSettingsState(
         shortcut.putExtra(RetroShortcuts.KEY_SGSR, if (sgsr) "1" else "0")
         shortcut.putExtra(RetroShortcuts.KEY_UPSCALE, upscale)
         shortcut.putExtra(Gen1EmbedLaunch.KEY_ENGINE_3D, if (engine3d) "1" else "0")
+        if (context != null) {
+            Gen1EngineSettings.cached(context).forEach { row ->
+                shortcut.putExtra(RetroShortcuts.VAR_PREFIX + row.id, engineValues[row.id])
+            }
+        }
         shortcut.putExtra(RetroShortcuts.KEY_TOUCH_CONTROLS, if (touchControls) "1" else "0")
         shortcut.putExtra(RetroShortcuts.KEY_ADAPTIVE_STICKS, if (adaptiveSticks) "1" else "0")
         shortcut.putExtra(RetroShortcuts.KEY_HDD_IMAGE, hddImage)
@@ -1120,8 +1134,8 @@ private fun RetroGraphicsSection(state: RetroSettingsState) {
         RetroSettingGroup {
             RetroGroupTitle(stringResource(R.string.retro_gs_engine_3d).uppercase())
             RetroStadiumRomSetting()
-            RetroSettingNote(stringResource(R.string.retro_gs_engine_3d_note))
         }
+        RetroEngineRowSettings(state)
     }
     if (!voxelEngine) {
     RetroSettingGroup {
@@ -1170,6 +1184,50 @@ private fun RetroGraphicsSection(state: RetroSettingsState) {
             }
         }
     }
+}
+
+@Composable
+private fun RetroEngineRowSettings(state: RetroSettingsState) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val rows = remember(context) { Gen1EngineSettings.cached(context) }
+    if (rows.isEmpty()) {
+        RetroSettingGroup {
+            RetroSettingNote(stringResource(R.string.retro_gs_engine_3d_uncached))
+        }
+        return
+    }
+    val panes =
+        listOf(
+            Gen1EngineSettings.PANE_DISPLAY to R.string.retro_gs_section_graphics,
+            Gen1EngineSettings.PANE_SOUND to R.string.retro_gs_group_audio,
+            Gen1EngineSettings.PANE_PERFORMANCE to R.string.retro_gs_section_performance,
+            Gen1EngineSettings.PANE_CONTROLS to R.string.retro_gs_group_input,
+            Gen1EngineSettings.PANE_SYSTEM to R.string.retro_gs_section_general,
+        )
+    panes.forEach { (pane, titleRes) ->
+        val paneRows = rows.filter { it.pane == pane }
+        if (paneRows.isEmpty()) return@forEach
+        Spacer(Modifier.height(12.dp))
+        RetroSettingGroup {
+            RetroGroupTitle(stringResource(titleRes).uppercase())
+            paneRows.forEach { row ->
+                val current = state.engineValues[row.id]
+                RetroSettingDropdown(
+                    label = row.label,
+                    entries = listOf(stringResource(R.string.retro_gs_engine_3d_leave)) + row.values,
+                    selectedIndex = (row.values.indexOf(current) + 1).coerceAtLeast(0),
+                    onSelected = { index ->
+                        if (index == 0) {
+                            state.engineValues.remove(row.id)
+                        } else {
+                            state.engineValues[row.id] = row.values[index - 1]
+                        }
+                    },
+                )
+            }
+        }
+    }
+    RetroSettingNote(stringResource(R.string.retro_gs_engine_3d_note))
 }
 
 @Composable

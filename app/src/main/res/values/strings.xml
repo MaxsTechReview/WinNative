@@ -2161,6 +2161,8 @@ Installed path:
     <string name="retro_gs_engine_3d">Voxel 3D</string>
     <string name="retro_gs_engine_3d_subtitle">Play this game in the 3D voxel engine instead of the standard core</string>
     <string name="retro_gs_engine_3d_note">The 3D engine\'s own settings live in the in-game menu.</string>
+    <string name="retro_gs_engine_3d_uncached">Launch this game once so its 3D engine settings can be listed here.</string>
+    <string name="retro_gs_engine_3d_leave">Leave as set in game</string>
     <string name="retro_gs_engine_3d_audio_note">Sound is handled by the 3D engine. Use the Sound tab in the in-game menu.</string>
     <string name="retro_stadium_row">Stadium ROM</string>
     <string name="retro_stadium_ready">Ready</string>
