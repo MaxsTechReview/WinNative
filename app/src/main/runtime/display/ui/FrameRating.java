@@ -1737,13 +1737,13 @@ public class FrameRating extends LinearLayout implements Runnable {
 
     if (this.enableFps && this.tvFpsBig != null) {
       this.tvFpsBig.setText(String.format(Locale.US, "%.0f", this.lastFPS));
-      this.tvFpsBig.setTextColor(this.C_FPS_OK);
+      this.tvFpsBig.setTextColor(fpsColor(this.lastFPS));
       this.tvFpsBig.setVisibility(View.VISIBLE);
     } else if (this.tvFpsBig != null) this.tvFpsBig.setVisibility(View.GONE);
 
     if (this.enableGraph && this.frametimeNumericMode && this.tvFrametime != null) {
       this.tvFrametime.setText(String.format(Locale.US, "%.1f ms", this.currentMs));
-      this.tvFrametime.setTextColor(this.C_FPS_OK);
+      this.tvFrametime.setTextColor(fpsColor(this.lastFPS));
       this.tvFrametime.setVisibility(View.VISIBLE);
     } else if (this.tvFrametime != null) {
       this.tvFrametime.setVisibility(View.GONE);
@@ -1751,6 +1751,10 @@ public class FrameRating extends LinearLayout implements Runnable {
 
     if (isHorizontalDisplayMode()) updateSeparators(true);
     updateWrapState();
+  }
+
+  private int fpsColor(float fps) {
+    return fps >= 30f ? C_FPS_OK : fps >= 20f ? C_WARM : C_HOT;
   }
 
   private void append(SpannableStringBuilder b, String t, int c) {
@@ -1895,6 +1899,7 @@ public class FrameRating extends LinearLayout implements Runnable {
         float y = h - ((this.history[idx] / 40.0f) * h);
         this.path.lineTo(i * step, Math.max(0.0f, y));
       }
+      this.paintLine.setColor(fpsColor(lastFPS));
       canvas.drawPath(this.path, this.paintLine);
     }
   }
