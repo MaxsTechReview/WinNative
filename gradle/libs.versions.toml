@@ -13,6 +13,8 @@ activity = "1.10.1"
 navigationCompose = "2.8.9"
 lifecycleCompose = "2.10.0"
 coilCompose = "2.7.0"
+composeIcons = "1.1.1"
+documentfile = "1.1.0"
 coroutinesAndroid = "1.10.1"
 timber = "5.0.1"
 zxing = "3.5.4"
@@ -55,6 +57,13 @@ navigationCompose = { module = "androidx.navigation:navigation-compose", version
 lifecycleViewmodelCompose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycleCompose" }
 composeUiTextGoogleFonts = { module = "androidx.compose.ui:ui-text-google-fonts" }
 coilCompose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
+coilGif = { module = "io.coil-kt:coil-gif", version.ref = "coilCompose" }
+composeFoundation = { module = "androidx.compose.foundation:foundation" }
+lifecycleRuntimeCompose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycleCompose" }
+kotlinReflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
+documentfile = { module = "androidx.documentfile:documentfile", version.ref = "documentfile" }
+composeIconsFontAwesome = { module = "br.com.devsrsouza.compose.icons:font-awesome", version.ref = "composeIcons" }
+composeIconsLineAwesome = { module = "br.com.devsrsouza.compose.icons:line-awesome", version.ref = "composeIcons" }
 coroutinesAndroid = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutinesAndroid" }
 timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }
 zxingCore = { module = "com.google.zxing:core", version.ref = "zxing" }
@@ -75,6 +84,7 @@ workRuntimeKtx = { module = "androidx.work:work-runtime-ktx", version.ref = "wor
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
+androidLibrary = { id = "com.android.library", version.ref = "agp" }
 kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlinCompose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

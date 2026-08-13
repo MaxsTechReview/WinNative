@@ -127,6 +127,38 @@
             android:screenOrientation="sensorLandscape"
             android:exported="false" />
 
+        <activity
+            android:name="com.winlator.cmod.feature.retro.RetroActivity"
+            android:theme="@style/AppThemeFullscreen"
+            android:launchMode="singleTask"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation"
+            android:exported="false" />
+
+        <!-- The 3D engine. Runs in its own process like the Dolphin host does,
+             so a crash in SDL or the Lua engine cannot take WinNative's UI
+             process down with it. -->
+        <activity
+            android:name="com.winlator.cmod.feature.retro.Gen1EngineActivity"
+            android:process=":engine3d"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+            android:launchMode="singleTop"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation|uiMode"
+            android:exported="false" />
+
+        <activity
+            android:name="com.winlator.cmod.feature.retro.RetroAchievementsActivity"
+            android:theme="@style/AppThemeTranslucent"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation"
+            android:exported="false" />
+
+        <activity
+            android:name="com.winlator.cmod.feature.retro.RetroCheatsActivity"
+            android:theme="@style/AppThemeTranslucent"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation"
+            android:exported="false" />
+
         <receiver
             android:name="com.winlator.cmod.feature.shortcuts.ShortcutBroadcastReceiver"
             android:exported="true">

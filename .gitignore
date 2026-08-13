@@ -56,3 +56,9 @@ android_sysvshm/build64/
 
 # local build artifacts (FEX/Proton wcp)
 dist/
+
+/cores/*/
+!/cores/patches/
+
+/armsx2/emucore-src/
+/armsx2/emucore-out/
