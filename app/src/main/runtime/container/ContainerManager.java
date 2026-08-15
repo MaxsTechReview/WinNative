@@ -52,6 +52,18 @@ public class ContainerManager {
     return containers;
   }
 
+  public static final int RETRO_CONTAINER_ID = 0;
+
+  public File getRetroHomeDir() {
+    return new File(context.getFilesDir(), "retro-home");
+  }
+
+  public Container getRetroContainer() {
+    Container container = new Container(RETRO_CONTAINER_ID, this);
+    container.setRootDir(getRetroHomeDir());
+    return container;
+  }
+
   public void loadContainers() {
     containers.clear();
     maxContainerId = 0;
@@ -457,6 +469,17 @@ public class ContainerManager {
           } else if (fileName.endsWith(".desktop")) {
             shortcuts.add(new Shortcut(container, file));
           }
+        }
+      }
+    }
+
+    Container retroContainer = getRetroContainer();
+    File retroDesktop = retroContainer.getDesktopDir();
+    if (retroDesktop.exists()) {
+      File[] retroFiles = retroDesktop.listFiles();
+      if (retroFiles != null) {
+        for (File file : retroFiles) {
+          if (file.getName().endsWith(".desktop")) shortcuts.add(new Shortcut(retroContainer, file));
         }
       }
     }

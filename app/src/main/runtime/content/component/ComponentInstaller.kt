@@ -379,7 +379,7 @@ class ComponentInstaller(
         val bootArgs: String
         if (isMsi) {
             bootExe = "C:\\windows\\system32\\msiexec.exe"
-            bootArgs = "/i \"$winPath\" ${arguments.ifBlank { "/passive" }}".trim()
+            bootArgs = "/i \"$winPath\" ${arguments.ifBlank { "/passive" }} /norestart".trim()
         } else {
             bootExe = winPath
             bootArgs = arguments

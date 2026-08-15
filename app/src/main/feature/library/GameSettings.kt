@@ -136,6 +136,7 @@ import com.winlator.cmod.runtime.reshade.ReshadeCatalogEntry
 import com.winlator.cmod.runtime.reshade.ReshadeDownloader
 import com.winlator.cmod.runtime.reshade.ReshadeLoadout
 import com.winlator.cmod.runtime.reshade.ReshadeManager
+import com.winlator.cmod.shared.theme.GameSettingsStyle
 import com.winlator.cmod.runtime.wine.WineThemeManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -166,27 +167,26 @@ import com.winlator.cmod.shared.ui.widget.EnvVarsView
 import com.winlator.cmod.shared.ui.widget.chasingBorder
 import kotlin.math.roundToInt
 
-private val BgDeep = Color(0xFF11111C)
-private val SidebarBg = Color(0xFF11111C)
-private val ContentBg = Color(0xFF11111C)
-private val CardSurface = Color(0xFF1C1C2A)
-private val CardBorder = Color(0xFF2A2A3A)
-private val InputSurface = Color(0xFF171722)
-private val InputBorder = Color(0xFF2A2A3A)
-private val AccentBlue = Color(0xFF1A9FFF)
-private val TextPrimary = Color(0xFFF0F4FF)
-private val TextSecondary = Color(0xFF7A8FA8)
-private val TextDim = Color(0xFF6E7681)
-private val DividerColor = Color(0xFF2A2A3A)
-private val CheckBorder = Color(0xFF2A2A3A)
-private val SliderInactive = Color(0xFF21212A)
-private val ChipSurface = Color(0xFF171722)
-private val ChipBorder = Color(0xFF2A2A3A)
-private val DangerRed = Color(0xFFFF6B6B)
-private val WarningAmber = Color(0xFFFFB74D)
+private val BgDeep = GameSettingsStyle.BgDeep
+private val SidebarBg = GameSettingsStyle.SidebarBg
+private val ContentBg = GameSettingsStyle.ContentBg
+private val CardSurface = GameSettingsStyle.CardSurface
+private val CardBorder = GameSettingsStyle.CardBorder
+private val InputSurface = GameSettingsStyle.InputSurface
+private val InputBorder = GameSettingsStyle.InputBorder
+private val AccentBlue = GameSettingsStyle.AccentBlue
+private val TextPrimary = GameSettingsStyle.TextPrimary
+private val TextSecondary = GameSettingsStyle.TextSecondary
+private val TextDim = GameSettingsStyle.TextDim
+private val DividerColor = GameSettingsStyle.Divider
+private val CheckBorder = GameSettingsStyle.CheckBorder
+private val SliderInactive = GameSettingsStyle.SliderInactive
+private val ChipSurface = GameSettingsStyle.ChipSurface
+private val ChipBorder = GameSettingsStyle.ChipBorder
+private val DangerRed = GameSettingsStyle.DangerRed
+private val WarningAmber = GameSettingsStyle.WarningAmber
 private val SelectableDriveLetters = ('D'..'Y').filter { it != 'E' }.map { "$it" }
-
-private val NavHighlight = Color(0xFF4FC3F7)
+private val NavHighlight = GameSettingsStyle.NavHighlight
 
 @Stable
 class GameSettingsNav {

@@ -332,7 +332,7 @@ class ShortcutSettingsComposeDialog private constructor(
                     activity = activity,
                     initialPath = resolveExePickerInitialPath(),
                     title = context.getString(R.string.common_ui_select_exe),
-                    allowedExtensions = setOf("exe"),
+                    allowedExtensions = DirectoryPickerDialog.ExecutableExtensions,
                     dimAmount = 0.5f,
                     preserveBackdropBlur = true,
                 ) { path ->
@@ -1495,7 +1495,7 @@ class ShortcutSettingsComposeDialog private constructor(
 
     private fun applySelectedExePath(path: String) {
         val exeFile = File(path)
-        if (!exeFile.isFile || !exeFile.name.endsWith(".exe", ignoreCase = true)) {
+        if (!exeFile.isFile || exeFile.extension.lowercase() !in DirectoryPickerDialog.ExecutableExtensions) {
             WinToast.show(context, context.getString(R.string.common_ui_select_valid_exe_file), Toast.LENGTH_SHORT, dialog.window?.decorView)
             return
         }
@@ -1605,7 +1605,7 @@ class ShortcutSettingsComposeDialog private constructor(
         exeFile: File,
     ) {
         val mappedPath =
-            WineUtils.getDriveCGameWindowsPath(
+            WineUtils.resolveGameExeWindowsPath(
                 targetContainer,
                 "CUSTOM",
                 gameFolder.absolutePath,
@@ -2397,6 +2397,12 @@ class ShortcutSettingsComposeDialog private constructor(
     // Show / Dismiss
 
     fun show() {
+        if (com.winlator.cmod.feature.retro.RetroShortcuts.isRetroShortcut(shortcut)) {
+            com.winlator.cmod.feature.retro
+                .RetroSettingsDialog(activity, shortcut)
+                .show()
+            return
+        }
         dialog.show()
         restorePaneNav?.invoke()
         restorePaneNav = dialog.window?.bindPaneNav(

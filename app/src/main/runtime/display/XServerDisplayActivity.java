@@ -416,6 +416,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private static final long REFACTOR_SIZE_UNSTAGE_DELAY_MS = 3000L;
     private static final long GRAPHICS_TEST_32_EXE_BYTES = 2333245L;
     private static final long GRAPHICS_TEST_64_EXE_BYTES = 2361407L;
+    private static final long INPUT_TEST_32_EXE_BYTES = 289656L;
+    private static final long INPUT_TEST_64_EXE_BYTES = 280952L;
     private String bootExePath;
     private String bootExeArgs;
     private boolean isDependencyInstall;
@@ -594,6 +596,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private static final long EXIT_CLOUD_UPLOAD_RETRY_DELAY_MS = 1000L;
 
     private Handler  timeoutHandler = new Handler(Looper.getMainLooper());
+    private static final long POINTER_ACTIVITY_REARM_MS = 1000L;
+    private long lastPointerActivityAt = 0L;
     private Runnable hideControlsRunnable;
 
     private volatile boolean startFullscreenStretched;
@@ -1540,6 +1544,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (shortcutPath != null && !shortcutPath.isEmpty()) {
             shortcut = new Shortcut(container, new File(shortcutPath));
         }
+
+        if (shortcut != null
+                && com.winlator.cmod.feature.retro.RetroShortcuts.isRetroShortcut(shortcut)) {
+            com.winlator.cmod.feature.retro.RetroShortcuts.launch(this, shortcut);
+            finish();
+            return;
+        }
+
         loadScreenEffectsSettings();
 
         boolean recordToFile = preferences.getBoolean("hud_record_to_file", false);
@@ -2297,7 +2309,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private String mapCustomExecutableWinPath(String customGameFolder, @NonNull File exeFile) {
         if (container != null && customGameFolder != null && !customGameFolder.isEmpty()) {
             String mappedPath =
-                    WineUtils.getDriveCGameWindowsPath(
+                    WineUtils.resolveGameExeWindowsPath(
                             container, "CUSTOM", customGameFolder, exeFile.getAbsolutePath());
             if (mappedPath != null && !mappedPath.isEmpty()) {
                 return mappedPath;
@@ -4220,6 +4232,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private String currentGyroActivatorLabel() {
+        if (preferences.getBoolean("mouse_gyro_enabled", false)) {
+            return WinHandler.getGyroMouseActivator(preferences).toString();
+        }
         String[] names = getResources().getStringArray(R.array.button_options);
         int[] keycodes = getResources().getIntArray(R.array.button_keycodes);
         int currentKeycode = preferences.getInt("gyro_trigger_button", KeyEvent.KEYCODE_BUTTON_L1);
@@ -4577,6 +4592,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onGyroscopeActivatorSelected(int keycode) {
                         preferences.edit().putInt("gyro_trigger_button", keycode).apply();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onGyroscopeActivatorBindingSelected(String bindingName) {
+                        preferences.edit().putString("gyro_mouse_trigger_binding", bindingName).apply();
                         renderDrawerMenu();
                     }
 
@@ -6241,12 +6262,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
-    private void stageGraphicsTestExes() {
+    private void stageBundledTestExes() {
         if (container == null) return;
         File dir = new File(container.getRootDir(), ".wine/drive_c/ProgramData/Microsoft/Windows");
         if (!dir.isDirectory() && !dir.mkdirs()) return;
         stageBundledExe(dir, "Graphics-Test-32bit.exe", GRAPHICS_TEST_32_EXE_BYTES);
         stageBundledExe(dir, "Graphics-Test-64bit.exe", GRAPHICS_TEST_64_EXE_BYTES);
+        stageBundledExe(dir, "InputControl32.exe", INPUT_TEST_32_EXE_BYTES);
+        stageBundledExe(dir, "InputControl64.exe", INPUT_TEST_64_EXE_BYTES);
     }
 
     private void stageBundledExe(File dir, String name, long expectedBytes) {
@@ -6356,6 +6379,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private void cancelMousePointerTimeout() {
         if (timeoutHandler != null && hideControlsRunnable != null) {
             timeoutHandler.removeCallbacks(hideControlsRunnable);
+        }
+    }
+
+    // Pointer movement that bypasses touch/mouse events (gyro) still counts as activity.
+    public void notifyPointerActivity() {
+        if (isMouseDisabled || xServer == null || xServer.getRenderer() == null) return;
+        boolean hidden = !xServer.getRenderer().isCursorVisible();
+        long now = SystemClock.uptimeMillis();
+        if (!hidden && now - lastPointerActivityAt < POINTER_ACTIVITY_REARM_MS) return;
+        lastPointerActivityAt = now;
+        if (hidden) xServer.getRenderer().setCursorVisible(true);
+        if (timeoutHandler != null && hideControlsRunnable != null) {
+            timeoutHandler.removeCallbacks(hideControlsRunnable);
+            timeoutHandler.postDelayed(hideControlsRunnable, 5000);
         }
     }
 
@@ -6707,7 +6744,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         WineStartMenuCreator.create(this, container);
-        stageGraphicsTestExes();
+        stageBundledTestExes();
         WineUtils.createDosdevicesSymlinks(container, getActiveGameDirectoryPath(), isSteamShortcut());
 
         int inputType = container.getInputType();
@@ -7000,7 +7037,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             normalizeSyncEnvVars(envVars);
 
             ArrayList<String> bindingPaths = new ArrayList<>();
-            String drives = shortcut != null ? getShortcutSetting("drives", container.getDrives()) : container.getDrives();
+            String drives = WineUtils.resolveEffectiveDrives(container);
             for (String[] drive : Container.drivesIterator(drives)) {
                 bindingPaths.add(drive[1]);
             }
@@ -8888,12 +8925,24 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         );
     }
 
+    // .msi and .bat/.cmd aren't PE images, so CreateProcess can't start them; run them through their interpreter.
+    private static String buildGuestProgramArgs(String windowsPath) {
+        String lower = windowsPath.toLowerCase(java.util.Locale.ROOT);
+        if (lower.endsWith(".msi")) {
+            return "\"C:\\windows\\system32\\msiexec.exe\" /i \"" + windowsPath + "\" /passive /norestart";
+        }
+        if (lower.endsWith(".bat") || lower.endsWith(".cmd")) {
+            return "\"C:\\windows\\system32\\cmd.exe\" /c \"" + windowsPath + "\"";
+        }
+        return "\"" + windowsPath + "\"";
+    }
+
     private String getWineStartCommand(GuestProgramLauncherComponent launcherComponent) {
         EnvVars envVars = getOverrideEnvVars();
         String args = "";
 
         if (bootExePath != null && !bootExePath.isEmpty()) {
-            args = "\"" + bootExePath + "\"";
+            args = buildGuestProgramArgs(bootExePath);
             if (bootExeArgs != null && !bootExeArgs.isEmpty()) args += " " + bootExeArgs;
         } else if (shortcut != null) {
             String path = shortcut.path;
@@ -9121,7 +9170,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         }
                     }
 
-                    args = "\"" + path + "\"" + extraArgs;
+                    args = buildGuestProgramArgs(path) + extraArgs;
                 } else {
                     args = "\"wfm.exe\"";
                 }

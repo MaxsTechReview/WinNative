@@ -293,6 +293,7 @@ public class XServer {
   }
 
   public void injectPointerButtonPress(Pointer.Button buttonCode) {
+    if (winHandler != null) winHandler.onPointerButtonInjected(buttonCode, true);
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
       pointer.setButton(buttonCode, true);
 
@@ -302,6 +303,7 @@ public class XServer {
   }
 
   public void injectPointerButtonRelease(Pointer.Button buttonCode) {
+    if (winHandler != null) winHandler.onPointerButtonInjected(buttonCode, false);
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
       pointer.setButton(buttonCode, false);
 
@@ -315,12 +317,14 @@ public class XServer {
   }
 
   public void injectKeyPress(XKeycode xKeycode, int keysym) {
+    if (winHandler != null) winHandler.onKeyInjected(xKeycode, true);
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
       keyboard.setKeyPress(xKeycode.id, keysym);
     }
   }
 
   public void injectKeyRelease(XKeycode xKeycode) {
+    if (winHandler != null) winHandler.onKeyInjected(xKeycode, false);
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
       keyboard.setKeyRelease(xKeycode.id);
     }

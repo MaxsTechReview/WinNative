@@ -463,7 +463,9 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         } else items
 
         drivesWorking.clear()
-        val drivesStr = c?.getDrives() ?: Container.DEFAULT_DRIVES
+        val drivesStr = c?.let {
+            com.winlator.cmod.runtime.wine.WineUtils.resolveEffectiveDrives(it)
+        } ?: Container.DEFAULT_DRIVES
         for (drive in Container.drivesIterator(drivesStr)) {
             drivesWorking.add(
                 DriveDraft(
@@ -848,6 +850,10 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             c.setEmulator64(emulator64)
             c.setWinComponents(wincomponents)
             c.setDrives(drivesString)
+            // an existing prefix owns the drive list, so write it there too
+            if (java.io.File(c.rootDir, ".wine/dosdevices").isDirectory) {
+                com.winlator.cmod.runtime.wine.WineUtils.applyDrivesToPrefix(c, drivesString)
+            }
             c.setFullscreenStretched(state.fullscreenStretched.value)
             c.setUseUnixLibs(state.useUnixLibs.value)
             c.setInputType(finalInputType)
@@ -1014,7 +1020,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         fexcorePresetIds = ids
         val saved = container?.getFEXCorePreset()
             ?: PreferenceManager.getDefaultSharedPreferences(context)
-                .getString("fexcore_preset", FEXCorePreset.PERFORMANCE)
+                .getString("fexcore_preset", FEXCorePreset.PERFORMANCE_TSO)
         val idx = ids.indexOfFirst { it == saved }
         state.selectedFexcorePreset.intValue = if (idx >= 0) idx else 0
     }

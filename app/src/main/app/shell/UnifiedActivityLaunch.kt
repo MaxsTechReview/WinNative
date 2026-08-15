@@ -923,6 +923,22 @@ internal fun UnifiedActivity.launchCustomGame(
             return@launch
         }
 
+        if (com.winlator.cmod.feature.retro.RetroShortcuts.isRetroShortcut(shortcut)) {
+            // Asks RetroShortcuts which launcher this shortcut needs rather
+            // than reasoning about it here. Listing the embedded paths in two
+            // places is what sent 3D-enabled games to the libretro core: this
+            // caller knew about PS2 and Dolphin but not about the 3D engine.
+            if (com.winlator.cmod.feature.retro.RetroShortcuts.usesEmbeddedLauncher(context, shortcut)) {
+                withContext(Dispatchers.Main) {
+                    com.winlator.cmod.feature.retro.RetroShortcuts.launch(context, shortcut)
+                }
+                return@launch
+            }
+            val retroIntent = com.winlator.cmod.feature.retro.RetroShortcuts.launchIntent(context, shortcut)
+            withContext(Dispatchers.Main) { launchGame(context, retroIntent) }
+            return@launch
+        }
+
         // Backfill custom_name if missing (legacy shortcuts)
         if (shortcut.getExtra("custom_name").isEmpty()) {
             shortcut.putExtra("custom_name", gameName)

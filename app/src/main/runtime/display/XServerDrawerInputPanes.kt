@@ -167,6 +167,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import com.winlator.cmod.R
+import com.winlator.cmod.runtime.input.controls.Binding
 import com.winlator.cmod.shared.theme.WinNativeBackground
 import com.winlator.cmod.shared.theme.WinNativeOutline
 import com.winlator.cmod.shared.theme.WinNativePanel
@@ -337,10 +338,22 @@ internal fun GyroscopePaneContent(
 
                 Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                     PaneSectionLabel(stringResource(R.string.session_gyroscope_activator_button))
-                    GyroscopeActivatorDropdown(
-                        currentLabel = state.gyroscopeActivatorLabel,
-                        onSelected = listener::onGyroscopeActivatorSelected,
-                    )
+                    if (state.gyroMouseEnabled) {
+                        val bindings = remember { Binding.activatorBindingValues() }
+                        GyroscopeActivatorDropdown(
+                            currentLabel = state.gyroscopeActivatorLabel,
+                            options = remember(bindings) { bindings.map { it.toString() } },
+                            onSelectedIndex = { listener.onGyroscopeActivatorBindingSelected(bindings[it].name) },
+                        )
+                    } else {
+                        val names = stringArrayResource(R.array.button_options)
+                        val keycodes = integerArrayResource(R.array.button_keycodes)
+                        GyroscopeActivatorDropdown(
+                            currentLabel = state.gyroscopeActivatorLabel,
+                            options = remember(names) { names.toList() },
+                            onSelectedIndex = { listener.onGyroscopeActivatorSelected(keycodes[it]) },
+                        )
+                    }
                 }
 
                 NavBooleanRow(
@@ -449,11 +462,10 @@ internal fun GyroscopePaneContent(
 @Composable
 internal fun GyroscopeActivatorDropdown(
     currentLabel: String,
-    onSelected: (Int) -> Unit,
+    options: List<String>,
+    onSelectedIndex: (Int) -> Unit,
 ) {
     val paneScale = LocalPaneScale.current
-    val names = stringArrayResource(R.array.button_options)
-    val keycodes = integerArrayResource(R.array.button_keycodes)
     var expanded by remember { mutableStateOf(false) }
     val parentNav = LocalPaneNav.current
     val optionRegistry = remember { PaneNavRegistry() }
@@ -512,9 +524,9 @@ internal fun GyroscopeActivatorDropdown(
 
         InputControlsOptionsPopup(
             expanded = expanded,
-            options = names.toList(),
-            selectedIndex = names.indexOfFirst { it == currentLabel }.coerceAtLeast(0),
-            onSelected = { index -> onSelected(keycodes[index]) },
+            options = options,
+            selectedIndex = options.indexOfFirst { it == currentLabel }.coerceAtLeast(0),
+            onSelected = { index -> onSelectedIndex(index) },
             onDismiss = { expanded = false },
             optionRegistry = optionRegistry,
         )
