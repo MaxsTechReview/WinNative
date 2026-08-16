@@ -829,7 +829,6 @@ class Gen1EngineActivity :
                     .getDefaultSharedPreferences(this)
                     .getFloat(PREF_HAPTIC, DEFAULT_HAPTIC)
             view.setCustomColors(RetroControlLayouts.loadColors(this, RetroSystems.GAMEBOY.id))
-            view.shellBackground = shellBackground
 
             host.addView(
                 view,
@@ -878,6 +877,7 @@ class Gen1EngineActivity :
 
         prefetch.join()
 
+        pad?.shellBackground = shellBackground
         applyTouchControls()
         if (hudVisible) host.post { showHud() }
     }
