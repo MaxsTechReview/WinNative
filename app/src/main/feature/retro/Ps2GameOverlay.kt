@@ -606,6 +606,17 @@ object Ps2GameOverlay {
                 )
                 add(
                     RetroMenuEntry.Toggle(
+                        activity.getString(R.string.retro_lr_shell_background),
+                        subtitle = activity.getString(R.string.retro_lr_shell_background_subtitle),
+                        checked = ps2Prefs(activity).getBoolean(PREF_SHELL_BG, true),
+                    ) { value ->
+                        ps2Prefs(activity).edit().putBoolean(PREF_SHELL_BG, value).apply()
+                        pad?.shellBackground = value
+                        menu.rebuild()
+                    },
+                )
+                add(
+                    RetroMenuEntry.Toggle(
                         activity.getString(R.string.retro_ps2_adaptive_sticks),
                         subtitle = activity.getString(R.string.retro_ps2_adaptive_sticks_subtitle),
                         checked = ps2Prefs(activity).getBoolean("wn.ps2.adaptivesticks", false),
@@ -625,17 +636,6 @@ object Ps2GameOverlay {
                     ) { value ->
                         ps2Prefs(activity).edit().putBoolean("wn.ps2.showl3r3", value).apply()
                         pad?.showL3R3 = value
-                        menu.rebuild()
-                    },
-                )
-                add(
-                    RetroMenuEntry.Toggle(
-                        activity.getString(R.string.retro_lr_shell_background),
-                        subtitle = activity.getString(R.string.retro_lr_shell_background_subtitle),
-                        checked = ps2Prefs(activity).getBoolean(PREF_SHELL_BG, true),
-                    ) { value ->
-                        ps2Prefs(activity).edit().putBoolean(PREF_SHELL_BG, value).apply()
-                        pad?.shellBackground = value
                         menu.rebuild()
                     },
                 )
