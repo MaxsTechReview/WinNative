@@ -1888,6 +1888,8 @@ Installed path:
     <string name="retro_lr_letter_color">Letter Color</string>
     <string name="retro_lr_shadow_color">Shadow Color</string>
     <string name="retro_lr_background_color">Background Color</string>
+    <string name="retro_lr_shell_background">Controller Background</string>
+    <string name="retro_lr_shell_background_subtitle">Fills the space around the buttons. Turn it off so the game can use the whole screen.</string>
     <string name="retro_lr_reset_colors">Reset Colors</string>
     <string name="retro_lr_colors_reset">Colors reset</string>
     <string name="retro_lr_performance_hud">Performance HUD</string>

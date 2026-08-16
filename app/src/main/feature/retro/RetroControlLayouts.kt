@@ -26,6 +26,28 @@ object RetroControlLayouts {
 
     private fun colorsKey(systemId: String) = "retro_colors_v1_$systemId"
 
+    fun shellBackgroundKey(systemId: String?) = "retro_shell_bg_v1_" + (systemId ?: "default")
+
+    fun shellBackground(
+        context: Context,
+        systemId: String?,
+    ): Boolean =
+        PreferenceManager
+            .getDefaultSharedPreferences(context)
+            .getBoolean(shellBackgroundKey(systemId), true)
+
+    fun saveShellBackground(
+        context: Context,
+        systemId: String?,
+        enabled: Boolean,
+    ) {
+        PreferenceManager
+            .getDefaultSharedPreferences(context)
+            .edit()
+            .putBoolean(shellBackgroundKey(systemId), enabled)
+            .apply()
+    }
+
     fun load(
         context: Context,
         systemId: String?,

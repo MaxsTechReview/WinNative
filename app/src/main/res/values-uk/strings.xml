@@ -1843,6 +1843,8 @@
     <string name="retro_lr_letter_color">Колір літери</string>
     <string name="retro_lr_shadow_color">Колір тіні</string>
     <string name="retro_lr_background_color">Колір фону</string>
+    <string name="retro_lr_shell_background">Фон контролера</string>
+    <string name="retro_lr_shell_background_subtitle">Заповнює область навколо кнопок. Вимкніть його, щоб гра займала весь екран.</string>
     <string name="retro_lr_reset_colors">Скинути кольори</string>
     <string name="retro_lr_colors_reset">Кольори скинуто</string>
     <string name="retro_lr_performance_hud">HUD продуктивності</string>

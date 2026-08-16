@@ -17,6 +17,7 @@ object RetroControlsMenu {
         val orientationLabel: () -> String,
         val onCloseMenu: () -> Unit,
         val showStickInversion: Boolean = false,
+        val onShellBackground: (Boolean) -> Unit = {},
     )
 
     fun l3r3PrefKey(systemId: String?) = "retro_show_l3r3_" + (systemId ?: "default")
@@ -133,6 +134,18 @@ object RetroControlsMenu {
             add(
                 RetroMenuEntry.ColorPick(context.getString(R.string.retro_lr_shadow_color), colors.shadow) { value ->
                     persistColors { it.shadow = value }
+                },
+            )
+            add(
+                RetroMenuEntry.Toggle(
+                    context.getString(R.string.retro_lr_shell_background),
+                    subtitle = context.getString(R.string.retro_lr_shell_background_subtitle),
+                    checked = RetroControlLayouts.shellBackground(context, host.systemId),
+                ) { value ->
+                    RetroControlLayouts.saveShellBackground(context, host.systemId, value)
+                    host.overlay?.shellBackground = value
+                    host.onShellBackground(value)
+                    host.menu.rebuild()
                 },
             )
             add(

@@ -1837,6 +1837,8 @@ Chemin installé :
     <string name="retro_lr_letter_color">Couleur des lettres</string>
     <string name="retro_lr_shadow_color">Couleur de l\'ombre</string>
     <string name="retro_lr_background_color">Couleur de fond</string>
+    <string name="retro_lr_shell_background">Fond de la manette</string>
+    <string name="retro_lr_shell_background_subtitle">Remplit l\'espace autour des boutons. Désactivez-le pour que le jeu occupe tout l\'écran.</string>
     <string name="retro_lr_reset_colors">Réinitialiser les couleurs</string>
     <string name="retro_lr_colors_reset">Couleurs réinitialisées</string>
     <string name="retro_lr_performance_hud">HUD de performances</string>

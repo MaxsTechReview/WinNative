@@ -1843,6 +1843,8 @@ Zainstalowana ścieżka:
     <string name="retro_lr_letter_color">Kolor litery</string>
     <string name="retro_lr_shadow_color">Kolor cienia</string>
     <string name="retro_lr_background_color">Kolor tła</string>
+    <string name="retro_lr_shell_background">Tło kontrolera</string>
+    <string name="retro_lr_shell_background_subtitle">Wypełnia obszar wokół przycisków. Wyłącz je, aby gra mogła zająć cały ekran.</string>
     <string name="retro_lr_reset_colors">Resetuj kolory</string>
     <string name="retro_lr_colors_reset">Zresetowano kolory</string>
     <string name="retro_lr_performance_hud">HUD wydajności</string>

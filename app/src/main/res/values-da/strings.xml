@@ -1838,6 +1838,8 @@ Installeret sti:
     <string name="retro_lr_letter_color">Bogstavfarve</string>
     <string name="retro_lr_shadow_color">Skyggefarve</string>
     <string name="retro_lr_background_color">Baggrundsfarve</string>
+    <string name="retro_lr_shell_background">Controllerbaggrund</string>
+    <string name="retro_lr_shell_background_subtitle">Udfylder området omkring knapperne. Slå det fra, så spillet kan bruge hele skærmen.</string>
     <string name="retro_lr_reset_colors">Nulstil farver</string>
     <string name="retro_lr_colors_reset">Farver nulstillet</string>
     <string name="retro_lr_performance_hud">Ydeevne-HUD</string>

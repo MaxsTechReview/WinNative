@@ -2074,6 +2074,12 @@ private fun RetroInputSection(state: RetroSettingsState) {
                 subtitle = stringResource(R.string.retro_ps2_show_l3r3_subtitle),
                 onCheckedChange = { ps2Prefs.edit().putBoolean("wn.ps2.showl3r3", it).apply(); ps2Ver++ },
             )
+            RetroSettingSwitch(
+                label = stringResource(R.string.retro_lr_shell_background),
+                checked = ps2Prefs.getBoolean(Ps2GameOverlay.PREF_SHELL_BG, true),
+                subtitle = stringResource(R.string.retro_lr_shell_background_subtitle),
+                onCheckedChange = { ps2Prefs.edit().putBoolean(Ps2GameOverlay.PREF_SHELL_BG, it).apply(); ps2Ver++ },
+            )
         } else {
             RetroSettingSwitch(
                 label = stringResource(R.string.retro_gs_on_screen_controls),
@@ -2089,6 +2095,14 @@ private fun RetroInputSection(state: RetroSettingsState) {
                 )
             }
             val sysId = state.system?.id
+            var shellVer by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+            @Suppress("UNUSED_EXPRESSION") shellVer
+            RetroSettingSwitch(
+                label = stringResource(R.string.retro_lr_shell_background),
+                checked = RetroControlLayouts.shellBackground(context, sysId),
+                subtitle = stringResource(R.string.retro_lr_shell_background_subtitle),
+                onCheckedChange = { RetroControlLayouts.saveShellBackground(context, sysId, it); shellVer++ },
+            )
             if (sysId == RetroSystems.PSX.id || RetroCoreManager.usesDolphinCore(state.system)) {
                 var invVer by remember { androidx.compose.runtime.mutableIntStateOf(0) }
                 @Suppress("UNUSED_EXPRESSION") invVer

@@ -1743,6 +1743,8 @@
     <string name="retro_lr_letter_color">Цвет букв</string>
     <string name="retro_lr_shadow_color">Цвет тени</string>
     <string name="retro_lr_background_color">Цвет фона</string>
+    <string name="retro_lr_shell_background">Фон контроллера</string>
+    <string name="retro_lr_shell_background_subtitle">Заполняет область вокруг кнопок. Отключите его, чтобы игра занимала весь экран.</string>
     <string name="retro_lr_reset_colors">Сбросить цвета</string>
     <string name="retro_lr_colors_reset">Цвета сброшены</string>
     <string name="retro_lr_performance_hud">HUD производительности</string>

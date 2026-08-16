@@ -435,6 +435,7 @@ class RetroActivity : FixedFontScaleAppCompatActivity(), RetroInputView.Listener
             androidx.preference.PreferenceManager
                 .getDefaultSharedPreferences(this)
                 .getBoolean(RetroControlsMenu.l3r3PrefKey(resolvedSystem.id), true)
+        inputView.shellBackground = RetroControlLayouts.shellBackground(this, resolvedSystem.id)
         customColors = RetroControlLayouts.loadColors(this, resolvedSystem.id)
         inputView.setCustomColors(customColors)
         inputView.onEditStateChanged = { editing ->

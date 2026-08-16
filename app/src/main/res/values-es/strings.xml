@@ -1837,6 +1837,8 @@ Ruta instalada:
     <string name="retro_lr_letter_color">Color de letras</string>
     <string name="retro_lr_shadow_color">Color de sombra</string>
     <string name="retro_lr_background_color">Color de fondo</string>
+    <string name="retro_lr_shell_background">Fondo del mando</string>
+    <string name="retro_lr_shell_background_subtitle">Rellena el espacio alrededor de los botones. Desactívalo para que el juego use toda la pantalla.</string>
     <string name="retro_lr_reset_colors">Restablecer colores</string>
     <string name="retro_lr_colors_reset">Colores restablecidos</string>
     <string name="retro_lr_performance_hud">HUD de rendimiento</string>
