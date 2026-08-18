@@ -1836,6 +1836,8 @@ Cale instalata:
     <string name="retro_lr_letter_color">Culoare litere</string>
     <string name="retro_lr_shadow_color">Culoare umbră</string>
     <string name="retro_lr_background_color">Culoare fundal</string>
+    <string name="retro_lr_shell_background">Fundalul controllerului</string>
+    <string name="retro_lr_shell_background_subtitle">Umple spațiul din jurul butoanelor. Dezactivează-l pentru ca jocul să folosească tot ecranul.</string>
     <string name="retro_lr_reset_colors">Resetează culorile</string>
     <string name="retro_lr_colors_reset">Culori resetate</string>
     <string name="retro_lr_performance_hud">HUD performanță</string>

@@ -49,6 +49,7 @@ class Gen1EngineActivity :
     private lateinit var bridge: Gen1EngineBridge
 
     private var touchControls = true
+    private var shellBackground = true
     private var engineVarsApplied = false
 
     private var persistShortcut: Shortcut? = null
@@ -582,6 +583,11 @@ class Gen1EngineActivity :
                 },
                 onCloseMenu = { menu.close() },
                 showStickInversion = false,
+                onShellBackground = { value ->
+                    shellBackground = value
+                    val host = mLayout
+                    pad?.let { view -> host?.post { updateGameArea(host, view) } }
+                },
             ),
         )
 
@@ -723,6 +729,7 @@ class Gen1EngineActivity :
         touchControls =
             shortcut?.getExtra(RetroShortcuts.KEY_TOUCH_CONTROLS)?.takeIf { it.isNotEmpty() }?.let { it != "0" }
                 ?: RetroDefaults.touchControls(this, RetroSystems.GAMEBOY.id)
+        shellBackground = RetroControlLayouts.shellBackground(this, RetroSystems.GAMEBOY.id)
         hudVisible = shortcut?.getExtra(RetroShortcuts.KEY_HUD)?.takeIf { it.isNotEmpty() }?.let { it != "0" } ?: false
         hudStyle = RetroHudSupport.loadGlobalHudStyle(this)
         hudElements = RetroHudSupport.loadGlobalHudElements(this)
@@ -870,6 +877,7 @@ class Gen1EngineActivity :
 
         prefetch.join()
 
+        pad?.shellBackground = shellBackground
         applyTouchControls()
         if (hudVisible) host.post { showHud() }
     }
@@ -915,14 +923,15 @@ class Gen1EngineActivity :
         val h = host.height
         if (w <= 0 || h <= 0) return
         val portrait = h >= w
+        val boxed = touchControls && shellBackground
 
-        val budgetHeight = if (portrait && touchControls) (h * PORTRAIT_GAME_HEIGHT_FRACTION).toInt() else h
+        val budgetHeight = if (portrait && boxed) (h * PORTRAIT_GAME_HEIGHT_FRACTION).toInt() else h
         val scale = minOf(w / GB_WIDTH, budgetHeight / GB_HEIGHT).coerceAtLeast(1)
         val gameWidth = (GB_WIDTH * scale).toFloat()
         val gameHeight = (GB_HEIGHT * scale).toFloat()
 
         val left = (w - gameWidth) * 0.5f
-        val top = if (portrait && touchControls) 0f else (h - gameHeight) * 0.5f
+        val top = if (portrait && boxed) 0f else (h - gameHeight) * 0.5f
         val area = android.graphics.RectF(left, top, left + gameWidth, top + gameHeight)
 
         view.setGameArea(area)
@@ -932,7 +941,7 @@ class Gen1EngineActivity :
 
     private fun applyFillScale(area: android.graphics.RectF, hostWidth: Int, hostHeight: Int) {
         val surface = mSurface ?: return
-        if (touchControls || area.width() <= 0f || area.height() <= 0f) {
+        if ((touchControls && shellBackground) || area.width() <= 0f || area.height() <= 0f) {
             surface.scaleX = 1f
             surface.scaleY = 1f
             return

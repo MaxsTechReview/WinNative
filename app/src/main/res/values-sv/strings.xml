@@ -1836,6 +1836,8 @@ Installerad sökväg:
     <string name="retro_lr_letter_color">Bokstavsfärg</string>
     <string name="retro_lr_shadow_color">Skuggfärg</string>
     <string name="retro_lr_background_color">Bakgrundsfärg</string>
+    <string name="retro_lr_shell_background">Handkontrollens bakgrund</string>
+    <string name="retro_lr_shell_background_subtitle">Fyller ytan runt knapparna. Stäng av den så att spelet kan använda hela skärmen.</string>
     <string name="retro_lr_reset_colors">Återställ färger</string>
     <string name="retro_lr_colors_reset">Färger återställda</string>
     <string name="retro_lr_performance_hud">Prestanda-HUD</string>

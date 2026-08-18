@@ -1836,6 +1836,8 @@ Caminho instalado:
     <string name="retro_lr_letter_color">Cor das letras</string>
     <string name="retro_lr_shadow_color">Cor da sombra</string>
     <string name="retro_lr_background_color">Cor de fundo</string>
+    <string name="retro_lr_shell_background">Fundo do comando</string>
+    <string name="retro_lr_shell_background_subtitle">Preenche o espaço à volta dos botões. Desative-o para o jogo poder usar o ecrã todo.</string>
     <string name="retro_lr_reset_colors">Repor cores</string>
     <string name="retro_lr_colors_reset">Cores repostas</string>
     <string name="retro_lr_performance_hud">HUD de desempenho</string>

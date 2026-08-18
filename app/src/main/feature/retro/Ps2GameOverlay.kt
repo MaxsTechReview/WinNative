@@ -60,6 +60,8 @@ object Ps2GameOverlay {
         }.getOrNull()
     }
 
+    const val PREF_SHELL_BG = "wn.ps2.shellbg"
+
     private fun ps2Prefs(ctx: android.content.Context) =
         ctx.getSharedPreferences("ARMSX2", android.content.Context.MODE_PRIVATE)
 
@@ -599,6 +601,17 @@ object Ps2GameOverlay {
                         bg {
                             RetroPs2OsdPlacement.apply(showPad, controllerConnected.value)
                         }
+                        menu.rebuild()
+                    },
+                )
+                add(
+                    RetroMenuEntry.Toggle(
+                        activity.getString(R.string.retro_lr_shell_background),
+                        subtitle = activity.getString(R.string.retro_lr_shell_background_subtitle),
+                        checked = ps2Prefs(activity).getBoolean(PREF_SHELL_BG, true),
+                    ) { value ->
+                        ps2Prefs(activity).edit().putBoolean(PREF_SHELL_BG, value).apply()
+                        pad?.shellBackground = value
                         menu.rebuild()
                     },
                 )
@@ -1235,6 +1248,7 @@ object Ps2GameOverlay {
                                         view.loadStickInversion()
                                         view.adaptiveSticks = ps2Prefs(ctx).getBoolean("wn.ps2.adaptivesticks", false)
                                         view.showL3R3 = ps2Prefs(ctx).getBoolean("wn.ps2.showl3r3", true)
+                                        view.shellBackground = ps2Prefs(ctx).getBoolean(PREF_SHELL_BG, true)
                                         view.hapticStrength =
                                             androidx.preference.PreferenceManager
                                                 .getDefaultSharedPreferences(ctx)

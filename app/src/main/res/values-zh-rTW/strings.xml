@@ -1836,6 +1836,8 @@
     <string name="retro_lr_letter_color">字母顏色</string>
     <string name="retro_lr_shadow_color">陰影顏色</string>
     <string name="retro_lr_background_color">背景顏色</string>
+    <string name="retro_lr_shell_background">手把背景</string>
+    <string name="retro_lr_shell_background_subtitle">填滿按鈕周圍的區域。關閉後遊戲可以使用整個螢幕。</string>
     <string name="retro_lr_reset_colors">重置顏色</string>
     <string name="retro_lr_colors_reset">顏色已重置</string>
     <string name="retro_lr_performance_hud">效能 HUD</string>

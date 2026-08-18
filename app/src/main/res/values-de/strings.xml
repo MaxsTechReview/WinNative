@@ -1838,6 +1838,8 @@ Installierter Pfad:
     <string name="retro_lr_letter_color">Buchstabenfarbe</string>
     <string name="retro_lr_shadow_color">Schattenfarbe</string>
     <string name="retro_lr_background_color">Hintergrundfarbe</string>
+    <string name="retro_lr_shell_background">Controller-Hintergrund</string>
+    <string name="retro_lr_shell_background_subtitle">Füllt den Bereich um die Tasten. Deaktiviere ihn, damit das Spiel den ganzen Bildschirm nutzen kann.</string>
     <string name="retro_lr_reset_colors">Farben zurücksetzen</string>
     <string name="retro_lr_colors_reset">Farben zurückgesetzt</string>
     <string name="retro_lr_performance_hud">Leistungs-HUD</string>

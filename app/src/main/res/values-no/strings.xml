@@ -1836,6 +1836,8 @@ Installert bane:
     <string name="retro_lr_letter_color">Bokstavfarge</string>
     <string name="retro_lr_shadow_color">Skyggefarge</string>
     <string name="retro_lr_background_color">Bakgrunnsfarge</string>
+    <string name="retro_lr_shell_background">Kontrollerbakgrunn</string>
+    <string name="retro_lr_shell_background_subtitle">Fyller området rundt knappene. Slå det av slik at spillet kan bruke hele skjermen.</string>
     <string name="retro_lr_reset_colors">Tilbakestill farger</string>
     <string name="retro_lr_colors_reset">Farger tilbakestilt</string>
     <string name="retro_lr_performance_hud">Ytelse-HUD</string>

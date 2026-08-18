@@ -1838,6 +1838,8 @@
     <string name="retro_lr_letter_color">글자 색상</string>
     <string name="retro_lr_shadow_color">그림자 색상</string>
     <string name="retro_lr_background_color">배경 색상</string>
+    <string name="retro_lr_shell_background">컨트롤러 배경</string>
+    <string name="retro_lr_shell_background_subtitle">버튼 주변의 여백을 채웁니다. 끄면 게임이 화면 전체를 사용합니다.</string>
     <string name="retro_lr_reset_colors">색상 재설정</string>
     <string name="retro_lr_colors_reset">색상을 재설정했습니다</string>
     <string name="retro_lr_performance_hud">성능 HUD</string>

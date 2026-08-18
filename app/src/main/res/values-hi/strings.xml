@@ -1773,6 +1773,8 @@
     <string name="retro_lr_letter_color">अक्षर रंग</string>
     <string name="retro_lr_shadow_color">छाया रंग</string>
     <string name="retro_lr_background_color">पृष्ठभूमि रंग</string>
+    <string name="retro_lr_shell_background">कंट्रोलर बैकग्राउंड</string>
+    <string name="retro_lr_shell_background_subtitle">बटनों के आसपास की जगह भरता है। इसे बंद करें ताकि गेम पूरी स्क्रीन का उपयोग कर सके।</string>
     <string name="retro_lr_reset_colors">रंग रीसेट करें</string>
     <string name="retro_lr_colors_reset">रंग रीसेट हुए</string>
     <string name="retro_lr_performance_hud">प्रदर्शन HUD</string>

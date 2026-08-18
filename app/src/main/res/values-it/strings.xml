@@ -1837,6 +1837,8 @@ Percorso installato:
     <string name="retro_lr_letter_color">Colore lettere</string>
     <string name="retro_lr_shadow_color">Colore ombra</string>
     <string name="retro_lr_background_color">Colore sfondo</string>
+    <string name="retro_lr_shell_background">Sfondo del controller</string>
+    <string name="retro_lr_shell_background_subtitle">Riempie lo spazio intorno ai pulsanti. Disattivalo per far usare al gioco tutto lo schermo.</string>
     <string name="retro_lr_reset_colors">Reimposta colori</string>
     <string name="retro_lr_colors_reset">Colori reimpostati</string>
     <string name="retro_lr_performance_hud">HUD prestazioni</string>

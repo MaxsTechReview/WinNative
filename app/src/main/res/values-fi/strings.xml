@@ -1836,6 +1836,8 @@ Asennuspolku:
     <string name="retro_lr_letter_color">Kirjaimen väri</string>
     <string name="retro_lr_shadow_color">Varjon väri</string>
     <string name="retro_lr_background_color">Taustaväri</string>
+    <string name="retro_lr_shell_background">Ohjaimen tausta</string>
+    <string name="retro_lr_shell_background_subtitle">Täyttää painikkeiden ympärillä olevan alueen. Poista se käytöstä, jotta peli voi käyttää koko näyttöä.</string>
     <string name="retro_lr_reset_colors">Palauta värit</string>
     <string name="retro_lr_colors_reset">Värit palautettu</string>
     <string name="retro_lr_performance_hud">Suorituskyky-HUD</string>

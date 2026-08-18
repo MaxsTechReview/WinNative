@@ -1836,6 +1836,8 @@
     <string name="retro_lr_letter_color">สีตัวอักษร</string>
     <string name="retro_lr_shadow_color">สีเงา</string>
     <string name="retro_lr_background_color">สีพื้นหลัง</string>
+    <string name="retro_lr_shell_background">พื้นหลังคอนโทรลเลอร์</string>
+    <string name="retro_lr_shell_background_subtitle">เติมพื้นที่รอบ ๆ ปุ่ม ปิดไว้เพื่อให้เกมใช้ได้เต็มหน้าจอ</string>
     <string name="retro_lr_reset_colors">รีเซ็ตสี</string>
     <string name="retro_lr_colors_reset">รีเซ็ตสีแล้ว</string>
     <string name="retro_lr_performance_hud">HUD ประสิทธิภาพ</string>

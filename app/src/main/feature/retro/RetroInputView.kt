@@ -370,6 +370,15 @@ class RetroInputView(
             }
         }
     val supportsStickButtons: Boolean get() = config.hasDualSticks
+
+    var shellBackground: Boolean = true
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidate()
+            }
+        }
+
     var showL3R3: Boolean = true
         set(value) {
             if (field != value) {
@@ -1343,6 +1352,7 @@ class RetroInputView(
         (0.299f * Color.red(color) + 0.587f * Color.green(color) + 0.114f * Color.blue(color)) / 255f
 
     private fun drawShellBackground(canvas: Canvas) {
+        if (!shellBackground) return
         val area = gameArea ?: return
         val w = width.toFloat()
         val h = height.toFloat()
