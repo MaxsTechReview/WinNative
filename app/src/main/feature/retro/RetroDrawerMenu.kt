@@ -92,6 +92,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.theme.SessionDrawerStyle
+import com.winlator.cmod.shared.theme.WinNativeDanger
 import com.winlator.cmod.shared.theme.WinNativeOutline
 import com.winlator.cmod.shared.theme.WinNativeSurface
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
@@ -126,6 +127,15 @@ class RetroRenamePrompt(
     val title: String,
     val initial: String,
     val onConfirm: (String?) -> Unit,
+)
+
+class RetroConfirmPrompt(
+    val title: String,
+    val message: String,
+    val confirmLabel: String,
+    val dismissLabel: String,
+    val onConfirm: () -> Unit,
+    val onDismiss: () -> Unit,
 )
 
 class RetroConflictPrompt(
@@ -251,6 +261,7 @@ class RetroMenuController {
     var bottomProvider: (() -> List<RetroMenuEntry.Action>)? = null
     var renamePrompt by mutableStateOf<RetroRenamePrompt?>(null)
     var conflictPrompt by mutableStateOf<RetroConflictPrompt?>(null)
+    var confirmPrompt by mutableStateOf<RetroConfirmPrompt?>(null)
 
     val gridColumns: Int
         get() = if (pane == null) 3 else 1
@@ -494,6 +505,9 @@ fun RetroDrawerMenu(controller: RetroMenuController) {
         }
         controller.conflictPrompt?.let { prompt ->
             RetroConflictDialog(prompt)
+        }
+        controller.confirmPrompt?.let { prompt ->
+            RetroConfirmDialog(prompt)
         }
     }
 }
@@ -1518,6 +1532,90 @@ internal fun RetroRenameDialog(
                             }
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                 )
+            }
+        }
+    }
+}
+
+@Composable
+internal fun RetroConfirmDialog(prompt: RetroConfirmPrompt) {
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Color(0xCC000000))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                ) { prompt.onDismiss() },
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .width(340.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(WinNativeSurface)
+                    .border(1.dp, WinNativeOutline, RoundedCornerShape(16.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) {}
+                    .padding(16.dp),
+        ) {
+            Text(
+                text = prompt.title,
+                color = DrawerTextPrimary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = prompt.message,
+                color = DrawerTextSecondary,
+                fontSize = 12.sp,
+            )
+            Spacer(Modifier.height(14.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Row(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(DrawerFocusFill)
+                            .border(1.dp, DrawerAccent, RoundedCornerShape(10.dp))
+                            .clickable { prompt.onDismiss() }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        text = prompt.dismissLabel,
+                        color = DrawerActiveAccent,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                Row(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(PaneInnerResting)
+                            .border(1.dp, RestingCardBorder, RoundedCornerShape(10.dp))
+                            .clickable { prompt.onConfirm() }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        text = prompt.confirmLabel,
+                        color = WinNativeDanger,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
         }
     }

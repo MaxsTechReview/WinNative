@@ -20,8 +20,12 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
@@ -45,6 +49,8 @@ class Gen1EngineActivity :
     private lateinit var bridge: Gen1EngineBridge
 
     private var touchControls = true
+    private var shellBackground = true
+    private var engineVarsApplied = false
 
     private var persistShortcut: Shortcut? = null
 
@@ -163,6 +169,12 @@ class Gen1EngineActivity :
 
     override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
         val keyCode = event.keyCode
+        if (keyCode == android.view.KeyEvent.KEYCODE_BUTTON_MODE && isGamepadSource(event)) {
+            if (event.action == android.view.KeyEvent.ACTION_UP) {
+                if (menu.visible) menu.close() else openMenu()
+            }
+            return true
+        }
         if (keyCode == android.view.KeyEvent.KEYCODE_BACK) {
             if (event.action == android.view.KeyEvent.ACTION_UP) {
                 if (menu.visible) {
@@ -178,6 +190,24 @@ class Gen1EngineActivity :
             return true
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    override fun dispatchGenericMotionEvent(event: android.view.MotionEvent): Boolean {
+        val joystick =
+            event.source and android.view.InputDevice.SOURCE_JOYSTICK ==
+                android.view.InputDevice.SOURCE_JOYSTICK
+        if (menu.visible && joystick) {
+            val hatX = event.getAxisValue(android.view.MotionEvent.AXIS_HAT_X)
+            val hatY = event.getAxisValue(android.view.MotionEvent.AXIS_HAT_Y)
+            val x =
+                if (kotlin.math.abs(hatX) > 0.5f) hatX else event.getAxisValue(android.view.MotionEvent.AXIS_X)
+            val y =
+                if (kotlin.math.abs(hatY) > 0.5f) hatY else event.getAxisValue(android.view.MotionEvent.AXIS_Y)
+            menu.handleAxis(x, y)
+            return true
+        }
+        if (menu.visible) return true
+        return super.dispatchGenericMotionEvent(event)
     }
 
     private fun buildTabs(): List<RetroTabSpec> =
@@ -225,8 +255,99 @@ class Gen1EngineActivity :
             else -> RetroPane.SYSTEM
         }
 
+    private fun isGamepadSource(event: android.view.KeyEvent): Boolean {
+        val source = event.device?.sources ?: return false
+        return source and android.view.InputDevice.SOURCE_GAMEPAD == android.view.InputDevice.SOURCE_GAMEPAD ||
+            source and android.view.InputDevice.SOURCE_JOYSTICK == android.view.InputDevice.SOURCE_JOYSTICK
+    }
+
+    private fun stadiumRomEntry(row: Gen1EngineBridge.Row): RetroMenuEntry {
+        val building = Gen1StadiumRom.isBuilding(row.value) || Gen1StadiumRom.hasStagedPick(this)
+        val installed = Gen1StadiumRom.isInstalled(this)
+        return RetroMenuEntry.Action(
+            label = row.label,
+            icon = RetroDrawerIcons.EditLayout,
+            danger = installed && !building,
+            subtitle =
+                when {
+                    building -> getString(R.string.retro_stadium_building)
+                    installed -> getString(R.string.retro_stadium_ready)
+                    else -> getString(R.string.retro_stadium_import)
+                },
+        ) {
+            when {
+                building -> Unit
+                installed -> promptStadiumDelete()
+                else -> pickStadiumRom()
+            }
+        }
+    }
+
+    private fun pickStadiumRom() {
+        menu.close()
+        val intent =
+            android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(android.content.Intent.CATEGORY_OPENABLE)
+                type = "*/*"
+            }
+        runCatching { startActivityForResult(intent, REQUEST_STADIUM_ROM) }
+            .onFailure { toast(getString(R.string.retro_stadium_no_picker)) }
+    }
+
+    private fun promptStadiumDelete() {
+        menu.confirmPrompt =
+            RetroConfirmPrompt(
+                title = getString(R.string.retro_stadium_row),
+                message = getString(R.string.retro_stadium_delete_body),
+                confirmLabel = getString(R.string.retro_stadium_delete),
+                dismissLabel = getString(R.string.retro_stadium_keep),
+                onConfirm = {
+                    menu.confirmPrompt = null
+                    val gone = Gen1StadiumRom.delete(this)
+                    toast(
+                        getString(
+                            if (gone) {
+                                R.string.retro_stadium_deleted
+                            } else {
+                                R.string.retro_stadium_delete_failed
+                            },
+                        ),
+                    )
+                    menu.rebuild()
+                    pollFaster()
+                },
+                onDismiss = { menu.confirmPrompt = null },
+            )
+    }
+
+    override fun onActivityResult(
+        requestCode: Int,
+        resultCode: Int,
+        data: android.content.Intent?,
+    ) {
+        if (requestCode != REQUEST_STADIUM_ROM) {
+            super.onActivityResult(requestCode, resultCode, data)
+            return
+        }
+        val uri = data?.data
+        if (resultCode != RESULT_OK || uri == null) return
+        toast(getString(R.string.retro_stadium_importing))
+        lifecycleScope.launch(Dispatchers.IO) {
+            val result = Gen1StadiumRom.stage(this@Gen1EngineActivity, uri)
+            withContext(Dispatchers.Main) {
+                result
+                    .onSuccess {
+                        toast(getString(R.string.retro_stadium_imported))
+                        pollFaster()
+                    }
+                    .onFailure { toast(it.message ?: getString(R.string.retro_stadium_import_failed)) }
+            }
+        }
+    }
+
     private fun rowEntry(row: Gen1EngineBridge.Row): RetroMenuEntry =
         when {
+            row.id == Gen1StadiumRom.ROW_ID -> stadiumRomEntry(row)
             row.values.isNotEmpty() ->
                 RetroMenuEntry.Choice(row.label, row.values, row.selectedIndex) { index ->
                     bridge.setRow(row.id, index)
@@ -462,6 +583,11 @@ class Gen1EngineActivity :
                 },
                 onCloseMenu = { menu.close() },
                 showStickInversion = false,
+                onShellBackground = { value ->
+                    shellBackground = value
+                    val host = mLayout
+                    pad?.let { view -> host?.post { updateGameArea(host, view) } }
+                },
             ),
         )
 
@@ -603,6 +729,7 @@ class Gen1EngineActivity :
         touchControls =
             shortcut?.getExtra(RetroShortcuts.KEY_TOUCH_CONTROLS)?.takeIf { it.isNotEmpty() }?.let { it != "0" }
                 ?: RetroDefaults.touchControls(this, RetroSystems.GAMEBOY.id)
+        shellBackground = RetroControlLayouts.shellBackground(this, RetroSystems.GAMEBOY.id)
         hudVisible = shortcut?.getExtra(RetroShortcuts.KEY_HUD)?.takeIf { it.isNotEmpty() }?.let { it != "0" } ?: false
         hudStyle = RetroHudSupport.loadGlobalHudStyle(this)
         hudElements = RetroHudSupport.loadGlobalHudElements(this)
@@ -631,6 +758,16 @@ class Gen1EngineActivity :
     private fun onEngineState(state: Gen1EngineBridge.State, menuChanged: Boolean) {
         importState = state.import
         if (loadingVisible && state.booted) loadingVisible = false
+        if (state.booted && state.rows.isNotEmpty()) {
+            if (!engineVarsApplied) {
+                engineVarsApplied = true
+                @Suppress("UNCHECKED_CAST")
+                val wanted =
+                    intent.getSerializableExtra(EXTRA_ENGINE_VARS) as? HashMap<String, String>
+                if (wanted != null) Gen1EngineSettings.applyTo(bridge, wanted)
+            }
+            Gen1EngineSettings.cache(this, state.rows)
+        }
         if (menuChanged && menu.visible) menu.rebuild()
     }
 
@@ -740,6 +877,7 @@ class Gen1EngineActivity :
 
         prefetch.join()
 
+        pad?.shellBackground = shellBackground
         applyTouchControls()
         if (hudVisible) host.post { showHud() }
     }
@@ -785,14 +923,15 @@ class Gen1EngineActivity :
         val h = host.height
         if (w <= 0 || h <= 0) return
         val portrait = h >= w
+        val boxed = touchControls && shellBackground
 
-        val budgetHeight = if (portrait && touchControls) (h * PORTRAIT_GAME_HEIGHT_FRACTION).toInt() else h
+        val budgetHeight = if (portrait && boxed) (h * PORTRAIT_GAME_HEIGHT_FRACTION).toInt() else h
         val scale = minOf(w / GB_WIDTH, budgetHeight / GB_HEIGHT).coerceAtLeast(1)
         val gameWidth = (GB_WIDTH * scale).toFloat()
         val gameHeight = (GB_HEIGHT * scale).toFloat()
 
         val left = (w - gameWidth) * 0.5f
-        val top = if (portrait && touchControls) 0f else (h - gameHeight) * 0.5f
+        val top = if (portrait && boxed) 0f else (h - gameHeight) * 0.5f
         val area = android.graphics.RectF(left, top, left + gameWidth, top + gameHeight)
 
         view.setGameArea(area)
@@ -802,7 +941,7 @@ class Gen1EngineActivity :
 
     private fun applyFillScale(area: android.graphics.RectF, hostWidth: Int, hostHeight: Int) {
         val surface = mSurface ?: return
-        if (touchControls || area.width() <= 0f || area.height() <= 0f) {
+        if ((touchControls && shellBackground) || area.width() <= 0f || area.height() <= 0f) {
             surface.scaleX = 1f
             surface.scaleY = 1f
             return
@@ -852,10 +991,13 @@ class Gen1EngineActivity :
     companion object {
         private const val TAG = "WnGen1Engine"
 
+        private const val REQUEST_STADIUM_ROM = 0x5D01
+
         const val EXTRA_ROM_PATH = "wn.engine.rom"
         const val EXTRA_VERSION = "wn.engine.version"
         const val EXTRA_GAME_NAME = "wn.engine.game_name"
         const val EXTRA_SHORTCUT_PATH = "wn.engine.shortcut"
+        const val EXTRA_ENGINE_VARS = "wn.engine.vars"
         const val EXTRA_ARTWORK_PATH = "wn.engine.artwork"
 
         private const val DPAD_DEADZONE = 0.35f
