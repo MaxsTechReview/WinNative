@@ -1679,7 +1679,7 @@ class ShortcutSettingsComposeDialog private constructor(
         exeFile: File,
     ) {
         val mappedPath =
-            WineUtils.getDriveCGameWindowsPath(
+            WineUtils.resolveGameExeWindowsPath(
                 targetContainer,
                 "CUSTOM",
                 gameFolder.absolutePath,

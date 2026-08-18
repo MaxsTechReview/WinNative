@@ -464,8 +464,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
 
         drivesWorking.clear()
         val drivesStr = c?.let {
-            com.winlator.cmod.runtime.wine.WineUtils.readDrivesFromPrefix(it)
-                .ifEmpty { it.getDrives() }
+            com.winlator.cmod.runtime.wine.WineUtils.resolveEffectiveDrives(it)
         } ?: Container.DEFAULT_DRIVES
         for (drive in Container.drivesIterator(drivesStr)) {
             drivesWorking.add(

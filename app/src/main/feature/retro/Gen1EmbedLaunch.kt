@@ -151,6 +151,10 @@ object Gen1EmbedLaunch {
                 Gen1EngineActivity.EXTRA_ARTWORK_PATH,
                 shortcut.getExtra("customCoverArtPath"),
             )
+            putExtra(
+                Gen1EngineActivity.EXTRA_ENGINE_VARS,
+                Gen1EngineSettings.resolve(context, shortcut),
+            )
         }
     }
 }

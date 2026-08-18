@@ -298,6 +298,7 @@ object DolphinGameOverlay {
                 .getDefaultSharedPreferences(activity)
                 .getBoolean(RetroControlsMenu.l3r3PrefKey(system.id), true)
         input.setCustomColors(RetroControlLayouts.loadColors(activity, system.id))
+        input.shellBackground = RetroControlLayouts.shellBackground(activity, system.id)
         input.loadStickInversion()
         var controllerConnected = dolphinAnyController()
         var manualTouchOverride = false
@@ -311,7 +312,7 @@ object DolphinGameOverlay {
             val left = (w - gameWidth) * 0.5f
             val box = android.graphics.RectF(left, 0f, left + gameWidth, h)
             input.setGameArea(box)
-            activity.setSurfaceBounds(if (touchEffective()) box else null)
+            activity.setSurfaceBounds(if (touchEffective() && input.shellBackground) box else null)
         }
         root.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateGameArea() }
         root.post { updateGameArea() }
@@ -416,6 +417,7 @@ object DolphinGameOverlay {
                             orientationLabel = { activity.getString(R.string.retro_lr_landscape) },
                             onCloseMenu = { menu.close() },
                             showStickInversion = true,
+                            onShellBackground = { updateGameArea() },
                         ),
                     )
                 else -> emptyList()
