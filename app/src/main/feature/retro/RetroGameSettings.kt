@@ -2063,6 +2063,12 @@ private fun RetroInputSection(state: RetroSettingsState) {
                 onCheckedChange = { ps2Prefs.edit().putBoolean("wn.ps2.touchcontrols", it).apply(); ps2Ver++ },
             )
             RetroSettingSwitch(
+                label = stringResource(R.string.retro_lr_shell_background),
+                checked = ps2Prefs.getBoolean(Ps2GameOverlay.PREF_SHELL_BG, true),
+                subtitle = stringResource(R.string.retro_lr_shell_background_subtitle),
+                onCheckedChange = { ps2Prefs.edit().putBoolean(Ps2GameOverlay.PREF_SHELL_BG, it).apply(); ps2Ver++ },
+            )
+            RetroSettingSwitch(
                 label = stringResource(R.string.retro_gs_adaptive_sticks),
                 checked = ps2Prefs.getBoolean("wn.ps2.adaptivesticks", false),
                 subtitle = stringResource(R.string.retro_gs_adaptive_sticks_subtitle),
@@ -2080,6 +2086,15 @@ private fun RetroInputSection(state: RetroSettingsState) {
                 checked = state.touchControls,
                 onCheckedChange = { state.touchControls = it },
             )
+            val sysId = state.system?.id
+            var shellVer by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+            @Suppress("UNUSED_EXPRESSION") shellVer
+            RetroSettingSwitch(
+                label = stringResource(R.string.retro_lr_shell_background),
+                checked = RetroControlLayouts.shellBackground(context, sysId),
+                subtitle = stringResource(R.string.retro_lr_shell_background_subtitle),
+                onCheckedChange = { RetroControlLayouts.saveShellBackground(context, sysId, it); shellVer++ },
+            )
             if (!state.engine3d) {
                 RetroSettingSwitch(
                     label = stringResource(R.string.retro_gs_adaptive_sticks),
@@ -2088,7 +2103,6 @@ private fun RetroInputSection(state: RetroSettingsState) {
                     onCheckedChange = { state.adaptiveSticks = it },
                 )
             }
-            val sysId = state.system?.id
             if (sysId == RetroSystems.PSX.id || RetroCoreManager.usesDolphinCore(state.system)) {
                 var invVer by remember { androidx.compose.runtime.mutableIntStateOf(0) }
                 @Suppress("UNUSED_EXPRESSION") invVer

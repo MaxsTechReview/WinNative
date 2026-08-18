@@ -1836,6 +1836,8 @@
     <string name="retro_lr_letter_color">文字の色</string>
     <string name="retro_lr_shadow_color">影の色</string>
     <string name="retro_lr_background_color">背景の色</string>
+    <string name="retro_lr_shell_background">コントローラーの背景</string>
+    <string name="retro_lr_shell_background_subtitle">ボタンの周りの領域を塗りつぶします。オフにするとゲームが画面全体を使えます。</string>
     <string name="retro_lr_reset_colors">色をリセット</string>
     <string name="retro_lr_colors_reset">色をリセットしました</string>
     <string name="retro_lr_performance_hud">パフォーマンス HUD</string>

@@ -1836,6 +1836,8 @@ Yüklü konum:
     <string name="retro_lr_letter_color">Harf Rengi</string>
     <string name="retro_lr_shadow_color">Gölge Rengi</string>
     <string name="retro_lr_background_color">Arka Plan Rengi</string>
+    <string name="retro_lr_shell_background">Kumanda arka planı</string>
+    <string name="retro_lr_shell_background_subtitle">Düğmelerin çevresindeki alanı doldurur. Oyunun tüm ekranı kullanabilmesi için kapatın.</string>
     <string name="retro_lr_reset_colors">Renkleri Sıfırla</string>
     <string name="retro_lr_colors_reset">Renkler sıfırlandı</string>
     <string name="retro_lr_performance_hud">Performans HUD</string>
