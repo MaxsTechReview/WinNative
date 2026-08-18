@@ -31,10 +31,10 @@ jobs:
             variant: Pubg
             gradleTask: assemblePubgDebug
             apkPath: app/build/outputs/apk/pubg/debug/pubg.apk
-          - name: Antunu
-            variant: Antunu
-            gradleTask: assembleAntunuDebug
-            apkPath: app/build/outputs/apk/antunu/debug/antunu.apk
+          - name: Antutu
+            variant: Antutu
+            gradleTask: assembleAntutuDebug
+            apkPath: app/build/outputs/apk/antutu/debug/antutu.apk
 
     steps:
       - name: Clone repository

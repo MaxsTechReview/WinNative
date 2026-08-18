@@ -384,9 +384,12 @@ public class Shortcut {
       boolean containerIdFound = false;
 
       for (String line : lines) {
-        if (line.startsWith("container_id:")) {
-          // Update the container_id to the new container
-          updatedContent.append("container_id:").append(newContainer.id).append("\n");
+        String trimmed = line.trim();
+        // MSLink writes the '=' form, which the ':'-only match missed.
+        boolean colon = trimmed.startsWith("container_id:");
+        if (colon || trimmed.startsWith("container_id=")) {
+          updatedContent.append("container_id").append(colon ? ':' : '=')
+              .append(newContainer.id).append("\n");
           containerIdFound = true;
         } else {
           updatedContent.append(line).append("\n");

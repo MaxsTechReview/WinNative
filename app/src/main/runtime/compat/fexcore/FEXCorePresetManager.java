@@ -57,6 +57,47 @@ public class FEXCorePresetManager {
       envVars.put("FEX_HALFBARRIERTSOENABLED", "0");
       envVars.put("FEX_X87REDUCEDPRECISION", "1");
       envVars.put("FEX_MULTIBLOCK", "1");
+    } else if (id.equals(FEXCorePreset.PERFORMANCE_TSO)) {
+      envVars.put("FEX_TSOENABLED", "1");
+      envVars.put("FEX_VECTORTSOENABLED", "0");
+      envVars.put("FEX_MEMCPYSETTSOENABLED", "0");
+      envVars.put("FEX_HALFBARRIERTSOENABLED", "0");
+      envVars.put("FEX_X87REDUCEDPRECISION", "1");
+      envVars.put("FEX_MULTIBLOCK", "1");
+      envVars.put("FEX_SMCCHECKS", "mtrack");
+    } else if (id.equals(FEXCorePreset.EXTREME) || id.equals(FEXCorePreset.EXTREME_TSO)) {
+      envVars.put("FEX_TSOENABLED", id.equals(FEXCorePreset.EXTREME_TSO) ? "1" : "0");
+      envVars.put("FEX_VECTORTSOENABLED", "0");
+      envVars.put("FEX_MEMCPYSETTSOENABLED", "0");
+      envVars.put("FEX_HALFBARRIERTSOENABLED", "0");
+      envVars.put("FEX_X87REDUCEDPRECISION", "1");
+      envVars.put("FEX_MULTIBLOCK", "1");
+      envVars.put("FEX_SMCCHECKS", "none");
+      envVars.put("FEX_DISABLEL2CACHE", "1");
+      envVars.put("FEX_DYNAMICL1CACHE", "1");
+      envVars.put("FEX_DYNAMICL1CACHEINCREASECOUNTHEURISTIC", "250");
+      envVars.put("FEX_DYNAMICL1CACHEDECREASECOUNTHEURISTIC", "50");
+    } else if (id.equals(FEXCorePreset.DENUVO)) {
+      envVars.put("FEX_TSOENABLED", "0");
+      envVars.put("FEX_VECTORTSOENABLED", "0");
+      envVars.put("FEX_HALFBARRIERTSOENABLED", "0");
+      envVars.put("FEX_MEMCPYSETTSOENABLED", "0");
+      envVars.put("FEX_STRICTINPROCESSSPLITLOCKS", "0");
+      envVars.put("FEX_KERNELUNALIGNEDATOMICBACKPATCHING", "1");
+      envVars.put("FEX_X87REDUCEDPRECISION", "1");
+      envVars.put("FEX_MULTIBLOCK", "1");
+      envVars.put("FEX_MAXINST", "5000");
+      envVars.put("FEX_HOSTFEATURES", "off");
+      envVars.put("FEX_SMALLTSCSCALE", "1");
+      envVars.put("FEX_HIDEHYBRID", "1");
+      envVars.put("FEX_SMCCHECKS", "full");
+      envVars.put("FEX_VOLATILEMETADATA", "1");
+      envVars.put("FEX_MONOHACKS", "1");
+      envVars.put("FEX_HIDEHYPERVISORBIT", "1");
+      envVars.put("FEX_DISABLEL2CACHE", "0");
+      envVars.put("FEX_DYNAMICL1CACHE", "0");
+      envVars.put("FEX_DYNAMICL1CACHEINCREASECOUNTHEURISTIC", "250");
+      envVars.put("FEX_DYNAMICL1CACHEDECREASECOUNTHEURISTIC", "50");
     } else if (id.startsWith(FEXCorePreset.CUSTOM)) {
       for (String[] preset : customPresetsIterator(context)) {
         if (preset[0].equals(id)) {
@@ -111,6 +152,19 @@ public class FEXCorePresetManager {
     presets.add(
         new FEXCorePreset(
             FEXCorePreset.PERFORMANCE, context.getString(R.string.container_box64_performance)));
+    presets.add(
+        new FEXCorePreset(
+            FEXCorePreset.PERFORMANCE_TSO,
+            context.getString(R.string.container_fexcore_performance_tso)));
+    presets.add(
+        new FEXCorePreset(
+            FEXCorePreset.EXTREME, context.getString(R.string.container_fexcore_extreme)));
+    presets.add(
+        new FEXCorePreset(
+            FEXCorePreset.EXTREME_TSO, context.getString(R.string.container_fexcore_extreme_tso)));
+    presets.add(
+        new FEXCorePreset(
+            FEXCorePreset.DENUVO, context.getString(R.string.container_fexcore_denuvo)));
     for (String[] preset : customPresetsIterator(context))
       presets.add(new FEXCorePreset(preset[0], preset[1]));
     return presets;
@@ -326,6 +380,6 @@ public class FEXCorePresetManager {
     int selectedPosition = spinner.getSelectedItemPosition();
     if (adapter != null && adapter.getCount() > 0 && selectedPosition >= 0) {
       return ((FEXCorePreset) adapter.getItem(selectedPosition)).id;
-    } else return FEXCorePreset.PERFORMANCE;
+    } else return FEXCorePreset.PERFORMANCE_TSO;
   }
 }

@@ -24,6 +24,10 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CoroutineScope
 import com.winlator.cmod.BuildConfig
 import com.winlator.cmod.R
 import com.winlator.cmod.app.PluviaApp
@@ -78,6 +82,7 @@ import com.winlator.cmod.runtime.input.controls.GestureProfileManager
 import com.winlator.cmod.runtime.input.controls.InputControlsManager
 import com.winlator.cmod.runtime.audio.midi.MidiManager
 import com.winlator.cmod.runtime.display.winhandler.WinHandler
+import com.winlator.cmod.feature.artwork.SteamArtworkScraper
 import java.io.File
 import java.lang.reflect.Field
 import java.util.Arrays
@@ -221,15 +226,47 @@ class ShortcutSettingsComposeDialog private constructor(
                     addShortcutToScreen(shortcut)
                 }
                 if (result == ShortcutsFragment.PinShortcutResult.REUSED_EXISTING) {
-                    WinToast.show(context, R.string.shortcuts_list_readded_existing, shortcut.icon)
+                    WinToast.show(context, R.string.shortcuts_list_readded_existing, shortcut.icon, dialog.window?.decorView)
                 } else if (result == ShortcutsFragment.PinShortcutResult.FAILED) {
                     WinToast.show(
                         context,
                         context.getString(
                             R.string.library_games_failed_to_create_shortcut,
                             shortcut.name
-                        )
+                        ),
+                        dialog.window?.decorView,
                     )
+                }
+            }
+
+            override fun onScrapeGameArtwork(gameName: String) {
+                WinToast.show(context, context.getString(R.string.library_games_scraping_artwork), Toast.LENGTH_LONG, dialog.window?.decorView)
+                CoroutineScope(Dispatchers.IO).launch {
+                    val artworkInfo = SteamArtworkScraper(context).getGameArtwork(gameName)
+                    withContext(Dispatchers.Main) {
+                        var saved = false
+                        artworkInfo.forEach { (slotSuffix, file) ->
+                            val slot =
+                                LibraryShortcutArtwork.LibraryArtworkSlot.entries
+                                    .find { it.fileSuffix == slotSuffix }
+                            if (slot != null && saveScrapedLibraryArtwork(file.toUri(), slot)) {
+                                saved = true
+                            }
+                            file.delete()
+                        }
+                        if (saved) {
+                            shortcut.saveData()
+                            shouldRefreshLibraryOnSave = true
+                            syncLibraryArtworkState()
+                            emitLibraryRefreshIfNeeded()
+                        }
+                        WinToast.show(
+                            context,
+                            context.getString(if (saved) R.string.common_ui_done else R.string.common_ui_failed),
+                            Toast.LENGTH_LONG,
+                            dialog.window?.decorView,
+                        )
+                    }
                 }
             }
 
@@ -295,7 +332,7 @@ class ShortcutSettingsComposeDialog private constructor(
                     activity = activity,
                     initialPath = resolveExePickerInitialPath(),
                     title = context.getString(R.string.common_ui_select_exe),
-                    allowedExtensions = setOf("exe"),
+                    allowedExtensions = DirectoryPickerDialog.ExecutableExtensions,
                     dimAmount = 0.5f,
                     preserveBackdropBlur = true,
                 ) { path ->
@@ -320,7 +357,6 @@ class ShortcutSettingsComposeDialog private constructor(
             }
         }
     }
-
 
     private fun loadInitialData() {
         val container = shortcut.container
@@ -472,6 +508,29 @@ class ShortcutSettingsComposeDialog private constructor(
                 ?.coerceIn(0, 100)
                 ?: 100
 
+        // shortcut override else container value; legacy single reshadeEffect/flat params migrated in parse
+        val reshadeEffects = com.winlator.cmod.runtime.reshade.ReshadeManager.scanEffects(context)
+        state.reshadeEffects.value = reshadeEffects
+        state.reshadeLoadout.init(
+            reshadeEffects,
+            getShortcutSetting(
+                com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_LOADOUT,
+                container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_LOADOUT, "")
+            ).ifEmpty { null },
+            getShortcutSetting(
+                com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_MODE,
+                container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_MODE, "solo")
+            ),
+            getShortcutSetting(
+                com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_PARAMS,
+                container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_PARAMS, "")
+            ).ifEmpty { null },
+            getShortcutSetting(
+                com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_EFFECT,
+                container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_EFFECT, "None")
+            ),
+        )
+
         // Graphics driver (basic entries - will be updated after contents sync)
         val graphicsDriverArr =
             context.resources.getStringArray(R.array.graphics_driver_entries).toList()
@@ -481,6 +540,10 @@ class ShortcutSettingsComposeDialog private constructor(
             getShortcutSetting("graphicsDriver", container.getGraphicsDriver()),
             state.selectedGraphicsDriver
         )
+
+        state.zinkModeEntries.value = context.resources.getStringArray(R.array.zink_mode_entries).toList()
+        state.selectedZinkMode.intValue =
+            if (getShortcutSetting("zinkMode", container.getZinkMode()) == "windows") 1 else 0
 
         // DX Wrapper
         val dxWrapperArr =
@@ -521,6 +584,7 @@ class ShortcutSettingsComposeDialog private constructor(
         else shortcut.getExtra("wineVersion", container.getWineVersion())
         val wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersionStr)
         isArm64EC = wineInfo.isArm64EC
+        state.isArm64EC.value = isArm64EC
         state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
 
         rebuildEmulatorLists()
@@ -624,6 +688,7 @@ class ShortcutSettingsComposeDialog private constructor(
         val wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersionStr)
         val archChanged = isArm64EC != wineInfo.isArm64EC
         isArm64EC = wineInfo.isArm64EC
+        state.isArm64EC.value = isArm64EC
         state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
 
         rebuildEmulatorLists()
@@ -981,6 +1046,10 @@ class ShortcutSettingsComposeDialog private constructor(
             hasContainerOverride =
                 hasContainerOverride or saveOverride("graphicsDriver", graphicsDriver, container.getGraphicsDriver())
 
+            val zinkMode = if (state.selectedZinkMode.intValue == 1) "windows" else "unix"
+            hasContainerOverride =
+                hasContainerOverride or saveOverride("zinkMode", zinkMode, container.getZinkMode())
+
             val graphicsDriverConfig = buildGraphicsDriverConfigFromState()
             hasContainerOverride = hasContainerOverride or saveOverride(
                 "graphicsDriverConfig", graphicsDriverConfig, container.getGraphicsDriverConfig()
@@ -1218,6 +1287,32 @@ class ShortcutSettingsComposeDialog private constructor(
                 shortcut.putExtra("sgsrSharpness", null)
             }
 
+            // saveOverride not putExtra: putExtra leaves hasContainerOverride false, so a reshade-only shortcut gets use_container_defaults=1 and reads back the container's extras
+            run {
+                val loadoutJson = state.reshadeLoadout.loadoutJsonOrNull() ?: ""
+                hasContainerOverride = hasContainerOverride or saveOverride(
+                    com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_LOADOUT,
+                    loadoutJson,
+                    container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_LOADOUT, "")
+                )
+                hasContainerOverride = hasContainerOverride or saveOverride(
+                    com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_MODE,
+                    if (loadoutJson.isEmpty()) "" else state.reshadeLoadout.mode,
+                    // "solo" is how launch resolves an unset mode; matching it avoids a spurious reshadeMode override
+                    if (loadoutJson.isEmpty()) "" else container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_MODE, "solo")
+                )
+                hasContainerOverride = hasContainerOverride or saveOverride(
+                    com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_PARAMS,
+                    if (loadoutJson.isEmpty()) "" else (state.reshadeLoadout.paramsJsonOrNull() ?: ""),
+                    container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_PARAMS, "")
+                )
+                hasContainerOverride = hasContainerOverride or saveOverride(
+                    com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_EFFECT,
+                    if (loadoutJson.isEmpty()) "" else state.reshadeLoadout.firstEffectName(),
+                    container.getExtra(com.winlator.cmod.runtime.reshade.ReshadeConfigWriter.EXTRA_EFFECT, "")
+                )
+            }
+
             // Desktop Theme — stored as compound "THEME,TYPE,COLOR" string
             if (state.desktopThemeEntries.value.isNotEmpty()) {
                 val desktopThemeEntries = state.desktopThemeEntries.value
@@ -1400,8 +1495,8 @@ class ShortcutSettingsComposeDialog private constructor(
 
     private fun applySelectedExePath(path: String) {
         val exeFile = File(path)
-        if (!exeFile.isFile || !exeFile.name.endsWith(".exe", ignoreCase = true)) {
-            WinToast.show(context, R.string.common_ui_select_valid_exe_file, Toast.LENGTH_SHORT)
+        if (!exeFile.isFile || exeFile.extension.lowercase() !in DirectoryPickerDialog.ExecutableExtensions) {
+            WinToast.show(context, context.getString(R.string.common_ui_select_valid_exe_file), Toast.LENGTH_SHORT, dialog.window?.decorView)
             return
         }
 
@@ -1510,7 +1605,7 @@ class ShortcutSettingsComposeDialog private constructor(
         exeFile: File,
     ) {
         val mappedPath =
-            WineUtils.getDriveCGameWindowsPath(
+            WineUtils.resolveGameExeWindowsPath(
                 targetContainer,
                 "CUSTOM",
                 gameFolder.absolutePath,
@@ -1594,23 +1689,40 @@ class ShortcutSettingsComposeDialog private constructor(
         }
     }
 
+    // Each view gets its own shape, so slots are written individually and only
+    // replaced when the new image lands.
+    private fun saveScrapedLibraryArtwork(
+        uri: Uri,
+        slot: LibraryShortcutArtwork.LibraryArtworkSlot,
+    ): Boolean {
+        val bitmap = ImageUtils.getBitmapFromUri(context, uri, 1024) ?: return false
+        val previousPath = shortcut.getExtra(slot.extraKey)
+        val outputFile = LibraryShortcutArtwork.buildManagedViewArtworkFile(context, shortcut, slot)
+        if (!FileUtils.saveBitmapToFile(bitmap, outputFile)) return false
+        if (previousPath.isNotBlank() && previousPath != outputFile.absolutePath) {
+            LibraryShortcutArtwork.deleteManagedArtwork(context, previousPath)
+        }
+        shortcut.putExtra(slot.extraKey, outputFile.absolutePath)
+        return true
+    }
+
     private fun saveSelectedLibraryArtwork(
         uri: Uri,
         target: LibraryArtworkTarget,
-    ) {
+    ): Boolean {
         val bitmap = ImageUtils.getBitmapFromUri(context, uri, 1024)
         if (bitmap == null) {
-            WinToast.show(context, R.string.shortcuts_library_artwork_failed, Toast.LENGTH_SHORT)
-            return
+            WinToast.show(context, context.getString(R.string.shortcuts_library_artwork_failed), Toast.LENGTH_SHORT, dialog.window?.decorView)
+            return false
         }
 
-        val extraKey = getLibraryArtworkExtraKey(target) ?: return
+        val extraKey = getLibraryArtworkExtraKey(target) ?: return false
         val previousPath = shortcut.getExtra(extraKey)
-        val slot = getLibraryArtworkSlot(target) ?: return
+        val slot = getLibraryArtworkSlot(target) ?: return false
         val outputFile = LibraryShortcutArtwork.buildManagedViewArtworkFile(context, shortcut, slot)
         if (!FileUtils.saveBitmapToFile(bitmap, outputFile)) {
-            WinToast.show(context, R.string.shortcuts_library_artwork_failed, Toast.LENGTH_SHORT)
-            return
+            WinToast.show(context, context.getString(R.string.shortcuts_library_artwork_failed), Toast.LENGTH_SHORT, dialog.window?.decorView)
+            return false
         }
 
         if (previousPath.isNotBlank() && previousPath != outputFile.absolutePath) {
@@ -1624,6 +1736,7 @@ class ShortcutSettingsComposeDialog private constructor(
         syncLibraryArtworkState()
         // Artwork lands on disk at pick time, so refresh now instead of at confirm.
         emitLibraryRefreshIfNeeded()
+        return true
     }
 
     private fun clearLibraryArtwork(target: LibraryArtworkTarget) {
@@ -1788,7 +1901,7 @@ class ShortcutSettingsComposeDialog private constructor(
     }
 
     private fun buildGraphicsDriverConfigFromState(): String {
-        val vulkanVersion = state.gfxVulkanVersionEntries.value.getOrElse(state.gfxSelectedVulkanVersion.intValue) { "1.3" }
+        val vulkanVersion = state.gfxVulkanVersionEntries.value.getOrElse(state.gfxSelectedVulkanVersion.intValue) { "1.4" }
         val version = state.gfxDriverVersionEntries.value.getOrElse(state.gfxSelectedDriverVersion.intValue) { "" }
         val blacklisted = state.gfxBlacklistedExtensions.value.joinToString(",")
         val gpuName = state.gfxGpuNameEntries.value.getOrElse(state.gfxSelectedGpuName.intValue) { "Device" }
@@ -1872,7 +1985,7 @@ class ShortcutSettingsComposeDialog private constructor(
         // Load driver versions (will be populated after contents sync)
         loadGraphicsDriverVersions(container)
 
-        selectByValue(state.gfxVulkanVersionEntries.value, config["vulkanVersion"] ?: "1.3", state.gfxSelectedVulkanVersion)
+        selectByValue(state.gfxVulkanVersionEntries.value, config["vulkanVersion"] ?: "1.4", state.gfxSelectedVulkanVersion)
         selectByValue(state.gfxGpuNameEntries.value, config["gpuName"] ?: "Device", state.gfxSelectedGpuName)
         selectByNumber(state.gfxMaxDeviceMemoryEntries.value, config["maxDeviceMemory"] ?: "0", state.gfxSelectedMaxDeviceMemory)
         selectByValue(state.gfxPresentModeEntries.value, config["presentMode"] ?: "mailbox", state.gfxSelectedPresentMode)
@@ -2091,6 +2204,7 @@ class ShortcutSettingsComposeDialog private constructor(
         val wineVersionStr = newContainer.getWineVersion()
         val wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersionStr)
         isArm64EC = wineInfo.isArm64EC
+        state.isArm64EC.value = isArm64EC
         state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
         rebuildEmulatorLists()
 
@@ -2283,6 +2397,12 @@ class ShortcutSettingsComposeDialog private constructor(
     // Show / Dismiss
 
     fun show() {
+        if (com.winlator.cmod.feature.retro.RetroShortcuts.isRetroShortcut(shortcut)) {
+            com.winlator.cmod.feature.retro
+                .RetroSettingsDialog(activity, shortcut)
+                .show()
+            return
+        }
         dialog.show()
         restorePaneNav?.invoke()
         restorePaneNav = dialog.window?.bindPaneNav(

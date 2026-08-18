@@ -543,7 +543,7 @@ class PresetsFragment : Fragment() {
         get() =
             when (this) {
                 PresetEngine.BOX64 -> Box64Preset.PERFORMANCE
-                PresetEngine.FEXCORE -> FEXCorePreset.PERFORMANCE
+                PresetEngine.FEXCORE -> FEXCorePreset.PERFORMANCE_TSO
             }
 
     private val PresetEngine.assetFile: String

@@ -356,6 +356,7 @@ private void showControlElementSettings(View anchorView) {
           ControlElement.Type type = element.getType();
           view.findViewById(R.id.LLShape).setVisibility(View.GONE);
           view.findViewById(R.id.CBToggleSwitch).setVisibility(View.GONE);
+          view.findViewById(R.id.CBSwipeable).setVisibility(View.GONE);
           view.findViewById(R.id.LLCustomTextIcon).setVisibility(View.GONE);
           view.findViewById(R.id.LLRangeOptions).setVisibility(View.GONE);
           view.findViewById(R.id.LLRadialMenuOptions).setVisibility(View.GONE);
@@ -365,9 +366,12 @@ private void showControlElementSettings(View anchorView) {
             if (type == ControlElement.Type.BUTTON) {
               view.findViewById(R.id.LLShape).setVisibility(View.VISIBLE);
               view.findViewById(R.id.CBToggleSwitch).setVisibility(View.VISIBLE);
+              view.findViewById(R.id.CBSwipeable).setVisibility(View.VISIBLE);
             } else {
               view.findViewById(R.id.LLRadialMenuOptions).setVisibility(View.VISIBLE);
             }
+          } else if (type == ControlElement.Type.D_PAD) {
+            view.findViewById(R.id.CBSwipeable).setVisibility(View.VISIBLE);
           } else if (type == ControlElement.Type.RANGE_BUTTON) {
             view.findViewById(R.id.LLRangeOptions).setVisibility(View.VISIBLE);
           }
@@ -458,6 +462,14 @@ private void showControlElementSettings(View anchorView) {
     cbToggleSwitch.setOnCheckedChangeListener(
         (buttonView, isChecked) -> {
           element.setToggleSwitch(isChecked);
+          profile.save();
+        });
+
+    CheckBox cbSwipeable = view.findViewById(R.id.CBSwipeable);
+    cbSwipeable.setChecked(element.isSwipeable());
+    cbSwipeable.setOnCheckedChangeListener(
+        (buttonView, isChecked) -> {
+          element.setSwipeable(isChecked);
           profile.save();
         });
 
@@ -553,7 +565,17 @@ private void showControlElementSettings(View anchorView) {
     if (type == ControlElement.Type.BUTTON || type == ControlElement.Type.RADIAL_MENU) {
       int count = element.getBindingCount();
       for (int i = 0; i < count; i++) {
-        String title = (type == ControlElement.Type.RADIAL_MENU) ? "Binding " + (i + 1) : (i == 0 ? getString(R.string.input_controls_editor_binding) : getString(R.string.binding_secondary));
+        String title;
+        if (type == ControlElement.Type.RADIAL_MENU) {
+          title = "Binding " + (i + 1);
+        } else {
+          switch (i) {
+            case 0: title = getString(R.string.binding_primary); break;
+            case 1: title = getString(R.string.binding_secondary); break;
+            case 2: title = getString(R.string.binding_third); break;
+            default: title = getString(R.string.binding_fourth); break;
+          }
+        }
         loadBindingSpinner(element, container, i, title);
       }
     } else if (type == ControlElement.Type.D_PAD

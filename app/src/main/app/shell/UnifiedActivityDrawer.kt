@@ -1,6 +1,8 @@
 package com.winlator.cmod.app.shell
 import com.winlator.cmod.app.shell.UnifiedActivity.ControllerConnectionState
 
+import android.content.SharedPreferences
+import androidx.preference.PreferenceManager
 import android.app.Activity
 import android.app.PendingIntent
 import android.content.Intent
@@ -52,6 +54,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.horizontalScroll
@@ -135,6 +139,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -160,6 +165,8 @@ import com.winlator.cmod.feature.settings.SettingsNavItem
 import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.feature.shortcuts.LibraryShortcutUtils
 import com.winlator.cmod.feature.shortcuts.LibraryShortcutArtwork
+import com.winlator.cmod.feature.artwork.SteamArtworkScraper
+import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.feature.shortcuts.ShortcutBroadcastReceiver
 import com.winlator.cmod.feature.shortcuts.ShortcutSettingsComposeDialog
 import com.winlator.cmod.feature.shortcuts.ShortcutsFragment
@@ -229,6 +236,7 @@ import com.winlator.cmod.shared.ui.nav.PANE_DIR_SECONDARY
 import com.winlator.cmod.shared.ui.nav.PANE_DIR_UP
 import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
 import com.winlator.cmod.shared.ui.nav.paneNavItem
+import kotlinx.coroutines.CoroutineScope
 import com.winlator.cmod.shared.ui.FourByTwoGridView
 import com.winlator.cmod.shared.ui.JoystickGridScroll
 import com.winlator.cmod.shared.ui.JoystickListScroll
@@ -768,31 +776,58 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
     var selectedExePath by remember { mutableStateOf<String?>(null) }
     var gameName by remember { mutableStateOf("") }
     var gameFolder by remember { mutableStateOf<String?>(null) }
+    var retroSystem by remember { mutableStateOf<com.winlator.cmod.feature.retro.RetroSystem?>(null) }
     var isAdding by remember { mutableStateOf(false) }
+    var nameEditing by remember { mutableStateOf(false) }
+    val nameFocus = remember { FocusRequester() }
+    val nameKeyboard = LocalSoftwareKeyboardController.current
+    LaunchedEffect(nameEditing) {
+        if (nameEditing) {
+            runCatching { nameFocus.requestFocus() }
+            nameKeyboard?.show()
+        }
+    }
     val registry = remember { PaneNavRegistry() }
-    val addEnabled = selectedExePath != null && gameName.isNotBlank() && gameFolder != null && !isAdding
+    val addEnabled =
+        selectedExePath != null && gameName.isNotBlank() && !isAdding &&
+            (retroSystem != null || gameFolder != null)
     val doAdd: () -> Unit = {
         isAdding = true
+        val chosenRetro = retroSystem
         scope.launch(Dispatchers.IO) {
-            addCustomGame(context, gameName.trim(), selectedExePath!!, gameFolder!!)
+            val added =
+                if (chosenRetro != null) {
+                    com.winlator.cmod.feature.retro.RetroShortcuts
+                        .create(context, gameName.trim(), selectedExePath!!, chosenRetro)
+                } else {
+                    addCustomGame(context, gameName.trim(), selectedExePath!!, gameFolder!!)
+                    true
+                }
             withContext(Dispatchers.Main) {
                 isAdding = false
-                com.winlator.cmod.shared.ui.toast.WinToast.show(
-                    context,
-                    "$gameName added!",
-                    android.widget.Toast.LENGTH_SHORT,
-                )
-                onDismiss()
+                if (added) {
+                    com.winlator.cmod.shared.ui.toast.WinToast.show(
+                        context,
+                        "$gameName added!",
+                        android.widget.Toast.LENGTH_SHORT,
+                    )
+                    onDismiss()
+                } else {
+                    com.winlator.cmod.shared.ui.toast.WinToast.show(
+                        context,
+                        "Could not add game",
+                        android.widget.Toast.LENGTH_SHORT,
+                    )
+                }
             }
         }
     }
 
     fun selectExecutable(path: String) {
-        val launchable =
-            path.endsWith(".exe", ignoreCase = true) ||
-                path.endsWith(".bat", ignoreCase = true) ||
-                path.endsWith(".cmd", ignoreCase = true)
-        if (!launchable || !java.io.File(path).isFile) {
+        val detectedRetro = com.winlator.cmod.feature.retro.RetroSystems.detectForFile(path)
+        val file = java.io.File(path)
+        val launchable = file.extension.lowercase() in DirectoryPickerDialog.ExecutableExtensions
+        if (!file.isFile || (!launchable && detectedRetro == null)) {
             com.winlator.cmod.shared.ui.toast.WinToast.show(
                 context,
                 R.string.common_ui_select_valid_exe_file,
@@ -802,7 +837,13 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
         }
 
         selectedExePath = path
-        gameFolder = LibraryShortcutUtils.detectCustomGameFolder(path)
+        retroSystem = detectedRetro
+        gameFolder =
+            if (detectedRetro != null) {
+                java.io.File(path).parent
+            } else {
+                LibraryShortcutUtils.detectCustomGameFolder(path)
+            }
         // Auto-generate a game name from the EXE name (without extension)
         if (gameName.isBlank()) {
             gameName =
@@ -872,7 +913,8 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
                                                                 android.os.Environment.DIRECTORY_DOWNLOADS,
                                                             ).absolutePath,
                                                 title = getString(R.string.common_ui_select_exe),
-                                                allowedExtensions = setOf("exe", "bat", "cmd"),
+                                                allowedExtensions = DirectoryPickerDialog.ExecutableExtensions +
+                                                    com.winlator.cmod.feature.retro.RetroSystems.allExtensions,
                                                 dimAmount = 0.5f,
                                                 preserveBackdropBlur = true,
                                                 extraRoots = driveRoots(includeInternal = true),
@@ -885,7 +927,7 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
                             Icon(Icons.Outlined.FolderOpen, contentDescription = null, tint = Accent, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                selectedExePath ?: "Select Executable (.exe)",
+                                selectedExePath ?: "Select Executable or Console ROM",
                                 color = if (selectedExePath == null) TextSecondary else TextPrimary,
                                 maxLines = if (selectedExePath == null) 1 else Int.MAX_VALUE,
                                 overflow = if (selectedExePath == null) TextOverflow.Ellipsis else TextOverflow.Visible,
@@ -904,7 +946,19 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
                                 onValueChange = { gameName = it },
                                 label = { Text(stringResource(R.string.library_games_game_name), fontSize = 11.sp) },
                                 singleLine = true,
-                                modifier = Modifier.fillMaxWidth().paneNavItem(cornerRadius = 10.dp).controllerTextFieldEscape(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .paneNavItem(cornerRadius = 10.dp, onActivate = { nameEditing = true })
+                                    .pointerInput(Unit) {
+                                        awaitEachGesture {
+                                            awaitFirstDown(requireUnconsumed = false)
+                                            nameEditing = true
+                                        }
+                                    }
+                                    .focusRequester(nameFocus)
+                                    .focusProperties { canFocus = nameEditing }
+                                    .onFocusChanged { if (!it.isFocused) nameEditing = false }
+                                    .controllerTextFieldEscape(),
                                 textStyle = MaterialTheme.typography.bodySmall.copy(color = TextPrimary),
                                 colors =
                                     OutlinedTextFieldDefaults.colors(
@@ -921,6 +975,72 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
 
                             Spacer(Modifier.height(8.dp))
 
+                            if (retroSystem != null) {
+                                val activeRetroSystem = retroSystem
+                                var consoleMenuOpen by remember { mutableStateOf(false) }
+                                Box {
+                                    Row(
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(Color.White.copy(alpha = 0.05f))
+                                                .paneNavItem(
+                                                    cornerRadius = 10.dp,
+                                                    tapToSelect = true,
+                                                    onActivate = { consoleMenuOpen = true },
+                                                ).clickable { consoleMenuOpen = true }
+                                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Icon(
+                                            Icons.Outlined.SportsEsports,
+                                            contentDescription = null,
+                                            tint = StatusOnline.copy(alpha = 0.7f),
+                                            modifier = Modifier.size(14.dp),
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Column(Modifier.weight(1f)) {
+                                            Text("Console", color = TextSecondary, fontSize = 9.sp)
+                                            Text(
+                                                activeRetroSystem?.displayName ?: "",
+                                                color = TextPrimary,
+                                                fontSize = 10.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                        }
+                                        Icon(
+                                            Icons.Outlined.Edit,
+                                            contentDescription = stringResource(R.string.common_ui_change),
+                                            tint = Accent,
+                                            modifier = Modifier.size(14.dp),
+                                        )
+                                    }
+                                    DropdownMenu(
+                                        expanded = consoleMenuOpen,
+                                        onDismissRequest = { consoleMenuOpen = false },
+                                        containerColor = Color(0xFF1C232E),
+                                    ) {
+                                        com.winlator.cmod.feature.retro.RetroSystems.ALL.forEach { candidate ->
+                                            DropdownMenuItem(
+                                                text = {
+                                                    Text(
+                                                        candidate.displayName,
+                                                        color =
+                                                            if (candidate.id == activeRetroSystem?.id) Accent else TextPrimary,
+                                                        fontSize = 12.sp,
+                                                    )
+                                                },
+                                                onClick = {
+                                                    retroSystem = candidate
+                                                    consoleMenuOpen = false
+                                                },
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
                             // Game folder — single compact row
                             Row(
                                 modifier =
@@ -979,6 +1099,7 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
                                         modifier = Modifier.size(14.dp),
                                     )
                                 }
+                            }
                             }
                         }
                     }
@@ -1074,6 +1195,52 @@ internal fun UnifiedActivity.driveRoots(includeInternal: Boolean): List<Director
     return roots
 }
 
+internal suspend fun scrapeCustomGameArtwork(
+    context: android.content.Context,
+    gameName: String,
+    shortcutUuid: String,
+    container: Container,
+    shortcutFile: java.io.File
+) {
+    withContext(Dispatchers.Main) {
+        com.winlator.cmod.shared.ui.toast.WinToast.show(context, R.string.library_games_scraping_artwork, android.widget.Toast.LENGTH_LONG)
+    }
+    val shortcut = Shortcut(container, shortcutFile)
+    val artworkInfo = SteamArtworkScraper(context).getGameArtwork(gameName)
+    val dir = java.io.File(context.filesDir, "library_view_artwork")
+    if (!dir.exists()) dir.mkdirs()
+    var saved = false
+    artworkInfo.forEach { (slotSuffix, file) ->
+        val librarySlot =
+            LibraryShortcutArtwork.LibraryArtworkSlot.entries.find { it.fileSuffix == slotSuffix }
+        val bitmap =
+            if (librarySlot != null && file.isFile) {
+                com.winlator.cmod.shared.android.ImageUtils.getBitmapFromUri(context, file.toUri(), 1024)
+            } else {
+                null
+            }
+        if (librarySlot != null && bitmap != null) {
+            val outputFile = java.io.File(dir, "${shortcutUuid}_${librarySlot.fileSuffix}.png")
+            if (com.winlator.cmod.shared.io.FileUtils.saveBitmapToFile(bitmap, outputFile)) {
+                shortcut.putExtra(librarySlot.extraKey, outputFile.absolutePath)
+                saved = true
+            }
+        }
+        file.delete()
+    }
+    if (saved) shortcut.saveData()
+    withContext(Dispatchers.Main) {
+        com.winlator.cmod.shared.ui.toast.WinToast.show(
+            context,
+            if (saved) R.string.common_ui_done else R.string.common_ui_failed,
+            android.widget.Toast.LENGTH_LONG,
+        )
+        if (saved) {
+            com.winlator.cmod.app.PluviaApp.events.emit(com.winlator.cmod.feature.stores.steam.events.AndroidEvent.LibraryArtworkChanged)
+        }
+    }
+}
+
 internal fun UnifiedActivity.addCustomGame(
     context: android.content.Context,
     name: String,
@@ -1097,6 +1264,7 @@ internal fun UnifiedActivity.addCustomGame(
     val shortcutFile = java.io.File(desktopDir, "$safeName.desktop")
     val shortcutUuid = java.util.UUID.randomUUID().toString()
     val iconOutFile = LibraryShortcutArtwork.buildManagedCustomGameArtworkFile(context, shortcutUuid)
+    val preferences: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
     val extractedArtworkPath =
         try {
             if (PeIconExtractor.extractAndSave(java.io.File(exePath), iconOutFile)) {
@@ -1125,6 +1293,11 @@ internal fun UnifiedActivity.addCustomGame(
     com.winlator.cmod.shared.io.FileUtils
         .writeString(shortcutFile, content.toString())
     container.saveData()
+    if (preferences.getBoolean("enable_auto_scraping", false)) {
+        CoroutineScope(Dispatchers.IO).launch {
+            scrapeCustomGameArtwork(context, name, shortcutUuid, container, shortcutFile)
+        }
+    }
 }
 
 @Composable

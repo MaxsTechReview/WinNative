@@ -76,7 +76,7 @@ class DebugFragment : Fragment() {
                                     .setEnabled(checked)
                                 if (checked) {
                                     com.winlator.cmod.runtime.system.LogManager
-                                        .startAppLogging(ctx)
+                                        .startAppLogging(ctx, reset = true)
                                 } else {
                                     com.winlator.cmod.runtime.system.LogManager
                                         .stopAppLogging()

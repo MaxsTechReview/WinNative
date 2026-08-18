@@ -40,7 +40,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -298,6 +297,11 @@ private fun XServerDisplayHost(
                     1f
                 }
             val scaledDrawerWidth = DrawerWidth * evenScale
+            // Derived, not measured, so the sheet need not exist while closed.
+            val scaledDrawerWidthPx = with(density) { scaledDrawerWidth.toPx() }
+            LaunchedEffect(scaledDrawerWidthPx) {
+                drawerWidthPx = scaledDrawerWidthPx
+            }
 
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                 AndroidView(
@@ -338,30 +342,27 @@ private fun XServerDisplayHost(
                 }
             }
 
-            ModalDrawerSheet(
-                drawerShape = RoundedCornerShape(20.dp),
-                drawerContainerColor = PaneSurfaceColor,
-                drawerContentColor = Color.Unspecified,
-                drawerTonalElevation = 0.dp,
-                windowInsets = WindowInsets(0, 0, 0, 0),
-                modifier =
-                    Modifier
-                        .zIndex(2f)
-                        .padding(start = DrawerStartPadding, top = drawerTopInset, bottom = DrawerVerticalPadding)
-                        .fillMaxHeight()
-                        .width(scaledDrawerWidth)
-                        .onSizeChanged { size ->
-                            drawerWidthPx = size.width.toFloat()
-                        }
-                        .offset {
-                            androidx.compose.ui.unit.IntOffset(
-                                drawerOffsetPx.roundToInt(),
-                                0,
-                            )
-                        },
-            ) {
-                // Compose the heavy drawer tree only while open or sliding; a settled-closed drawer is disposed so it can't contend with the game surface.
-                if (drawerContentComposed) {
+            // Closed, the sheet sits flush on the edge and its rounded corners leak a hairline.
+            if (drawerContentComposed) {
+                ModalDrawerSheet(
+                    drawerShape = RoundedCornerShape(20.dp),
+                    drawerContainerColor = PaneSurfaceColor,
+                    drawerContentColor = Color.Unspecified,
+                    drawerTonalElevation = 0.dp,
+                    windowInsets = WindowInsets(0, 0, 0, 0),
+                    modifier =
+                        Modifier
+                            .zIndex(2f)
+                            .padding(start = DrawerStartPadding, top = drawerTopInset, bottom = DrawerVerticalPadding)
+                            .fillMaxHeight()
+                            .width(scaledDrawerWidth)
+                            .offset {
+                                androidx.compose.ui.unit.IntOffset(
+                                    drawerOffsetPx.roundToInt(),
+                                    0,
+                                )
+                            },
+                ) {
                     XServerDrawerContent(
                         state = stateHolder.state,
                         taskManagerState = stateHolder.taskManagerState,

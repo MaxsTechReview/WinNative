@@ -156,6 +156,11 @@ class OtherSettingsFragment : Fragment() {
                             WinToast.show(ctx, R.string.settings_general_take_effect_next_startup)
                             refresh()
                         },
+                        onAutoScrapingChanged = { checked ->
+                            preferences.edit { putBoolean("enable_auto_scraping", checked) }
+                            WinToast.show(ctx, R.string.settings_general_take_effect_next_startup)
+                            refresh()
+                        },
                         onOpenInBrowserChanged = { checked ->
                             preferences.edit { putBoolean("open_with_android_browser", checked) }
                             refresh()
@@ -230,8 +235,10 @@ class OtherSettingsFragment : Fragment() {
                     (preferences.getFloat("cursor_speed", 1.0f) * 100)
                         .toInt()
                         .coerceIn(10, 300),
+
                 cursorLock = preferences.getBoolean("cursor_lock", false),
                 xinputDisabled = preferences.getBoolean("xinput_toggle", false),
+                enableAutoScraping = preferences.getBoolean("enable_auto_scraping", false),
                 enableFileProvider = preferences.getBoolean("enable_file_provider", true),
                 openInBrowser = preferences.getBoolean("open_with_android_browser", false),
                 shareClipboard = preferences.getBoolean("share_android_clipboard", false),

@@ -72,6 +72,7 @@ import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.ArrowDropDown
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteSweep
@@ -167,12 +168,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import com.winlator.cmod.R
-import com.winlator.cmod.shared.theme.WinNativeBackground
-import com.winlator.cmod.shared.theme.WinNativeOutline
-import com.winlator.cmod.shared.theme.WinNativePanel
-import com.winlator.cmod.shared.theme.WinNativeSurface
-import com.winlator.cmod.shared.theme.WinNativeTextPrimary
-import com.winlator.cmod.shared.theme.WinNativeTextSecondary
+import com.winlator.cmod.shared.theme.SessionDrawerStyle
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import com.winlator.cmod.shared.ui.dialog.WinNativeDialogButton
 import com.winlator.cmod.shared.ui.dialog.WinNativeDialogShell
@@ -184,35 +180,31 @@ import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import com.winlator.cmod.shared.ui.widget.chasingBorder
 import kotlin.math.roundToInt
 
-// Drawer-local colors.
-private const val DrawerSheetAlpha = 0.86f
-private const val DrawerSurfaceAlpha = 0.72f
-private const val DrawerPressedAlpha = 0.88f
-private const val DrawerGradientLift = 0.014f
+private const val DrawerGradientLift = SessionDrawerStyle.GradientLift
 
-internal val DrawerAccent = Color(0xFF2196F3)
-private val DrawerActiveAccent = Color(0xFF29B6F6)
-private val DrawerFocusFill = Color(0xFF0E2438)
-internal val DrawerTextPrimary = WinNativeTextPrimary.copy(alpha = 0.88f)
-internal val DrawerTextSecondary = WinNativeTextSecondary.copy(alpha = 0.82f)
-internal val DrawerOutline = WinNativeOutline
-internal val DrawerBackground = WinNativeBackground.copy(alpha = DrawerSheetAlpha)
+internal val DrawerAccent = SessionDrawerStyle.Accent
+private val DrawerActiveAccent = SessionDrawerStyle.ActiveAccent
+private val DrawerFocusFill = SessionDrawerStyle.FocusFill
+internal val DrawerTextPrimary = SessionDrawerStyle.TextPrimary
+internal val DrawerTextSecondary = SessionDrawerStyle.TextSecondary
+internal val DrawerOutline = SessionDrawerStyle.Outline
+internal val DrawerBackground = SessionDrawerStyle.Background
 
-internal val PaneSurfaceColor = WinNativeBackground.copy(alpha = DrawerSheetAlpha)
-private val PaneSurfacePressed = Color(0xFF232B3A).copy(alpha = DrawerPressedAlpha)
+internal val PaneSurfaceColor = SessionDrawerStyle.PaneSurface
+private val PaneSurfacePressed = SessionDrawerStyle.PaneSurfacePressed
 
-private val TopRailSurfaceColor = WinNativeSurface.copy(alpha = DrawerSheetAlpha)
+private val TopRailSurfaceColor = SessionDrawerStyle.TopRailSurface
 
-private val TileResting = Color(0xFF20283A).copy(alpha = DrawerSurfaceAlpha)
-internal val TileExitResting = Color(0xFF3A2125).copy(alpha = DrawerSurfaceAlpha)
-internal val TileExitPressed = Color(0xFF4A2A30).copy(alpha = DrawerPressedAlpha)
-internal val PaneInnerResting = WinNativePanel.copy(alpha = DrawerSurfaceAlpha)
-internal val PaneInnerPressed = Color(0xFF242B3A).copy(alpha = DrawerPressedAlpha)
-internal val RestingCardBorder = WinNativeOutline.copy(alpha = 0.72f)
-private val DisabledCardBorder = Color(0xFF202033).copy(alpha = 0.58f)
-internal val ActiveCardBorder = DrawerActiveAccent
-private val BottomDividerColor = WinNativeOutline
-internal val GlassExitTint = Color(0xFFE07B6B)
+private val TileResting = SessionDrawerStyle.TileResting
+internal val TileExitResting = SessionDrawerStyle.TileExitResting
+internal val TileExitPressed = SessionDrawerStyle.TileExitPressed
+internal val PaneInnerResting = SessionDrawerStyle.PaneInnerResting
+internal val PaneInnerPressed = SessionDrawerStyle.PaneInnerPressed
+internal val RestingCardBorder = SessionDrawerStyle.RestingCardBorder
+private val DisabledCardBorder = SessionDrawerStyle.DisabledCardBorder
+internal val ActiveCardBorder = SessionDrawerStyle.ActiveCardBorder
+private val BottomDividerColor = SessionDrawerStyle.Outline
+internal val GlassExitTint = SessionDrawerStyle.GlassExitTint
 internal val RecordRed = Color(0xFFE53935)
 
 // Pane content scales down on short displays.
@@ -458,9 +450,9 @@ internal fun NavSliderRow(
     }
 }
 
-private const val PaneScaleMin = 0.78f
+private const val PaneScaleMin = SessionDrawerStyle.PaneScaleMin
 internal const val ControlsPaneScaleMin = 0.62f
-private const val PaneScaleReferenceHeightDp = 520f
+private const val PaneScaleReferenceHeightDp = SessionDrawerStyle.PaneScaleReferenceHeightDp
 internal const val PendingTaskAffinityTimeoutMs = 2500L
 
 internal fun computePaneScale(availableHeight: Dp, minScale: Float = PaneScaleMin): Float =
@@ -475,7 +467,7 @@ internal enum class HUDMetricEditor(
     BACKGROUND_ALPHA(minPercent = 10, maxPercent = 100),
 }
 
-internal enum class DrawerPane { INPUT_CONTROLS, HUD, GYROSCOPE, SCREEN_EFFECTS, OUTPUT, TASK_MANAGER, LOGS, TOUCH }
+internal enum class DrawerPane { INPUT_CONTROLS, HUD, GYROSCOPE, SCREEN_EFFECTS, RESHADE, OUTPUT, TASK_MANAGER, LOGS, TOUCH }
 
 internal const val LogsPaneMaxLines = 2000
 internal const val LogsFlushIntervalMs = 200L
@@ -538,6 +530,13 @@ private val RAIL_PANES =
             pane = DrawerPane.SCREEN_EFFECTS,
             itemId = R.id.main_menu_screen_effects,
             labelRes = R.string.session_drawer_rail_label_effects,
+        ),
+        // Shown only when the host adds a main_menu_reshade item to state.items.
+        RailPaneSpec(
+            pane = DrawerPane.RESHADE,
+            itemId = R.id.main_menu_reshade,
+            labelRes = R.string.reshade_section_title,
+            iconOverride = Icons.Outlined.AutoAwesome,
         ),
         // Shown only when the host adds a main_menu_output item to state.items.
         RailPaneSpec(
@@ -629,6 +628,10 @@ data class XServerDrawerState(
     val pixelateEnabled: Boolean = false,
     val pixelateBlock: Int = 6,
     val colorBlind: Int = 0,
+    // reshadeMode is "solo" (one effect bypasses the rest) or "stack"; param keys follow ReshadeManager.seedValues.
+    val reshadeMasterEnabled: Boolean = false,
+    val reshadeMode: String = "solo",
+    val reshadeLoadout: List<ReshadeLoadoutItem> = emptyList(),
     val inputControlsProfileNames: List<String> = emptyList(),
     val inputControlsSelectedProfileIndex: Int = 0,
     val inputControlsStyleNames: List<String> = emptyList(),
@@ -641,6 +644,7 @@ data class XServerDrawerState(
     val inputControlsTouchscreenHaptics: Boolean = false,
     val inputControlsGamepadVibration: Boolean = true,
     val inputControlsGcmRumbleMode: String = "disabled",
+    val inputControlsReverseBindingOrder: Boolean = false,
     val cursorSpeed: Float = 1.0f,
     // External display / cast "Output" pane.
     val outputSwapActive: Boolean = false,
@@ -680,6 +684,12 @@ data class XServerDrawerState(
     val gestureSelectedProfileIndex: Int = 0,
     val rightStickSensitivity: Float = 1.0f,
     val screenTouchRsSensitivity: Float = 1.25f,
+    val mangoHudEnabled: Boolean = false,
+    val mangoHudElements: BooleanArray = BooleanArray(20) { it < 12 },
+    val mangoHudAlpha: Float = 1.0f,
+    val mangoHudBgAlpha: Float = 0.5f,
+    val mangoHudScale: Float = 0.735f,
+    val mangoHudLocked: Boolean = false,
 )
 
 class XServerDrawerStateHolder(
@@ -956,6 +966,21 @@ interface XServerDrawerActionListener {
 
     fun onFrametimeNumericChanged(enabled: Boolean)
 
+    fun onMangoHudChanged(enabled: Boolean)
+
+    fun onMangoHudElementToggled(
+        index: Int,
+        enabled: Boolean,
+    )
+
+    fun onMangoHudAlphaChanged(alpha: Float)
+
+    fun onMangoHudBackgroundAlphaChanged(alpha: Float)
+
+    fun onMangoHudScaleChanged(scale: Float)
+
+    fun onMangoHudLockChanged(locked: Boolean)
+
     fun onHUDCardExpandedChanged(expanded: Boolean)
 
     fun onGyroscopeEnabledChanged(enabled: Boolean)
@@ -965,6 +990,8 @@ interface XServerDrawerActionListener {
     fun onGyroOrientationModeChanged(enabled: Boolean)
 
     fun onGyroscopeActivatorSelected(keycode: Int)
+
+    fun onGyroscopeActivatorBindingSelected(bindingName: String)
 
     fun onRightStickGyroChanged(enabled: Boolean)
 
@@ -1052,6 +1079,18 @@ interface XServerDrawerActionListener {
 
     fun onResetEffects()
 
+    fun onReshadeMasterEnabledChanged(enabled: Boolean)
+
+    // In solo mode enabling one effect bypasses the others (host-side).
+    fun onReshadeEffectEnabledChanged(index: Int, enabled: Boolean)
+
+    fun onReshadeModeChanged(mode: String)
+
+    // key = ReshadeManager.seedValues scheme.
+    fun onReshadeParamChanged(index: Int, key: String, value: Float)
+
+    fun onReshadeReset(index: Int)
+
     fun onInputControlsProfileSelected(index: Int)
 
     fun onInputControlsStyleSelected(index: Int)
@@ -1071,6 +1110,8 @@ interface XServerDrawerActionListener {
     fun onCursorSpeedChanged(speed: Float)
 
     fun onInputControlsGcmRumbleModeChanged(mode: String)
+
+    fun onInputControlsReverseBindingOrderChanged(enabled: Boolean)
 
     fun onInputControlsEditClick()
 
@@ -1172,6 +1213,7 @@ fun buildXServerDrawerState(
     inputControlsTouchscreenHaptics: Boolean = false,
     inputControlsGamepadVibration: Boolean = true,
     inputControlsGcmRumbleMode: String = "disabled",
+    inputControlsReverseBindingOrder: Boolean = false,
     cursorSpeed: Float = 1.0f,
     fullscreenEnabled: Boolean = false,
     maxRefreshRate: Int = 60,
@@ -1184,6 +1226,12 @@ fun buildXServerDrawerState(
     gestureSelectedProfileIndex: Int = 0,
     rightStickSensitivity: Float = 1.0f,
     screenTouchRsSensitivity: Float = 1.25f,
+    mangoHudEnabled: Boolean = false,
+    mangoHudElements: BooleanArray = BooleanArray(20) { it < 12 },
+    mangoHudAlpha: Float = 1.0f,
+    mangoHudBgAlpha: Float = 0.5f,
+    mangoHudScale: Float = 0.735f,
+    mangoHudLocked: Boolean = false,
 ): XServerDrawerState {
     val items =
         mutableListOf(
@@ -1370,6 +1418,7 @@ fun buildXServerDrawerState(
         inputControlsTouchscreenHaptics = inputControlsTouchscreenHaptics,
         inputControlsGamepadVibration = inputControlsGamepadVibration,
         inputControlsGcmRumbleMode = inputControlsGcmRumbleMode,
+        inputControlsReverseBindingOrder = inputControlsReverseBindingOrder,
         cursorSpeed = cursorSpeed,
         mouseEnabled = !mouseDisabled,
         relativeMouseEnabled = relativeMouseEnabled,
@@ -1379,6 +1428,12 @@ fun buildXServerDrawerState(
         gestureSelectedProfileIndex = gestureSelectedProfileIndex,
         rightStickSensitivity = rightStickSensitivity,
         screenTouchRsSensitivity = screenTouchRsSensitivity,
+        mangoHudEnabled = mangoHudEnabled,
+        mangoHudElements = mangoHudElements,
+        mangoHudAlpha = mangoHudAlpha,
+        mangoHudBgAlpha = mangoHudBgAlpha,
+        mangoHudScale = mangoHudScale,
+        mangoHudLocked = mangoHudLocked,
     )
 }
 
@@ -1479,6 +1534,30 @@ fun withVitureState(
         outputVitureVolume = volume,
         outputVitureVolumeMax = volumeMax,
     )
+
+// Call only when a ReShade effect was applied at launch (Vulkan wrapper) so the vkBasalt layer is loaded.
+fun withReshadeState(
+    state: XServerDrawerState,
+    masterEnabled: Boolean,
+    mode: String,
+    loadout: List<ReshadeLoadoutItem>,
+    reshadeTitle: String,
+): XServerDrawerState {
+    val reshadeItem =
+        XServerDrawerItem(
+            itemId = R.id.main_menu_reshade,
+            title = reshadeTitle,
+            subtitle = "",
+            icon = Icons.Outlined.AutoAwesome,
+            active = masterEnabled,
+        )
+    return state.copy(
+        items = state.items + reshadeItem,
+        reshadeMasterEnabled = masterEnabled,
+        reshadeMode = mode,
+        reshadeLoadout = loadout,
+    )
+}
 
 @Composable
 internal fun XServerDrawerContent(
@@ -1597,6 +1676,7 @@ internal fun XServerDrawerContent(
                                 DrawerPane.GYROSCOPE -> GyroscopePaneContent(state = state, listener = listener)
                                 DrawerPane.TOUCH -> TouchPaneContent(state = state, listener = listener, onClose = { onOpenPaneChange(null) })
                                 DrawerPane.SCREEN_EFFECTS -> ScreenEffectsPaneContent(state = state, listener = listener)
+                                DrawerPane.RESHADE -> ReshadePaneContent(state = state, listener = listener)
                                 DrawerPane.OUTPUT -> OutputPaneContent(state = state, listener = listener)
                                 DrawerPane.TASK_MANAGER ->
                                     TaskManagerPaneContent(

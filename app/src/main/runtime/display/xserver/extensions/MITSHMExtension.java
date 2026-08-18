@@ -162,16 +162,12 @@ public class MITSHMExtension implements Extension {
         }
         break;
       case ClientOpcodes.PUT_IMAGE:
-        boolean isLargeImage = false;
         try (XLock lock =
             client.xServer.lock(
                 XServer.Lockable.SHMSEGMENT_MANAGER,
                 XServer.Lockable.DRAWABLE_MANAGER,
                 XServer.Lockable.GRAPHIC_CONTEXT_MANAGER)) {
-          isLargeImage = putImage(client, inputStream, outputStream);
-        }
-        if (isLargeImage) {
-          client.enforceAbsoluteFramerate();
+          putImage(client, inputStream, outputStream);
         }
         break;
       default:
