@@ -201,12 +201,17 @@ class GameSettingsNav {
         private set
     var contentResetSignal by mutableStateOf(0)
         private set
+    var communityCount by mutableStateOf(0)
+    var communityCol by mutableStateOf(0)
     var onSelectSection: ((Int) -> Unit)? = null
     var onSave: (() -> Unit)? = null
     var onCancel: (() -> Unit)? = null
     var onContentBack: (() -> Boolean)? = null
+    var onCommunityAction: ((Int) -> Unit)? = null
 
     val onActionRow: Boolean get() = sidebarIndex >= sidebarCount
+
+    val onCommunityRow: Boolean get() = communityCount > 0 && sidebarIndex < 0
 
     private fun pushContent(dir: Int) {
         contentDir = dir
@@ -225,15 +230,24 @@ class GameSettingsNav {
         when (dir) {
             PANE_DIR_UP -> moveSidebar(-1)
             PANE_DIR_DOWN -> moveSidebar(1)
-            PANE_DIR_LEFT -> if (onActionRow && actionCol == 1) actionCol = 0
+            PANE_DIR_LEFT ->
+                if (onCommunityRow) {
+                    if (communityCol > 0) communityCol--
+                } else if (onActionRow && actionCol == 1) {
+                    actionCol = 0
+                }
             PANE_DIR_RIGHT ->
-                if (onActionRow) {
+                if (onCommunityRow) {
+                    if (communityCol < communityCount - 1) communityCol++
+                } else if (onActionRow) {
                     if (actionCol == 0) actionCol = 1
                 } else {
                     enterContent()
                 }
             PANE_DIR_ACTIVATE ->
-                if (onActionRow) {
+                if (onCommunityRow) {
+                    onCommunityAction?.invoke(communityCol)
+                } else if (onActionRow) {
                     if (actionCol == 0) onCancel?.invoke() else onSave?.invoke()
                 } else {
                     enterContent()
@@ -242,9 +256,10 @@ class GameSettingsNav {
     }
 
     private fun moveSidebar(delta: Int) {
-        val next = (sidebarIndex + delta).coerceIn(0, sidebarCount)
+        val lowest = if (communityCount > 0) -1 else 0
+        val next = (sidebarIndex + delta).coerceIn(lowest, sidebarCount)
         sidebarIndex = next
-        if (next < sidebarCount) onSelectSection?.invoke(next)
+        if (next in 0 until sidebarCount) onSelectSection?.invoke(next)
     }
 
     fun enterContent() {
@@ -268,6 +283,13 @@ class GameSettingsNav {
         inContent = false
         sidebarIndex = sidebarCount
         actionCol = col
+    }
+
+    fun tapCommunity(col: Int) {
+        active = false
+        inContent = false
+        sidebarIndex = -1
+        communityCol = col
     }
 
     fun tapContent() {
@@ -379,6 +401,8 @@ class GameSettingsStateHolder {
 
     // Container edits expose container-only fields and hide shortcut fields.
     val isContainerEditMode = mutableStateOf(false)
+
+    val isPreview = mutableStateOf(false)
     val wineVersionEditable = mutableStateOf(false)
 
     val name = mutableStateOf("")
@@ -582,6 +606,9 @@ interface GameSettingsCallbacks {
     fun onDismiss()
     fun onAddToHomeScreen()
 
+    fun onDownloadCommunityConfig() {}
+    fun onUploadCommunityConfig() {}
+
     fun onScrapeGameArtwork(gameName: String) {}
     fun onPickGameCardArtwork() {}
     fun onRemoveGameCardArtwork() {}
@@ -683,17 +710,24 @@ fun GameSettingsContent(
 ) {
     val isSteam by state.isSteamGame
     val isContainer by state.isContainerEditMode
+    val isPreview by state.isPreview
     val sections = remember(isSteam, isContainer) { buildSections(isSteam, isContainer) }
     val selectedIdx by state.currentSection
     val currentSectionId = sections.getOrNull(selectedIdx)?.first ?: SEC_GENERAL
     val saveEnabled by state.isLoaded
 
+    val showCommunity = !isContainer && !isPreview
     if (nav != null) {
         SideEffect {
             nav.sidebarCount = sections.size
+            nav.communityCount = if (showCommunity) 2 else 0
             nav.onSelectSection = { state.currentSection.intValue = it }
             nav.onSave = { if (saveEnabled) callbacks.onConfirm() }
             nav.onCancel = { callbacks.onDismiss() }
+            nav.onCommunityAction = { col ->
+                if (col == 0) callbacks.onDownloadCommunityConfig()
+                else callbacks.onUploadCommunityConfig()
+            }
         }
     }
 
@@ -712,6 +746,10 @@ fun GameSettingsContent(
                 saveEnabled = saveEnabled,
                 onSave = { callbacks.onConfirm() },
                 onCancel = { callbacks.onDismiss() },
+                showCommunity = showCommunity,
+                onDownloadCommunity = { callbacks.onDownloadCommunityConfig() },
+                onUploadCommunity = { callbacks.onUploadCommunityConfig() },
+                isPreview = isPreview,
                 nav = nav,
                 modifier = Modifier
                     .width(220.dp)
@@ -868,31 +906,55 @@ private fun Sidebar(
     saveEnabled: Boolean,
     onSave: () -> Unit,
     onCancel: () -> Unit,
+    showCommunity: Boolean = false,
+    onDownloadCommunity: () -> Unit = {},
+    onUploadCommunity: () -> Unit = {},
+    isPreview: Boolean = false,
     nav: GameSettingsNav? = null,
     modifier: Modifier = Modifier
 ) {
     val cancelHighlighted = nav != null && nav.active && !nav.inContent && nav.onActionRow && nav.actionCol == 0
     val saveHighlighted = nav != null && nav.active && !nav.inContent && nav.onActionRow && nav.actionCol == 1
+    val communityRowActive = nav != null && nav.active && !nav.inContent && nav.onCommunityRow
     Column(
         modifier = modifier
             .background(SidebarBg)
             .padding(top = 14.dp, bottom = 12.dp)
     ) {
         if (title.isNotBlank()) {
-            Text(
-                text = title,
-                color = TextPrimary,
-                fontSize = SettingLabelSize,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.2.sp,
-                lineHeight = 15.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
-                    .padding(bottom = 10.dp)
-            )
+                    .padding(bottom = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    color = TextPrimary,
+                    fontSize = SettingLabelSize,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.2.sp,
+                    lineHeight = 15.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                if (isPreview) {
+                    val green = Color(0xFF35C46B)
+                    Box(
+                        modifier = Modifier
+                            .padding(start = 6.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(green.copy(alpha = 0.16f))
+                            .border(1.dp, green.copy(alpha = 0.55f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 7.dp, vertical = 3.dp)
+                    ) {
+                        Text("Preview", color = green, fontSize = SettingLabelSize,
+                            fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
             Box(
                 modifier = Modifier
                     .padding(horizontal = 12.dp)
@@ -910,6 +972,28 @@ private fun Sidebar(
                 .padding(bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(1.dp)
         ) {
+            if (showCommunity) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    CommunityHeaderButton(
+                        Icons.Outlined.Download, "Download",
+                        Modifier.weight(1f),
+                        communityRowActive && nav?.communityCol == 0,
+                        { nav?.tapCommunity(0); onDownloadCommunity() }
+                    )
+                    CommunityHeaderButton(
+                        Icons.Outlined.Upload, "Upload",
+                        Modifier.weight(1f),
+                        communityRowActive && nav?.communityCol == 1,
+                        { nav?.tapCommunity(1); onUploadCommunity() }
+                    )
+                }
+            }
             sections.forEachIndexed { index, section ->
                 SidebarItem(
                     icon = section.icon,
@@ -962,6 +1046,7 @@ private fun Sidebar(
                 height = 30.dp,
                 corner = 8.dp,
                 fontSize = SettingLabelSize,
+                label = if (isPreview) "Apply" else null,
                 navHighlighted = saveHighlighted,
                 modifier = Modifier.weight(1f)
             )
@@ -976,6 +1061,7 @@ private fun SaveButton(
     height: Dp,
     corner: Dp,
     fontSize: TextUnit,
+    label: String? = null,
     navHighlighted: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -997,11 +1083,53 @@ private fun SaveButton(
         contentAlignment = Alignment.Center
     ) {
         Text(
-            stringResource(R.string.common_ui_save),
+            label ?: stringResource(R.string.common_ui_save),
             color = if (enabled) AccentBlue else TextDim,
             fontSize = fontSize,
             fontWeight = FontWeight.Medium
         )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun CommunityHeaderButton(
+    icon: ImageVector,
+    label: String,
+    modifier: Modifier = Modifier,
+    navHighlighted: Boolean = false,
+    onClick: () -> Unit
+) {
+    val bringIntoView = remember { BringIntoViewRequester() }
+    LaunchedEffect(navHighlighted) {
+        if (navHighlighted) runCatching { bringIntoView.bringIntoView() }
+    }
+    Box(
+        modifier = modifier
+            .height(28.dp)
+            .bringIntoViewRequester(bringIntoView)
+            .clip(RoundedCornerShape(8.dp))
+            .border(1.dp, AccentBlue.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+            .background(AccentBlue.copy(alpha = 0.08f))
+            .paneHighlight(navHighlighted, cornerRadius = 8.dp, highlightColor = NavHighlight)
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                icon,
+                contentDescription = label,
+                tint = AccentBlue,
+                modifier = Modifier.size(14.dp)
+            )
+            Spacer(Modifier.width(5.dp))
+            Text(
+                label,
+                color = AccentBlue,
+                fontSize = SettingLabelSize,
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 }
 

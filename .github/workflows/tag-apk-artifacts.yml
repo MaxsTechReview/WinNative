@@ -97,6 +97,8 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          COMMUNITY_HMAC_SECRET: ${{ secrets.COMMUNITY_HMAC_SECRET }}
+          COMMUNITY_API_BASE: ${{ secrets.COMMUNITY_API_BASE }}
           GRADLE_OPTS: -Xmx4g -XX:+UseG1GC
           VERSION_NAME: ${{ github.ref_name }}
         run: |

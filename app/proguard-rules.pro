@@ -103,3 +103,10 @@
 -dontwarn androidx.window.sidecar.SidecarInterface
 -dontwarn androidx.window.sidecar.SidecarProvider
 -dontwarn androidx.window.sidecar.SidecarWindowLayoutInfo
+
+# Community config sharing: keep kotlinx.serialization DTOs + generated
+# serializers so JSON (de)serialization survives R8 in release builds.
+-keepclassmembers class com.winlator.cmod.feature.community.net.** {
+    *** Companion;
+}
+-keep,includedescriptorclasses class com.winlator.cmod.feature.community.net.** { *; }

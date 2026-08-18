@@ -54,6 +54,9 @@ References/
 *.hprof
 android_sysvshm/build64/
 
+# Community config HMAC secret (never commit)
+tools/community_hmac.secret
+
 # local build artifacts (FEX/Proton wcp)
 dist/
 

@@ -142,6 +142,22 @@ def appVersionName = providers.gradleProperty("VERSION_NAME")
 def coldClientVersionFile = rootProject.file("tools/gbe_fork.version")
 def coldClientVersion = coldClientVersionFile.exists() ? coldClientVersionFile.text.trim() : "unknown"
 
+def communityHmacFile = rootProject.file("tools/community_hmac.secret")
+def communityHmacFromFile = communityHmacFile.exists() ? communityHmacFile.text.trim() : ""
+def communityHmacFromEnv = providers.environmentVariable("COMMUNITY_HMAC_SECRET")
+        .getOrElse("").trim()
+def communityHmacSecret = communityHmacFromFile ?: communityHmacFromEnv
+def communityApiBaseOverride = providers.gradleProperty("COMMUNITY_API_BASE")
+        .orElse(providers.environmentVariable("COMMUNITY_API_BASE"))
+        .getOrElse("").trim()
+def communityApiBase = communityApiBaseOverride ?: "https://api.winnative.dev/api/v1/"
+if (!communityHmacSecret) {
+    logger.warn("WinNative: COMMUNITY_HMAC_SECRET is empty - community config sharing will be " +
+            "DISABLED in this build. Set tools/community_hmac.secret or export " +
+            "COMMUNITY_HMAC_SECRET. Note: GitHub does not pass secrets to pull_request runs " +
+            "from a forked repository.")
+}
+
 android {
     namespace 'com.winlator.cmod'
     compileSdk 35
@@ -169,6 +185,8 @@ android {
         resConfigs "en", "da", "de", "es", "b+es+419", "fi", "fr", "hi", "it", "ja", "ko", "no", "pl", "pt", "pt-rBR", "ro", "ru", "sv", "th", "tr", "uk", "zh-rCN", "zh-rTW"
 
         buildConfigField("String", "COLD_CLIENT_VERSION", "\"${coldClientVersion}\"")
+        buildConfigField("String", "COMMUNITY_HMAC_SECRET", "\"${communityHmacSecret}\"")
+        buildConfigField("String", "COMMUNITY_API_BASE", "\"${communityApiBase}\"")
         buildConfigField "String", "RESHADE_CATALOG_URL", "\"https://raw.githubusercontent.com/nicholasx417/WinNative-Components/main/Reshade.json\""
     }
 
@@ -400,3 +418,5 @@ tasks.register("checkKotlinFormatOnly") {
     description = "Checks Kotlin formatting only."
     dependsOn("spotlessKotlinCheck")
 }
+
+apply from: rootProject.file("gradle/community-settings-check.gradle")

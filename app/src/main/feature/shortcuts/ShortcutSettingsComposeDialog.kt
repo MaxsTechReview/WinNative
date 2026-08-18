@@ -16,6 +16,8 @@ import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
@@ -42,7 +44,6 @@ import com.winlator.cmod.shared.ui.nav.PANE_DIR_ACTIVATE
 import com.winlator.cmod.shared.ui.nav.PaneNavWindowHandlers
 import com.winlator.cmod.shared.ui.nav.bindPaneNav
 import androidx.compose.foundation.layout.Box
-import androidx.compose.ui.Modifier
 import androidx.core.net.toUri
 import com.winlator.cmod.shared.ui.focus.controllerMenuInput
 import com.winlator.cmod.feature.library.GameSettingsStateHolder
@@ -120,6 +121,28 @@ class ShortcutSettingsComposeDialog private constructor(
     private var contentsManager: ContentsManager = ContentsManager(context)
     private var isArm64EC = false
 
+    private val communityControllerLazy = lazy {
+        com.winlator.cmod.feature.community.ui.CommunityController(
+            activity, shortcut, contentsManager
+        ).also { it.onConfigApplied = { reloadAfterCommunityApply() } }
+    }
+    private val communityController get() = communityControllerLazy.value
+
+    private var previewMode = false
+    private var previewRealShortcut: Shortcut? = null
+    private var previewTempFile: File? = null
+    private var previewOnApplied: () -> Unit = {}
+    private val previewMissing =
+        mutableStateOf<List<com.winlator.cmod.feature.community.ComponentChecker.Missing>?>(null)
+
+    fun enablePreview(realShortcut: Shortcut, tempFile: File, onApplied: () -> Unit) {
+        previewMode = true
+        previewRealShortcut = realShortcut
+        previewTempFile = tempFile
+        previewOnApplied = onApplied
+        state.isPreview.value = true
+    }
+
 
     // Preset ID lists (parallel to display name lists)
     private var box64PresetIds = mutableListOf<String>()
@@ -190,7 +213,18 @@ class ShortcutSettingsComposeDialog private constructor(
                         LocalDensity provides Density(defaultDensity.density, fontScale = 1f)
                     ) {
                         val callbacks = createCallbacks()
-                        GameSettingsContent(state = state, callbacks = callbacks, nav = nav)
+                        Box(Modifier) {
+                            GameSettingsContent(
+                                state = state,
+                                callbacks = callbacks,
+                                nav = nav
+                            )
+                            previewMissing.value?.let { miss ->
+                                com.winlator.cmod.feature.community.ui.MissingComponentDialog(miss) {
+                                    previewMissing.value = null
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -210,6 +244,10 @@ class ShortcutSettingsComposeDialog private constructor(
     private fun createCallbacks(): GameSettingsCallbacks {
         return object : GameSettingsCallbacks {
             override fun onConfirm() {
+                if (previewMode) {
+                    applyPreview()
+                    return
+                }
                 saveSettings()
                 emitLibraryRefreshIfNeeded()
                 dismiss()
@@ -217,6 +255,15 @@ class ShortcutSettingsComposeDialog private constructor(
 
             override fun onDismiss() {
                 dismiss()
+            }
+
+            override fun onDownloadCommunityConfig() {
+                communityController.openDownload()
+            }
+
+            override fun onUploadCommunityConfig() {
+                saveSettings()
+                communityController.upload()
             }
 
             override fun onAddToHomeScreen() {
@@ -353,6 +400,33 @@ class ShortcutSettingsComposeDialog private constructor(
                         components[index] = components[index].copy(selectedIndex = newValue)
                         state.generalComponents.value = components
                     }
+                }
+            }
+        }
+    }
+
+
+    private fun reloadAfterCommunityApply() {
+        loadInitialData()
+        loadResourceArrays()
+        loadContentsAsync()
+        shouldRefreshLibraryOnSave = true
+    }
+
+    private fun applyPreview() {
+        saveSettings()
+        val real = previewRealShortcut ?: return
+        val edited = com.winlator.cmod.feature.community.ConfigSerializer.serialize(shortcut)
+        CoroutineScope(Dispatchers.IO).launch {
+            val miss = com.winlator.cmod.feature.community.ComponentChecker
+                .findMissing(context, contentsManager, edited)
+            withContext(Dispatchers.Main) {
+                if (miss.isEmpty()) {
+                    com.winlator.cmod.feature.community.ConfigApplier.apply(real, edited)
+                    previewOnApplied()
+                    dismiss()
+                } else {
+                    previewMissing.value = miss
                 }
             }
         }
@@ -2481,6 +2555,8 @@ class ShortcutSettingsComposeDialog private constructor(
     }
 
     fun dismiss() {
+        if (communityControllerLazy.isInitialized()) communityControllerLazy.value.dispose()
+        if (previewMode) runCatching { previewTempFile?.delete() }
         AppUtils.hideKeyboard(activity)
         dialog.dismiss()
     }
@@ -2488,6 +2564,24 @@ class ShortcutSettingsComposeDialog private constructor(
     companion object {
         private const val TAG = "ShortcutSettingsCompose"
         private const val EXTRA_USE_CONTAINER_DEFAULTS = "use_container_defaults"
+
+        @JvmStatic
+        fun preview(
+            activity: Activity,
+            realShortcut: Shortcut,
+            communitySettings: org.json.JSONObject,
+            onApplied: () -> Unit,
+        ) {
+            val tempDir = File(activity.cacheDir, "wn_preview").apply { mkdirs() }
+            runCatching { tempDir.listFiles()?.forEach { it.delete() } }
+            val tempFile = File(tempDir, realShortcut.file.name)
+            FileUtils.copy(realShortcut.file, tempFile)
+            val temp = Shortcut(realShortcut.container, tempFile)
+            com.winlator.cmod.feature.community.ConfigApplier.apply(temp, communitySettings)
+            val dlg = ShortcutSettingsComposeDialog(activity, temp)
+            dlg.enablePreview(realShortcut, tempFile, onApplied)
+            dlg.show()
+        }
 
         /**
          * Creates a minimal `.desktop` file on the preferred game container and returns a
