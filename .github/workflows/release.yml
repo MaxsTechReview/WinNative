@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       notes_file:
-        description: 'Release notes markdown committed in the repo. Blank: use Release_Notes_<version>.md if present, otherwise generate from commits.'
+        description: 'Release notes markdown committed in the repo, e.g. release-notes/Release_Notes_0.4.0-beta.md (a bare filename is also looked up under release-notes/). Blank: use release-notes/Release_Notes_<version>.md if present, otherwise generate from commits.'
         required: false
         type: string
         default: ''
@@ -248,13 +248,24 @@ jobs:
         run: |
           set -euo pipefail
 
-          resolved="$NOTES_FILE"
-          if [ -n "$resolved" ] && [ ! -f "$resolved" ]; then
-            echo "::error::notes_file '$resolved' not found in the repository at $GITHUB_SHA"
-            exit 1
-          fi
-          if [ -z "$resolved" ]; then
-            for candidate in "Release_Notes_${VERSION}.md" "Release_Notes_${VERSION#v}.md"; do
+          resolved=""
+          if [ -n "$NOTES_FILE" ]; then
+            for candidate in "$NOTES_FILE" "release-notes/$NOTES_FILE"; do
+              if [ -f "$candidate" ]; then
+                resolved="$candidate"
+                break
+              fi
+            done
+            if [ -z "$resolved" ]; then
+              echo "::error::notes_file '$NOTES_FILE' not found in the repository at $GITHUB_SHA (looked at '$NOTES_FILE' and 'release-notes/$NOTES_FILE')"
+              exit 1
+            fi
+          else
+            for candidate in \
+              "release-notes/Release_Notes_${VERSION}.md" \
+              "release-notes/Release_Notes_${VERSION#v}.md" \
+              "Release_Notes_${VERSION}.md" \
+              "Release_Notes_${VERSION#v}.md"; do
               if [ -f "$candidate" ]; then
                 resolved="$candidate"
                 break
