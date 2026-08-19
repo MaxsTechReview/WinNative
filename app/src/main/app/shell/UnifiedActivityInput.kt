@@ -373,8 +373,15 @@ internal fun UnifiedActivity.hideImeIfVisible(): Boolean {
 
 internal fun UnifiedActivity.applySettingsSidebarNav(keyCode: Int) {
     when (keyCode) {
-        android.view.KeyEvent.KEYCODE_DPAD_UP -> moveSettingsItem(-1)
-        android.view.KeyEvent.KEYCODE_DPAD_DOWN -> moveSettingsItem(1)
+        android.view.KeyEvent.KEYCODE_DPAD_UP -> {
+            settingsNavBridge.revealSidebar()
+            moveSettingsItem(-1)
+        }
+        android.view.KeyEvent.KEYCODE_DPAD_DOWN -> {
+            settingsNavBridge.revealSidebar()
+            moveSettingsItem(1)
+        }
+        android.view.KeyEvent.KEYCODE_DPAD_LEFT -> settingsNavBridge.revealSidebar()
         android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> enterSettingsContent()
     }
 }

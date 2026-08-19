@@ -1,22 +1,31 @@
 package com.winlator.cmod.feature.settings
 import android.os.Bundle
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import com.winlator.cmod.shared.ui.layout.isPortraitLayout
+import com.winlator.cmod.shared.ui.layout.screenWidthDp
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -80,6 +89,14 @@ class SettingsNavBridge {
     fun contentSectionPrev() = contentSection(-1)
 
     fun contentSectionNext() = contentSection(1)
+
+    var sidebarRevealSignal by mutableStateOf(0)
+        private set
+
+    fun revealSidebar() {
+        zone = SettingsFocusZone.SIDEBAR
+        sidebarRevealSignal++
+    }
 }
 
 private val SettingsBg = Color(0xFF11111C)
@@ -117,6 +134,21 @@ fun SettingsHost(
         onDispose { bridge.onSelectItem = null }
     }
 
+    val portrait = isPortraitLayout()
+    var sectionsOpen by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(portrait) { if (!portrait) sectionsOpen = false }
+
+    LaunchedEffect(bridge.sidebarRevealSignal) {
+        if (portrait && bridge.sidebarRevealSignal > 0) sectionsOpen = true
+    }
+
+    LaunchedEffect(bridge.zone) {
+        if (portrait && bridge.zone == SettingsFocusZone.CONTENT) sectionsOpen = false
+    }
+
+    BackHandler(enabled = portrait && sectionsOpen) { sectionsOpen = false }
+
     Box(
         modifier =
             Modifier
@@ -128,22 +160,37 @@ fun SettingsHost(
                 Modifier
                     .fillMaxSize(),
         ) {
-            SettingsNavSidebar(
-                selectedItem = currentItem,
-                railActive = bridge.zone == SettingsFocusZone.SIDEBAR,
-                onItemSelected = { item ->
-                    bridge.zone = SettingsFocusZone.SIDEBAR
-                    navigateTo(item)
-                },
-                onBackPressed = onBack,
-                bordersPaused = bordersPaused,
-            )
+            if (!portrait) {
+                SettingsNavSidebar(
+                    selectedItem = currentItem,
+                    railActive = bridge.zone == SettingsFocusZone.SIDEBAR,
+                    onItemSelected = { item ->
+                        bridge.zone = SettingsFocusZone.SIDEBAR
+                        navigateTo(item)
+                    },
+                    onBackPressed = onBack,
+                    bordersPaused = bordersPaused,
+                )
+            }
 
+            Column(
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+            ) {
+            if (portrait) {
+                SettingsPortraitTopBar(
+                    title = stringResource(currentItem.titleRes),
+                    onBackPressed = onBack,
+                    onOpenSections = { sectionsOpen = true },
+                )
+            }
             Box(
                 modifier =
                     Modifier
                         .weight(1f)
-                        .fillMaxHeight()
+                        .fillMaxWidth()
                         .pointerInput(Unit) {
                             awaitPointerEventScope {
                                 while (true) {
@@ -205,6 +252,40 @@ fun SettingsHost(
                     }
                 }
             }
+            }
+        }
+
+        if (portrait && sectionsOpen) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.55f))
+                        .pointerInput(Unit) {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val ev = awaitPointerEvent(PointerEventPass.Initial)
+                                    if (ev.type == PointerEventType.Press) {
+                                        sectionsOpen = false
+                                        ev.changes.forEach { it.consume() }
+                                    }
+                                }
+                            }
+                        },
+            )
+            SettingsNavSidebar(
+                selectedItem = currentItem,
+                railActive = bridge.zone == SettingsFocusZone.SIDEBAR,
+                onItemSelected = { item ->
+                    bridge.zone = SettingsFocusZone.CONTENT
+                    sectionsOpen = false
+                    navigateTo(item)
+                },
+                onBackPressed = { sectionsOpen = false },
+                bordersPaused = bordersPaused,
+                sidebarWidth = minOf(280.dp, screenWidthDp() - 56.dp),
+                showHeader = false,
+            )
         }
     }
 }

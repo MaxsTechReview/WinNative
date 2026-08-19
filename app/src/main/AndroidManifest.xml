@@ -60,7 +60,7 @@
         <activity
             android:name="com.winlator.cmod.feature.setup.SetupWizardActivity"
             android:theme="@style/AppThemeFullscreenDarkNoAnimation"
-            android:screenOrientation="sensorLandscape"
+            android:screenOrientation="fullUser"
             android:exported="false"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation" />
 
@@ -68,7 +68,7 @@
         <activity
             android:name="com.winlator.cmod.app.shell.UnifiedActivity"
             android:theme="@style/AppThemeUnifiedDarkNoAnimation"
-            android:screenOrientation="sensorLandscape"
+            android:screenOrientation="fullUser"
             android:exported="true"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation">
             <intent-filter>
@@ -80,20 +80,22 @@
         <activity
             android:name="com.winlator.cmod.feature.stores.steam.SteamLoginActivity"
             android:theme="@style/AppThemeFullscreen.Dark"
-            android:screenOrientation="sensorLandscape"
+            android:screenOrientation="fullUser"
             android:exported="false"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation" />
 
         <activity
             android:name="com.winlator.cmod.feature.stores.epic.ui.auth.EpicOAuthActivity"
             android:theme="@style/AppTheme.Dark"
-            android:screenOrientation="sensor"
+            android:screenOrientation="fullUser"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation"
             android:exported="false" />
 
         <activity
             android:name="com.winlator.cmod.feature.stores.gog.ui.auth.GOGOAuthActivity"
             android:theme="@style/AppTheme.Dark"
-            android:screenOrientation="sensor"
+            android:screenOrientation="fullUser"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation"
             android:exported="false" />
 
         <activity
@@ -124,14 +126,15 @@
         <activity
             android:name="com.winlator.cmod.runtime.input.ControlsEditorActivity"
             android:theme="@style/AppThemeFullscreen.Dark"
-            android:screenOrientation="sensorLandscape"
+            android:screenOrientation="fullUser"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation"
             android:exported="false" />
 
         <activity
             android:name="com.winlator.cmod.feature.retro.RetroActivity"
             android:theme="@style/AppThemeFullscreen"
             android:launchMode="singleTask"
-            android:screenOrientation="sensorLandscape"
+            android:screenOrientation="fullUser"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation"
             android:exported="false" />
 

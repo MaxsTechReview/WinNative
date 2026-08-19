@@ -220,6 +220,7 @@ import com.winlator.cmod.shared.android.RefreshRateUtils
 import com.winlator.cmod.shared.io.StorageUtils
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.ui.CarouselView
+import com.winlator.cmod.shared.ui.layout.screenWidthDp
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.dialog.PopupTextAction
 import androidx.compose.foundation.focusGroup
@@ -369,7 +370,7 @@ internal fun UnifiedActivity.DrawerContent(
         drawerContainerColor = Color(0xFF12121B),
         drawerContentColor = TextPrimary,
         windowInsets = WindowInsets(0, 0, 0, 0),
-        modifier = Modifier.width(324.dp),
+        modifier = Modifier.width(minOf(324.dp, screenWidthDp() - 56.dp)),
     ) {
         CompositionLocalProvider(LocalPaneNav provides navRegistry) {
         Column(

@@ -213,6 +213,8 @@ import com.winlator.cmod.shared.android.RefreshRateUtils
 import com.winlator.cmod.shared.io.StorageUtils
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.ui.CarouselView
+import com.winlator.cmod.shared.ui.layout.isPortraitLayout
+import com.winlator.cmod.shared.ui.layout.screenWidthDp
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.dialog.PopupTextAction
 import androidx.compose.foundation.focusGroup
@@ -1387,31 +1389,38 @@ internal fun UnifiedActivity.TopBar(
         }
     }
 
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        start = UnifiedTopBarHorizontalPadding,
-                        end = UnifiedTopBarHorizontalPadding,
-                        top = UnifiedTopBarTopPadding,
-                    )
-                    .height(UnifiedTopBarHeight),
-        ) {
-            // Center Block: Tabs (absolutely centered, unaffected by left/right content)
+    val portraitTopBar = isPortraitLayout()
+    val topBarWidth = screenWidthDp()
+    val topBarView = androidx.compose.ui.platform.LocalView.current
+    val topBarDensity = androidx.compose.ui.platform.LocalDensity.current
+    val topBarOrientation = androidx.compose.ui.platform.LocalConfiguration.current.orientation
+    val navRightInset =
+        remember(topBarOrientation, topBarView) {
+            val px =
+                androidx.core.view.ViewCompat.getRootWindowInsets(topBarView)
+                    ?.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars())?.right ?: 0
+            with(topBarDensity) { px.toDp() }
+        }
+
+    val tabsContent: @Composable (Modifier) -> Unit = { tabsModifier ->
             Row(
-                modifier = Modifier.align(Alignment.Center).zIndex(1f),
+                modifier = tabsModifier,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 @Suppress("DEPRECATION")
                 CompositionLocalProvider(
                     androidx.compose.material3.LocalRippleConfiguration provides null,
                 ) {
-                    val tabWidth = 100.dp
                     val tabSideGutter = 12.dp
                     val tabBarShape = RoundedCornerShape(18.dp)
                     val visibleCount = minOf(3, tabs.size)
+                    val tabWidth =
+                        if (portraitTopBar) {
+                            ((topBarWidth - UnifiedTopBarHorizontalPadding * 2 - tabSideGutter * 2) / visibleCount)
+                                .coerceAtLeast(84.dp)
+                        } else {
+                            100.dp
+                        }
                     val tabListState = rememberLazyListState()
                     val snapFlingBehavior = rememberSnapFlingBehavior(lazyListState = tabListState)
 
@@ -1497,9 +1506,11 @@ internal fun UnifiedActivity.TopBar(
                     }
                 }
             }
+    }
 
+    val leftContent: @Composable (Modifier) -> Unit = { leftModifier ->
             Row(
-                modifier = Modifier.align(Alignment.CenterStart).fillMaxHeight(),
+                modifier = leftModifier,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
@@ -1600,17 +1611,11 @@ internal fun UnifiedActivity.TopBar(
                     ControllerBadge("L3")
                 }
             }
+    }
 
-            val topBarView = androidx.compose.ui.platform.LocalView.current
-            val topBarDensity = androidx.compose.ui.platform.LocalDensity.current
-            val topBarOrientation = androidx.compose.ui.platform.LocalConfiguration.current.orientation
-            val navRightInset = remember(topBarOrientation, topBarView) {
-                val px = androidx.core.view.ViewCompat.getRootWindowInsets(topBarView)
-                    ?.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars())?.right ?: 0
-                with(topBarDensity) { px.toDp() }
-            }
+    val rightContent: @Composable (Modifier) -> Unit = { rightModifier ->
             Row(
-                modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight().zIndex(2f),
+                modifier = rightModifier,
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -1686,26 +1691,63 @@ internal fun UnifiedActivity.TopBar(
                     }
                 }
             }
+    }
 
-            if (isControllerConnected && navRightInset > 0.dp) {
-                Box(
-                    modifier =
-                        Modifier
-                            .align(Alignment.CenterEnd)
-                            .offset(x = 38.dp)
-                            .zIndex(2f)
-                            .background(Color(0xFF394048), RoundedCornerShape(15.dp))
-                            .border(1.dp, Color(0xFF8B949E).copy(alpha = 0.5f), RoundedCornerShape(15.dp))
-                            .padding(horizontal = 7.dp, vertical = 3.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.Outlined.SportsEsports,
-                        contentDescription = "Guide",
-                        tint = Color(0xFFE6EDF3),
-                        modifier = Modifier.size(16.dp),
+    val guideOverflowContent: @Composable (Modifier) -> Unit = { guideModifier ->
+        if (isControllerConnected && navRightInset > 0.dp) {
+            Box(
+                modifier =
+                    guideModifier
+                        .offset(x = 38.dp)
+                        .zIndex(2f)
+                        .background(Color(0xFF394048), RoundedCornerShape(15.dp))
+                        .border(1.dp, Color(0xFF8B949E).copy(alpha = 0.5f), RoundedCornerShape(15.dp))
+                        .padding(horizontal = 7.dp, vertical = 3.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Outlined.SportsEsports,
+                    contentDescription = "Guide",
+                    tint = Color(0xFFE6EDF3),
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start = UnifiedTopBarHorizontalPadding,
+                        end = UnifiedTopBarHorizontalPadding,
+                        top = UnifiedTopBarTopPadding,
                     )
-                }
+                    .height(UnifiedTopBarHeight),
+        ) {
+            if (!portraitTopBar) {
+                tabsContent(Modifier.align(Alignment.Center).zIndex(1f))
+            }
+            leftContent(Modifier.align(Alignment.CenterStart).fillMaxHeight())
+            rightContent(Modifier.align(Alignment.CenterEnd).fillMaxHeight().zIndex(2f))
+            guideOverflowContent(Modifier.align(Alignment.CenterEnd))
+        }
+
+        if (portraitTopBar) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            start = UnifiedTopBarHorizontalPadding,
+                            end = UnifiedTopBarHorizontalPadding,
+                            top = 8.dp,
+                        ),
+                contentAlignment = Alignment.Center,
+            ) {
+                tabsContent(Modifier)
             }
         }
 
@@ -1743,7 +1785,7 @@ internal fun UnifiedActivity.TopBar(
                     modifier =
                         Modifier
                             .widthIn(max = 600.dp)
-                            .fillMaxWidth(0.7f)
+                            .fillMaxWidth(if (portraitTopBar) 1f else 0.7f)
                             .height(44.dp)
                             .shadow(8.dp, RoundedCornerShape(24.dp), spotColor = Color.Black.copy(alpha = 0.4f))
                             .clip(RoundedCornerShape(24.dp))

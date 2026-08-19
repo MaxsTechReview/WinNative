@@ -40,6 +40,12 @@ import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.FlowRowScope
+import androidx.compose.foundation.layout.PaddingValues
+import com.winlator.cmod.shared.ui.layout.isPortraitLayout
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -697,57 +703,219 @@ fun GameSettingsContent(
         }
     }
 
+    val portrait = isPortraitLayout()
+
+    val contentPane: @Composable (Modifier) -> Unit = { contentModifier ->
+        Box(
+            modifier = contentModifier
+                .background(ContentBg)
+                .then(
+                    if (nav != null) {
+                        Modifier.pointerInput(Unit) {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val ev = awaitPointerEvent(PointerEventPass.Initial)
+                                    if (ev.type == PointerEventType.Press) nav.tapContent()
+                                }
+                            }
+                        }
+                    } else {
+                        Modifier
+                    }
+                )
+        ) {
+            SectionContent(currentSectionId, state, callbacks, nav)
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(16.dp))
             .background(BgDeep)
     ) {
-        Row(modifier = Modifier.fillMaxSize()) {
-            Sidebar(
-                title = state.name.value,
-                sections = sections.map { it.second },
-                currentIndex = selectedIdx,
-                onSectionSelected = { state.currentSection.intValue = it },
-                saveEnabled = saveEnabled,
-                onSave = { callbacks.onConfirm() },
-                onCancel = { callbacks.onDismiss() },
-                nav = nav,
-                modifier = Modifier
-                    .width(220.dp)
-                    .fillMaxHeight()
-            )
+        if (portrait) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                PortraitSettingsHeader(
+                    title = state.name.value,
+                    sections = sections.map { it.second },
+                    currentIndex = selectedIdx,
+                    onSectionSelected = { state.currentSection.intValue = it },
+                    saveEnabled = saveEnabled,
+                    onSave = { callbacks.onConfirm() },
+                    onCancel = { callbacks.onDismiss() },
+                    nav = nav,
+                )
+                contentPane(Modifier.weight(1f).fillMaxWidth())
+            }
+        } else {
+            Row(modifier = Modifier.fillMaxSize()) {
+                Sidebar(
+                    title = state.name.value,
+                    sections = sections.map { it.second },
+                    currentIndex = selectedIdx,
+                    onSectionSelected = { state.currentSection.intValue = it },
+                    saveEnabled = saveEnabled,
+                    onSave = { callbacks.onConfirm() },
+                    onCancel = { callbacks.onDismiss() },
+                    nav = nav,
+                    modifier = Modifier
+                        .width(220.dp)
+                        .fillMaxHeight()
+                )
 
-            Box(
-                modifier = Modifier
-                    .width(1.dp)
-                    .fillMaxHeight()
-                    .background(DividerColor)
-            )
+                Box(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .fillMaxHeight()
+                        .background(DividerColor)
+                )
 
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .background(ContentBg)
-                    .then(
-                        if (nav != null) {
-                            Modifier.pointerInput(Unit) {
-                                awaitPointerEventScope {
-                                    while (true) {
-                                        val ev = awaitPointerEvent(PointerEventPass.Initial)
-                                        if (ev.type == PointerEventType.Press) nav.tapContent()
-                                    }
-                                }
-                            }
-                        } else {
-                            Modifier
-                        }
-                    )
-            ) {
-                SectionContent(currentSectionId, state, callbacks, nav)
+                contentPane(Modifier.weight(1f).fillMaxHeight())
             }
         }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SettingPairRow(
+    modifier: Modifier = Modifier,
+    content: @Composable FlowRowScope.() -> Unit,
+) {
+    FlowRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(SettingItemGap),
+        verticalArrangement = Arrangement.spacedBy(SettingItemGap),
+        maxItemsInEachRow = if (isPortraitLayout()) 1 else Int.MAX_VALUE,
+        content = content,
+    )
+}
+
+@Composable
+private fun PortraitSettingsHeader(
+    title: String,
+    sections: List<SidebarSection>,
+    currentIndex: Int,
+    onSectionSelected: (Int) -> Unit,
+    saveEnabled: Boolean,
+    onSave: () -> Unit,
+    onCancel: () -> Unit,
+    nav: GameSettingsNav? = null,
+) {
+    val cancelHighlighted = nav != null && nav.active && !nav.inContent && nav.onActionRow && nav.actionCol == 0
+    val saveHighlighted = nav != null && nav.active && !nav.inContent && nav.onActionRow && nav.actionCol == 1
+    val chipListState = rememberLazyListState()
+
+    LaunchedEffect(currentIndex) {
+        runCatching { chipListState.animateScrollToItem(currentIndex) }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(SidebarBg)
+            .padding(top = 12.dp, bottom = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = title,
+                color = TextPrimary,
+                fontSize = SettingLabelSize,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.2.sp,
+                lineHeight = 15.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            Box(
+                modifier = Modifier
+                    .height(32.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
+                    .background(CardSurface)
+                    .paneHighlight(cancelHighlighted, cornerRadius = 8.dp, highlightColor = NavHighlight)
+                    .clickable { nav?.tapAction(0); onCancel() }
+                    .padding(horizontal = 14.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    stringResource(R.string.common_ui_cancel),
+                    color = TextSecondary,
+                    fontSize = SettingLabelSize,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            SaveButton(
+                enabled = saveEnabled,
+                onClick = { nav?.tapAction(1); onSave() },
+                height = 32.dp,
+                corner = 8.dp,
+                fontSize = SettingLabelSize,
+                navHighlighted = saveHighlighted,
+            )
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        LazyRow(
+            state = chipListState,
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            itemsIndexed(sections) { index, section ->
+                val isSelected = currentIndex == index
+                val chipHighlighted =
+                    nav != null && nav.active && !nav.inContent && !nav.onActionRow && nav.sidebarIndex == index
+                Row(
+                    modifier = Modifier
+                        .height(34.dp)
+                        .clip(RoundedCornerShape(17.dp))
+                        .background(if (isSelected) AccentBlue.copy(alpha = 0.16f) else CardSurface)
+                        .border(
+                            1.dp,
+                            if (isSelected) AccentBlue.copy(alpha = 0.6f) else CardBorder,
+                            RoundedCornerShape(17.dp)
+                        )
+                        .paneHighlight(chipHighlighted, cornerRadius = 17.dp, highlightColor = NavHighlight)
+                        .clickable { if (nav != null) nav.tapSection(index) else onSectionSelected(index) }
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = section.icon,
+                        contentDescription = null,
+                        tint = if (isSelected) AccentBlue else TextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = stringResource(section.labelResId),
+                        color = if (isSelected) TextPrimary else TextSecondary,
+                        fontSize = SettingLabelSize,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                        maxLines = 1,
+                        modifier = Modifier.padding(start = 7.dp)
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(DividerColor)
+        )
     }
 }
 
@@ -1250,11 +1418,9 @@ private fun GeneralSection(
         Spacer(Modifier.height(SettingSectionGap))
 
         SettingGroup {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+            val artworkPortrait = isPortraitLayout()
+
+            val artworkLabel: @Composable () -> Unit = {
                 Text(
                     text = stringResource(R.string.shortcuts_library_artwork_title),
                     color = TextSecondary,
@@ -1262,6 +1428,9 @@ private fun GeneralSection(
                     fontWeight = FontWeight.SemiBold,
                     letterSpacing = 0.8.sp
                 )
+            }
+
+            val scrapeButton: @Composable () -> Unit = {
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
@@ -1276,11 +1445,14 @@ private fun GeneralSection(
                             text = stringResource(R.string.library_games_scrape_artwork),
                             color = AccentBlue,
                             fontSize = SettingValueSize,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
                         )
                     }
                 }
+            }
 
+            val openSourceButton: @Composable () -> Unit = {
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
@@ -1302,15 +1474,37 @@ private fun GeneralSection(
                             text = stringResource(R.string.shortcuts_library_artwork_open_source),
                             color = AccentBlue,
                             fontSize = SettingValueSize,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
                         )
                     }
                 }
             }
 
+            if (artworkPortrait) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    artworkLabel()
+                    Spacer(Modifier.height(8.dp))
+                    SettingPairRow(modifier = Modifier.fillMaxWidth()) {
+                        Box(Modifier.weight(1f)) { scrapeButton() }
+                        Box(Modifier.weight(1f)) { openSourceButton() }
+                    }
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    artworkLabel()
+                    scrapeButton()
+                    openSourceButton()
+                }
+            }
+
             Spacer(Modifier.height(SettingItemGap))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+            SettingPairRow {
                 Box(Modifier.weight(1f)) {
                     ArtworkPickerRow(
                         title = stringResource(R.string.shortcuts_library_artwork_icon_title),
@@ -1336,7 +1530,7 @@ private fun GeneralSection(
     Spacer(Modifier.height(SettingSectionGap))
 
     SettingGroup {
-        Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+        SettingPairRow {
             Box(Modifier.weight(1f)) {
                 SettingDropdown(
                     label = stringResource(R.string.container_config_screen_size),
@@ -1385,7 +1579,7 @@ private fun GeneralSection(
     Spacer(Modifier.height(SettingSectionGap))
 
     SettingGroup {
-        Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+        SettingPairRow {
             Box(Modifier.weight(1f)) {
                 SettingDropdown(
                     label = stringResource(R.string.container_config_audio_driver),
@@ -1459,7 +1653,7 @@ private fun DisplaySection(
 ) {
 
     SettingGroup {
-        Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+        SettingPairRow {
             Box(Modifier.weight(1f)) {
                 SettingDropdown(
                     label = stringResource(R.string.container_graphics_driver),
@@ -1480,7 +1674,7 @@ private fun DisplaySection(
 
         Spacer(Modifier.height(SettingSectionGap))
 
-        Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+        SettingPairRow {
             Box(Modifier.weight(1f)) {
                 SettingDropdown(
                     label = stringResource(R.string.container_wine_dxwrapper),
@@ -1606,7 +1800,7 @@ private fun GraphicsDriverConfigCard(
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
                 Spacer(Modifier.height(SettingItemGap))
 
-                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                SettingPairRow {
                     Box(Modifier.weight(1f)) {
                         SettingDropdown(
                             label = stringResource(R.string.container_graphics_vulkan_version),
@@ -1630,7 +1824,7 @@ private fun GraphicsDriverConfigCard(
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                SettingPairRow {
                     Box(Modifier.weight(1f)) {
                         ExtensionsMultiSelect(state)
                     }
@@ -1646,7 +1840,7 @@ private fun GraphicsDriverConfigCard(
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                SettingPairRow {
                     Box(Modifier.weight(1f)) {
                         SettingDropdown(
                             label = stringResource(R.string.container_graphics_max_device_memory),
@@ -1667,7 +1861,7 @@ private fun GraphicsDriverConfigCard(
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                SettingPairRow {
                     Box(Modifier.weight(1f)) {
                         SettingDropdown(
                             label = stringResource(R.string.container_graphics_resource_type),
@@ -1692,7 +1886,7 @@ private fun GraphicsDriverConfigCard(
                 if (bcnEmulationActive) {
                     Spacer(Modifier.height(SettingItemGap))
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                    SettingPairRow {
                         Box(Modifier.weight(1f)) {
                             SettingDropdown(
                                 label = stringResource(R.string.container_graphics_bcn_emulation_type),
@@ -1718,7 +1912,7 @@ private fun GraphicsDriverConfigCard(
                 if (gamenativeWrapperActive) {
                     Spacer(Modifier.height(SettingItemGap))
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                    SettingPairRow {
                         Box(Modifier.weight(1f)) {
                             SettingDropdown(
                                 label = stringResource(R.string.container_graphics_transcoder),
@@ -1740,7 +1934,7 @@ private fun GraphicsDriverConfigCard(
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                SettingPairRow {
                     Box(Modifier.weight(1f)) {
                         SettingCheckbox(
                             label = stringResource(R.string.container_graphics_sync_frame),
@@ -2014,7 +2208,7 @@ private fun DXVKConfigCard(
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
                 Spacer(Modifier.height(SettingItemGap))
 
-                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                SettingPairRow {
                     Box(Modifier.weight(1f)) {
                         SettingDropdown(
                             label = stringResource(R.string.container_wine_vkd3d_version),
@@ -2038,7 +2232,7 @@ private fun DXVKConfigCard(
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                SettingPairRow {
                     Box(Modifier.weight(1f)) {
                         SettingDropdown(
                             label = stringResource(R.string.container_wine_dxvk_version),
@@ -2062,7 +2256,7 @@ private fun DXVKConfigCard(
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                SettingPairRow {
                     Box(Modifier.weight(1f).alpha(if (asyncEnabled) 1f else 0.35f)) {
                         SettingCheckbox(
                             label = stringResource(R.string.container_wine_enabled_async),
@@ -2142,7 +2336,7 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
                 Spacer(Modifier.height(SettingItemGap))
 
-                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                SettingPairRow {
                     Box(Modifier.weight(1f)) {
                         SettingDropdown(
                             label = stringResource(R.string.container_wine_csmt),
@@ -2163,7 +2357,7 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                SettingPairRow {
                     Box(Modifier.weight(1f)) {
                         SettingDropdown(
                             label = stringResource(R.string.container_wine_video_memory_size),
@@ -2184,7 +2378,7 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                SettingPairRow {
                     Box(Modifier.weight(1f)) {
                         SettingDropdown(
                             label = stringResource(R.string.container_wine_offscreen_rendering_mode),
@@ -3478,7 +3672,7 @@ private fun ComponentsSection(
             val items = state.directXComponents.value
             items.chunked(2).forEachIndexed { rowIndex, pair ->
                 if (rowIndex > 0) Spacer(Modifier.height(SettingItemGap))
-                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                SettingPairRow {
                     pair.forEachIndexed { colIndex, component ->
                         val index = rowIndex * 2 + colIndex
                         Box(Modifier.weight(1f)) {
@@ -3509,7 +3703,7 @@ private fun ComponentsSection(
             val rowCount = (totalCells + 1) / 2
             for (rowIndex in 0 until rowCount) {
                 if (rowIndex > 0) Spacer(Modifier.height(SettingItemGap))
-                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                SettingPairRow {
                     for (colIndex in 0..1) {
                         val cell = rowIndex * 2 + colIndex
                         Box(Modifier.weight(1f)) {
@@ -4405,7 +4599,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
     Spacer(Modifier.height(8.dp))
     SettingGroup {
         if (!isContainer) {
-            Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+            SettingPairRow {
                 Box(Modifier.weight(1f)) {
                     SettingDropdown(
                         label = stringResource(R.string.common_ui_profile),
@@ -4429,7 +4623,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
 
         val exclusiveChecked = if (isContainer) state.containerExclusiveInput.value
         else state.shortcutExclusiveXInput.value
-        Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+        SettingPairRow {
             Box(Modifier.weight(1f)) {
                 SettingCheckbox(
                     label = stringResource(R.string.shortcuts_properties_exclusive_input),
@@ -4678,7 +4872,7 @@ private fun AdvancedSection(
     SubsectionLabel(stringResource(R.string.container_config_emulator_section))
     Spacer(Modifier.height(8.dp))
     SettingGroup {
-        Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+        SettingPairRow {
             Box(Modifier.weight(1f)) {
                 SettingDropdown(
                     label = stringResource(R.string.container_config_emulator_64bit),
@@ -4721,7 +4915,7 @@ private fun AdvancedSection(
         EmulatorSectionHeader(stringResource(R.string.container_fexcore_config), fexcoreUsage)
         Spacer(Modifier.height(8.dp))
         SettingGroup {
-            Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+            SettingPairRow {
                 Box(Modifier.weight(1f)) {
                     SettingDropdown(
                         label = stringResource(R.string.container_fexcore_version),
@@ -4769,7 +4963,7 @@ private fun AdvancedSection(
         EmulatorSectionHeader(box64Title, box64Usage)
         Spacer(Modifier.height(8.dp))
         SettingGroup {
-            Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+            SettingPairRow {
                 Box(Modifier.weight(1f)) {
                     SettingDropdown(
                         label = stringResource(R.string.container_box64_version),

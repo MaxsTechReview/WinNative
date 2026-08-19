@@ -61,6 +61,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.PopupProperties
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import com.winlator.cmod.shared.ui.layout.isPortraitLayout
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.theme.GameSettingsStyle
 import com.winlator.cmod.shared.ui.settings.SharedGroupTitle
@@ -312,26 +316,10 @@ fun RetroGameSettingsContent(
                 .clip(RoundedCornerShape(16.dp))
                 .background(BgDeep),
     ) {
-        Row(modifier = Modifier.fillMaxSize()) {
-            RetroSidebar(
-                title = state.name,
-                subtitle = state.system?.displayName ?: "",
-                sections = sections,
-                currentIndex = selectedIdx,
-                onSectionSelected = { state.currentSection = it },
-                onSave = onSave,
-                onCancel = onCancel,
-                nav = nav,
-                modifier = Modifier.width(220.dp).fillMaxHeight(),
-            )
-            Box(Modifier.width(1.dp).fillMaxHeight().background(DividerColor))
-            Box(
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .background(ContentBg),
-            ) {
+        val retroPortrait = isPortraitLayout()
+
+        val retroContent: @Composable (Modifier) -> Unit = { contentModifier ->
+            Box(modifier = contentModifier.background(ContentBg)) {
                 RetroSectionContent(
                     sectionIndex = selectedIdx,
                     state = state,
@@ -342,6 +330,181 @@ fun RetroGameSettingsContent(
                 )
             }
         }
+
+        if (retroPortrait) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                RetroPortraitHeader(
+                    title = state.name,
+                    subtitle = state.system?.displayName ?: "",
+                    sections = sections,
+                    currentIndex = selectedIdx,
+                    onSectionSelected = { state.currentSection = it },
+                    onSave = onSave,
+                    onCancel = onCancel,
+                    nav = nav,
+                )
+                retroContent(Modifier.weight(1f).fillMaxWidth())
+            }
+        } else {
+            Row(modifier = Modifier.fillMaxSize()) {
+                RetroSidebar(
+                    title = state.name,
+                    subtitle = state.system?.displayName ?: "",
+                    sections = sections,
+                    currentIndex = selectedIdx,
+                    onSectionSelected = { state.currentSection = it },
+                    onSave = onSave,
+                    onCancel = onCancel,
+                    nav = nav,
+                    modifier = Modifier.width(220.dp).fillMaxHeight(),
+                )
+                Box(Modifier.width(1.dp).fillMaxHeight().background(DividerColor))
+                retroContent(Modifier.weight(1f).fillMaxHeight())
+            }
+        }
+    }
+}
+
+@Composable
+private fun RetroPortraitHeader(
+    title: String,
+    subtitle: String,
+    sections: List<RetroSection>,
+    currentIndex: Int,
+    onSectionSelected: (Int) -> Unit,
+    onSave: () -> Unit,
+    onCancel: () -> Unit,
+    nav: GameSettingsNav? = null,
+) {
+    val cancelHighlighted = nav != null && nav.active && !nav.inContent && nav.onActionRow && nav.actionCol == 0
+    val saveHighlighted = nav != null && nav.active && !nav.inContent && nav.onActionRow && nav.actionCol == 1
+    val chipListState = rememberLazyListState()
+
+    LaunchedEffect(currentIndex) {
+        runCatching { chipListState.animateScrollToItem(currentIndex) }
+    }
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(SidebarBg)
+                .padding(top = 12.dp, bottom = 8.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    color = TextPrimary,
+                    fontSize = LabelSize,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.2.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (subtitle.isNotBlank()) {
+                    Text(
+                        text = subtitle,
+                        color = TextSecondary,
+                        fontSize = LabelSize,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            Box(
+                modifier =
+                    Modifier
+                        .height(32.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
+                        .background(CardSurface)
+                        .paneHighlight(cancelHighlighted, cornerRadius = 8.dp, highlightColor = NavHighlight)
+                        .clickable { nav?.tapAction(0); onCancel() }
+                        .padding(horizontal = 14.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    stringResource(R.string.common_ui_cancel),
+                    color = TextSecondary,
+                    fontSize = LabelSize,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+            Box(
+                modifier =
+                    Modifier
+                        .height(32.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .border(1.dp, AccentBlue.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                        .background(AccentBlue.copy(alpha = 0.1f))
+                        .paneHighlight(saveHighlighted, cornerRadius = 8.dp, highlightColor = NavHighlight)
+                        .clickable { nav?.tapAction(1); onSave() }
+                        .padding(horizontal = 14.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    stringResource(R.string.common_ui_save),
+                    color = AccentBlue,
+                    fontSize = LabelSize,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        LazyRow(
+            state = chipListState,
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            itemsIndexed(sections) { index, section ->
+                val isSelected = currentIndex == index
+                val chipHighlighted =
+                    nav != null && nav.active && !nav.inContent && !nav.onActionRow && nav.sidebarIndex == index
+                Row(
+                    modifier =
+                        Modifier
+                            .height(34.dp)
+                            .clip(RoundedCornerShape(17.dp))
+                            .background(if (isSelected) AccentBlue.copy(alpha = 0.16f) else CardSurface)
+                            .border(
+                                1.dp,
+                                if (isSelected) AccentBlue.copy(alpha = 0.6f) else CardBorder,
+                                RoundedCornerShape(17.dp),
+                            )
+                            .paneHighlight(chipHighlighted, cornerRadius = 17.dp, highlightColor = NavHighlight)
+                            .clickable { if (nav != null) nav.tapSection(index) else onSectionSelected(index) }
+                            .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = section.icon,
+                        contentDescription = null,
+                        tint = if (isSelected) AccentBlue else TextSecondary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        text = stringResource(section.labelRes),
+                        color = if (isSelected) TextPrimary else TextSecondary,
+                        fontSize = LabelSize,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                        maxLines = 1,
+                        modifier = Modifier.padding(start = 7.dp),
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
     }
 }
 

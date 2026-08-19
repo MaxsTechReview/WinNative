@@ -330,6 +330,17 @@ object DirectoryPickerDialog {
                 }
                 setContent {
                     val defaultDensity = LocalDensity.current
+                    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+                    androidx.compose.runtime.LaunchedEffect(
+                        configuration.orientation,
+                        configuration.screenWidthDp,
+                        configuration.screenHeightDp,
+                    ) {
+                        applyDialogWindowSizing(activity, dialog.window, preserveBackdropBlur)
+                        dialog.window?.decorView?.post {
+                            applyDialogWindowSizing(activity, dialog.window, preserveBackdropBlur)
+                        }
+                    }
                     CompositionLocalProvider(
                         LocalDensity provides Density(defaultDensity.density, fontScale = 1f),
                     ) {

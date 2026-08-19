@@ -70,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.winlator.cmod.shared.ui.layout.isPortraitLayout
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
@@ -763,13 +764,9 @@ private fun FolderPathCard(
                 .background(CardDark)
                 .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
     ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        val stackActions = isPortraitLayout() && secondaryLabel != null && onSecondary != null
+
+        val leading: @Composable () -> Unit = {
             Box(
                 modifier =
                     Modifier
@@ -785,8 +782,10 @@ private fun FolderPathCard(
                     modifier = Modifier.size(17.dp),
                 )
             }
-            Spacer(Modifier.width(13.dp))
-            Column(modifier = Modifier.weight(1f)) {
+        }
+
+        val labels: @Composable (Modifier) -> Unit = { labelModifier ->
+            Column(modifier = labelModifier) {
                 Text(label, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                 Text(
                     text = path.ifEmpty { stringResource(R.string.common_ui_not_configured) },
@@ -796,7 +795,9 @@ private fun FolderPathCard(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Spacer(Modifier.width(10.dp))
+        }
+
+        val actions: @Composable () -> Unit = {
             if (secondaryLabel != null && onSecondary != null) {
                 SmallActionButton(
                     label = secondaryLabel,
@@ -810,6 +811,43 @@ private fun FolderPathCard(
                 textColor = Accent,
                 onClick = onBrowse,
             )
+        }
+
+        if (stackActions) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 11.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    leading()
+                    Spacer(Modifier.width(13.dp))
+                    labels(Modifier.weight(1f))
+                }
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    actions()
+                }
+            }
+        } else {
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                leading()
+                Spacer(Modifier.width(13.dp))
+                labels(Modifier.weight(1f))
+                Spacer(Modifier.width(10.dp))
+                actions()
+            }
         }
     }
 }

@@ -92,6 +92,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.winlator.cmod.shared.ui.layout.isPortraitLayout
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
@@ -991,10 +992,14 @@ private fun EnvVarInlineControl(
     editable: Boolean,
     onValueChanged: (String) -> Unit,
 ) {
+    val compactControl = isPortraitLayout()
     Box(
         modifier =
             Modifier
-                .widthIn(min = 112.dp, max = 172.dp)
+                .widthIn(
+                    min = if (compactControl) 76.dp else 112.dp,
+                    max = if (compactControl) 108.dp else 172.dp,
+                )
                 .alpha(if (editable) 1f else 0.55f),
         contentAlignment = Alignment.CenterEnd,
     ) {

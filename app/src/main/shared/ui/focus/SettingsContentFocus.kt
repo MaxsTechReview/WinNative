@@ -12,7 +12,7 @@ internal fun rememberSettingsContentNav(bridge: SettingsNavBridge?): PaneNavRegi
     val registry = remember(bridge) { PaneNavRegistry(initialSignal = bridge?.contentNavSignal ?: -1) }
     registry.controllerActive =
         (bridge?.contentControllerActive ?: false) && bridge?.zone == SettingsFocusZone.CONTENT
-    registry.onEdgeLeft = { bridge?.zone = SettingsFocusZone.SIDEBAR }
+    registry.onEdgeLeft = { bridge?.revealSidebar() }
     LaunchedEffect(registry, bridge?.contentNavSignal) {
         registry.processNav(bridge?.contentNavSignal ?: 0, bridge?.contentNavDir ?: 0)
     }

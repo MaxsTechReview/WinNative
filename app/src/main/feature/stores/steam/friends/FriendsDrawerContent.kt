@@ -61,6 +61,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.winlator.cmod.R
+import com.winlator.cmod.shared.ui.layout.screenWidthDp
 import com.winlator.cmod.feature.stores.steam.chat.ChatOverlayService
 import com.winlator.cmod.feature.stores.steam.data.SteamFriend
 import com.winlator.cmod.feature.stores.steam.data.SteamFriendEntry
@@ -133,7 +134,7 @@ fun FriendsDrawerContent(
             drawerContainerColor = WsBg,
             drawerContentColor = TextPrimary,
             windowInsets = WindowInsets(0, 0, 0, 0),
-            modifier = Modifier.width(332.dp),
+            modifier = Modifier.width(minOf(332.dp, screenWidthDp() - 56.dp)),
         ) {
             Column(
                 Modifier
