@@ -283,10 +283,11 @@ internal fun UnifiedActivity.moveLibraryFocus(
     var newIdx = idx
     when (currentLibraryLayoutMode) {
         LibraryLayoutMode.GRID_4 -> {
+            val cols = storeColumns
             if (left) newIdx = (idx - 1).coerceAtLeast(0)
             if (right) newIdx = (idx + 1).coerceAtMost(count - 1)
-            if (up) newIdx = (idx - 4).coerceAtLeast(0)
-            if (down) newIdx = (idx + 4).coerceAtMost(count - 1)
+            if (up) newIdx = (idx - cols).coerceAtLeast(0)
+            if (down) newIdx = (idx + cols).coerceAtMost(count - 1)
         }
 
         LibraryLayoutMode.CAROUSEL -> {

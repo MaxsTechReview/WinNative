@@ -421,7 +421,9 @@ class UnifiedActivity :
 
     val storeFocusIndex = kotlinx.coroutines.flow.MutableStateFlow(0)
     var storeItemCount: Int = 0
-    internal var storeColumns: Int = 4
+
+    internal val storeColumns: Int
+        get() = com.winlator.cmod.shared.ui.gridColumnsForWidth(resources.configuration.screenWidthDp)
 
     var storeGridState: androidx.compose.foundation.lazy.grid.LazyGridState? = null
 

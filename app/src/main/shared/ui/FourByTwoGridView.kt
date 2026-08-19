@@ -33,15 +33,16 @@ import kotlin.math.abs
 
 enum class ViewMode { Grid }
 
-@Composable
-fun defaultGridColumns(): Int {
-    val width = screenWidthDp().value
-    return when {
-        width < 480f -> 2
-        width < 700f -> 3
+fun gridColumnsForWidth(widthDp: Int): Int =
+    when {
+        widthDp <= 0 -> 4
+        widthDp < 480 -> 2
+        widthDp < 700 -> 3
         else -> 4
     }
-}
+
+@Composable
+fun defaultGridColumns(): Int = gridColumnsForWidth(screenWidthDp().value.toInt())
 
 /**
  * Unified grid layout used by store tabs
