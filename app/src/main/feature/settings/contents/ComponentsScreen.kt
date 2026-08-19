@@ -361,7 +361,7 @@ private fun HeroHeader(
                     // intrinsic width first; the toggle absorbs whatever is left and
                     // ellipsises its label rather than squeezing its neighbour.
                     toggle(Modifier.weight(1f))
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(16.dp))
                     install()
                 }
             } else {
@@ -422,6 +422,9 @@ private fun ToggleChip(
                 )
                 .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         verticalAlignment = Alignment.CenterVertically,
+        // Centres the dot + label when a caller stretches the chip (portrait);
+        // a no-op when the chip sits at its natural width (landscape).
+        horizontalArrangement = Arrangement.Center,
     ) {
         Box(
             modifier =
