@@ -856,14 +856,17 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
             } else {
                 LibraryShortcutUtils.detectCustomGameFolder(path)
             }
-        // Auto-generate a game name from the EXE name (without extension)
         if (gameName.isBlank()) {
             gameName =
-                java.io
-                    .File(path)
-                    .nameWithoutExtension
-                    .replace("_", " ")
-                    .replace("-", " ")
+                if (detectedRetro != null) {
+                    java.io
+                        .File(path)
+                        .nameWithoutExtension
+                        .replace("_", " ")
+                        .replace("-", " ")
+                } else {
+                    LibraryShortcutUtils.suggestCustomGameName(path)
+                }
         }
     }
 
