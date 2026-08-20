@@ -141,6 +141,7 @@ import com.winlator.cmod.runtime.display.ui.MagnifierView;
 import com.winlator.cmod.runtime.display.ui.MangoHudView;
 import com.winlator.cmod.runtime.display.ui.XServerSurfaceView;
 import com.winlator.cmod.shared.android.FixedFontScaleAppCompatActivity;
+import com.winlator.cmod.shared.android.SelfManagedOrientationActivity;
 import com.winlator.cmod.runtime.input.ui.InputControlsView;
 import com.winlator.cmod.runtime.input.ui.TouchpadView;
 import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags;
@@ -197,7 +198,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import cn.sherlock.com.sun.media.sound.SF2Soundbank;
 import static com.winlator.cmod.runtime.display.XServerDisplayUtils.*;
 
-public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
+public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
+        implements SelfManagedOrientationActivity {
     private static final long STEAM_TERMINATION_GRACE_MS = 10000L;
     private static final long STEAM_TERMINATION_POLL_MS = 1000L;
     private static final long STEAM_PROCESS_RESPONSE_TIMEOUT_MS = 2000L;
