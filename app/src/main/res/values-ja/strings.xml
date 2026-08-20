@@ -192,6 +192,8 @@
     <string name="library_games_layout_carousel">カルーセル</string>
     <string name="library_games_layout_list">リスト</string>
     <string name="library_games_view_options_header">表示オプション</string>
+    <string name="library_games_force_landscape">横向き固定</string>
+    <string name="library_games_force_landscape_description">デバイスの回転を無視してアプリを横向きに固定します</string>
     <string name="library_games_immersive_mode">没入モード</string>
     <string name="library_games_immersive_mode_description">フォーカス中のゲームアートを背景として使用</string>
     <string name="library_games_immersive_blur">背景をぼかす</string>

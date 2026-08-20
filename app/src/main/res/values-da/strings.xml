@@ -191,6 +191,8 @@
     <string name="library_games_layout_carousel">Karrusel</string>
     <string name="library_games_layout_list">Liste</string>
     <string name="library_games_view_options_header">VISNINGSINDSTILLINGER</string>
+    <string name="library_games_force_landscape">Gennemtving liggende</string>
+    <string name="library_games_force_landscape_description">Hold appen i liggende tilstand, og ignorer enhedsrotation</string>
     <string name="library_games_immersive_mode">Fordybende tilstand</string>
     <string name="library_games_immersive_mode_description">Brug det fokuserede spils grafik som baggrund</string>
     <string name="library_games_immersive_blur">Slør baggrunden</string>

@@ -78,6 +78,7 @@ import com.winlator.cmod.R
 import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
+import com.winlator.cmod.shared.ui.layout.isPortraitLayout
 import com.winlator.cmod.shared.ui.nav.DialogPaneNav
 import com.winlator.cmod.shared.ui.nav.LocalPaneNav
 import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
@@ -307,32 +308,28 @@ private fun HeroHeader(
                 .padding(horizontal = 14.dp, vertical = 11.dp),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    CountPill(label = stringResource(R.string.common_ui_installed), count = installedCount)
-                    Spacer(Modifier.width(6.dp))
-                    CountPill(label = stringResource(R.string.common_ui_available), count = availableCount)
-                }
-                Spacer(Modifier.width(10.dp))
+            val counts: @Composable () -> Unit = {
+                CountPill(label = stringResource(R.string.common_ui_installed), count = installedCount)
+                Spacer(Modifier.width(6.dp))
+                CountPill(label = stringResource(R.string.common_ui_available), count = availableCount)
+            }
+            val toggle: @Composable (Modifier) -> Unit = { toggleModifier ->
                 ToggleChip(
                     label = stringResource(R.string.settings_content_auto_create_container),
                     enabled = autoCreateContainer,
                     compact = true,
+                    modifier = toggleModifier,
                     onToggle = { onToggleAutoCreateContainer(!autoCreateContainer) },
                 )
-                Spacer(Modifier.width(6.dp))
+            }
+            val refresh: @Composable () -> Unit = {
                 RefreshChip(
                     isRefreshing = isRefreshing,
                     loadFailed = loadFailed,
                     onRefresh = onRefresh,
                 )
-                Spacer(Modifier.width(8.dp))
+            }
+            val install: @Composable () -> Unit = {
                 SmallPillButton(
                     label = stringResource(R.string.settings_content_install),
                     icon = Icons.Outlined.Upload,
@@ -340,6 +337,51 @@ private fun HeroHeader(
                     compact = true,
                     onClick = onInstallFromFile,
                 )
+            }
+
+            if (isPortraitLayout()) {
+                // Portrait has no room for counts + toggle + refresh + install on a
+                // single line: the counts collapse to nothing and the install pill is
+                // left a few characters wide, wrapping its label mid-word. Split the
+                // controls over two rows so every chip keeps its natural width.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    counts()
+                    Spacer(Modifier.weight(1f))
+                    refresh()
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    // The install pill is unweighted, so it is measured at its full
+                    // intrinsic width first; the toggle absorbs whatever is left and
+                    // ellipsises its label rather than squeezing its neighbour.
+                    toggle(Modifier.weight(1f))
+                    Spacer(Modifier.width(16.dp))
+                    install()
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        counts()
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    toggle(Modifier)
+                    Spacer(Modifier.width(6.dp))
+                    refresh()
+                    Spacer(Modifier.width(8.dp))
+                    install()
+                }
             }
 
             Spacer(Modifier.height(12.dp))
@@ -356,6 +398,7 @@ private fun ToggleChip(
     label: String,
     enabled: Boolean,
     compact: Boolean = false,
+    modifier: Modifier = Modifier,
     onToggle: () -> Unit,
 ) {
     val tint = if (enabled) SuccessGreen else TextSecondary
@@ -367,7 +410,7 @@ private fun ToggleChip(
     val fontSize = if (compact) 10.sp else 11.sp
     Row(
         modifier =
-            Modifier
+            modifier
                 .clip(RoundedCornerShape(8.dp))
                 .background(background)
                 .border(1.dp, borderColor, RoundedCornerShape(8.dp))
@@ -379,6 +422,9 @@ private fun ToggleChip(
                 )
                 .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         verticalAlignment = Alignment.CenterVertically,
+        // Centres the dot + label when a caller stretches the chip (portrait);
+        // a no-op when the chip sits at its natural width (landscape).
+        horizontalArrangement = Arrangement.Center,
     ) {
         Box(
             modifier =
@@ -393,6 +439,9 @@ private fun ToggleChip(
             color = tint,
             fontSize = fontSize,
             fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -438,6 +487,9 @@ private fun RefreshChip(
                 color = tint,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -813,6 +865,11 @@ private fun SmallPillButton(
             color = tint,
             fontSize = fontSize,
             fontWeight = FontWeight.SemiBold,
+            // Never let a squeezed row break the label across lines mid-word;
+            // clip it instead so the pill keeps a single-line height.
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

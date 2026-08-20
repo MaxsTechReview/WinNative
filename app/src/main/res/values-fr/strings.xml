@@ -191,6 +191,8 @@
     <string name="library_games_layout_carousel">Carrousel</string>
     <string name="library_games_layout_list">Liste</string>
     <string name="library_games_view_options_header">OPTIONS D’AFFICHAGE</string>
+    <string name="library_games_force_landscape">Forcer le paysage</string>
+    <string name="library_games_force_landscape_description">Garder l\'application en paysage, en ignorant la rotation de l\'appareil</string>
     <string name="library_games_immersive_mode">Mode immersif</string>
     <string name="library_games_immersive_mode_description">Utiliser l’illustration du jeu sélectionné comme arrière-plan</string>
     <string name="library_games_immersive_blur">Flouter l’arrière-plan</string>

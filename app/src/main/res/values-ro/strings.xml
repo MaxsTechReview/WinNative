@@ -191,6 +191,8 @@
     <string name="library_games_layout_carousel">Carusel</string>
     <string name="library_games_layout_list">Lista</string>
     <string name="library_games_view_options_header">OPȚIUNI DE VIZUALIZARE</string>
+    <string name="library_games_force_landscape">Forțează modul peisaj</string>
+    <string name="library_games_force_landscape_description">Menține aplicația în modul peisaj, ignorând rotirea dispozitivului</string>
     <string name="library_games_immersive_mode">Mod imersiv</string>
     <string name="library_games_immersive_mode_description">Folosește grafica jocului focalizat ca fundal</string>
     <string name="library_games_immersive_blur">Estompează fundalul</string>

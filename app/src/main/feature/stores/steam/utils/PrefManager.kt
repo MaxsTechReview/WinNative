@@ -276,6 +276,12 @@ object PrefManager {
             setString("library_content_filters", value)
         }
 
+    var libraryForceLandscape: Boolean
+        get() = getBoolean("library_force_landscape", false)
+        set(value) {
+            setBoolean("library_force_landscape", value)
+        }
+
     var libraryImmersiveMode: Boolean
         get() = getBoolean("library_immersive_mode", false)
         set(value) {

@@ -189,6 +189,8 @@
     <string name="library_games_layout_carousel">कैरोसेल</string>
     <string name="library_games_layout_list">सूची</string>
     <string name="library_games_view_options_header">दृश्य विकल्प</string>
+    <string name="library_games_force_landscape">लैंडस्केप बाध्य करें</string>
+    <string name="library_games_force_landscape_description">डिवाइस के घूमने को अनदेखा करके ऐप को लैंडस्केप में रखें</string>
     <string name="library_games_immersive_mode">इमर्सिव मोड</string>
     <string name="library_games_immersive_mode_description">फोकस किए गए गेम की आर्ट को बैकग्राउंड के रूप में उपयोग करें</string>
     <string name="library_games_immersive_blur">बैकग्राउंड धुंधला करें</string>

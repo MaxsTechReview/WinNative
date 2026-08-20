@@ -195,6 +195,8 @@
     <string name="library_games_layout_carousel">Karuzela</string>
     <string name="library_games_layout_list">Lista</string>
     <string name="library_games_view_options_header">OPCJE WIDOKU</string>
+    <string name="library_games_force_landscape">Wymuś orientację poziomą</string>
+    <string name="library_games_force_landscape_description">Utrzymuj aplikację w orientacji poziomej, ignorując obrót urządzenia</string>
     <string name="library_games_immersive_mode">Tryb immersyjny</string>
     <string name="library_games_immersive_mode_description">Użyj grafiki wybranej gry jako tła</string>
     <string name="library_games_immersive_blur">Rozmyj tło</string>

@@ -192,6 +192,8 @@
     <string name="library_games_layout_carousel">Karuselli</string>
     <string name="library_games_layout_list">Luettelo</string>
     <string name="library_games_view_options_header">NÄKYMÄASETUKSET</string>
+    <string name="library_games_force_landscape">Pakota vaakasuunta</string>
+    <string name="library_games_force_landscape_description">Pidä sovellus vaakasuunnassa laitteen kääntämisestä riippumatta</string>
     <string name="library_games_immersive_mode">Immersiivinen tila</string>
     <string name="library_games_immersive_mode_description">Käytä valitun pelin kuvitusta taustana</string>
     <string name="library_games_immersive_blur">Sumenna tausta</string>

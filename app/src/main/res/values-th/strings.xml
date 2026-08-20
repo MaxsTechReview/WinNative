@@ -192,6 +192,8 @@
     <string name="library_games_layout_carousel">คารูเซล</string>
     <string name="library_games_layout_list">รายการ</string>
     <string name="library_games_view_options_header">ตัวเลือกมุมมอง</string>
+    <string name="library_games_force_landscape">บังคับแนวนอน</string>
+    <string name="library_games_force_landscape_description">ให้แอปอยู่ในแนวนอนเสมอ โดยไม่สนใจการหมุนอุปกรณ์</string>
     <string name="library_games_immersive_mode">โหมดอิมเมอร์ซีฟ</string>
     <string name="library_games_immersive_mode_description">ใช้ภาพเกมที่โฟกัสเป็นพื้นหลัง</string>
     <string name="library_games_immersive_blur">เบลอพื้นหลัง</string>
