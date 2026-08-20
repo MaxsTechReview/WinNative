@@ -192,6 +192,8 @@
     <string name="library_games_layout_carousel">Karusell</string>
     <string name="library_games_layout_list">Liste</string>
     <string name="library_games_view_options_header">VISNINGSALTERNATIVER</string>
+    <string name="library_games_force_landscape">Tving liggende</string>
+    <string name="library_games_force_landscape_description">Hold appen i liggende modus og ignorer enhetsrotasjon</string>
     <string name="library_games_immersive_mode">Oppslukende modus</string>
     <string name="library_games_immersive_mode_description">Bruk fokusert spillkunst som bakgrunn</string>
     <string name="library_games_immersive_blur">Uskarp bakgrunn</string>

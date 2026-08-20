@@ -192,6 +192,8 @@
     <string name="library_games_layout_carousel">Carrossel</string>
     <string name="library_games_layout_list">Lista</string>
     <string name="library_games_view_options_header">OPÇÕES DE VISUALIZAÇÃO</string>
+    <string name="library_games_force_landscape">Forçar horizontal</string>
+    <string name="library_games_force_landscape_description">Manter a app na horizontal, ignorando a rotação do dispositivo</string>
     <string name="library_games_immersive_mode">Modo Imersivo</string>
     <string name="library_games_immersive_mode_description">Usar a arte do jogo em foco como fundo</string>
     <string name="library_games_immersive_blur">Desfocar Fundo</string>

@@ -191,6 +191,8 @@
     <string name="library_games_layout_carousel">輪播</string>
     <string name="library_games_layout_list">清單</string>
     <string name="library_games_view_options_header">檢視選項</string>
+    <string name="library_games_force_landscape">強制橫向</string>
+    <string name="library_games_force_landscape_description">忽略裝置旋轉，始終以橫向顯示應用程式</string>
     <string name="library_games_immersive_mode">沉浸模式</string>
     <string name="library_games_immersive_mode_description">將目前聚焦遊戲的美術圖用作背景</string>
     <string name="library_games_immersive_blur">模糊背景</string>

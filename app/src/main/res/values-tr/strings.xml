@@ -192,6 +192,8 @@
     <string name="library_games_layout_carousel">Atlıkarınca</string>
     <string name="library_games_layout_list">Liste</string>
     <string name="library_games_view_options_header">GÖRÜNÜM SEÇENEKLERİ</string>
+    <string name="library_games_force_landscape">Yatay modu zorla</string>
+    <string name="library_games_force_landscape_description">Cihaz döndürmesini yok sayarak uygulamayı yatay modda tut</string>
     <string name="library_games_immersive_mode">Sürükleyici Mod</string>
     <string name="library_games_immersive_mode_description">Odaklanılan oyun görselini arka plan olarak kullan</string>
     <string name="library_games_immersive_blur">Arka Planı Bulanıklaştır</string>

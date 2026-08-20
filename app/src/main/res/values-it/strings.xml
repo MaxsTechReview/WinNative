@@ -191,6 +191,8 @@
     <string name="library_games_layout_carousel">Carosello</string>
     <string name="library_games_layout_list">Lista</string>
     <string name="library_games_view_options_header">OPZIONI DI VISUALIZZAZIONE</string>
+    <string name="library_games_force_landscape">Forza orizzontale</string>
+    <string name="library_games_force_landscape_description">Mantieni l\'app in orizzontale, ignorando la rotazione del dispositivo</string>
     <string name="library_games_immersive_mode">Modalità immersiva</string>
     <string name="library_games_immersive_mode_description">Usa l’immagine del gioco selezionato come sfondo</string>
     <string name="library_games_immersive_blur">Sfoca lo sfondo</string>
