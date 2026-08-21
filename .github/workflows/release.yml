@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       notes_file:
-        description: 'Release notes markdown committed in the repo, e.g. release-notes/Release_Notes_0.4.0-beta.md (a bare filename is also looked up under release-notes/). Blank: use release-notes/Release_Notes_<version>.md if present, otherwise generate from commits.'
+        description: 'Optional markdown committed in the repo to place above the generated changelog, e.g. release-notes/Release_Notes_0.4.0-beta.md (a bare filename is also looked up under release-notes/). Blank: use release-notes/Release_Notes_<version>.md if present. The What''s Changed changelog is always appended either way.'
         required: false
         type: string
         default: ''
@@ -276,25 +276,58 @@ jobs:
           prev_tag=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 1 \
             --exclude-drafts --json tagName --jq '.[0].tagName // ""')
 
-          if [ -n "$resolved" ]; then
-            echo "Using notes from $resolved"
-            cp "$resolved" notes.md
-          else
-            echo "No notes file; generating a changelog from commits"
-            {
-              printf '## Changes\n\n'
-              if [ -n "$prev_tag" ] && git rev-parse -q --verify "refs/tags/$prev_tag" >/dev/null; then
-                git log --pretty='- %s' "refs/tags/$prev_tag..HEAD"
-              else
-                git log --pretty='- %s' -50
-              fi
-            } > notes.md
+          generate=(gh api --method POST "repos/$GITHUB_REPOSITORY/releases/generate-notes"
+            -f "tag_name=$VERSION" -f "target_commitish=$GITHUB_SHA")
+          if [ -n "$prev_tag" ]; then
+            generate+=(-f "previous_tag_name=$prev_tag")
           fi
 
-          if [ -n "$prev_tag" ] && ! grep -q 'Full Changelog' notes.md; then
-            printf '\n**Full Changelog**: https://github.com/%s/compare/%s...%s\n' \
-              "$GITHUB_REPOSITORY" "$prev_tag" "$VERSION" >> notes.md
+          if ! "${generate[@]}" --jq '.body' > generated.md; then
+            echo "::warning::GitHub declined to generate release notes; falling back to commit subjects"
+            : > generated.md
           fi
+
+          changelog_line=$(grep -m1 '^\*\*Full Changelog\*\*' generated.md || true)
+          if [ -z "$changelog_line" ]; then
+            if [ -n "$prev_tag" ]; then
+              changelog_line="**Full Changelog**: https://github.com/$GITHUB_REPOSITORY/compare/$prev_tag...$VERSION"
+            else
+              changelog_line="**Full Changelog**: https://github.com/$GITHUB_REPOSITORY/commits/$VERSION"
+            fi
+          fi
+
+          if ! grep -q "^## What's Changed" generated.md; then
+            echo "No pull requests in range; listing commit subjects instead"
+            {
+              printf "## What's Changed\n\n"
+              if [ -n "$prev_tag" ] && git rev-parse -q --verify "refs/tags/$prev_tag" >/dev/null; then
+                git log --pretty='* %s' "refs/tags/$prev_tag..HEAD"
+              else
+                git log --pretty='* %s' -50
+              fi
+              printf '\n%s\n' "$changelog_line"
+            } > generated.md
+          fi
+
+          if [ -n "$resolved" ]; then
+            echo "Prepending notes from $resolved"
+            {
+              awk '
+                { lines[n++] = $0 }
+                END {
+                  while (n > 0 && (lines[n-1] == "" || lines[n-1] ~ /^\*\*Full Changelog\*\*/)) n--
+                  for (i = 0; i < n; i++) print lines[i]
+                }
+              ' "$resolved"
+              printf '\n'
+              cat generated.md
+            } > notes.md
+          else
+            mv generated.md notes.md
+          fi
+
+          echo "--- release notes ---"
+          cat notes.md
 
       - name: Create release
         env:

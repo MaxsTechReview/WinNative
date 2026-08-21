@@ -4,6 +4,10 @@ import android.app.Activity
 import android.content.pm.ActivityInfo
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager
 
+interface LandscapeOnlyActivity
+
+interface SelfManagedOrientationActivity
+
 object OrientationLock {
     private val listeners = mutableListOf<() -> Unit>()
 
@@ -25,8 +29,9 @@ object OrientationLock {
 }
 
 fun Activity.applyOrientationLock() {
+    if (this is SelfManagedOrientationActivity) return
     val requested =
-        if (OrientationLock.forceLandscape) {
+        if (this is LandscapeOnlyActivity || OrientationLock.forceLandscape) {
             ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         } else {
             ActivityInfo.SCREEN_ORIENTATION_FULL_USER
