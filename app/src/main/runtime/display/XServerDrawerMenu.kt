@@ -563,6 +563,11 @@ private val ActionCardSpacing = 8.dp
 private const val ActionCardRevealStaggerMs = 28
 private const val ActionCardRevealDurationMs = 220
 
+internal val FrameGenMultipliers = listOf(2, 3, 4)
+internal val FrameGenTargetRates = listOf(60, 90, 120, 144, 165)
+internal const val FrameGenFlowScaleMin = 25
+internal const val FrameGenFlowScaleMax = 100
+
 data class XServerDrawerItem(
     val itemId: Int,
     val title: String,
@@ -608,6 +613,11 @@ data class XServerDrawerState(
     val gyroscopeCardExpanded: Boolean = false,
     val fpsLimit: Int = 0,
     val maxRefreshRate: Int = 60,
+    val frameGenAvailable: Boolean = false,
+    val frameGenEnabled: Boolean = false,
+    val frameGenMultiplier: Int = 2,
+    val frameGenTargetRate: Int = 0,
+    val frameGenFlowScale: Int = 100,
     val screenEffectsCardExpanded: Boolean = false,
     val sgsrEnabled: Boolean = false,
     val sgsrSharpness: Int = 100,
@@ -1014,6 +1024,14 @@ interface XServerDrawerActionListener {
     fun onGyroscopeCardExpandedChanged(expanded: Boolean)
 
     fun onFPSLimitChanged(limit: Int)
+
+    fun onFrameGenEnabledChanged(enabled: Boolean)
+
+    fun onFrameGenMultiplierSelected(multiplier: Int)
+
+    fun onFrameGenTargetRateSelected(rate: Int)
+
+    fun onFrameGenFlowScaleChanged(percent: Int)
 
     fun onScreenEffectsCardExpandedChanged(expanded: Boolean)
 
@@ -1461,6 +1479,30 @@ fun setupXServerDrawerComposeView(
         }
     }
 }
+
+fun withFrameGenState(
+    state: XServerDrawerState,
+    available: Boolean,
+    enabled: Boolean,
+    multiplier: Int,
+    targetRate: Int,
+    flowScale: Int,
+): XServerDrawerState =
+    state.copy(
+        items =
+            if (!enabled) {
+                state.items
+            } else {
+                state.items.map {
+                    if (it.itemId == R.id.main_menu_screen_effects) it.copy(active = true) else it
+                }
+            },
+        frameGenAvailable = available,
+        frameGenEnabled = enabled,
+        frameGenMultiplier = multiplier.coerceIn(2, FrameGenMultipliers.last()),
+        frameGenTargetRate = targetRate.coerceAtLeast(0),
+        frameGenFlowScale = flowScale.coerceIn(FrameGenFlowScaleMin, FrameGenFlowScaleMax),
+    )
 
 // Append the always-present "Output" tab item and its state to the drawer state.
 fun withOutputState(

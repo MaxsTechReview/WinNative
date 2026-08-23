@@ -217,7 +217,6 @@ public class VulkanRenderer
                 if (requestedScaleFilter != SCALE_FILTER_OFF) {
                     nativeSetScaleFilter(nativeHandle, requestedScaleFilter);
                 }
-                // Shaders and cadence first: enabling is what actually builds the chain.
                 if (frameGenerationShaderCache != null) {
                     nativeSetFrameGenerationShaders(nativeHandle, frameGenerationShaderCache);
                 }
@@ -905,14 +904,23 @@ public class VulkanRenderer
     }
 
     public void setFrameGenerationShaders(String cachePath) {
+        if (java.util.Objects.equals(frameGenerationShaderCache, cachePath)) return;
         frameGenerationShaderCache = cachePath;
         if (nativeHandle != 0) nativeSetFrameGenerationShaders(nativeHandle, cachePath);
     }
 
     public void setFrameGenerationMode(int multiplier, int targetRate, int flowScalePercent) {
-        frameGenerationMultiplier = Math.max(2, multiplier);
-        frameGenerationTargetRate = Math.max(0, targetRate);
-        frameGenerationFlowScale = flowScalePercent <= 0 ? 100 : flowScalePercent;
+        int wantMultiplier = Math.max(2, multiplier);
+        int wantTargetRate = Math.max(0, targetRate);
+        int wantFlowScale = flowScalePercent <= 0 ? 100 : flowScalePercent;
+        if (wantMultiplier == frameGenerationMultiplier
+                && wantTargetRate == frameGenerationTargetRate
+                && wantFlowScale == frameGenerationFlowScale) {
+            return;
+        }
+        frameGenerationMultiplier = wantMultiplier;
+        frameGenerationTargetRate = wantTargetRate;
+        frameGenerationFlowScale = wantFlowScale;
         if (nativeHandle != 0) {
             nativeSetFrameGenerationMode(nativeHandle, frameGenerationMultiplier,
                     frameGenerationTargetRate, frameGenerationFlowScale);

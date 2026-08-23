@@ -73,6 +73,8 @@ static void blit_composite_to_swapchain(VkRenderer* r, VkCommandBuffer cmd,
                                         VkCompositeTarget* src, VkImage dst);
 static void create_lsfg(VkRenderer* r);
 static void destroy_lsfg(VkRenderer* r);
+static uint32_t framegen_extra_images(const VkRenderer* r);
+static void framegen_rebuild_swapchain(VkRenderer* r);
 static bool create_quad_vbo(VkRenderer* r);
 static void destroy_quad_vbo(VkRenderer* r);
 static bool is_plain_rotation_transform(VkSurfaceTransformFlagBitsKHR transform);
@@ -1248,16 +1250,7 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
             surface_extent.width, surface_extent.height, extent.width, extent.height,
             caps.currentTransform, pre_transform);
 
-    uint32_t image_count = caps.minImageCount + 1;
-    // One extra image per generated frame, because each is held acquired until it is presented.
-    // Sized to the configured multiplier rather than the maximum: under FIFO every surplus image
-    // is another queued frame between render and scanout, which is felt directly as input lag.
-    if (r->framegen_requested) {
-        uint32_t generations = r->framegen_multiplier > 1 ? r->framegen_multiplier - 1 : 1;
-        if (r->framegen_target_rate != 0) generations = VKR_LSFG_MAX_GENERATIONS;
-        if (generations > VKR_LSFG_MAX_GENERATIONS) generations = VKR_LSFG_MAX_GENERATIONS;
-        image_count += generations;
-    }
+    uint32_t image_count = caps.minImageCount + 1 + framegen_extra_images(r);
     if (caps.maxImageCount > 0 && image_count > caps.maxImageCount) image_count = caps.maxImageCount;
     if (image_count > VK_MAX_SWAPCHAIN_IMAGES) image_count = VK_MAX_SWAPCHAIN_IMAGES;
 
@@ -1861,6 +1854,36 @@ static void create_lsfg(VkRenderer* r) {
                        r->framegen_flow_scale > 0.0f ? r->framegen_flow_scale : 1.0f);
 }
 
+static uint32_t framegen_extra_images(const VkRenderer* r) {
+    if (!r->framegen_requested) return 0;
+    if (r->framegen_target_rate != 0) return VKR_LSFG_MAX_GENERATIONS;
+
+    uint32_t generations = r->framegen_multiplier > 1 ? r->framegen_multiplier - 1 : 1;
+    return generations > VKR_LSFG_MAX_GENERATIONS ? VKR_LSFG_MAX_GENERATIONS : generations;
+}
+
+static void framegen_rebuild_swapchain(VkRenderer* r) {
+    if (!r->surface || !r->swapchain) return;
+
+    pthread_mutex_lock(&r->scene_mutex);
+    r->surface_ready = false;
+    pthread_mutex_unlock(&r->scene_mutex);
+
+    if (r->device) vkDeviceWaitIdle(r->device);
+    uint32_t fw = r->surface_extent.width;
+    uint32_t fh = r->surface_extent.height;
+    destroy_sgsr1_resources(r);
+    destroy_offscreen(r);
+    destroy_swapchain(r);
+    if (!create_swapchain(r, fw, fh)) {
+        VK_LOGE("Swapchain re-create failed for frame generation");
+        return;
+    }
+    pthread_mutex_lock(&r->scene_mutex);
+    r->surface_ready = true;
+    pthread_mutex_unlock(&r->scene_mutex);
+}
+
 static void blit_composite_to_swapchain(VkRenderer* r, VkCommandBuffer cmd,
                                         VkCompositeTarget* src, VkImage dst) {
     vkr_image_barrier(cmd, dst,
@@ -2407,10 +2430,6 @@ static bool record_and_submit_frame(VkRenderer* r) {
     bool via_composite = r->framegen_requested && r->framegen_supported
                       && r->swapchain_transfer_dst;
 
-    // A generated frame occupies a swapchain image between the previous real frame and this one,
-    // so the pacer may never claim more than the swapchain can spare while still leaving one
-    // image for the presentation engine. Each generated frame also needs its own composite target
-    // to be written into by compute before it is blitted out.
     uint32_t framegen_capacity = 0;
     if (via_composite && r->lsfg && r->swapchain_image_count > 2) {
         framegen_capacity = r->swapchain_image_count - 2;
@@ -2440,7 +2459,6 @@ static bool record_and_submit_frame(VkRenderer* r) {
                 via_composite = false;
                 framegen_capacity = 0;
             } else if (r->lsfg) {
-                // Composite views are new even when the chain survives, so drop the cached ones.
                 vkr_lsfg_forget_targets(r->lsfg);
                 if (!vkr_lsfg_prepare(r->lsfg, r->swapchain_extent.width,
                                       r->swapchain_extent.height, r->swapchain_format)) {
@@ -2453,7 +2471,6 @@ static bool record_and_submit_frame(VkRenderer* r) {
         destroy_composite_targets(r);
     }
 
-    // Fed every frame even when it returns zero, so the pacer keeps a live interval model.
     if (via_composite && r->lsfg) {
         vkr_lsfg_plan(r->lsfg, framegen_capacity);
     }
@@ -2613,8 +2630,6 @@ static bool record_and_submit_frame(VkRenderer* r) {
             uint32_t want = vkr_lsfg_generated_count(r->lsfg);
             if (want > framegen_capacity) want = framegen_capacity;
 
-            // Bounded acquire: a busy presentation engine costs us the generated frames for this
-            // cycle rather than stalling the render thread holding render_mutex.
             for (uint32_t g = 0; g < want; g++) {
                 uint32_t idx = 0;
                 VkResult ga = vkAcquireNextImageKHR(r->device, r->swapchain, 8000000ULL,
@@ -2707,8 +2722,6 @@ static bool record_and_submit_frame(VkRenderer* r) {
 
     vkEndCommandBuffer(f->cmd);
 
-    // One submit covers the real frame, every generated frame and the recording mirror, so each
-    // acquired image contributes a wait and each presented image a signal.
     #define VK_MAX_FRAME_SEMAPHORES (2 + VKR_LSFG_MAX_GENERATIONS)
     VkSemaphore wait_sems[VK_MAX_FRAME_SEMAPHORES];
     VkPipelineStageFlags wait_stages[VK_MAX_FRAME_SEMAPHORES];
@@ -2772,8 +2785,6 @@ static bool record_and_submit_frame(VkRenderer* r) {
     pi.pImageIndices = &image_index;
 
     pthread_mutex_lock(&r->queue_mutex);
-    // Generated frames sit between the previous real frame and this one, so they are queued
-    // first; FIFO then paces them out one vblank apart ahead of the real frame below.
     for (uint32_t g = 0; g < gen_count; g++) {
         VkPresentInfoKHR gpi = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
         gpi.waitSemaphoreCount = 1;
@@ -3472,22 +3483,7 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenerationEnabled)(JNIEnv* env, jcla
     } else if (r->device && r->lsfg_cache_path) {
         create_lsfg(r);
     }
-    if (r->surface && r->swapchain) {
-        lifecycle_begin(r);
-        if (r->device) vkDeviceWaitIdle(r->device);
-        uint32_t fw = r->surface_extent.width;
-        uint32_t fh = r->surface_extent.height;
-        destroy_sgsr1_resources(r);
-        destroy_offscreen(r);
-        destroy_swapchain(r);
-        if (!create_swapchain(r, fw, fh)) {
-            VK_LOGE("Swapchain re-create failed in nativeSetFrameGenerationEnabled");
-        } else {
-            pthread_mutex_lock(&r->scene_mutex);
-            r->surface_ready = true;
-            pthread_mutex_unlock(&r->scene_mutex);
-        }
-    }
+    framegen_rebuild_swapchain(r);
     pthread_mutex_unlock(&r->render_mutex);
     VK_LOGI("Frame generation composite path %s (supported=%d)",
             want ? "enabled" : "disabled", (int)r->framegen_supported);
@@ -3501,8 +3497,6 @@ JNIEXPORT jboolean JNICALL JNI_FN(nativeIsFrameGenerationSupported)(JNIEnv* env,
     return r->framegen_supported ? JNI_TRUE : JNI_FALSE;
 }
 
-// The cache is the SPIR-V set already extracted from Lossless.dll by LosslessScaling.java.
-// Setting it does not enable frame generation; nativeSetFrameGenerationEnabled does.
 JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenerationShaders)(JNIEnv* env, jclass clazz,
                                                                jlong handle, jstring cachePath) {
     (void)clazz;
@@ -3526,8 +3520,6 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenerationShaders)(JNIEnv* env, jcla
     pthread_mutex_unlock(&r->render_mutex);
 }
 
-// multiplier 2..4 fixes the output cadence; a non-zero targetRate hands pacing to the probe
-// loop instead, which climbs toward that rate only while it measurably pays off.
 JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenerationMode)(JNIEnv* env, jclass clazz,
                                                             jlong handle, jint multiplier,
                                                             jint targetRate, jint flowScalePct) {
@@ -3536,12 +3528,17 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenerationMode)(JNIEnv* env, jclass 
     if (!r) return;
 
     pthread_mutex_lock(&r->render_mutex);
+    const uint32_t previous_images = framegen_extra_images(r);
     r->framegen_multiplier = multiplier < 2 ? 2u : (uint32_t)multiplier;
     r->framegen_target_rate = targetRate < 0 ? 0u : (uint32_t)targetRate;
     r->framegen_flow_scale = flowScalePct <= 0 ? 1.0f : (float)flowScalePct / 100.0f;
     if (r->lsfg) {
         vkr_lsfg_configure(r->lsfg, r->framegen_multiplier, r->framegen_target_rate,
                            r->framegen_flow_scale);
+    }
+    if (framegen_extra_images(r) != previous_images) {
+        wait_inflight_frames(r);
+        framegen_rebuild_swapchain(r);
     }
     pthread_mutex_unlock(&r->render_mutex);
 }

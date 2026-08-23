@@ -36,8 +36,6 @@ void vkr_lsfg_generate_into(VkrLsfg* lsfg, VkCommandBuffer cmd, uint32_t generat
                             uint32_t target_index, VkImage target_image, VkImageView target_view,
                             uint32_t width, uint32_t height);
 
-// Call whenever the composite targets are recreated: the generate pass caches the last view it
-// bound per target slot and would otherwise keep descriptors pointing at destroyed views.
 void vkr_lsfg_forget_targets(VkrLsfg* lsfg);
 
 void vkr_lsfg_reset(VkrLsfg* lsfg);

@@ -447,6 +447,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
     private boolean frametimeNumericMode = false;
     private boolean hudCardExpanded = false;
     private boolean screenEffectsCardExpanded = false;
+    private boolean frameGenEnabled = false;
+    private int frameGenMultiplier = 2;
+    private int frameGenTargetRate = 0;
+    private int frameGenFlowScale = 100;
+    private String frameGenCachePath = null;
     private boolean sgsrEnabled = false;
     private boolean sgsrRuntimeEnabled = false;
     private int sgsrUpscaleMode = 1;
@@ -731,39 +736,85 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         return shortcut != null ? shortcut.getSettingExtra(key, containerValue) : containerValue;
     }
 
-    // Frame generation needs the extracted Lossless shader cache, a GPU that clears the probe, and
-    // an explicit opt-in. Any one missing leaves the renderer on its normal single-present path.
     private void applyFrameGenerationSettings(VulkanRenderer renderer, Container container) {
         if (renderer == null) return;
 
         String containerValue = container != null ? container.getExtra("frameGen", "0") : "0";
-        boolean wanted = "1".equals(getShortcutSetting("frameGen", containerValue));
-        if (!wanted) {
-            renderer.setFrameGenerationEnabled(false);
-            return;
-        }
-
-        java.io.File cache = com.winlator.cmod.runtime.display.lsfg.LosslessScaling
-                .resolveCacheFile(this, true);
-        if (cache == null) {
-            Log.w("XServerDisplayActivity", "frameGen requested but no Lossless shader cache");
-            renderer.setFrameGenerationEnabled(false);
-            return;
-        }
-
         String containerMultiplier = container != null ? container.getExtra("frameGenMultiplier", "2") : "2";
         String containerTargetRate = container != null ? container.getExtra("frameGenTargetRate", "0") : "0";
         String containerFlowScale = container != null ? container.getExtra("frameGenFlowScale", "100") : "100";
 
-        int multiplier = parseSettingInt(getShortcutSetting("frameGenMultiplier", containerMultiplier), 2);
-        int targetRate = parseSettingInt(getShortcutSetting("frameGenTargetRate", containerTargetRate), 0);
-        int flowScale = parseSettingInt(getShortcutSetting("frameGenFlowScale", containerFlowScale), 100);
+        frameGenEnabled = "1".equals(getShortcutSetting("frameGen", containerValue));
+        frameGenMultiplier = clampFrameGenMultiplier(
+                parseSettingInt(getShortcutSetting("frameGenMultiplier", containerMultiplier), 2));
+        frameGenTargetRate = Math.max(0,
+                parseSettingInt(getShortcutSetting("frameGenTargetRate", containerTargetRate), 0));
+        frameGenFlowScale = clampFrameGenFlowScale(
+                parseSettingInt(getShortcutSetting("frameGenFlowScale", containerFlowScale), 100));
 
-        renderer.setFrameGenerationShaders(cache.getAbsolutePath());
-        renderer.setFrameGenerationMode(multiplier, targetRate, flowScale);
+        java.io.File cache = com.winlator.cmod.runtime.display.lsfg.LosslessScaling
+                .resolveCacheFile(this, true);
+        frameGenCachePath = cache != null ? cache.getAbsolutePath() : null;
+        if (frameGenCachePath == null) {
+            if (frameGenEnabled) {
+                Log.w("XServerDisplayActivity", "frameGen requested but no Lossless shader cache");
+            }
+            frameGenEnabled = false;
+        }
+
+        applyFrameGeneration(renderer);
+    }
+
+    private void applyFrameGeneration(VulkanRenderer renderer) {
+        if (renderer == null) return;
+
+        if (!frameGenEnabled || frameGenCachePath == null) {
+            renderer.setFrameGenerationEnabled(false);
+            return;
+        }
+
+        renderer.setFrameGenerationShaders(frameGenCachePath);
+        renderer.setFrameGenerationMode(frameGenMultiplier, frameGenTargetRate, frameGenFlowScale);
         renderer.setFrameGenerationEnabled(true);
-        Log.i("XServerDisplayActivity", "Frame generation on: multiplier=" + multiplier
-                + " targetRate=" + targetRate + " flowScale=" + flowScale);
+        Log.i("XServerDisplayActivity", "Frame generation on: multiplier=" + frameGenMultiplier
+                + " targetRate=" + frameGenTargetRate + " flowScale=" + frameGenFlowScale);
+    }
+
+    private void applyFrameGenerationLive() {
+        applyFrameGeneration(xServerView != null ? xServerView.getRenderer() : null);
+        saveFrameGenerationSettings();
+        renderDrawerMenu();
+    }
+
+    private void saveFrameGenerationSettings() {
+        if (shortcut != null) {
+            if (frameGenEnabled) {
+                shortcut.putExtra("frameGen", "1");
+                shortcut.putExtra("frameGenMultiplier", String.valueOf(frameGenMultiplier));
+                shortcut.putExtra("frameGenTargetRate", String.valueOf(frameGenTargetRate));
+                shortcut.putExtra("frameGenFlowScale", String.valueOf(frameGenFlowScale));
+            } else {
+                shortcut.putExtra("frameGen", null);
+                shortcut.putExtra("frameGenMultiplier", null);
+                shortcut.putExtra("frameGenTargetRate", null);
+                shortcut.putExtra("frameGenFlowScale", null);
+            }
+            shortcut.saveData();
+        } else if (container != null) {
+            container.putExtra("frameGen", frameGenEnabled ? "1" : "0");
+            container.putExtra("frameGenMultiplier", String.valueOf(frameGenMultiplier));
+            container.putExtra("frameGenTargetRate", String.valueOf(frameGenTargetRate));
+            container.putExtra("frameGenFlowScale", String.valueOf(frameGenFlowScale));
+            container.saveData();
+        }
+    }
+
+    private static int clampFrameGenMultiplier(int value) {
+        return Math.max(2, Math.min(4, value));
+    }
+
+    private static int clampFrameGenFlowScale(int value) {
+        return Math.max(25, Math.min(100, value));
     }
 
     private static int parseSettingInt(String value, int fallback) {
@@ -4321,6 +4372,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 MangoHudView.lockedFromPrefs(preferences)
         );
 
+        state = XServerDrawerMenuKt.withFrameGenState(
+                state,
+                frameGenCachePath != null,
+                frameGenEnabled,
+                frameGenMultiplier,
+                frameGenTargetRate,
+                frameGenFlowScale);
+
         // Always-present "Output" tab (live controls while swapped, otherwise a Cast entry point).
         if (externalDisplayController != null) {
             boolean swapped = externalDisplayController.isSwapActive();
@@ -4690,6 +4749,31 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                     @Override
                     public void onOutputCastClick() {
                         launchWirelessDisplayPicker();
+                    }
+
+                    @Override
+                    public void onFrameGenEnabledChanged(boolean enabled) {
+                        if (enabled && frameGenCachePath == null) return;
+                        frameGenEnabled = enabled;
+                        applyFrameGenerationLive();
+                    }
+
+                    @Override
+                    public void onFrameGenMultiplierSelected(int multiplier) {
+                        frameGenMultiplier = clampFrameGenMultiplier(multiplier);
+                        applyFrameGenerationLive();
+                    }
+
+                    @Override
+                    public void onFrameGenTargetRateSelected(int rate) {
+                        frameGenTargetRate = Math.max(0, rate);
+                        applyFrameGenerationLive();
+                    }
+
+                    @Override
+                    public void onFrameGenFlowScaleChanged(int percent) {
+                        frameGenFlowScale = clampFrameGenFlowScale(percent);
+                        applyFrameGenerationLive();
                     }
 
                     @Override

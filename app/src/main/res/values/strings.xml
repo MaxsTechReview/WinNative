@@ -765,6 +765,17 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_upscaler_mode">Upscaler</string>
     <string name="session_drawer_upscaler_fsr">SGSR 1</string>
     <string name="session_drawer_sgsr_edge_sharpness">Edge Sharpness</string>
+    <string name="session_drawer_frame_generation">Frame Generation</string>
+    <string name="session_drawer_frame_generation_enable">Generate Frames</string>
+    <string name="session_drawer_frame_generation_multiplier">Multiplier</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">Adaptive Target</string>
+    <string name="session_drawer_frame_generation_target_off">Fixed</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_flow_scale">Flow Scale</string>
+    <string name="session_drawer_frame_generation_note">Interpolates between rendered frames with Lossless Scaling. Smoother motion, but one extra frame of input latency.</string>
+    <string name="session_drawer_frame_generation_target_note">Climbs toward the target only while it measurably helps, instead of holding a fixed multiplier.</string>
+    <string name="session_drawer_frame_generation_missing">Install Lossless Scaling in container settings to use frame generation.</string>
     <string name="session_drawer_vivid">Vivid</string>
     <string name="session_drawer_vivid_strength">Vivid Strength</string>
     <string name="session_drawer_color_profile">Color Effect</string>
