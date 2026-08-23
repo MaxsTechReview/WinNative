@@ -15,6 +15,7 @@ using Clock = std::chrono::steady_clock;
 
 constexpr float INTERVAL_SMOOTHING = 0.25f;
 constexpr float MINIMUM_BASE_RATE = 10.0f;
+constexpr float FIXED_DISCONTINUITY_SECONDS = 0.25f;
 constexpr float BURST_CADENCE_RATIO = 3.0f;
 constexpr float BURST_TARGET_RATIO = 2.0f;
 constexpr float PROBE_THROUGHPUT_TOLERANCE = 0.95f;
@@ -76,6 +77,17 @@ LsfgPlan LsfgPacer::Plan(size_t capacity) {
 
     const float target_rate = static_cast<float>(config.target_rate);
 
+    if (target_rate == 0.0f) {
+        output_credit = 0.0f;
+        if (interval_seconds > FIXED_DISCONTINUITY_SECONDS) {
+            issued_generations = 0;
+            return {};
+        }
+        limit = ceiling;
+        issued_generations = limit;
+        return LsfgPlan{limit, limit > 0};
+    }
+
     if (smoothed_interval > 0.0f) {
         float burst_threshold = BURST_CADENCE_RATIO / smoothed_interval;
         if (target_rate > 0.0f) {
@@ -111,13 +123,6 @@ LsfgPlan LsfgPacer::Plan(size_t capacity) {
             return {};
         }
         stable_until.reset();
-    }
-
-    if (target_rate == 0.0f) {
-        limit = std::min(MaxGenerations(), ceiling);
-        output_credit = 0.0f;
-        issued_generations = limit;
-        return LsfgPlan{limit, limit > 0};
     }
 
     UpdateLimit(now, 1.0f / smoothed_interval, target_rate, ceiling);

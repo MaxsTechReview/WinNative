@@ -752,6 +752,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         frameGenFlowScale = clampFrameGenFlowScale(
                 parseSettingInt(getShortcutSetting("frameGenFlowScale", containerFlowScale), 100));
 
+        if (frameGenEnabled) {
+            int result = com.winlator.cmod.feature.library.LosslessAutoImport.INSTANCE.sync(this).getResult();
+            if (result != com.winlator.cmod.feature.library.LosslessAutoImport.RESULT_READY) {
+                Log.i("XServerDisplayActivity", "Lossless shader sync at launch: result=" + result);
+            }
+        }
+
         java.io.File cache = com.winlator.cmod.runtime.display.lsfg.LosslessScaling
                 .resolveCacheFile(this, true);
         frameGenCachePath = cache != null ? cache.getAbsolutePath() : null;

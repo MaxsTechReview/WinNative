@@ -423,6 +423,7 @@ typedef struct VkRenderer {
     float             framegen_flow_scale;
     uint64_t          framegen_real_frames;
     uint64_t          framegen_made_frames;
+    uint64_t          framegen_acquire_misses;
 
     // record_blit_src adds TRANSFER_SRC usage to the display swapchain (toggled by start/stop recording).
     bool             record_blit_src;

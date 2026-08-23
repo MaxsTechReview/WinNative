@@ -1310,6 +1310,8 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
     }
     r->swapchain_image_count = got;
     r->framegen_supported = transfer_dst_capable && composite_format_supported(r);
+    VK_LOGI("Swapchain images requested=%u actual=%u caps.min=%u caps.max=%u framegen_extra=%u",
+            image_count, got, caps.minImageCount, caps.maxImageCount, framegen_extra_images(r));
 
     if (!r->pipelines_built) {
         if (!create_pipelines(r)) goto fail;
@@ -2635,7 +2637,14 @@ static bool record_and_submit_frame(VkRenderer* r) {
                 VkResult ga = vkAcquireNextImageKHR(r->device, r->swapchain, 8000000ULL,
                                                     f->image_available_gen[g], VK_NULL_HANDLE,
                                                     &idx);
-                if (ga != VK_SUCCESS && ga != VK_SUBOPTIMAL_KHR) break;
+                if (ga != VK_SUCCESS && ga != VK_SUBOPTIMAL_KHR) {
+                    if (r->framegen_acquire_misses++ % 120 == 0) {
+                        VK_LOGW("Generated frame %u/%u dropped: acquire returned %d "
+                                "(swapchain images=%u capacity=%u)",
+                                g + 1, want, (int)ga, r->swapchain_image_count, framegen_capacity);
+                    }
+                    break;
+                }
                 gen_image_index[gen_count++] = idx;
             }
 
