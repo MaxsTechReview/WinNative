@@ -25,9 +25,7 @@ public final class LosslessScaling {
     public static final int STATUS_MISSING_SHADERS = 4;
     public static final int STATUS_TRANSLATION_FAILED = 5;
     public static final int STATUS_CACHE_UNUSABLE = 6;
-    public static final int STATUS_DLL_TOO_OLD = 7;
-
-    public static final String MIN_LOSSLESS_VERSION = "3.2.2";
+    public static final int STATUS_NO_SPIRV_VARIANTS = 7;
 
     public static final int VARIANT_NONE = 0;
     public static final int VARIANT_FP16 = 1;

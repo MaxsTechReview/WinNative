@@ -503,9 +503,9 @@ static bool has_base_chain(const ResourceTable* table) {
 
 static LsfgStatus classify_missing_variant(const ResourceTable* table) {
     if (!has_base_chain(table)) return LSFG_MISSING_SHADERS;
-    LSFG_LOGW("Lossless.dll carries the shader chain but no precompiled SPIR-V variants; "
-              "version %s or newer is required", LSFG_MIN_LOSSLESS_VERSION);
-    return LSFG_DLL_TOO_OLD;
+    LSFG_LOGW("Lossless.dll carries the DXBC shader chain but no precompiled SPIR-V variants; "
+              "a DXBC translator is required for this build");
+    return LSFG_NO_SPIRV_VARIANTS;
 }
 
 static uint32_t variant_offset(LsfgVariant variant) {

@@ -61,13 +61,29 @@ dropped the translator outright (commit `6dd3098 Remove requirement on dxbc`).
 Upstream `lsfg-vk` still carries DXVK's `dxbc` because it also supports older
 builds — `src/extract/trans.cpp` runs `dxvk::DxbcModule` over the base IDs.
 
-**This makes 3.2.2 a hard floor for us.** Verified against a real install:
-Lossless Scaling 3.2.1.0 carries RCDATA IDs 101–302, all DXBC, and none of the
-`+49`/`+98` variants. The alternative to requiring 3.2.2 is vendoring DXVK's
-DXBC translator, which is a far larger dependency than the ~250-line PE walk
-and is not worth it to support a single superseded version.
+**Those blobs are not obtainable from Steam today, so a DXBC translator is
+required.** Measured on device against a fresh download of the current build:
 
-The port therefore needs only the resource walk, not a shader compiler.
+- `Lossless.dll` (5,435,904 bytes, FileVersion 3.2.1.0) carries RCDATA IDs
+  101–302, **all 202 of them DXBC**, and none of the `+49`/`+98` variants.
+- Scanning the **entire 311 MB / 456-file install** for the SPIR-V magic word
+  returns **zero occurrences** — the blobs are not hiding in another file.
+- The public branch is `buildId 19655272`, last updated 2025-08-19, and the
+  installed manifests match its PICS gids exactly, so this *is* the current
+  build, not a stale download. Every other branch (`beta`, `linux_testing`,
+  `legacy_*`) is older; `linux_testing` is byte-identical to `public` on depot
+  993091. There is nothing newer to fetch.
+
+This matches what the working Android implementation actually does: upstream
+`lsfg-vk` and its Android fork run the **DXBC path by default**, linking
+DXVK's `dxbc` in `src/extract/trans.cpp`, and treat the precompiled SPIR-V as
+an opt-in FP16 toggle for Mali parts that lack `vulkanMemoryModel`. Eden's
+translator-free path assumes a Lossless build that carries the blobs; that
+assumption does not hold for anything currently downloadable.
+
+So the port needs the resource walk **and** a DXBC→SPIR-V translator. The walk
+still lands the SPIR-V path for free if a future build ships the variants —
+`LSFG_NO_SPIRV_VARIANTS` marks exactly that case.
 
 ## 2. How LSFG-Android bakes it in — and why WinNative must not copy it
 
@@ -336,11 +352,10 @@ fallback. Extraction, SPIR-V adoption and caching happen once on the Android sid
 (cache keyed on file size + hash + variant, as eden does); the DLL is never
 loaded or executed, only parsed.
 
-The version floor needs to surface as its own status rather than a generic
-failure — a 3.2.1 install is a correct, licensed copy that simply predates the
-SPIR-V blobs, and the fix is a Steam update, not a reinstall. `LSFG_DLL_TOO_OLD`
-covers exactly the case where the base chain IDs are present but the `+49`/`+98`
-variants are not.
+`LSFG_NO_SPIRV_VARIANTS` distinguishes "valid DLL, no precompiled SPIR-V" from a
+genuinely broken one. It is the expected result for every build currently on
+Steam, and it is the signal to take the DXBC path rather than an error to show
+the user.
 
 ### 5.7 Settings surface
 
@@ -394,6 +409,7 @@ Choreographer coalescing in `requestRenderCoalesced`.
 | Phase | Work | Verifiable by |
 |---|---|---|
 | 1 | `Lossless.dll` PE resource walk, SPIR-V adoption, on-device cache, capability probe, container auto-detect + SAF fallback | 25 modules cached; status surfaces in settings |
+| 1b | DXBC→SPIR-V translation for the base chain IDs (vendor DXVK's `dxbc`, as `lsfg-vk` does) | Translated module byte-compares against a known-good SPIR-V blob |
 | 2 | Composite-target ring + swapchain blit, behind an off-by-default flag | Pixel-identical output, no measurable cost with the flag off |
 | 3 | Compute pipeline support + `mipmaps`/`alpha`/`beta`/`gamma`/`delta`/`generate` port | Flow-pyramid debug dump matches eden's on the same input pair |
 | 4 | Multi-present per composite; semaphore/fence rework; `VK_FRAMES_IN_FLIGHT` and swapchain depth; real-present-only back-pressure | 2× shows 2 presents per guest frame; no validation errors |
