@@ -1249,9 +1249,15 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
             caps.currentTransform, pre_transform);
 
     uint32_t image_count = caps.minImageCount + 1;
-    // Every generated frame is held as an extra acquired image until it is presented, so ask for
-    // enough that the pacer is not immediately capped by the default triple buffering.
-    if (r->framegen_requested) image_count += VKR_LSFG_MAX_GENERATIONS;
+    // One extra image per generated frame, because each is held acquired until it is presented.
+    // Sized to the configured multiplier rather than the maximum: under FIFO every surplus image
+    // is another queued frame between render and scanout, which is felt directly as input lag.
+    if (r->framegen_requested) {
+        uint32_t generations = r->framegen_multiplier > 1 ? r->framegen_multiplier - 1 : 1;
+        if (r->framegen_target_rate != 0) generations = VKR_LSFG_MAX_GENERATIONS;
+        if (generations > VKR_LSFG_MAX_GENERATIONS) generations = VKR_LSFG_MAX_GENERATIONS;
+        image_count += generations;
+    }
     if (caps.maxImageCount > 0 && image_count > caps.maxImageCount) image_count = caps.maxImageCount;
     if (image_count > VK_MAX_SWAPCHAIN_IMAGES) image_count = VK_MAX_SWAPCHAIN_IMAGES;
 
