@@ -28,6 +28,12 @@ constexpr size_t LSFG_MIP_LEVELS = 7;
 
 constexpr size_t LSFG_GENERATION_SLOTS = LSFG_MAX_GENERATIONS * (LSFG_MAX_GENERATIONS + 1) / 2;
 
+constexpr std::array<uint32_t, 4> LSFG_ALPHA_SHADERS{290, 291, 292, 293};
+constexpr std::array<uint32_t, 5> LSFG_BETA_SHADERS{298, 299, 300, 301, 302};
+constexpr std::array<uint32_t, 5> LSFG_GAMMA_SHADERS{280, 282, 283, 284, 285};
+constexpr std::array<uint32_t, 10> LSFG_DELTA_SHADERS{280, 286, 287, 288, 289,
+                                                     281, 294, 295, 296, 297};
+
 [[nodiscard]] constexpr size_t LsfgGenerationSlot(size_t generation_count, size_t generation) {
     return (generation_count - 1) * generation_count / 2 + generation;
 }
@@ -168,6 +174,10 @@ public:
     [[nodiscard]] VkBuffer GetBuffer(float timestamp = 0.0f, bool first_iter = false,
                                      bool first_iter_s = false);
 
+    [[nodiscard]] const LsfgImage& GetDummy(VkFormat format = LSFG_MOTION_FORMAT);
+
+    void PrepareDummies(VkCommandBuffer cmdbuf);
+
     [[nodiscard]] static VkDeviceSize BufferSize();
 
 private:
@@ -176,6 +186,8 @@ private:
 
     std::map<uint64_t, VkSampler> samplers;
     std::map<uint64_t, Buffer> buffers;
+    std::map<uint32_t, LsfgImage> dummies;
+    bool dummies_ready{};
 };
 
 class LsfgBarriers {
@@ -298,6 +310,10 @@ private:
 
 [[nodiscard]] std::vector<VkDescriptorSet> AllocateLsfgDescriptorSets(
     const Device& device, VkDescriptorPool pool, VkDescriptorSetLayout layout, uint32_t count);
+
+[[nodiscard]] std::vector<VkDescriptorSet> AllocateLsfgDescriptorSets(
+    const Device& device, VkDescriptorPool pool,
+    const std::vector<VkDescriptorSetLayout>& layouts);
 
 [[nodiscard]] VkSampler CreateLsfgSampler(const Device& device, VkSamplerAddressMode address_mode,
                                           VkCompareOp compare_op, bool white_border);

@@ -279,6 +279,49 @@ VkBuffer LsfgResources::GetBuffer(float timestamp, bool first_iter, bool first_i
     return entry->second.Handle();
 }
 
+const LsfgImage& LsfgResources::GetDummy(VkFormat format) {
+    const uint32_t key = static_cast<uint32_t>(format);
+
+    const auto it = dummies.find(key);
+    if (it != dummies.end()) return it->second;
+
+    LsfgImage image{*device, VkExtent2D{1, 1}, format};
+    const auto [entry, inserted] = dummies.emplace(key, std::move(image));
+    dummies_ready = false;
+    return entry->second;
+}
+
+void LsfgResources::PrepareDummies(VkCommandBuffer cmdbuf) {
+    if (dummies_ready || dummies.empty()) return;
+
+    std::vector<VkImageMemoryBarrier> barriers;
+    for (auto& [key, image] : dummies) {
+        if (!image.Valid()) continue;
+
+        VkImageMemoryBarrier barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image = image.Handle();
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.levelCount = 1;
+        barrier.subresourceRange.layerCount = 1;
+        barriers.push_back(barrier);
+        image.SetLayout(VK_IMAGE_LAYOUT_GENERAL);
+    }
+
+    if (!barriers.empty()) {
+        vkCmdPipelineBarrier(cmdbuf, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 0, nullptr,
+                             static_cast<uint32_t>(barriers.size()), barriers.data());
+    }
+    dummies_ready = true;
+}
+
 LsfgBarriers& LsfgBarriers::Push(LsfgImage& image, VkAccessFlags src_access,
                                  VkAccessFlags dst_access) {
     barriers.push_back(MakeBarrier(image, src_access, dst_access));
@@ -550,6 +593,27 @@ std::vector<VkDescriptorSet> AllocateLsfgDescriptorSets(const Device& device,
     allocate_info.pSetLayouts = layouts.data();
 
     std::vector<VkDescriptorSet> sets(count, VK_NULL_HANDLE);
+    if (vkAllocateDescriptorSets(device.Handle(), &allocate_info, sets.data()) != VK_SUCCESS) {
+        return {};
+    }
+    return sets;
+}
+
+std::vector<VkDescriptorSet> AllocateLsfgDescriptorSets(
+    const Device& device, VkDescriptorPool pool,
+    const std::vector<VkDescriptorSetLayout>& layouts) {
+    if (pool == VK_NULL_HANDLE || layouts.empty()) return {};
+    for (const VkDescriptorSetLayout layout : layouts) {
+        if (layout == VK_NULL_HANDLE) return {};
+    }
+
+    VkDescriptorSetAllocateInfo allocate_info{};
+    allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocate_info.descriptorPool = pool;
+    allocate_info.descriptorSetCount = static_cast<uint32_t>(layouts.size());
+    allocate_info.pSetLayouts = layouts.data();
+
+    std::vector<VkDescriptorSet> sets(layouts.size(), VK_NULL_HANDLE);
     if (vkAllocateDescriptorSets(device.Handle(), &allocate_info, sets.data()) != VK_SUCCESS) {
         return {};
     }
