@@ -1,4 +1,5 @@
 #include "lsfg_dll.h"
+#include "lsfg_dxbc.h"
 
 #include <android/log.h>
 #include <fcntl.h>
@@ -492,6 +493,12 @@ static LsfgVariant select_variant(const ResourceTable* table, bool prefer_fp16) 
     return LSFG_VARIANT_NONE;
 }
 
+static bool translate_base_shader(const ResourceTable* table, uint32_t id, uint32_t** out_words,
+                                  uint32_t* out_word_count) {
+    if (id >= MAX_RESOURCE_ID || table->data[id] == NULL) return false;
+    return lsfg_translate_dxbc(table->data[id], table->size[id], out_words, out_word_count);
+}
+
 static bool has_base_chain(const ResourceTable* table) {
     size_t count = 0;
     const uint32_t* ids = build_shader_ids(&count);
@@ -501,11 +508,13 @@ static bool has_base_chain(const ResourceTable* table) {
     return true;
 }
 
-static LsfgStatus classify_missing_variant(const ResourceTable* table) {
-    if (!has_base_chain(table)) return LSFG_MISSING_SHADERS;
-    LSFG_LOGW("Lossless.dll carries the DXBC shader chain but no precompiled SPIR-V variants; "
-              "a DXBC translator is required for this build");
-    return LSFG_NO_SPIRV_VARIANTS;
+static const char* variant_name(LsfgVariant variant) {
+    switch (variant) {
+        case LSFG_VARIANT_FP16: return "spirv-fp16";
+        case LSFG_VARIANT_FP32: return "spirv-fp32";
+        case LSFG_VARIANT_DXBC: return "dxbc-translated";
+        default: return "none";
+    }
 }
 
 static uint32_t variant_offset(LsfgVariant variant) {
@@ -556,9 +565,7 @@ LsfgStatus lsfg_validate_dll(const char* dll_path) {
     }
 
     LsfgStatus status = parse_resources(&image, table);
-    if (status == LSFG_OK && select_variant(table, true) == LSFG_VARIANT_NONE) {
-        status = classify_missing_variant(table);
-    }
+    if (status == LSFG_OK && !has_base_chain(table)) status = LSFG_MISSING_SHADERS;
 
     free(table);
     pe_close(&image, fd, mapped_size);
@@ -587,26 +594,30 @@ LsfgStatus lsfg_build_cache(const char* dll_path, const char* cache_path, bool p
     }
 
     const LsfgVariant variant = select_variant(table, prefer_fp16);
-    if (variant == LSFG_VARIANT_NONE) {
-        status = classify_missing_variant(table);
+    const bool translate = variant == LSFG_VARIANT_NONE;
+    if (translate && !has_base_chain(table)) {
         free(table);
         pe_close(&image, fd, mapped_size);
-        return status;
+        return LSFG_MISSING_SHADERS;
     }
 
     LsfgModuleSet set;
     memset(&set, 0, sizeof(set));
-    set.variant = variant;
+    set.variant = translate ? LSFG_VARIANT_DXBC : variant;
 
-    const uint32_t offset = variant_offset(variant);
+    const uint32_t offset = translate ? 0u : variant_offset(variant);
     size_t id_count = 0;
     const uint32_t* ids = build_shader_ids(&id_count);
     for (size_t i = 0; i < id_count; i++) {
         const uint32_t resource_id = ids[i] + offset;
         uint32_t* words = NULL;
         uint32_t word_count = 0;
-        if (!adopt_spirv(table->data[resource_id], table->size[resource_id], &words,
-                         &word_count)) {
+        const bool ok = translate
+            ? translate_base_shader(table, resource_id, &words, &word_count)
+            : adopt_spirv(table->data[resource_id], table->size[resource_id], &words,
+                          &word_count);
+        if (!ok) {
+            LSFG_LOGE("Shader %u (%s) failed", ids[i], translate ? "dxbc" : "spirv");
             status = LSFG_TRANSLATION_FAILED;
             break;
         }
@@ -624,14 +635,14 @@ LsfgStatus lsfg_build_cache(const char* dll_path, const char* cache_path, bool p
         header.source_size = (uint64_t)image.size;
         header.source_hash = fnv1a64(image.data, image.size);
         header.module_count = set.count;
-        header.variant = (uint32_t)variant;
+        header.variant = (uint32_t)set.variant;
 
         if (!write_cache(cache_path, &header, &set)) status = LSFG_CACHE_UNUSABLE;
     }
 
     if (status == LSFG_OK) {
-        LSFG_LOGI("Cached %u LSFG shader modules (variant=%s)", set.count,
-                  variant == LSFG_VARIANT_FP16 ? "fp16" : "fp32");
+        LSFG_LOGI("Cached %u LSFG shader modules (source=%s)", set.count,
+                  variant_name(set.variant));
     } else {
         LSFG_LOGE("Shader cache build failed with status %d", (int)status);
     }

@@ -26,6 +26,7 @@ typedef struct ProbeApi {
     PFN_vkGetPhysicalDeviceProperties GetPhysicalDeviceProperties;
     PFN_vkGetPhysicalDeviceFormatProperties GetPhysicalDeviceFormatProperties;
     PFN_vkGetPhysicalDeviceQueueFamilyProperties GetPhysicalDeviceQueueFamilyProperties;
+    PFN_vkGetPhysicalDeviceFeatures2 GetPhysicalDeviceFeatures2;
 } ProbeApi;
 
 static const VkFormat kRequiredFormats[] = {
@@ -58,10 +59,12 @@ static bool load_instance_api(ProbeApi* api, VkInstance instance) {
     api->GetPhysicalDeviceQueueFamilyProperties =
         (PFN_vkGetPhysicalDeviceQueueFamilyProperties)api->GetInstanceProcAddr(
             instance, "vkGetPhysicalDeviceQueueFamilyProperties");
+    api->GetPhysicalDeviceFeatures2 = (PFN_vkGetPhysicalDeviceFeatures2)api->GetInstanceProcAddr(
+        instance, "vkGetPhysicalDeviceFeatures2");
 
     return api->DestroyInstance && api->EnumeratePhysicalDevices &&
            api->GetPhysicalDeviceProperties && api->GetPhysicalDeviceFormatProperties &&
-           api->GetPhysicalDeviceQueueFamilyProperties;
+           api->GetPhysicalDeviceQueueFamilyProperties && api->GetPhysicalDeviceFeatures2;
 }
 
 static bool has_compute_queue(const ProbeApi* api, VkPhysicalDevice device) {
@@ -95,6 +98,33 @@ static bool has_required_formats(const ProbeApi* api, VkPhysicalDevice device) {
     return true;
 }
 
+static bool has_required_features(const ProbeApi* api, VkPhysicalDevice device) {
+    VkPhysicalDeviceVulkanMemoryModelFeatures memory_model;
+    memset(&memory_model, 0, sizeof(memory_model));
+    memory_model.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES;
+
+    VkPhysicalDeviceFeatures2 features;
+    memset(&features, 0, sizeof(features));
+    features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    features.pNext = &memory_model;
+
+    api->GetPhysicalDeviceFeatures2(device, &features);
+
+    if (!memory_model.vulkanMemoryModel) {
+        PROBE_LOGW("vulkanMemoryModel unsupported; translated LSFG shaders require it");
+        return false;
+    }
+    if (!features.features.shaderStorageImageWriteWithoutFormat) {
+        PROBE_LOGW("shaderStorageImageWriteWithoutFormat unsupported");
+        return false;
+    }
+    if (!features.features.shaderStorageImageExtendedFormats) {
+        PROBE_LOGW("shaderStorageImageExtendedFormats unsupported");
+        return false;
+    }
+    return true;
+}
+
 static bool probe_instance(ProbeApi* api, VkInstance instance) {
     uint32_t device_count = 0;
     if (api->EnumeratePhysicalDevices(instance, &device_count, NULL) != VK_SUCCESS ||
@@ -109,13 +139,23 @@ static bool probe_instance(ProbeApi* api, VkInstance instance) {
     }
 
     for (uint32_t i = 0; i < device_count; i++) {
-        if (!has_compute_queue(api, devices[i])) continue;
-        if (!has_required_formats(api, devices[i])) continue;
-
         VkPhysicalDeviceProperties properties;
         memset(&properties, 0, sizeof(properties));
         api->GetPhysicalDeviceProperties(devices[i], &properties);
-        PROBE_LOGI("Frame generation supported on %s", properties.deviceName);
+
+        if (properties.apiVersion < VK_API_VERSION_1_3) {
+            PROBE_LOGW("%s reports Vulkan %u.%u; SPIR-V 1.6 modules need 1.3",
+                       properties.deviceName, VK_API_VERSION_MAJOR(properties.apiVersion),
+                       VK_API_VERSION_MINOR(properties.apiVersion));
+            continue;
+        }
+        if (!has_compute_queue(api, devices[i])) continue;
+        if (!has_required_formats(api, devices[i])) continue;
+        if (!has_required_features(api, devices[i])) continue;
+
+        PROBE_LOGI("Frame generation supported on %s (Vulkan %u.%u)", properties.deviceName,
+                   VK_API_VERSION_MAJOR(properties.apiVersion),
+                   VK_API_VERSION_MINOR(properties.apiVersion));
         return true;
     }
     return false;
@@ -139,7 +179,7 @@ bool lsfg_probe_support(JNIEnv* env, jobject context, const char* driver_name) {
     memset(&app_info, 0, sizeof(app_info));
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     app_info.pApplicationName = "WinNative";
-    app_info.apiVersion = VK_API_VERSION_1_1;
+    app_info.apiVersion = VK_API_VERSION_1_3;
 
     VkInstanceCreateInfo create_info;
     memset(&create_info, 0, sizeof(create_info));
@@ -148,7 +188,7 @@ bool lsfg_probe_support(JNIEnv* env, jobject context, const char* driver_name) {
 
     VkInstance instance = VK_NULL_HANDLE;
     if (api.CreateInstance(&create_info, NULL, &instance) != VK_SUCCESS) {
-        app_info.apiVersion = VK_API_VERSION_1_0;
+        app_info.apiVersion = VK_API_VERSION_1_1;
         if (api.CreateInstance(&create_info, NULL, &instance) != VK_SUCCESS) {
             PROBE_LOGW("vkCreateInstance failed during probe");
             dlclose(library);

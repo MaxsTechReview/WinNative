@@ -25,11 +25,11 @@ public final class LosslessScaling {
     public static final int STATUS_MISSING_SHADERS = 4;
     public static final int STATUS_TRANSLATION_FAILED = 5;
     public static final int STATUS_CACHE_UNUSABLE = 6;
-    public static final int STATUS_NO_SPIRV_VARIANTS = 7;
 
     public static final int VARIANT_NONE = 0;
     public static final int VARIANT_FP16 = 1;
     public static final int VARIANT_FP32 = 2;
+    public static final int VARIANT_DXBC = 3;
 
     private static final String TAG = "LosslessScaling";
     private static final String DLL_NAME = "Lossless.dll";

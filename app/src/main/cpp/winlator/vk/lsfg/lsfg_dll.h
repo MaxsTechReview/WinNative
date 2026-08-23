@@ -15,16 +15,14 @@ typedef enum LsfgStatus {
     LSFG_NOT_PORTABLE_EXECUTABLE = 3,
     LSFG_MISSING_SHADERS = 4,
     LSFG_TRANSLATION_FAILED = 5,
-    LSFG_CACHE_UNUSABLE = 6,
-    LSFG_NO_SPIRV_VARIANTS = 7
+    LSFG_CACHE_UNUSABLE = 6
 } LsfgStatus;
-
-
 
 typedef enum LsfgVariant {
     LSFG_VARIANT_NONE = 0,
     LSFG_VARIANT_FP16 = 1,
-    LSFG_VARIANT_FP32 = 2
+    LSFG_VARIANT_FP32 = 2,
+    LSFG_VARIANT_DXBC = 3
 } LsfgVariant;
 
 #define LSFG_SHADER_MIPMAPS     255u

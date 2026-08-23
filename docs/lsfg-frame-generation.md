@@ -14,8 +14,9 @@ the Wine boundary.
 | `eden-emu/eden` PR #4263 — *[vulkan, android] Initial implementation of LSFG-VK* | `469c9af` (base `dc95cd0`) |
 | WinNative | `acc130ee` |
 
-The two clones live outside the repo at `~/Build/lsfg-research/`. Nothing from
-either is vendored yet.
+The two clones live outside the repo at `~/Build/lsfg-research/`. The only thing
+vendored into WinNative is DXVK's `dxbc` subset (zlib licence), taken from
+`lsfg-vk-android/thirdparty/dxbc`.
 
 ## 1. What LSFG actually is
 
@@ -81,9 +82,38 @@ an opt-in FP16 toggle for Mali parts that lack `vulkanMemoryModel`. Eden's
 translator-free path assumes a Lossless build that carries the blobs; that
 assumption does not hold for anything currently downloadable.
 
-So the port needs the resource walk **and** a DXBC→SPIR-V translator. The walk
-still lands the SPIR-V path for free if a future build ships the variants —
-`LSFG_NO_SPIRV_VARIANTS` marks exactly that case.
+Eden's own UI strings confirm the shape of what it consumes: *"This GPU driver
+does not support the Vulkan memory model, which the Lossless Scaling shaders
+require."* `VulkanMemoryModel` is emitted by DXVK's translator and is absent
+from the GLSL450 FP16 blobs — so eden is running DXVK-translated SPIR-V too, it
+just gets it pre-translated when the DLL supplies it.
+
+**Implemented: both producers, one consumer.** Eden's design has a clean seam —
+everything below `ShaderModules` (a map of shader id → SPIR-V words) is
+source-agnostic. So the SPIR-V path is kept exactly as eden has it, and DXVK's
+`dxbc` (zlib licence, 22.7k lines, vendored under `cpp/thirdparty/dxbc` from the
+same subset `lsfg-vk` uses) fills the same map when the variants are absent.
+`lsfg_dxbc.cpp` follows `lsfg-vk`'s `trans.cpp` exactly, including its
+encounter-order binding renumber, which is what pairs with DXVK output;
+eden's set/binding sort stays on the precompiled path where it belongs.
+
+Validation now matches eden's `ParseShaderSpans` semantics too: a DLL is valid
+when the **base chain IDs** are present, with no requirement that the SPIR-V
+variants exist.
+
+Measured end to end on an Adreno 750, translating the user's own 3.2.1 DLL:
+
+- **25/25 modules translated**, 352,889 SPIR-V words (1.38 MB), in ~40 ms.
+- **25/25 pass `spirv-val --target-env vulkan1.3`**.
+- Emitted modules are **SPIR-V 1.6**, `OpMemoryModel Logical Vulkan`, with
+  `OpCapability VulkanMemoryModel`, `StorageImageWriteWithoutFormat` and
+  `ImageQuery`; bindings renumber to a dense 0..n range as intended.
+
+That last point is a hard runtime requirement and the probe now enforces it:
+Vulkan **1.3** (SPIR-V 1.6 will not load on a 1.1 device), plus
+`vulkanMemoryModel`, `shaderStorageImageWriteWithoutFormat` and
+`shaderStorageImageExtendedFormats`. A device failing any of them reports
+unsupported up front instead of failing at `vkCreateShaderModule`.
 
 ## 2. How LSFG-Android bakes it in — and why WinNative must not copy it
 
@@ -352,10 +382,9 @@ fallback. Extraction, SPIR-V adoption and caching happen once on the Android sid
 (cache keyed on file size + hash + variant, as eden does); the DLL is never
 loaded or executed, only parsed.
 
-`LSFG_NO_SPIRV_VARIANTS` distinguishes "valid DLL, no precompiled SPIR-V" from a
-genuinely broken one. It is the expected result for every build currently on
-Steam, and it is the signal to take the DXBC path rather than an error to show
-the user.
+Which producer ran is recorded in the cache header and surfaced as the variant
+(`spirv-fp16`, `spirv-fp32`, `dxbc-translated`), so the source is visible in
+diagnostics without changing anything downstream.
 
 ### 5.7 Settings surface
 
@@ -409,7 +438,7 @@ Choreographer coalescing in `requestRenderCoalesced`.
 | Phase | Work | Verifiable by |
 |---|---|---|
 | 1 | `Lossless.dll` PE resource walk, SPIR-V adoption, on-device cache, capability probe, container auto-detect + SAF fallback | 25 modules cached; status surfaces in settings |
-| 1b | DXBC→SPIR-V translation for the base chain IDs (vendor DXVK's `dxbc`, as `lsfg-vk` does) | Translated module byte-compares against a known-good SPIR-V blob |
+| 1b | DXBC→SPIR-V translation for the base chain IDs (vendor DXVK's `dxbc`, as `lsfg-vk` does) | **Done** — 25/25 translated and `spirv-val` clean on device |
 | 2 | Composite-target ring + swapchain blit, behind an off-by-default flag | Pixel-identical output, no measurable cost with the flag off |
 | 3 | Compute pipeline support + `mipmaps`/`alpha`/`beta`/`gamma`/`delta`/`generate` port | Flow-pyramid debug dump matches eden's on the same input pair |
 | 4 | Multi-present per composite; semaphore/fence rework; `VK_FRAMES_IN_FLIGHT` and swapchain depth; real-present-only back-pressure | 2× shows 2 presents per guest frame; no validation errors |
