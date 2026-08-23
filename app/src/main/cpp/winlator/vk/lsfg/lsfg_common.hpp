@@ -40,7 +40,8 @@ constexpr std::array<uint32_t, 10> LSFG_DELTA_SHADERS{280, 286, 287, 288, 289,
 }
 
 [[nodiscard]] constexpr float LsfgTimestamp(size_t generation, size_t generation_count) {
-    return static_cast<float>(generation + 1) / static_cast<float>(generation_count + 1);
+    return static_cast<float>(generation_count - generation) /
+           static_cast<float>(generation_count + 1);
 }
 
 [[nodiscard]] constexpr size_t LsfgSlotCount(size_t slot) {
