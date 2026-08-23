@@ -296,6 +296,9 @@ private:
 
 [[nodiscard]] VkDescriptorPool CreateLsfgDescriptorPool(const Device& device, uint32_t max_sets);
 
+[[nodiscard]] std::vector<VkDescriptorSet> AllocateLsfgDescriptorSets(
+    const Device& device, VkDescriptorPool pool, VkDescriptorSetLayout layout, uint32_t count);
+
 [[nodiscard]] VkSampler CreateLsfgSampler(const Device& device, VkSamplerAddressMode address_mode,
                                           VkCompareOp compare_op, bool white_border);
 

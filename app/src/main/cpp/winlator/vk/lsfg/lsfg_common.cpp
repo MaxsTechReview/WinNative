@@ -536,6 +536,26 @@ VkDescriptorPool CreateLsfgDescriptorPool(const Device& device, uint32_t max_set
     return pool;
 }
 
+std::vector<VkDescriptorSet> AllocateLsfgDescriptorSets(const Device& device,
+                                                        VkDescriptorPool pool,
+                                                        VkDescriptorSetLayout layout,
+                                                        uint32_t count) {
+    if (pool == VK_NULL_HANDLE || layout == VK_NULL_HANDLE || count == 0) return {};
+
+    const std::vector<VkDescriptorSetLayout> layouts(count, layout);
+    VkDescriptorSetAllocateInfo allocate_info{};
+    allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocate_info.descriptorPool = pool;
+    allocate_info.descriptorSetCount = count;
+    allocate_info.pSetLayouts = layouts.data();
+
+    std::vector<VkDescriptorSet> sets(count, VK_NULL_HANDLE);
+    if (vkAllocateDescriptorSets(device.Handle(), &allocate_info, sets.data()) != VK_SUCCESS) {
+        return {};
+    }
+    return sets;
+}
+
 VkSampler CreateLsfgSampler(const Device& device, VkSamplerAddressMode address_mode,
                             VkCompareOp compare_op, bool white_border) {
     VkSamplerCreateInfo sampler_ci{};

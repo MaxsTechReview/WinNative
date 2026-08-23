@@ -152,6 +152,8 @@ add_library(winlator SHARED
         winlator/vk/lsfg/lsfg_dxbc.cpp
         winlator/vk/lsfg/lsfg_common.cpp
         winlator/vk/lsfg/lsfg_shaders.cpp
+        winlator/vk/lsfg/lsfg_mipmaps.cpp
+        winlator/vk/lsfg/lsfg_generate.cpp
         winlator/vk/lsfg/lsfg_probe.c
         winlator/vk/lsfg/lsfg_jni.c
 )
