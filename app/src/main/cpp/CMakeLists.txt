@@ -159,6 +159,8 @@ add_library(winlator SHARED
         winlator/vk/lsfg/lsfg_gamma.cpp
         winlator/vk/lsfg/lsfg_delta.cpp
         winlator/vk/lsfg/lsfg_chain.cpp
+        winlator/vk/lsfg/lsfg_pacer.cpp
+        winlator/vk/lsfg/vkr_lsfg.cpp
         winlator/vk/lsfg/lsfg_probe.c
         winlator/vk/lsfg/lsfg_jni.c
 )

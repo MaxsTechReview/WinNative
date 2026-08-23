@@ -41,6 +41,10 @@ public:
         generate.SetTarget(device, LsfgGenerationSlot(generation_count, generation), target, view);
     }
 
+    void ForgetTargets() {
+        generate.ForgetTargets();
+    }
+
     [[nodiscard]] LsfgImage& Input(uint64_t frame_count) {
         return frames[frame_count % frames.size()];
     }

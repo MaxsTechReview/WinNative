@@ -69,6 +69,10 @@ static void destroy_sgsr1_resources(VkRenderer* r);
 static void destroy_composite_targets(VkRenderer* r);
 static bool create_composite_targets(VkRenderer* r, uint32_t w, uint32_t h, uint32_t count);
 static bool composite_format_supported(VkRenderer* r);
+static void blit_composite_to_swapchain(VkRenderer* r, VkCommandBuffer cmd,
+                                        VkCompositeTarget* src, VkImage dst);
+static void create_lsfg(VkRenderer* r);
+static void destroy_lsfg(VkRenderer* r);
 static bool create_quad_vbo(VkRenderer* r);
 static void destroy_quad_vbo(VkRenderer* r);
 static bool is_plain_rotation_transform(VkSurfaceTransformFlagBitsKHR transform);
@@ -561,6 +565,11 @@ static bool create_command_pool(VkRenderer* r) {
         VkFrame* f = &r->frames[i];
         if (vkAllocateCommandBuffers(r->device, &ai, &f->cmd) != VK_SUCCESS) return false;
         if (vkCreateSemaphore(r->device, &si, NULL, &f->image_available) != VK_SUCCESS) return false;
+        for (uint32_t g = 0; g < VKR_LSFG_MAX_GENERATIONS; g++) {
+            if (vkCreateSemaphore(r->device, &si, NULL, &f->image_available_gen[g]) != VK_SUCCESS) {
+                return false;
+            }
+        }
         if (vkCreateFence(r->device, &fi, NULL, &f->in_flight) != VK_SUCCESS) return false;
     }
     return true;
@@ -1240,6 +1249,9 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
             caps.currentTransform, pre_transform);
 
     uint32_t image_count = caps.minImageCount + 1;
+    // Every generated frame is held as an extra acquired image until it is presented, so ask for
+    // enough that the pacer is not immediately capped by the default triple buffering.
+    if (r->framegen_requested) image_count += VKR_LSFG_MAX_GENERATIONS;
     if (caps.maxImageCount > 0 && image_count > caps.maxImageCount) image_count = caps.maxImageCount;
     if (image_count > VK_MAX_SWAPCHAIN_IMAGES) image_count = VK_MAX_SWAPCHAIN_IMAGES;
 
@@ -1822,6 +1834,54 @@ static bool create_composite_targets(VkRenderer* r, uint32_t w, uint32_t h, uint
     return true;
 }
 
+static void destroy_lsfg(VkRenderer* r) {
+    if (!r->lsfg) return;
+    vkr_lsfg_destroy(r->lsfg);
+    r->lsfg = NULL;
+    r->framegen_real_frames = 0;
+    r->framegen_made_frames = 0;
+}
+
+static void create_lsfg(VkRenderer* r) {
+    if (r->lsfg || !r->lsfg_cache_path || !r->device || !r->physical_device) return;
+
+    r->lsfg = vkr_lsfg_create(r->device, r->physical_device, r->lsfg_cache_path);
+    if (!r->lsfg) {
+        VK_LOGW("LSFG shaders unavailable at %s; frame generation stays off", r->lsfg_cache_path);
+        return;
+    }
+    vkr_lsfg_configure(r->lsfg, r->framegen_multiplier ? r->framegen_multiplier : 2u,
+                       r->framegen_target_rate,
+                       r->framegen_flow_scale > 0.0f ? r->framegen_flow_scale : 1.0f);
+}
+
+static void blit_composite_to_swapchain(VkRenderer* r, VkCommandBuffer cmd,
+                                        VkCompositeTarget* src, VkImage dst) {
+    vkr_image_barrier(cmd, dst,
+                      VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                      0, VK_ACCESS_TRANSFER_WRITE_BIT);
+
+    VkImageBlit blit = {0};
+    blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    blit.srcSubresource.layerCount = 1;
+    blit.srcOffsets[1].x = (int32_t)src->width;
+    blit.srcOffsets[1].y = (int32_t)src->height;
+    blit.srcOffsets[1].z = 1;
+    blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    blit.dstSubresource.layerCount = 1;
+    blit.dstOffsets[1].x = (int32_t)r->swapchain_extent.width;
+    blit.dstOffsets[1].y = (int32_t)r->swapchain_extent.height;
+    blit.dstOffsets[1].z = 1;
+    vkCmdBlitImage(cmd, src->image, VK_IMAGE_LAYOUT_GENERAL,
+                   dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_NEAREST);
+
+    vkr_image_barrier(cmd, dst,
+                      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                      VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                      VK_ACCESS_TRANSFER_WRITE_BIT, 0);
+}
+
 static bool composite_format_supported(VkRenderer* r) {
     if (r->swapchain_format == VK_FORMAT_UNDEFINED) return false;
 
@@ -2340,22 +2400,56 @@ static bool record_and_submit_frame(VkRenderer* r) {
 
     bool via_composite = r->framegen_requested && r->framegen_supported
                       && r->swapchain_transfer_dst;
+
+    // A generated frame occupies a swapchain image between the previous real frame and this one,
+    // so the pacer may never claim more than the swapchain can spare while still leaving one
+    // image for the presentation engine. Each generated frame also needs its own composite target
+    // to be written into by compute before it is blitted out.
+    uint32_t framegen_capacity = 0;
+    if (via_composite && r->lsfg && r->swapchain_image_count > 2) {
+        framegen_capacity = r->swapchain_image_count - 2;
+        if (framegen_capacity > VKR_LSFG_MAX_GENERATIONS) {
+            framegen_capacity = VKR_LSFG_MAX_GENERATIONS;
+        }
+        if (VK_FRAMES_IN_FLIGHT + framegen_capacity > VK_MAX_COMPOSITE_TARGETS) {
+            framegen_capacity = VK_MAX_COMPOSITE_TARGETS - VK_FRAMES_IN_FLIGHT;
+        }
+    }
+
     if (via_composite) {
+        uint32_t composite_needed = VK_FRAMES_IN_FLIGHT + framegen_capacity;
         bool composite_stale = !r->composite_built
+            || r->composite_count != composite_needed
             || r->composite[0].width != r->swapchain_extent.width
             || r->composite[0].height != r->swapchain_extent.height;
-        if (composite_stale) {
+        bool chain_stale = r->lsfg
+            && vkr_lsfg_needs_rebuild(r->lsfg, r->swapchain_extent.width,
+                                      r->swapchain_extent.height, r->swapchain_format);
+        if (composite_stale || chain_stale) {
             wait_inflight_frames(r);
             if (!create_composite_targets(r, r->swapchain_extent.width,
-                                          r->swapchain_extent.height, VK_FRAMES_IN_FLIGHT)) {
+                                          r->swapchain_extent.height, composite_needed)) {
                 VK_LOGW("Composite targets unavailable; frame generation path disabled");
                 r->framegen_supported = false;
                 via_composite = false;
+                framegen_capacity = 0;
+            } else if (r->lsfg) {
+                // Composite views are new even when the chain survives, so drop the cached ones.
+                vkr_lsfg_forget_targets(r->lsfg);
+                if (!vkr_lsfg_prepare(r->lsfg, r->swapchain_extent.width,
+                                      r->swapchain_extent.height, r->swapchain_format)) {
+                    framegen_capacity = 0;
+                }
             }
         }
     } else if (r->composite_built) {
         wait_inflight_frames(r);
         destroy_composite_targets(r);
+    }
+
+    // Fed every frame even when it returns zero, so the pacer keeps a live interval model.
+    if (via_composite && r->lsfg) {
+        vkr_lsfg_plan(r->lsfg, framegen_capacity);
     }
 
     VkCompositeTarget* composite = via_composite ? &r->composite[r->frame_index] : NULL;
@@ -2502,31 +2596,41 @@ static bool record_and_submit_frame(VkRenderer* r) {
         vkCmdEndRenderPass(f->cmd);
     }
 
+    uint32_t gen_count = 0;
+    uint32_t gen_image_index[VKR_LSFG_MAX_GENERATIONS] = {0};
+
     if (composite) {
-        VkImage disp_img = r->swapchain_images[image_index];
-        vkr_image_barrier(f->cmd, disp_img,
-                          VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                          VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                          0, VK_ACCESS_TRANSFER_WRITE_BIT);
+        if (r->lsfg && framegen_capacity > 0) {
+            vkr_lsfg_process(r->lsfg, f->cmd, composite->image,
+                             r->swapchain_extent.width, r->swapchain_extent.height);
 
-        VkImageBlit blit = {0};
-        blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        blit.srcSubresource.layerCount = 1;
-        blit.srcOffsets[1].x = (int32_t)composite->width;
-        blit.srcOffsets[1].y = (int32_t)composite->height;
-        blit.srcOffsets[1].z = 1;
-        blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        blit.dstSubresource.layerCount = 1;
-        blit.dstOffsets[1].x = (int32_t)r->swapchain_extent.width;
-        blit.dstOffsets[1].y = (int32_t)r->swapchain_extent.height;
-        blit.dstOffsets[1].z = 1;
-        vkCmdBlitImage(f->cmd, composite->image, VK_IMAGE_LAYOUT_GENERAL,
-                       disp_img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_NEAREST);
+            uint32_t want = vkr_lsfg_generated_count(r->lsfg);
+            if (want > framegen_capacity) want = framegen_capacity;
 
-        vkr_image_barrier(f->cmd, disp_img,
-                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                          VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                          VK_ACCESS_TRANSFER_WRITE_BIT, 0);
+            // Bounded acquire: a busy presentation engine costs us the generated frames for this
+            // cycle rather than stalling the render thread holding render_mutex.
+            for (uint32_t g = 0; g < want; g++) {
+                uint32_t idx = 0;
+                VkResult ga = vkAcquireNextImageKHR(r->device, r->swapchain, 8000000ULL,
+                                                    f->image_available_gen[g], VK_NULL_HANDLE,
+                                                    &idx);
+                if (ga != VK_SUCCESS && ga != VK_SUBOPTIMAL_KHR) break;
+                gen_image_index[gen_count++] = idx;
+            }
+
+            for (uint32_t g = 0; g < gen_count; g++) {
+                VkCompositeTarget* gt = &r->composite[VK_FRAMES_IN_FLIGHT + g];
+                vkr_lsfg_generate_into(r->lsfg, f->cmd, g, VK_FRAMES_IN_FLIGHT + g,
+                                       gt->image, gt->view,
+                                       r->swapchain_extent.width, r->swapchain_extent.height);
+                blit_composite_to_swapchain(r, f->cmd, gt,
+                                            r->swapchain_images[gen_image_index[g]]);
+            }
+            r->framegen_real_frames++;
+            r->framegen_made_frames += gen_count;
+        }
+
+        blit_composite_to_swapchain(r, f->cmd, composite, r->swapchain_images[image_index]);
     }
 
     // Blit the final composited image (in PRESENT_SRC after the render pass) into the encoder image.
@@ -2597,21 +2701,43 @@ static bool record_and_submit_frame(VkRenderer* r) {
 
     vkEndCommandBuffer(f->cmd);
 
-    // The mirror's acquire/present-ready semaphores are appended only when capturing this frame.
-    VkPipelineStageFlags wait_stages[2] = {
+    // One submit covers the real frame, every generated frame and the recording mirror, so each
+    // acquired image contributes a wait and each presented image a signal.
+    #define VK_MAX_FRAME_SEMAPHORES (2 + VKR_LSFG_MAX_GENERATIONS)
+    VkSemaphore wait_sems[VK_MAX_FRAME_SEMAPHORES];
+    VkPipelineStageFlags wait_stages[VK_MAX_FRAME_SEMAPHORES];
+    VkSemaphore signal_sems[VK_MAX_FRAME_SEMAPHORES];
+    uint32_t wait_count = 0;
+    uint32_t signal_count = 0;
+
+    wait_sems[wait_count] = f->image_available;
+    wait_stages[wait_count] =
         composite ? (VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT)
-                  : VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        VK_PIPELINE_STAGE_TRANSFER_BIT };
-    VkSemaphore wait_sems[2] = { f->image_available, r->rec.acquire[r->frame_index] };
-    VkSemaphore signal_sems[2] = {
-        render_finished, rec_this_frame ? r->rec.present_ready[rec_index] : VK_NULL_HANDLE };
+                  : VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    wait_count++;
+    signal_sems[signal_count++] = render_finished;
+
+    for (uint32_t g = 0; g < gen_count; g++) {
+        wait_sems[wait_count] = f->image_available_gen[g];
+        wait_stages[wait_count] = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        wait_count++;
+        signal_sems[signal_count++] = r->swapchain_render_finished[gen_image_index[g]];
+    }
+
+    if (rec_this_frame) {
+        wait_sems[wait_count] = r->rec.acquire[r->frame_index];
+        wait_stages[wait_count] = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        wait_count++;
+        signal_sems[signal_count++] = r->rec.present_ready[rec_index];
+    }
+
     VkSubmitInfo si = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
-    si.waitSemaphoreCount = rec_this_frame ? 2u : 1u;
+    si.waitSemaphoreCount = wait_count;
     si.pWaitSemaphores = wait_sems;
     si.pWaitDstStageMask = wait_stages;
     si.commandBufferCount = 1;
     si.pCommandBuffers = &f->cmd;
-    si.signalSemaphoreCount = rec_this_frame ? 2u : 1u;
+    si.signalSemaphoreCount = signal_count;
     si.pSignalSemaphores = signal_sems;
 
     pthread_mutex_lock(&r->queue_mutex);
@@ -2640,6 +2766,20 @@ static bool record_and_submit_frame(VkRenderer* r) {
     pi.pImageIndices = &image_index;
 
     pthread_mutex_lock(&r->queue_mutex);
+    // Generated frames sit between the previous real frame and this one, so they are queued
+    // first; FIFO then paces them out one vblank apart ahead of the real frame below.
+    for (uint32_t g = 0; g < gen_count; g++) {
+        VkPresentInfoKHR gpi = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
+        gpi.waitSemaphoreCount = 1;
+        gpi.pWaitSemaphores = &r->swapchain_render_finished[gen_image_index[g]];
+        gpi.swapchainCount = 1;
+        gpi.pSwapchains = &r->swapchain;
+        gpi.pImageIndices = &gen_image_index[g];
+        VkResult gpr = vkQueuePresentKHR(r->graphics_queue, &gpi);
+        if (gpr != VK_SUCCESS && gpr != VK_SUBOPTIMAL_KHR) {
+            VK_LOGW("generated frame present failed (%d)", gpr);
+        }
+    }
     VkResult pr = vkQueuePresentKHR(r->graphics_queue, &pi);
     // Present the mirror separately so its result doesn't disturb the display recreate logic below.
     if (rec_this_frame) {
@@ -2802,6 +2942,10 @@ JNIEXPORT void JNICALL JNI_FN(nativeDestroy)(JNIEnv* env, jclass clazz, jlong ha
     destroy_record_swapchain(r);
     destroy_sgsr1_resources(r);
     destroy_offscreen(r);
+    destroy_lsfg(r);
+    free(r->lsfg_cache_path);
+    r->lsfg_cache_path = NULL;
+
     destroy_swapchain(r);
     destroy_pipelines(r);
     destroy_quad_vbo(r);
@@ -2809,6 +2953,11 @@ JNIEXPORT void JNICALL JNI_FN(nativeDestroy)(JNIEnv* env, jclass clazz, jlong ha
     for (uint32_t i = 0; i < VK_FRAMES_IN_FLIGHT; i++) {
         VkFrame* f = &r->frames[i];
         if (f->image_available) vkDestroySemaphore(r->device, f->image_available, NULL);
+        for (uint32_t g = 0; g < VKR_LSFG_MAX_GENERATIONS; g++) {
+            if (f->image_available_gen[g]) {
+                vkDestroySemaphore(r->device, f->image_available_gen[g], NULL);
+            }
+        }
         if (f->in_flight)       vkDestroyFence(r->device, f->in_flight, NULL);
     }
 
@@ -3311,6 +3460,12 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenerationEnabled)(JNIEnv* env, jcla
 
     pthread_mutex_lock(&r->render_mutex);
     r->framegen_requested = want;
+    if (!want) {
+        wait_inflight_frames(r);
+        destroy_lsfg(r);
+    } else if (r->device && r->lsfg_cache_path) {
+        create_lsfg(r);
+    }
     if (r->surface && r->swapchain) {
         lifecycle_begin(r);
         if (r->device) vkDeviceWaitIdle(r->device);
@@ -3338,6 +3493,59 @@ JNIEXPORT jboolean JNICALL JNI_FN(nativeIsFrameGenerationSupported)(JNIEnv* env,
     VkRenderer* r = (VkRenderer*)(intptr_t)handle;
     if (!r) return JNI_FALSE;
     return r->framegen_supported ? JNI_TRUE : JNI_FALSE;
+}
+
+// The cache is the SPIR-V set already extracted from Lossless.dll by LosslessScaling.java.
+// Setting it does not enable frame generation; nativeSetFrameGenerationEnabled does.
+JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenerationShaders)(JNIEnv* env, jclass clazz,
+                                                               jlong handle, jstring cachePath) {
+    (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
+    if (!r) return;
+
+    pthread_mutex_lock(&r->render_mutex);
+    wait_inflight_frames(r);
+    destroy_lsfg(r);
+    free(r->lsfg_cache_path);
+    r->lsfg_cache_path = NULL;
+
+    if (cachePath != NULL) {
+        const char* path = (*env)->GetStringUTFChars(env, cachePath, NULL);
+        if (path != NULL) {
+            r->lsfg_cache_path = strdup(path);
+            (*env)->ReleaseStringUTFChars(env, cachePath, path);
+        }
+    }
+    if (r->framegen_requested && r->device && r->lsfg_cache_path) create_lsfg(r);
+    pthread_mutex_unlock(&r->render_mutex);
+}
+
+// multiplier 2..4 fixes the output cadence; a non-zero targetRate hands pacing to the probe
+// loop instead, which climbs toward that rate only while it measurably pays off.
+JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenerationMode)(JNIEnv* env, jclass clazz,
+                                                            jlong handle, jint multiplier,
+                                                            jint targetRate, jint flowScalePct) {
+    (void)env; (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
+    if (!r) return;
+
+    pthread_mutex_lock(&r->render_mutex);
+    r->framegen_multiplier = multiplier < 2 ? 2u : (uint32_t)multiplier;
+    r->framegen_target_rate = targetRate < 0 ? 0u : (uint32_t)targetRate;
+    r->framegen_flow_scale = flowScalePct <= 0 ? 1.0f : (float)flowScalePct / 100.0f;
+    if (r->lsfg) {
+        vkr_lsfg_configure(r->lsfg, r->framegen_multiplier, r->framegen_target_rate,
+                           r->framegen_flow_scale);
+    }
+    pthread_mutex_unlock(&r->render_mutex);
+}
+
+JNIEXPORT jlong JNICALL JNI_FN(nativeGetGeneratedFrameCount)(JNIEnv* env, jclass clazz,
+                                                             jlong handle) {
+    (void)env; (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
+    if (!r) return 0;
+    return (jlong)r->framegen_made_frames;
 }
 
 // ============================================================

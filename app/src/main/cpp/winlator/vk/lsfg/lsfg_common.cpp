@@ -50,7 +50,7 @@ VkImageMemoryBarrier MakeBarrier(const LsfgImage& image, VkAccessFlags src_acces
 
 Device::Device(VkDevice device_, VkPhysicalDevice physical_device_)
     : device{device_}, physical_device{physical_device_} {
-    vkGetPhysicalDeviceMemoryProperties(physical_device, &memory_properties);
+    vkd.GetPhysicalDeviceMemoryProperties(physical_device, &memory_properties);
 }
 
 uint32_t Device::FindMemoryType(uint32_t bits, VkMemoryPropertyFlags properties) const {
@@ -67,13 +67,13 @@ Buffer::Buffer(const Device& device_, VkDeviceSize size) : device{device_.Handle
     buffer_ci.size = size;
     buffer_ci.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     buffer_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    if (vkCreateBuffer(device, &buffer_ci, nullptr, &buffer) != VK_SUCCESS) {
+    if (vkd.CreateBuffer(device, &buffer_ci, nullptr, &buffer) != VK_SUCCESS) {
         buffer = VK_NULL_HANDLE;
         return;
     }
 
     VkMemoryRequirements requirements;
-    vkGetBufferMemoryRequirements(device, buffer, &requirements);
+    vkd.GetBufferMemoryRequirements(device, buffer, &requirements);
 
     VkMemoryAllocateInfo allocate_info{};
     allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -82,13 +82,13 @@ Buffer::Buffer(const Device& device_, VkDeviceSize size) : device{device_.Handle
         requirements.memoryTypeBits,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     if (allocate_info.memoryTypeIndex == UINT32_MAX ||
-        vkAllocateMemory(device, &allocate_info, nullptr, &memory) != VK_SUCCESS) {
+        vkd.AllocateMemory(device, &allocate_info, nullptr, &memory) != VK_SUCCESS) {
         Release();
         return;
     }
 
-    vkBindBufferMemory(device, buffer, memory, 0);
-    if (vkMapMemory(device, memory, 0, VK_WHOLE_SIZE, 0, &mapped) != VK_SUCCESS) {
+    vkd.BindBufferMemory(device, buffer, memory, 0);
+    if (vkd.MapMemory(device, memory, 0, VK_WHOLE_SIZE, 0, &mapped) != VK_SUCCESS) {
         mapped = nullptr;
         Release();
     }
@@ -128,11 +128,11 @@ void Buffer::Upload(const void* data, size_t size) {
 void Buffer::Release() {
     if (device == VK_NULL_HANDLE) return;
     if (mapped) {
-        vkUnmapMemory(device, memory);
+        vkd.UnmapMemory(device, memory);
         mapped = nullptr;
     }
-    if (buffer) vkDestroyBuffer(device, buffer, nullptr);
-    if (memory) vkFreeMemory(device, memory, nullptr);
+    if (buffer) vkd.DestroyBuffer(device, buffer, nullptr);
+    if (memory) vkd.FreeMemory(device, memory, nullptr);
     buffer = VK_NULL_HANDLE;
     memory = VK_NULL_HANDLE;
 }
@@ -153,13 +153,13 @@ LsfgImage::LsfgImage(const Device& device_, VkExtent2D extent_, VkFormat format_
                      VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     image_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     image_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    if (vkCreateImage(device, &image_ci, nullptr, &image) != VK_SUCCESS) {
+    if (vkd.CreateImage(device, &image_ci, nullptr, &image) != VK_SUCCESS) {
         image = VK_NULL_HANDLE;
         return;
     }
 
     VkMemoryRequirements requirements;
-    vkGetImageMemoryRequirements(device, image, &requirements);
+    vkd.GetImageMemoryRequirements(device, image, &requirements);
 
     VkMemoryAllocateInfo allocate_info{};
     allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -167,11 +167,11 @@ LsfgImage::LsfgImage(const Device& device_, VkExtent2D extent_, VkFormat format_
     allocate_info.memoryTypeIndex =
         device_.FindMemoryType(requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     if (allocate_info.memoryTypeIndex == UINT32_MAX ||
-        vkAllocateMemory(device, &allocate_info, nullptr, &memory) != VK_SUCCESS) {
+        vkd.AllocateMemory(device, &allocate_info, nullptr, &memory) != VK_SUCCESS) {
         Release();
         return;
     }
-    vkBindImageMemory(device, image, memory, 0);
+    vkd.BindImageMemory(device, image, memory, 0);
 
     VkImageViewCreateInfo view_ci{};
     view_ci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -181,7 +181,7 @@ LsfgImage::LsfgImage(const Device& device_, VkExtent2D extent_, VkFormat format_
     view_ci.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     view_ci.subresourceRange.levelCount = 1;
     view_ci.subresourceRange.layerCount = 1;
-    if (vkCreateImageView(device, &view_ci, nullptr, &view) != VK_SUCCESS) {
+    if (vkd.CreateImageView(device, &view_ci, nullptr, &view) != VK_SUCCESS) {
         view = VK_NULL_HANDLE;
         Release();
     }
@@ -220,9 +220,9 @@ LsfgImage& LsfgImage::operator=(LsfgImage&& other) noexcept {
 
 void LsfgImage::Release() {
     if (device == VK_NULL_HANDLE) return;
-    if (view) vkDestroyImageView(device, view, nullptr);
-    if (image) vkDestroyImage(device, image, nullptr);
-    if (memory) vkFreeMemory(device, memory, nullptr);
+    if (view) vkd.DestroyImageView(device, view, nullptr);
+    if (image) vkd.DestroyImage(device, image, nullptr);
+    if (memory) vkd.FreeMemory(device, memory, nullptr);
     view = VK_NULL_HANDLE;
     image = VK_NULL_HANDLE;
     memory = VK_NULL_HANDLE;
@@ -231,7 +231,7 @@ void LsfgImage::Release() {
 LsfgResources::~LsfgResources() {
     if (!device) return;
     for (auto& [key, sampler] : samplers) {
-        vkDestroySampler(device->Handle(), sampler, nullptr);
+        vkd.DestroySampler(device->Handle(), sampler, nullptr);
     }
     samplers.clear();
 }
@@ -315,7 +315,7 @@ void LsfgResources::PrepareDummies(VkCommandBuffer cmdbuf) {
     }
 
     if (!barriers.empty()) {
-        vkCmdPipelineBarrier(cmdbuf, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        vkd.CmdPipelineBarrier(cmdbuf, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                              VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 0, nullptr,
                              static_cast<uint32_t>(barriers.size()), barriers.data());
     }
@@ -364,7 +364,7 @@ LsfgBarriers& LsfgBarriers::DiscardToWrite(VkImage image) {
 
 void LsfgBarriers::Build() {
     if (barriers.empty()) return;
-    vkCmdPipelineBarrier(cmdbuf, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+    vkd.CmdPipelineBarrier(cmdbuf, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                          VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 0, nullptr,
                          static_cast<uint32_t>(barriers.size()), barriers.data());
     barriers.clear();
@@ -431,7 +431,7 @@ LsfgDescriptorWriter& LsfgDescriptorWriter::AddUniformBuffer(VkBuffer buffer, Vk
 
 void LsfgDescriptorWriter::Build(const Device& device) {
     if (writes.empty()) return;
-    vkUpdateDescriptorSets(device.Handle(), static_cast<uint32_t>(writes.size()), writes.data(), 0,
+    vkd.UpdateDescriptorSets(device.Handle(), static_cast<uint32_t>(writes.size()), writes.data(), 0,
                            nullptr);
     writes.clear();
 }
@@ -457,7 +457,7 @@ LsfgPass::LsfgPass(const Device& device_, const LsfgShaders& shaders, uint32_t s
     layout_ci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     layout_ci.bindingCount = static_cast<uint32_t>(layout_bindings.size());
     layout_ci.pBindings = layout_bindings.data();
-    if (vkCreateDescriptorSetLayout(device, &layout_ci, nullptr, &descriptor_set_layout) !=
+    if (vkd.CreateDescriptorSetLayout(device, &layout_ci, nullptr, &descriptor_set_layout) !=
         VK_SUCCESS) {
         Release();
         return;
@@ -467,7 +467,7 @@ LsfgPass::LsfgPass(const Device& device_, const LsfgShaders& shaders, uint32_t s
     pipeline_layout_ci.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipeline_layout_ci.setLayoutCount = 1;
     pipeline_layout_ci.pSetLayouts = &descriptor_set_layout;
-    if (vkCreatePipelineLayout(device, &pipeline_layout_ci, nullptr, &pipeline_layout) !=
+    if (vkd.CreatePipelineLayout(device, &pipeline_layout_ci, nullptr, &pipeline_layout) !=
         VK_SUCCESS) {
         Release();
         return;
@@ -489,7 +489,7 @@ LsfgPass::LsfgPass(const Device& device_, const LsfgShaders& shaders, uint32_t s
     pipeline_ci.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     pipeline_ci.stage = stage;
     pipeline_ci.layout = pipeline_layout;
-    if (vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &pipeline_ci, nullptr, &pipeline) !=
+    if (vkd.CreateComputePipelines(device, VK_NULL_HANDLE, 1, &pipeline_ci, nullptr, &pipeline) !=
         VK_SUCCESS) {
         pipeline = VK_NULL_HANDLE;
         Release();
@@ -528,9 +528,9 @@ LsfgPass& LsfgPass::operator=(LsfgPass&& other) noexcept {
 
 void LsfgPass::Release() {
     if (device == VK_NULL_HANDLE) return;
-    if (pipeline) vkDestroyPipeline(device, pipeline, nullptr);
-    if (pipeline_layout) vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
-    if (descriptor_set_layout) vkDestroyDescriptorSetLayout(device, descriptor_set_layout, nullptr);
+    if (pipeline) vkd.DestroyPipeline(device, pipeline, nullptr);
+    if (pipeline_layout) vkd.DestroyPipelineLayout(device, pipeline_layout, nullptr);
+    if (descriptor_set_layout) vkd.DestroyDescriptorSetLayout(device, descriptor_set_layout, nullptr);
     pipeline = VK_NULL_HANDLE;
     pipeline_layout = VK_NULL_HANDLE;
     descriptor_set_layout = VK_NULL_HANDLE;
@@ -542,11 +542,11 @@ void LsfgPass::Bind(VkCommandBuffer cmdbuf, VkDescriptorSet set) const {
 }
 
 void LsfgPass::BindPipeline(VkCommandBuffer cmdbuf) const {
-    vkCmdBindPipeline(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+    vkd.CmdBindPipeline(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
 }
 
 void LsfgPass::BindSet(VkCommandBuffer cmdbuf, VkDescriptorSet set) const {
-    vkCmdBindDescriptorSets(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_layout, 0, 1, &set, 0,
+    vkd.CmdBindDescriptorSets(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_layout, 0, 1, &set, 0,
                             nullptr);
 }
 
@@ -573,7 +573,7 @@ VkDescriptorPool CreateLsfgDescriptorPool(const Device& device, uint32_t max_set
     pool_ci.pPoolSizes = sizes.data();
 
     VkDescriptorPool pool = VK_NULL_HANDLE;
-    if (vkCreateDescriptorPool(device.Handle(), &pool_ci, nullptr, &pool) != VK_SUCCESS) {
+    if (vkd.CreateDescriptorPool(device.Handle(), &pool_ci, nullptr, &pool) != VK_SUCCESS) {
         return VK_NULL_HANDLE;
     }
     return pool;
@@ -593,7 +593,7 @@ std::vector<VkDescriptorSet> AllocateLsfgDescriptorSets(const Device& device,
     allocate_info.pSetLayouts = layouts.data();
 
     std::vector<VkDescriptorSet> sets(count, VK_NULL_HANDLE);
-    if (vkAllocateDescriptorSets(device.Handle(), &allocate_info, sets.data()) != VK_SUCCESS) {
+    if (vkd.AllocateDescriptorSets(device.Handle(), &allocate_info, sets.data()) != VK_SUCCESS) {
         return {};
     }
     return sets;
@@ -614,7 +614,7 @@ std::vector<VkDescriptorSet> AllocateLsfgDescriptorSets(
     allocate_info.pSetLayouts = layouts.data();
 
     std::vector<VkDescriptorSet> sets(layouts.size(), VK_NULL_HANDLE);
-    if (vkAllocateDescriptorSets(device.Handle(), &allocate_info, sets.data()) != VK_SUCCESS) {
+    if (vkd.AllocateDescriptorSets(device.Handle(), &allocate_info, sets.data()) != VK_SUCCESS) {
         return {};
     }
     return sets;
@@ -639,7 +639,7 @@ VkSampler CreateLsfgSampler(const Device& device, VkSamplerAddressMode address_m
     sampler_ci.unnormalizedCoordinates = VK_FALSE;
 
     VkSampler sampler = VK_NULL_HANDLE;
-    if (vkCreateSampler(device.Handle(), &sampler_ci, nullptr, &sampler) != VK_SUCCESS) {
+    if (vkd.CreateSampler(device.Handle(), &sampler_ci, nullptr, &sampler) != VK_SUCCESS) {
         return VK_NULL_HANDLE;
     }
     return sampler;

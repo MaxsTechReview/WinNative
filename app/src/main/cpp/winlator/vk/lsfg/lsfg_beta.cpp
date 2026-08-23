@@ -127,23 +127,23 @@ void LsfgBeta::Dispatch(VkCommandBuffer cmdbuf, uint64_t frame_count) {
     barriers.ReadToWriteAll(temp1).Build();
 
     passes[0].Bind(cmdbuf, first_descriptor_sets[frame_count % LSFG_HISTORY_SLOTS]);
-    vkCmdDispatch(cmdbuf, groups_x, groups_y, 1);
+    vkd.CmdDispatch(cmdbuf, groups_x, groups_y, 1);
 
     LsfgBarriers(cmdbuf).WriteToReadAll(temp1).ReadToWriteAll(temp2).Build();
     passes[1].Bind(cmdbuf, descriptor_sets[0]);
-    vkCmdDispatch(cmdbuf, groups_x, groups_y, 1);
+    vkd.CmdDispatch(cmdbuf, groups_x, groups_y, 1);
 
     LsfgBarriers(cmdbuf).WriteToReadAll(temp2).ReadToWriteAll(temp1).Build();
     passes[2].Bind(cmdbuf, descriptor_sets[1]);
-    vkCmdDispatch(cmdbuf, groups_x, groups_y, 1);
+    vkd.CmdDispatch(cmdbuf, groups_x, groups_y, 1);
 
     LsfgBarriers(cmdbuf).WriteToReadAll(temp1).ReadToWriteAll(temp2).Build();
     passes[3].Bind(cmdbuf, descriptor_sets[2]);
-    vkCmdDispatch(cmdbuf, groups_x, groups_y, 1);
+    vkd.CmdDispatch(cmdbuf, groups_x, groups_y, 1);
 
     LsfgBarriers(cmdbuf).WriteToReadAll(temp2).ReadToWriteAll(out_images).Build();
     passes[4].Bind(cmdbuf, descriptor_sets[3]);
-    vkCmdDispatch(cmdbuf, GroupCount(extent.width, OUTPUT_TILE_SHIFT),
+    vkd.CmdDispatch(cmdbuf, GroupCount(extent.width, OUTPUT_TILE_SHIFT),
                   GroupCount(extent.height, OUTPUT_TILE_SHIFT), 1);
 }
 

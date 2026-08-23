@@ -13,7 +13,8 @@
 #include <map>
 #include <utility>
 #include <vector>
-#include <vulkan/vulkan.h>
+
+#include "../vk_dispatch.h"
 
 namespace lsfg {
 

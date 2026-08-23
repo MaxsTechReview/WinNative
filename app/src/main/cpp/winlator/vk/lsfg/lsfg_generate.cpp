@@ -96,6 +96,14 @@ void LsfgGenerate::SetTarget(const Device& device, size_t slot, uint32_t target,
     }
 }
 
+void LsfgGenerate::ForgetTargets() {
+    for (auto& generation : generations) {
+        for (auto& entry : generation.targets) {
+            entry.view = VK_NULL_HANDLE;
+        }
+    }
+}
+
 void LsfgGenerate::Dispatch(VkCommandBuffer cmdbuf, uint64_t frame_count, size_t slot,
                             uint32_t target, VkImage image, VkExtent2D extent) {
     const Target& entry = generations[slot].targets[target];
@@ -109,13 +117,13 @@ void LsfgGenerate::Dispatch(VkCommandBuffer cmdbuf, uint64_t frame_count, size_t
         .Build();
 
     pass.Bind(cmdbuf, entry.descriptor_sets[frame_count % entry.descriptor_sets.size()]);
-    vkCmdDispatch(cmdbuf, GroupCount(extent.width), GroupCount(extent.height), 1);
+    vkd.CmdDispatch(cmdbuf, GroupCount(extent.width), GroupCount(extent.height), 1);
 
     const VkImageMemoryBarrier after = MakeTargetBarrier(
         image, VK_ACCESS_SHADER_WRITE_BIT,
         VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_TRANSFER_READ_BIT,
         VK_IMAGE_LAYOUT_GENERAL);
-    vkCmdPipelineBarrier(cmdbuf, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+    vkd.CmdPipelineBarrier(cmdbuf, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                          VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
                              VK_PIPELINE_STAGE_TRANSFER_BIT,
                          0, 0, nullptr, 0, nullptr, 1, &after);

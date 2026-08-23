@@ -31,7 +31,7 @@ LsfgShaders::LsfgShaders(const Device& device_, const std::string& cache_path)
         module_ci.pCode = module.words;
 
         VkShaderModule handle = VK_NULL_HANDLE;
-        if (vkCreateShaderModule(device, &module_ci, nullptr, &handle) != VK_SUCCESS) {
+        if (vkd.CreateShaderModule(device, &module_ci, nullptr, &handle) != VK_SUCCESS) {
             SHADER_LOGE("vkCreateShaderModule failed for shader %u", module.id);
             lsfg_release_modules(&set);
             Release();
@@ -57,7 +57,7 @@ LsfgShaders::~LsfgShaders() {
 void LsfgShaders::Release() {
     if (device != VK_NULL_HANDLE) {
         for (auto& [id, module] : modules) {
-            vkDestroyShaderModule(device, module, nullptr);
+            vkd.DestroyShaderModule(device, module, nullptr);
         }
     }
     modules.clear();

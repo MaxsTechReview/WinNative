@@ -14,6 +14,10 @@
 #include <stdbool.h>
 #include <vulkan/vulkan.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct VkDispatch {
     // Loader-level (resolved via dlsym + vkGetInstanceProcAddr(NULL, ...))
     PFN_vkGetInstanceProcAddr GetInstanceProcAddr;
@@ -89,6 +93,7 @@ typedef struct VkDispatch {
     PFN_vkCreatePipelineLayout CreatePipelineLayout;
     PFN_vkDestroyPipelineLayout DestroyPipelineLayout;
     PFN_vkCreateGraphicsPipelines CreateGraphicsPipelines;
+    PFN_vkCreateComputePipelines CreateComputePipelines;
     PFN_vkDestroyPipeline DestroyPipeline;
     PFN_vkCreateShaderModule CreateShaderModule;
     PFN_vkDestroyShaderModule DestroyShaderModule;
@@ -128,6 +133,8 @@ typedef struct VkDispatch {
     PFN_vkCmdPipelineBarrier CmdPipelineBarrier;
     PFN_vkCmdCopyBufferToImage CmdCopyBufferToImage;
     PFN_vkCmdBlitImage CmdBlitImage;
+    PFN_vkCmdCopyImage CmdCopyImage;
+    PFN_vkCmdDispatch CmdDispatch;
 
     // Queue
     PFN_vkQueueSubmit QueueSubmit;
@@ -151,6 +158,10 @@ bool vkd_load_instance(VkInstance instance);
 
 // Must be called before dlclose so stale-pointer crashes fault on NULL.
 void vkd_unload(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 // Redirect bare `vkFoo` names to the dispatch table.
 

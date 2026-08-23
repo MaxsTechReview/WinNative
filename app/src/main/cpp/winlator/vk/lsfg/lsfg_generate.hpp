@@ -23,6 +23,8 @@ public:
 
     void SetTarget(const Device& device, size_t slot, uint32_t target, VkImageView view);
 
+    void ForgetTargets();
+
     void Dispatch(VkCommandBuffer cmdbuf, uint64_t frame_count, size_t slot, uint32_t target,
                   VkImage image, VkExtent2D extent);
 

@@ -731,6 +731,50 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         return shortcut != null ? shortcut.getSettingExtra(key, containerValue) : containerValue;
     }
 
+    // Frame generation needs the extracted Lossless shader cache, a GPU that clears the probe, and
+    // an explicit opt-in. Any one missing leaves the renderer on its normal single-present path.
+    private void applyFrameGenerationSettings(VulkanRenderer renderer, Container container) {
+        if (renderer == null) return;
+
+        String containerValue = container != null ? container.getExtra("frameGen", "0") : "0";
+        boolean wanted = "1".equals(getShortcutSetting("frameGen", containerValue));
+        if (!wanted) {
+            renderer.setFrameGenerationEnabled(false);
+            return;
+        }
+
+        java.io.File cache = com.winlator.cmod.runtime.display.lsfg.LosslessScaling
+                .resolveCacheFile(this, true);
+        if (cache == null) {
+            Log.w("XServerDisplayActivity", "frameGen requested but no Lossless shader cache");
+            renderer.setFrameGenerationEnabled(false);
+            return;
+        }
+
+        String containerMultiplier = container != null ? container.getExtra("frameGenMultiplier", "2") : "2";
+        String containerTargetRate = container != null ? container.getExtra("frameGenTargetRate", "0") : "0";
+        String containerFlowScale = container != null ? container.getExtra("frameGenFlowScale", "100") : "100";
+
+        int multiplier = parseSettingInt(getShortcutSetting("frameGenMultiplier", containerMultiplier), 2);
+        int targetRate = parseSettingInt(getShortcutSetting("frameGenTargetRate", containerTargetRate), 0);
+        int flowScale = parseSettingInt(getShortcutSetting("frameGenFlowScale", containerFlowScale), 100);
+
+        renderer.setFrameGenerationShaders(cache.getAbsolutePath());
+        renderer.setFrameGenerationMode(multiplier, targetRate, flowScale);
+        renderer.setFrameGenerationEnabled(true);
+        Log.i("XServerDisplayActivity", "Frame generation on: multiplier=" + multiplier
+                + " targetRate=" + targetRate + " flowScale=" + flowScale);
+    }
+
+    private static int parseSettingInt(String value, int fallback) {
+        if (value == null) return fallback;
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
     // paramsJson is nested {"<effect>":{uniform:value}} when nested, else the flat legacy map
     private static class ResolvedReshade {
         java.util.List<com.winlator.cmod.runtime.reshade.ReshadeLoadout.Entry> loadout;
@@ -7412,6 +7456,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
 
         String containerSwapRB = container != null ? container.getExtra("swapRB", "0") : "0";
         renderer.setSwapRB("1".equals(getShortcutSetting("swapRB", containerSwapRB)));
+
+        applyFrameGenerationSettings(renderer, container);
 
         if (shortcut != null || (bootExePath != null && !bootExePath.isEmpty())) {
             renderer.setUnviewableWMClasses("explorer.exe");

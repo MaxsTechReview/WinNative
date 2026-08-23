@@ -146,7 +146,7 @@ void LsfgAlpha::DispatchStage(VkCommandBuffer cmdbuf, uint64_t frame_count, size
                                     : last_descriptor_sets[frame_count % LSFG_HISTORY_SLOTS];
 
     passes->Get(stage).BindSet(cmdbuf, set);
-    vkCmdDispatch(cmdbuf, GroupCount(extent.width), GroupCount(extent.height), 1);
+    vkd.CmdDispatch(cmdbuf, GroupCount(extent.width), GroupCount(extent.height), 1);
 }
 
 }

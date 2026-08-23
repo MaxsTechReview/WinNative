@@ -157,11 +157,11 @@ void LsfgGamma::Dispatch(VkCommandBuffer cmdbuf, uint64_t frame_count, size_t sl
         .ReadToWriteAll(temp1)
         .Build();
     passes[0].Bind(cmdbuf, pass.first_descriptor_sets[history]);
-    vkCmdDispatch(cmdbuf, groups_x, groups_y, 1);
+    vkd.CmdDispatch(cmdbuf, groups_x, groups_y, 1);
 
     LsfgBarriers(cmdbuf).WriteToReadAll(temp1).ReadToWriteAll(temp2).Build();
     passes[1].Bind(cmdbuf, pass.descriptor_sets[0]);
-    vkCmdDispatch(cmdbuf, groups_x, groups_y, 1);
+    vkd.CmdDispatch(cmdbuf, groups_x, groups_y, 1);
 
     LsfgBarriers(cmdbuf)
         .WriteToReadAll(temp2)
@@ -169,7 +169,7 @@ void LsfgGamma::Dispatch(VkCommandBuffer cmdbuf, uint64_t frame_count, size_t sl
         .ReadToWrite(temp1[1])
         .Build();
     passes[2].Bind(cmdbuf, pass.descriptor_sets[1]);
-    vkCmdDispatch(cmdbuf, groups_x, groups_y, 1);
+    vkd.CmdDispatch(cmdbuf, groups_x, groups_y, 1);
 
     LsfgBarriers(cmdbuf)
         .WriteToRead(temp1[0])
@@ -177,7 +177,7 @@ void LsfgGamma::Dispatch(VkCommandBuffer cmdbuf, uint64_t frame_count, size_t sl
         .ReadToWriteAll(temp2)
         .Build();
     passes[3].Bind(cmdbuf, pass.descriptor_sets[2]);
-    vkCmdDispatch(cmdbuf, groups_x, groups_y, 1);
+    vkd.CmdDispatch(cmdbuf, groups_x, groups_y, 1);
 
     LsfgBarriers(cmdbuf)
         .WriteToReadAll(temp2)
@@ -186,7 +186,7 @@ void LsfgGamma::Dispatch(VkCommandBuffer cmdbuf, uint64_t frame_count, size_t sl
         .ReadToWrite(out_image)
         .Build();
     passes[4].Bind(cmdbuf, pass.descriptor_sets[3]);
-    vkCmdDispatch(cmdbuf, groups_x, groups_y, 1);
+    vkd.CmdDispatch(cmdbuf, groups_x, groups_y, 1);
 }
 
 }

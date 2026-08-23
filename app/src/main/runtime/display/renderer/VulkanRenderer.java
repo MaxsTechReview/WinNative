@@ -217,6 +217,12 @@ public class VulkanRenderer
                 if (requestedScaleFilter != SCALE_FILTER_OFF) {
                     nativeSetScaleFilter(nativeHandle, requestedScaleFilter);
                 }
+                // Shaders and cadence first: enabling is what actually builds the chain.
+                if (frameGenerationShaderCache != null) {
+                    nativeSetFrameGenerationShaders(nativeHandle, frameGenerationShaderCache);
+                }
+                nativeSetFrameGenerationMode(nativeHandle, frameGenerationMultiplier,
+                        frameGenerationTargetRate, frameGenerationFlowScale);
                 if (frameGenerationRequested) {
                     nativeSetFrameGenerationEnabled(nativeHandle, true);
                 }
@@ -888,10 +894,29 @@ public class VulkanRenderer
     }
 
     private boolean frameGenerationRequested = false;
+    private String frameGenerationShaderCache = null;
+    private int frameGenerationMultiplier = 2;
+    private int frameGenerationTargetRate = 0;
+    private int frameGenerationFlowScale = 100;
 
     public void setFrameGenerationEnabled(boolean enabled) {
         frameGenerationRequested = enabled;
         if (nativeHandle != 0) nativeSetFrameGenerationEnabled(nativeHandle, enabled);
+    }
+
+    public void setFrameGenerationShaders(String cachePath) {
+        frameGenerationShaderCache = cachePath;
+        if (nativeHandle != 0) nativeSetFrameGenerationShaders(nativeHandle, cachePath);
+    }
+
+    public void setFrameGenerationMode(int multiplier, int targetRate, int flowScalePercent) {
+        frameGenerationMultiplier = Math.max(2, multiplier);
+        frameGenerationTargetRate = Math.max(0, targetRate);
+        frameGenerationFlowScale = flowScalePercent <= 0 ? 100 : flowScalePercent;
+        if (nativeHandle != 0) {
+            nativeSetFrameGenerationMode(nativeHandle, frameGenerationMultiplier,
+                    frameGenerationTargetRate, frameGenerationFlowScale);
+        }
     }
 
     public boolean isFrameGenerationRequested() {
@@ -900,6 +925,10 @@ public class VulkanRenderer
 
     public boolean isFrameGenerationSupported() {
         return nativeHandle != 0 && nativeIsFrameGenerationSupported(nativeHandle);
+    }
+
+    public long getGeneratedFrameCount() {
+        return nativeHandle != 0 ? nativeGetGeneratedFrameCount(nativeHandle) : 0L;
     }
 
     public static int parsePresentMode(String name) {
@@ -957,4 +986,8 @@ public class VulkanRenderer
     private static native void nativeSetScaleFilter(long handle, int mode);
     private static native void nativeSetFrameGenerationEnabled(long handle, boolean enabled);
     private static native boolean nativeIsFrameGenerationSupported(long handle);
+    private static native void nativeSetFrameGenerationShaders(long handle, String cachePath);
+    private static native void nativeSetFrameGenerationMode(long handle, int multiplier,
+                                                            int targetRate, int flowScalePercent);
+    private static native long nativeGetGeneratedFrameCount(long handle);
 }

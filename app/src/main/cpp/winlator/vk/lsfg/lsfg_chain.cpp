@@ -77,7 +77,7 @@ LsfgChain::LsfgChain(const Device& device, const LsfgShaders& shaders, VkExtent2
 
 LsfgChain::~LsfgChain() {
     if (descriptor_pool != VK_NULL_HANDLE) {
-        vkDestroyDescriptorPool(owner, descriptor_pool, nullptr);
+        vkd.DestroyDescriptorPool(owner, descriptor_pool, nullptr);
         descriptor_pool = VK_NULL_HANDLE;
     }
 }

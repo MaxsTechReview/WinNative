@@ -74,7 +74,7 @@ void LsfgMipmaps::Dispatch(VkCommandBuffer cmdbuf, uint64_t frame_count) {
     LsfgBarriers(cmdbuf).WriteToRead((*frames)[slot]).ReadToWriteAll(out_images).Build();
 
     pass.Bind(cmdbuf, descriptor_sets[slot]);
-    vkCmdDispatch(cmdbuf, GroupCount(flow_extent.width), GroupCount(flow_extent.height), 1);
+    vkd.CmdDispatch(cmdbuf, GroupCount(flow_extent.width), GroupCount(flow_extent.height), 1);
 }
 
 }

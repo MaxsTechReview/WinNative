@@ -14,6 +14,7 @@
 // All vk* calls route through the dispatch table — vk_dispatch.h is the Vulkan header for
 // this translation unit (do not include <vulkan/vulkan.h> directly).
 #include "vk_dispatch.h"
+#include "lsfg/vkr_lsfg.h"
 
 #define VK_LOG_TAG "VkRenderer"
 #define VK_LOGI(...) __android_log_print(ANDROID_LOG_INFO,  VK_LOG_TAG, __VA_ARGS__)
@@ -198,6 +199,7 @@ typedef struct VkPipelineSet {
 
 typedef struct VkFrame {
     VkSemaphore image_available;
+    VkSemaphore image_available_gen[VKR_LSFG_MAX_GENERATIONS];
     VkFence     in_flight;
     VkCommandBuffer cmd;
 } VkFrame;
@@ -414,6 +416,13 @@ typedef struct VkRenderer {
     bool              framegen_supported;
     bool              framegen_requested;
     bool              swapchain_transfer_dst;
+    struct VkrLsfg*   lsfg;
+    char*             lsfg_cache_path;
+    uint32_t          framegen_multiplier;
+    uint32_t          framegen_target_rate;
+    float             framegen_flow_scale;
+    uint64_t          framegen_real_frames;
+    uint64_t          framegen_made_frames;
 
     // record_blit_src adds TRANSFER_SRC usage to the display swapchain (toggled by start/stop recording).
     bool             record_blit_src;

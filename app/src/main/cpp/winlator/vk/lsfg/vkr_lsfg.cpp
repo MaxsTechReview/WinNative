@@ -1,0 +1,229 @@
+#include "vkr_lsfg.h"
+
+#include "lsfg_chain.hpp"
+#include "lsfg_pacer.hpp"
+#include "lsfg_shaders.hpp"
+
+#include <algorithm>
+#include <memory>
+#include <string>
+
+#include <android/log.h>
+
+#define LSFG_LOGI(...) __android_log_print(ANDROID_LOG_INFO, "VkrLsfg", __VA_ARGS__)
+#define LSFG_LOGW(...) __android_log_print(ANDROID_LOG_WARN, "VkrLsfg", __VA_ARGS__)
+
+namespace {
+
+constexpr uint64_t LSFG_REQUIRED_FRAMES = 2;
+constexpr uint32_t LSFG_RECURRENCE_FRAMES = 2;
+
+VkImageMemoryBarrier MakeTransitionBarrier(VkImage image, VkAccessFlags src_access,
+                                           VkAccessFlags dst_access, VkImageLayout old_layout,
+                                           VkImageLayout new_layout) {
+    VkImageMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.srcAccessMask = src_access;
+    barrier.dstAccessMask = dst_access;
+    barrier.oldLayout = old_layout;
+    barrier.newLayout = new_layout;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = image;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.layerCount = 1;
+    return barrier;
+}
+
+void CopyPresentedFrame(VkCommandBuffer cmd, VkImage source, lsfg::LsfgImage& destination,
+                        VkExtent2D extent) {
+    const VkImageMemoryBarrier before[] = {
+        MakeTransitionBarrier(source, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                              VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL,
+                              VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL),
+        MakeTransitionBarrier(destination.Handle(), VK_ACCESS_SHADER_READ_BIT,
+                              VK_ACCESS_TRANSFER_WRITE_BIT, destination.Layout(),
+                              VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL),
+    };
+    vkd.CmdPipelineBarrier(cmd,
+                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+                               VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                           VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 2, before);
+
+    VkImageCopy region{};
+    region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.srcSubresource.layerCount = 1;
+    region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.dstSubresource.layerCount = 1;
+    region.extent = {extent.width, extent.height, 1};
+    vkd.CmdCopyImage(cmd, source, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination.Handle(),
+                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+    const VkImageMemoryBarrier after[] = {
+        MakeTransitionBarrier(source, VK_ACCESS_TRANSFER_READ_BIT,
+                              VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                              VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL),
+        MakeTransitionBarrier(destination.Handle(), VK_ACCESS_TRANSFER_WRITE_BIT,
+                              VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                              VK_IMAGE_LAYOUT_GENERAL),
+    };
+    vkd.CmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+                               VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                           0, 0, nullptr, 0, nullptr, 2, after);
+
+    destination.SetLayout(VK_IMAGE_LAYOUT_GENERAL);
+}
+
+}
+
+struct VkrLsfg {
+    lsfg::Device device;
+    std::string cache_path;
+    std::unique_ptr<lsfg::LsfgShaders> shaders;
+    std::unique_ptr<lsfg::LsfgChain> chain;
+    lsfg::LsfgPacer pacer;
+    lsfg::LsfgPlan plan{};
+
+    VkExtent2D built_extent{};
+    VkFormat built_format{VK_FORMAT_UNDEFINED};
+    float built_flow_scale{};
+    float flow_scale{1.0f};
+
+    uint64_t frame_count{};
+    uint64_t last_count{};
+    size_t last_generations{};
+    uint32_t warm_streak{};
+    bool generated{};
+    bool unavailable{};
+};
+
+VkrLsfg* vkr_lsfg_create(VkDevice device, VkPhysicalDevice physical_device,
+                         const char* cache_path) {
+    if (device == VK_NULL_HANDLE || physical_device == VK_NULL_HANDLE || cache_path == nullptr) {
+        return nullptr;
+    }
+
+    auto* lsfg = new VkrLsfg();
+    lsfg->device = lsfg::Device(device, physical_device);
+    lsfg->cache_path = cache_path;
+
+    lsfg->shaders = std::make_unique<lsfg::LsfgShaders>(lsfg->device, lsfg->cache_path.c_str());
+    if (!lsfg->shaders->IsValid()) {
+        LSFG_LOGW("shader cache at %s did not yield all modules", cache_path);
+        delete lsfg;
+        return nullptr;
+    }
+
+    LSFG_LOGI("frame generation shaders ready");
+    return lsfg;
+}
+
+void vkr_lsfg_destroy(VkrLsfg* lsfg) {
+    delete lsfg;
+}
+
+void vkr_lsfg_configure(VkrLsfg* lsfg, uint32_t multiplier, uint32_t target_rate,
+                        float flow_scale) {
+    if (!lsfg) return;
+
+    lsfg::LsfgPacerConfig config;
+    config.multiplier = multiplier;
+    config.target_rate = target_rate;
+    lsfg->pacer.SetConfig(config);
+    lsfg->flow_scale = std::clamp(flow_scale, 0.25f, 1.0f);
+}
+
+bool vkr_lsfg_needs_rebuild(const VkrLsfg* lsfg, uint32_t width, uint32_t height,
+                            VkFormat format) {
+    if (!lsfg || lsfg->unavailable) return false;
+    return !lsfg->chain || lsfg->built_extent.width != width
+        || lsfg->built_extent.height != height || lsfg->built_format != format
+        || lsfg->built_flow_scale != lsfg->flow_scale;
+}
+
+bool vkr_lsfg_prepare(VkrLsfg* lsfg, uint32_t width, uint32_t height, VkFormat format) {
+    if (!lsfg || lsfg->unavailable) return false;
+    if (width == 0 || height == 0 || format == VK_FORMAT_UNDEFINED) return false;
+
+    if (!vkr_lsfg_needs_rebuild(lsfg, width, height, format)) {
+        return lsfg->chain && lsfg->chain->Valid();
+    }
+
+    lsfg->chain.reset();
+    lsfg->chain = std::make_unique<lsfg::LsfgChain>(
+        lsfg->device, *lsfg->shaders, VkExtent2D{width, height}, format, lsfg->flow_scale);
+    if (!lsfg->chain->Valid()) {
+        LSFG_LOGW("chain build failed at %ux%u; frame generation unavailable", width, height);
+        lsfg->chain.reset();
+        lsfg->unavailable = true;
+        return false;
+    }
+
+    lsfg->built_extent = VkExtent2D{width, height};
+    lsfg->built_format = format;
+    lsfg->built_flow_scale = lsfg->flow_scale;
+    lsfg->frame_count = 0;
+    lsfg->warm_streak = 0;
+    lsfg->generated = false;
+    lsfg->pacer.Reset();
+    LSFG_LOGI("chain built at %ux%u, flow scale %.2f", width, height,
+              (double)lsfg->built_flow_scale);
+    return true;
+}
+
+uint32_t vkr_lsfg_plan(VkrLsfg* lsfg, uint32_t capacity) {
+    if (!lsfg || lsfg->unavailable) return 0;
+    lsfg->plan = lsfg->pacer.Plan(std::min<size_t>(capacity, VKR_LSFG_MAX_GENERATIONS));
+    return static_cast<uint32_t>(lsfg->plan.generations);
+}
+
+void vkr_lsfg_process(VkrLsfg* lsfg, VkCommandBuffer cmd, VkImage source, uint32_t width,
+                      uint32_t height) {
+    if (!lsfg || !lsfg->chain || !lsfg->chain->Valid()) return;
+
+    const uint64_t count = lsfg->frame_count++;
+    lsfg->last_count = count;
+    lsfg->last_generations = lsfg->plan.generations;
+
+    const bool warm = lsfg->plan.warm && count + 1 >= LSFG_REQUIRED_FRAMES;
+    lsfg->warm_streak = warm ? lsfg->warm_streak + 1 : 0;
+    lsfg->generated =
+        warm && lsfg->warm_streak >= LSFG_RECURRENCE_FRAMES && lsfg->plan.generations > 0;
+
+    CopyPresentedFrame(cmd, source, lsfg->chain->Input(count), VkExtent2D{width, height});
+    if (warm) {
+        lsfg->chain->DispatchShared(cmd, count);
+    }
+}
+
+uint32_t vkr_lsfg_generated_count(const VkrLsfg* lsfg) {
+    if (!lsfg || !lsfg->generated) return 0;
+    return static_cast<uint32_t>(lsfg->last_generations);
+}
+
+void vkr_lsfg_generate_into(VkrLsfg* lsfg, VkCommandBuffer cmd, uint32_t generation,
+                            uint32_t target_index, VkImage target_image, VkImageView target_view,
+                            uint32_t width, uint32_t height) {
+    if (!lsfg || !lsfg->chain || !lsfg->chain->Valid()) return;
+    if (target_index >= lsfg::LSFG_MAX_TARGETS) return;
+
+    lsfg->chain->SetTarget(lsfg->device, lsfg->last_generations, generation, target_index,
+                           target_view);
+    lsfg->chain->DispatchGeneration(cmd, lsfg->last_count, lsfg->last_generations, generation,
+                                    target_index, target_image, VkExtent2D{width, height});
+}
+
+void vkr_lsfg_forget_targets(VkrLsfg* lsfg) {
+    if (!lsfg || !lsfg->chain) return;
+    lsfg->chain->ForgetTargets();
+}
+
+void vkr_lsfg_reset(VkrLsfg* lsfg) {
+    if (!lsfg) return;
+    lsfg->pacer.Reset();
+    lsfg->warm_streak = 0;
+    lsfg->generated = false;
+    lsfg->plan = {};
+}
