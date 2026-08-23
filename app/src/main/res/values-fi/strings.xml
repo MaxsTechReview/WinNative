@@ -2493,4 +2493,24 @@ Asennuspolku:
     <string name="retro_scr_consoles_verifying">Vahvistetaan latausta…</string>
     <string name="retro_scr_consoles_working">Käsitellään…</string>
     <string name="retro_tab_system">Järjestelmä</string>
+    <string name="session_drawer_frame_generation">Ruudun generointi</string>
+    <string name="session_drawer_frame_generation_enable">Generoi ruutuja</string>
+    <string name="session_drawer_frame_generation_multiplier">Kerroin</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">Mukautuva tavoite</string>
+    <string name="session_drawer_frame_generation_target_off">Kiinteä</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_flow_scale">Virtauksen skaala</string>
+    <string name="session_drawer_frame_generation_note">Interpoloi renderöityjen ruutujen välillä Lossless Scalingilla. Sulavampi liike, mutta yhden ruudun lisäviive syötteessä.</string>
+    <string name="session_drawer_frame_generation_target_note">Nousee kohti tavoitetta vain, kun siitä on mitattavaa hyötyä, sen sijaan että pitäisi kiinteän kertoimen.</string>
+    <string name="session_drawer_frame_generation_missing">Asenna Lossless Scaling säilön asetuksista käyttääksesi ruudun generointia.</string>
+    <string name="settings_frame_generation_title">Ruudun generointi</string>
+    <string name="settings_frame_generation_importing">Etsitään Lossless Scalingia…</string>
+    <string name="settings_frame_generation_ready">Lossless Scalingin varjostimet valmiina.</string>
+    <string name="settings_frame_generation_imported">Tuotu kohteesta %1$s.</string>
+    <string name="settings_frame_generation_not_found">Lossless Scalingia ei löytynyt. Asenna se Steamista ja avaa tämä näkymä uudelleen, niin se tuodaan automaattisesti.</string>
+    <string name="settings_frame_generation_failed">Lossless.dll löytyi, mutta sen varjostimia ei voitu lukea. Tarkista Steam-tiedostot ja yritä uudelleen.</string>
+    <string name="settings_frame_generation_updated">Päivitetty kohteesta %1$s.</string>
+    <string name="settings_frame_generation_not_owned">Ruudun generointi käyttää Lossless Scalingin varjostimia. Osta se Steamista kirjautuneella tilillä ottaaksesi tämän käyttöön.</string>
+    <string name="settings_frame_generation_locate">Valitse Lossless.dll…</string>
 </resources>

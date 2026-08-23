@@ -2430,4 +2430,24 @@
     <string name="retro_scr_consoles_verifying">डाउनलोड सत्यापित हो रहा है…</string>
     <string name="retro_scr_consoles_working">काम चल रहा है…</string>
     <string name="retro_tab_system">सिस्टम</string>
+    <string name="session_drawer_frame_generation">फ़्रेम जनरेशन</string>
+    <string name="session_drawer_frame_generation_enable">फ़्रेम जनरेट करें</string>
+    <string name="session_drawer_frame_generation_multiplier">गुणक</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">अनुकूली लक्ष्य</string>
+    <string name="session_drawer_frame_generation_target_off">स्थिर</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_flow_scale">फ़्लो स्केल</string>
+    <string name="session_drawer_frame_generation_note">Lossless Scaling से रेंडर किए गए फ़्रेमों के बीच इंटरपोलेट करता है। गति अधिक सहज, लेकिन इनपुट में एक अतिरिक्त फ़्रेम की देरी।</string>
+    <string name="session_drawer_frame_generation_target_note">स्थिर गुणक बनाए रखने के बजाय, केवल तभी लक्ष्य की ओर बढ़ता है जब इससे मापने योग्य लाभ हो।</string>
+    <string name="session_drawer_frame_generation_missing">फ़्रेम जनरेशन उपयोग करने के लिए कंटेनर सेटिंग्स में Lossless Scaling इंस्टॉल करें।</string>
+    <string name="settings_frame_generation_title">फ़्रेम जनरेशन</string>
+    <string name="settings_frame_generation_importing">Lossless Scaling खोजा जा रहा है…</string>
+    <string name="settings_frame_generation_ready">Lossless Scaling शेडर तैयार हैं।</string>
+    <string name="settings_frame_generation_imported">%1$s से आयात किया गया।</string>
+    <string name="settings_frame_generation_not_found">Lossless Scaling नहीं मिला। इसे Steam से इंस्टॉल करें और इसे स्वतः आयात करने के लिए यह स्क्रीन दोबारा खोलें।</string>
+    <string name="settings_frame_generation_failed">Lossless.dll मिली, लेकिन उसके शेडर पढ़े नहीं जा सके। Steam फ़ाइलें जाँचें और फिर कोशिश करें।</string>
+    <string name="settings_frame_generation_updated">%1$s से अपडेट किया गया।</string>
+    <string name="settings_frame_generation_not_owned">फ़्रेम जनरेशन Lossless Scaling के शेडर उपयोग करता है। इसे सक्षम करने के लिए साइन-इन खाते से Steam पर इसे खरीदें।</string>
+    <string name="settings_frame_generation_locate">Lossless.dll चुनें…</string>
 </resources>

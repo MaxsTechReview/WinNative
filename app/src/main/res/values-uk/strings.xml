@@ -2500,5 +2500,25 @@
     <string name="retro_scr_consoles_verifying">Перевірка завантаження…</string>
     <string name="retro_scr_consoles_working">Виконується…</string>
     <string name="retro_tab_system">Система</string>
+    <string name="session_drawer_frame_generation">Генерація кадрів</string>
+    <string name="session_drawer_frame_generation_enable">Генерувати кадри</string>
+    <string name="session_drawer_frame_generation_multiplier">Множник</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">Адаптивна ціль</string>
+    <string name="session_drawer_frame_generation_target_off">Фіксований</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_flow_scale">Масштаб потоку</string>
+    <string name="session_drawer_frame_generation_note">Інтерполює між відрендереними кадрами за допомогою Lossless Scaling. Рух плавніший, але затримка вводу зростає на один кадр.</string>
+    <string name="session_drawer_frame_generation_target_note">Підвищується до цілі лише доки це дає вимірний виграш, замість утримання фіксованого множника.</string>
+    <string name="session_drawer_frame_generation_missing">Установіть Lossless Scaling у налаштуваннях контейнера, щоб використовувати генерацію кадрів.</string>
+    <string name="settings_frame_generation_title">Генерація кадрів</string>
+    <string name="settings_frame_generation_importing">Пошук Lossless Scaling…</string>
+    <string name="settings_frame_generation_ready">Шейдери Lossless Scaling готові.</string>
+    <string name="settings_frame_generation_imported">Імпортовано з %1$s.</string>
+    <string name="settings_frame_generation_not_found">Lossless Scaling не знайдено. Встановіть його зі Steam і відкрийте цей екран знову, щоб імпортувати автоматично.</string>
+    <string name="settings_frame_generation_failed">Lossless.dll знайдено, але не вдалося прочитати його шейдери. Перевірте файли Steam і спробуйте ще раз.</string>
+    <string name="settings_frame_generation_updated">Оновлено з %1$s.</string>
+    <string name="settings_frame_generation_not_owned">Генерація кадрів використовує шейдери Lossless Scaling. Придбайте його у Steam під поточним обліковим записом, щоб увімкнути це.</string>
+    <string name="settings_frame_generation_locate">Вибрати Lossless.dll…</string>
 </resources>
 

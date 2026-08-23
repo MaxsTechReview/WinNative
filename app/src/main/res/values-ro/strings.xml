@@ -2493,5 +2493,25 @@ Cale instalata:
     <string name="retro_scr_consoles_verifying">Se verifică descărcarea…</string>
     <string name="retro_scr_consoles_working">Se lucrează…</string>
     <string name="retro_tab_system">Sistem</string>
+    <string name="session_drawer_frame_generation">Generare de cadre</string>
+    <string name="session_drawer_frame_generation_enable">Generează cadre</string>
+    <string name="session_drawer_frame_generation_multiplier">Multiplicator</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">Țintă adaptivă</string>
+    <string name="session_drawer_frame_generation_target_off">Fix</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_flow_scale">Scară a fluxului</string>
+    <string name="session_drawer_frame_generation_note">Interpolează între cadrele randate cu Lossless Scaling. Mișcare mai fluidă, dar un cadru suplimentar de latență la intrare.</string>
+    <string name="session_drawer_frame_generation_target_note">Urcă spre țintă doar cât timp ajută în mod măsurabil, în loc să păstreze un multiplicator fix.</string>
+    <string name="session_drawer_frame_generation_missing">Instalează Lossless Scaling din setările containerului pentru a folosi generarea de cadre.</string>
+    <string name="settings_frame_generation_title">Generare de cadre</string>
+    <string name="settings_frame_generation_importing">Se caută Lossless Scaling…</string>
+    <string name="settings_frame_generation_ready">Shaderele Lossless Scaling sunt gata.</string>
+    <string name="settings_frame_generation_imported">Importat din %1$s.</string>
+    <string name="settings_frame_generation_not_found">Lossless Scaling nu a fost găsit. Instalează-l din Steam și redeschide acest ecran pentru a-l importa automat.</string>
+    <string name="settings_frame_generation_failed">Lossless.dll a fost găsit, dar shaderele sale nu au putut fi citite. Verifică fișierele Steam și încearcă din nou.</string>
+    <string name="settings_frame_generation_updated">Actualizat din %1$s.</string>
+    <string name="settings_frame_generation_not_owned">Generarea de cadre folosește shadere din Lossless Scaling. Cumpără-l pe Steam cu contul conectat pentru a activa acest lucru.</string>
+    <string name="settings_frame_generation_locate">Selectează Lossless.dll…</string>
 </resources>
 

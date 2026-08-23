@@ -2493,4 +2493,24 @@
     <string name="retro_scr_consoles_verifying">กำลังตรวจสอบไฟล์ที่ดาวน์โหลด…</string>
     <string name="retro_scr_consoles_working">กำลังดำเนินการ…</string>
     <string name="retro_tab_system">ระบบ</string>
+    <string name="session_drawer_frame_generation">การสร้างเฟรม</string>
+    <string name="session_drawer_frame_generation_enable">สร้างเฟรม</string>
+    <string name="session_drawer_frame_generation_multiplier">ตัวคูณ</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">เป้าหมายแบบปรับอัตโนมัติ</string>
+    <string name="session_drawer_frame_generation_target_off">คงที่</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_flow_scale">สเกลการไหล</string>
+    <string name="session_drawer_frame_generation_note">แทรกเฟรมระหว่างเฟรมที่เรนเดอร์ด้วย Lossless Scaling การเคลื่อนไหวลื่นขึ้น แต่มีความหน่วงของอินพุตเพิ่มขึ้นหนึ่งเฟรม</string>
+    <string name="session_drawer_frame_generation_target_note">จะไต่ขึ้นสู่เป้าหมายเฉพาะเมื่อวัดผลได้ว่าช่วยจริง แทนที่จะคงตัวคูณไว้คงที่</string>
+    <string name="session_drawer_frame_generation_missing">ติดตั้ง Lossless Scaling ในการตั้งค่าคอนเทนเนอร์เพื่อใช้การสร้างเฟรม</string>
+    <string name="settings_frame_generation_title">การสร้างเฟรม</string>
+    <string name="settings_frame_generation_importing">กำลังค้นหา Lossless Scaling…</string>
+    <string name="settings_frame_generation_ready">เชเดอร์ของ Lossless Scaling พร้อมแล้ว</string>
+    <string name="settings_frame_generation_imported">นำเข้าจาก %1$s แล้ว</string>
+    <string name="settings_frame_generation_not_found">ไม่พบ Lossless Scaling ติดตั้งจาก Steam แล้วเปิดหน้านี้อีกครั้งเพื่อนำเข้าโดยอัตโนมัติ</string>
+    <string name="settings_frame_generation_failed">พบ Lossless.dll แต่ไม่สามารถอ่านเชเดอร์ได้ ตรวจสอบไฟล์ Steam แล้วลองอีกครั้ง</string>
+    <string name="settings_frame_generation_updated">อัปเดตจาก %1$s แล้ว</string>
+    <string name="settings_frame_generation_not_owned">การสร้างเฟรมใช้เชเดอร์จาก Lossless Scaling ซื้อบน Steam ด้วยบัญชีที่ลงชื่อเข้าใช้อยู่เพื่อเปิดใช้งาน</string>
+    <string name="settings_frame_generation_locate">เลือก Lossless.dll…</string>
 </resources>

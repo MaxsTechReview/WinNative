@@ -2494,5 +2494,25 @@ Percorso installato:
     <string name="retro_scr_consoles_verifying">Verifica del download…</string>
     <string name="retro_scr_consoles_working">Operazione in corso…</string>
     <string name="retro_tab_system">Sistema</string>
+    <string name="session_drawer_frame_generation">Generazione fotogrammi</string>
+    <string name="session_drawer_frame_generation_enable">Genera fotogrammi</string>
+    <string name="session_drawer_frame_generation_multiplier">Moltiplicatore</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">Obiettivo adattivo</string>
+    <string name="session_drawer_frame_generation_target_off">Fisso</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_flow_scale">Scala del flusso</string>
+    <string name="session_drawer_frame_generation_note">Interpola tra i fotogrammi renderizzati con Lossless Scaling. Movimento più fluido, ma un fotogramma in più di latenza di input.</string>
+    <string name="session_drawer_frame_generation_target_note">Sale verso l\'obiettivo solo finché aiuta in modo misurabile, invece di mantenere un moltiplicatore fisso.</string>
+    <string name="session_drawer_frame_generation_missing">Installa Lossless Scaling nelle impostazioni del contenitore per usare la generazione fotogrammi.</string>
+    <string name="settings_frame_generation_title">Generazione fotogrammi</string>
+    <string name="settings_frame_generation_importing">Ricerca di Lossless Scaling…</string>
+    <string name="settings_frame_generation_ready">Shader di Lossless Scaling pronti.</string>
+    <string name="settings_frame_generation_imported">Importato da %1$s.</string>
+    <string name="settings_frame_generation_not_found">Lossless Scaling non è stato trovato. Installalo da Steam e riapri questa schermata per importarlo automaticamente.</string>
+    <string name="settings_frame_generation_failed">Lossless.dll è stato trovato, ma non è stato possibile leggerne gli shader. Verifica i file di Steam e riprova.</string>
+    <string name="settings_frame_generation_updated">Aggiornato da %1$s.</string>
+    <string name="settings_frame_generation_not_owned">La generazione fotogrammi usa gli shader di Lossless Scaling. Acquistalo su Steam con l\'account connesso per abilitarla.</string>
+    <string name="settings_frame_generation_locate">Seleziona Lossless.dll…</string>
 </resources>
 

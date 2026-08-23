@@ -2494,5 +2494,25 @@ Ruta instalada:
     <string name="retro_scr_consoles_verifying">Verificando la descarga…</string>
     <string name="retro_scr_consoles_working">Procesando…</string>
     <string name="retro_tab_system">Sistema</string>
+    <string name="session_drawer_frame_generation">Generación de fotogramas</string>
+    <string name="session_drawer_frame_generation_enable">Generar fotogramas</string>
+    <string name="session_drawer_frame_generation_multiplier">Multiplicador</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">Objetivo adaptativo</string>
+    <string name="session_drawer_frame_generation_target_off">Fijo</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_flow_scale">Escala de flujo</string>
+    <string name="session_drawer_frame_generation_note">Interpola entre fotogramas renderizados con Lossless Scaling. Movimiento más fluido, pero un fotograma extra de latencia de entrada.</string>
+    <string name="session_drawer_frame_generation_target_note">Sube hacia el objetivo solo mientras ayude de forma medible, en lugar de mantener un multiplicador fijo.</string>
+    <string name="session_drawer_frame_generation_missing">Instala Lossless Scaling en los ajustes del contenedor para usar la generación de fotogramas.</string>
+    <string name="settings_frame_generation_title">Generación de fotogramas</string>
+    <string name="settings_frame_generation_importing">Buscando Lossless Scaling…</string>
+    <string name="settings_frame_generation_ready">Sombreadores de Lossless Scaling listos.</string>
+    <string name="settings_frame_generation_imported">Importado desde %1$s.</string>
+    <string name="settings_frame_generation_not_found">No se encontró Lossless Scaling. Instálalo desde Steam y vuelve a abrir esta pantalla para importarlo automáticamente.</string>
+    <string name="settings_frame_generation_failed">Se encontró Lossless.dll, pero no se pudieron leer sus sombreadores. Verifica los archivos de Steam e inténtalo de nuevo.</string>
+    <string name="settings_frame_generation_updated">Actualizado desde %1$s.</string>
+    <string name="settings_frame_generation_not_owned">La generación de fotogramas usa sombreadores de Lossless Scaling. Cómpralo en Steam con la cuenta con la que has iniciado sesión para activarlo.</string>
+    <string name="settings_frame_generation_locate">Seleccionar Lossless.dll…</string>
 </resources>
 

@@ -2494,5 +2494,25 @@
     <string name="retro_scr_consoles_verifying">正在校验下载…</string>
     <string name="retro_scr_consoles_working">处理中…</string>
     <string name="retro_tab_system">系统</string>
+    <string name="session_drawer_frame_generation">帧生成</string>
+    <string name="session_drawer_frame_generation_enable">生成帧</string>
+    <string name="session_drawer_frame_generation_multiplier">倍数</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">自适应目标</string>
+    <string name="session_drawer_frame_generation_target_off">固定</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_flow_scale">流场缩放</string>
+    <string name="session_drawer_frame_generation_note">使用 Lossless Scaling 在已渲染的帧之间插帧。画面更流畅，但输入延迟会增加一帧。</string>
+    <string name="session_drawer_frame_generation_target_note">仅在能带来可测量的提升时才向目标提升，而不是保持固定倍数。</string>
+    <string name="session_drawer_frame_generation_missing">请在容器设置中安装 Lossless Scaling 以使用帧生成。</string>
+    <string name="settings_frame_generation_title">帧生成</string>
+    <string name="settings_frame_generation_importing">正在查找 Lossless Scaling…</string>
+    <string name="settings_frame_generation_ready">Lossless Scaling 着色器已就绪。</string>
+    <string name="settings_frame_generation_imported">已从 %1$s 导入。</string>
+    <string name="settings_frame_generation_not_found">未找到 Lossless Scaling。请从 Steam 安装，然后重新打开此页面以自动导入。</string>
+    <string name="settings_frame_generation_failed">已找到 Lossless.dll，但无法读取其着色器。请校验 Steam 文件后重试。</string>
+    <string name="settings_frame_generation_updated">已从 %1$s 更新。</string>
+    <string name="settings_frame_generation_not_owned">帧生成使用 Lossless Scaling 的着色器。请使用当前登录的账号在 Steam 上购买以启用此功能。</string>
+    <string name="settings_frame_generation_locate">选择 Lossless.dll…</string>
 </resources>
 

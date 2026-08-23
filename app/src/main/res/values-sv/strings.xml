@@ -2493,4 +2493,24 @@ Installerad sökväg:
     <string name="retro_scr_consoles_verifying">Verifierar nedladdningen…</string>
     <string name="retro_scr_consoles_working">Arbetar…</string>
     <string name="retro_tab_system">System</string>
+    <string name="session_drawer_frame_generation">Bildgenerering</string>
+    <string name="session_drawer_frame_generation_enable">Generera bilder</string>
+    <string name="session_drawer_frame_generation_multiplier">Multiplikator</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">Adaptivt mål</string>
+    <string name="session_drawer_frame_generation_target_off">Fast</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_flow_scale">Flödesskala</string>
+    <string name="session_drawer_frame_generation_note">Interpolerar mellan renderade bildrutor med Lossless Scaling. Mjukare rörelse, men en extra bildruta med inmatningsfördröjning.</string>
+    <string name="session_drawer_frame_generation_target_note">Stiger mot målet endast så länge det hjälper mätbart, i stället för att hålla en fast multiplikator.</string>
+    <string name="session_drawer_frame_generation_missing">Installera Lossless Scaling i containerinställningarna för att använda bildgenerering.</string>
+    <string name="settings_frame_generation_title">Bildgenerering</string>
+    <string name="settings_frame_generation_importing">Söker efter Lossless Scaling…</string>
+    <string name="settings_frame_generation_ready">Lossless Scaling-shaders klara.</string>
+    <string name="settings_frame_generation_imported">Importerad från %1$s.</string>
+    <string name="settings_frame_generation_not_found">Lossless Scaling hittades inte. Installera det från Steam och öppna den här skärmen igen för att importera det automatiskt.</string>
+    <string name="settings_frame_generation_failed">Lossless.dll hittades, men dess shaders kunde inte läsas. Kontrollera Steam-filerna och försök igen.</string>
+    <string name="settings_frame_generation_updated">Uppdaterad från %1$s.</string>
+    <string name="settings_frame_generation_not_owned">Bildgenerering använder shaders från Lossless Scaling. Köp det på Steam med det inloggade kontot för att aktivera detta.</string>
+    <string name="settings_frame_generation_locate">Välj Lossless.dll…</string>
 </resources>

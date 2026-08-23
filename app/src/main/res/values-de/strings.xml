@@ -2495,4 +2495,24 @@ Installierter Pfad:
     <string name="retro_scr_consoles_verifying">Download wird geprüft…</string>
     <string name="retro_scr_consoles_working">Wird ausgeführt…</string>
     <string name="retro_tab_system">System</string>
+    <string name="session_drawer_frame_generation">Frame-Generierung</string>
+    <string name="session_drawer_frame_generation_enable">Frames generieren</string>
+    <string name="session_drawer_frame_generation_multiplier">Multiplikator</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">Adaptives Ziel</string>
+    <string name="session_drawer_frame_generation_target_off">Fest</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_flow_scale">Flow-Skalierung</string>
+    <string name="session_drawer_frame_generation_note">Interpoliert zwischen gerenderten Frames mit Lossless Scaling. Flüssigere Bewegung, aber ein zusätzlicher Frame Eingabeverzögerung.</string>
+    <string name="session_drawer_frame_generation_target_note">Steigt nur dann in Richtung Ziel, wenn es messbar hilft, statt einen festen Multiplikator zu halten.</string>
+    <string name="session_drawer_frame_generation_missing">Installiere Lossless Scaling in den Container-Einstellungen, um Frame-Generierung zu nutzen.</string>
+    <string name="settings_frame_generation_title">Frame-Generierung</string>
+    <string name="settings_frame_generation_importing">Suche nach Lossless Scaling…</string>
+    <string name="settings_frame_generation_ready">Lossless-Scaling-Shader bereit.</string>
+    <string name="settings_frame_generation_imported">Aus %1$s importiert.</string>
+    <string name="settings_frame_generation_not_found">Lossless Scaling wurde nicht gefunden. Installiere es über Steam und öffne diesen Bildschirm erneut, um es automatisch zu importieren.</string>
+    <string name="settings_frame_generation_failed">Lossless.dll wurde gefunden, aber ihre Shader konnten nicht gelesen werden. Überprüfe die Steam-Dateien und versuche es erneut.</string>
+    <string name="settings_frame_generation_updated">Aus %1$s aktualisiert.</string>
+    <string name="settings_frame_generation_not_owned">Frame-Generierung nutzt Shader von Lossless Scaling. Kaufe es auf Steam mit dem angemeldeten Konto, um dies zu aktivieren.</string>
+    <string name="settings_frame_generation_locate">Lossless.dll auswählen…</string>
 </resources>

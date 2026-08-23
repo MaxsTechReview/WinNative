@@ -2495,5 +2495,25 @@
     <string name="retro_scr_consoles_verifying">다운로드 확인 중…</string>
     <string name="retro_scr_consoles_working">처리 중…</string>
     <string name="retro_tab_system">시스템</string>
+    <string name="session_drawer_frame_generation">프레임 생성</string>
+    <string name="session_drawer_frame_generation_enable">프레임 생성 사용</string>
+    <string name="session_drawer_frame_generation_multiplier">배수</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">적응형 목표</string>
+    <string name="session_drawer_frame_generation_target_off">고정</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_flow_scale">플로우 스케일</string>
+    <string name="session_drawer_frame_generation_note">Lossless Scaling으로 렌더링된 프레임 사이를 보간합니다. 움직임은 부드러워지지만 입력 지연이 한 프레임 늘어납니다.</string>
+    <string name="session_drawer_frame_generation_target_note">고정 배수를 유지하는 대신, 측정 가능한 이득이 있을 때만 목표를 향해 올립니다.</string>
+    <string name="session_drawer_frame_generation_missing">프레임 생성을 사용하려면 컨테이너 설정에서 Lossless Scaling을 설치하세요.</string>
+    <string name="settings_frame_generation_title">프레임 생성</string>
+    <string name="settings_frame_generation_importing">Lossless Scaling 찾는 중…</string>
+    <string name="settings_frame_generation_ready">Lossless Scaling 셰이더가 준비되었습니다.</string>
+    <string name="settings_frame_generation_imported">%1$s에서 가져왔습니다.</string>
+    <string name="settings_frame_generation_not_found">Lossless Scaling을 찾을 수 없습니다. Steam에서 설치한 뒤 이 화면을 다시 열면 자동으로 가져옵니다.</string>
+    <string name="settings_frame_generation_failed">Lossless.dll을 찾았지만 셰이더를 읽을 수 없습니다. Steam 파일을 확인하고 다시 시도하세요.</string>
+    <string name="settings_frame_generation_updated">%1$s에서 업데이트했습니다.</string>
+    <string name="settings_frame_generation_not_owned">프레임 생성은 Lossless Scaling의 셰이더를 사용합니다. 사용하려면 로그인한 계정으로 Steam에서 구매하세요.</string>
+    <string name="settings_frame_generation_locate">Lossless.dll 선택…</string>
 </resources>
 

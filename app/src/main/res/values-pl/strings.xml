@@ -2500,5 +2500,25 @@ Zainstalowana ścieżka:
     <string name="retro_scr_consoles_verifying">Weryfikowanie pobranego pliku…</string>
     <string name="retro_scr_consoles_working">Trwa praca…</string>
     <string name="retro_tab_system">System</string>
+    <string name="session_drawer_frame_generation">Generowanie klatek</string>
+    <string name="session_drawer_frame_generation_enable">Generuj klatki</string>
+    <string name="session_drawer_frame_generation_multiplier">Mnożnik</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">Cel adaptacyjny</string>
+    <string name="session_drawer_frame_generation_target_off">Stały</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_flow_scale">Skala przepływu</string>
+    <string name="session_drawer_frame_generation_note">Interpoluje między wyrenderowanymi klatkami przy użyciu Lossless Scaling. Płynniejszy ruch, ale jedna dodatkowa klatka opóźnienia sterowania.</string>
+    <string name="session_drawer_frame_generation_target_note">Zwiększa się w kierunku celu tylko wtedy, gdy przynosi to mierzalną korzyść, zamiast utrzymywać stały mnożnik.</string>
+    <string name="session_drawer_frame_generation_missing">Zainstaluj Lossless Scaling w ustawieniach kontenera, aby korzystać z generowania klatek.</string>
+    <string name="settings_frame_generation_title">Generowanie klatek</string>
+    <string name="settings_frame_generation_importing">Szukanie Lossless Scaling…</string>
+    <string name="settings_frame_generation_ready">Shadery Lossless Scaling gotowe.</string>
+    <string name="settings_frame_generation_imported">Zaimportowano z %1$s.</string>
+    <string name="settings_frame_generation_not_found">Nie znaleziono Lossless Scaling. Zainstaluj je ze Steam i otwórz ten ekran ponownie, aby zaimportować je automatycznie.</string>
+    <string name="settings_frame_generation_failed">Znaleziono Lossless.dll, ale nie udało się odczytać shaderów. Sprawdź pliki Steam i spróbuj ponownie.</string>
+    <string name="settings_frame_generation_updated">Zaktualizowano z %1$s.</string>
+    <string name="settings_frame_generation_not_owned">Generowanie klatek korzysta z shaderów Lossless Scaling. Kup je na Steam na zalogowanym koncie, aby to włączyć.</string>
+    <string name="settings_frame_generation_locate">Wybierz Lossless.dll…</string>
 </resources>
 
