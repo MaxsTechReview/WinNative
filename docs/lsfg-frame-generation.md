@@ -48,14 +48,26 @@ generated per real frame). Only `generate` runs per generated frame; everything
 above it is shared across all generations from the same frame pair, which is why
 3× costs far less than 1.5× the cost of 2×.
 
-Shader variants: resource IDs `+49` are native fp16, `+98` are native fp32. Both
-are already SPIR-V in current Lossless Scaling builds — eden's `IsSpirvModule` /
-`AdoptSpirvModule` just re-numbers the descriptor bindings in set/binding order
-and hands the words to `vkCreateShaderModule`. **No DXBC translator is needed**;
-that was upstream `lsfg-vk`'s path and eden explicitly dropped it (commit
-`6dd3098 Remove requirement on dxbc`). This removes DXVK's `dxbc` and `pe-parse`
-from the dependency list entirely — the PE resource walk is ~250 lines of plain
-parsing in `lossless_dll.cpp`.
+Shader variants: the base chain IDs above hold **DXBC**. Lossless Scaling
+**3.2.2** added precompiled SPIR-V copies of the same shaders at `base + 49`
+(native fp16, IDs 304–351) and `base + 98` (native fp32, IDs 353–400) — its
+release note reads, in full, "Added shaders intended for use by the lsfg-vk
+project."
+
+Those precompiled blobs are what make a DXBC translator unnecessary: eden's
+`IsSpirvModule` / `AdoptSpirvModule` just re-numbers the descriptor bindings in
+set/binding order and hands the words to `vkCreateShaderModule`, and eden
+dropped the translator outright (commit `6dd3098 Remove requirement on dxbc`).
+Upstream `lsfg-vk` still carries DXVK's `dxbc` because it also supports older
+builds — `src/extract/trans.cpp` runs `dxvk::DxbcModule` over the base IDs.
+
+**This makes 3.2.2 a hard floor for us.** Verified against a real install:
+Lossless Scaling 3.2.1.0 carries RCDATA IDs 101–302, all DXBC, and none of the
+`+49`/`+98` variants. The alternative to requiring 3.2.2 is vendoring DXVK's
+DXBC translator, which is a far larger dependency than the ~250-line PE walk
+and is not worth it to support a single superseded version.
+
+The port therefore needs only the resource walk, not a shader compiler.
 
 ## 2. How LSFG-Android bakes it in — and why WinNative must not copy it
 
@@ -323,6 +335,12 @@ Offer both: auto-detect inside the container drives, with the SAF picker as the
 fallback. Extraction, SPIR-V adoption and caching happen once on the Android side
 (cache keyed on file size + hash + variant, as eden does); the DLL is never
 loaded or executed, only parsed.
+
+The version floor needs to surface as its own status rather than a generic
+failure — a 3.2.1 install is a correct, licensed copy that simply predates the
+SPIR-V blobs, and the fix is a Steam update, not a reinstall. `LSFG_DLL_TOO_OLD`
+covers exactly the case where the base chain IDs are present but the `+49`/`+98`
+variants are not.
 
 ### 5.7 Settings surface
 

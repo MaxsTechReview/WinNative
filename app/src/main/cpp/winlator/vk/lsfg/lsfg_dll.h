@@ -15,8 +15,11 @@ typedef enum LsfgStatus {
     LSFG_NOT_PORTABLE_EXECUTABLE = 3,
     LSFG_MISSING_SHADERS = 4,
     LSFG_TRANSLATION_FAILED = 5,
-    LSFG_CACHE_UNUSABLE = 6
+    LSFG_CACHE_UNUSABLE = 6,
+    LSFG_DLL_TOO_OLD = 7
 } LsfgStatus;
+
+#define LSFG_MIN_LOSSLESS_VERSION "3.2.2"
 
 typedef enum LsfgVariant {
     LSFG_VARIANT_NONE = 0,

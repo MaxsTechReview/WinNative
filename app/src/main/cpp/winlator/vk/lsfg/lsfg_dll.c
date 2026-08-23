@@ -492,6 +492,22 @@ static LsfgVariant select_variant(const ResourceTable* table, bool prefer_fp16) 
     return LSFG_VARIANT_NONE;
 }
 
+static bool has_base_chain(const ResourceTable* table) {
+    size_t count = 0;
+    const uint32_t* ids = build_shader_ids(&count);
+    for (size_t i = 0; i < count; i++) {
+        if (ids[i] >= MAX_RESOURCE_ID || table->data[ids[i]] == NULL) return false;
+    }
+    return true;
+}
+
+static LsfgStatus classify_missing_variant(const ResourceTable* table) {
+    if (!has_base_chain(table)) return LSFG_MISSING_SHADERS;
+    LSFG_LOGW("Lossless.dll carries the shader chain but no precompiled SPIR-V variants; "
+              "version %s or newer is required", LSFG_MIN_LOSSLESS_VERSION);
+    return LSFG_DLL_TOO_OLD;
+}
+
 static uint32_t variant_offset(LsfgVariant variant) {
     return variant == LSFG_VARIANT_FP16 ? VARIANT_FP16_OFFSET : VARIANT_FP32_OFFSET;
 }
@@ -541,7 +557,7 @@ LsfgStatus lsfg_validate_dll(const char* dll_path) {
 
     LsfgStatus status = parse_resources(&image, table);
     if (status == LSFG_OK && select_variant(table, true) == LSFG_VARIANT_NONE) {
-        status = LSFG_MISSING_SHADERS;
+        status = classify_missing_variant(table);
     }
 
     free(table);
@@ -572,9 +588,10 @@ LsfgStatus lsfg_build_cache(const char* dll_path, const char* cache_path, bool p
 
     const LsfgVariant variant = select_variant(table, prefer_fp16);
     if (variant == LSFG_VARIANT_NONE) {
+        status = classify_missing_variant(table);
         free(table);
         pe_close(&image, fd, mapped_size);
-        return LSFG_MISSING_SHADERS;
+        return status;
     }
 
     LsfgModuleSet set;
