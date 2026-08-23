@@ -3982,7 +3982,7 @@ return boundingBox;
           }
         }
 
-        inputControlsView.invalidate();
+        inputControlsView.invalidateControlElement(this);
       } else if (type == Type.TRACKPAD) {
         Binding firstBinding = getBindingAt(0);
         if (firstBinding.isGamepad()) {

@@ -91,6 +91,8 @@ public class InputControlsView extends View {
 
   private boolean batchingUpdates = false;
 
+  private final Rect clipBounds = new Rect();
+
   public boolean isBatchingUpdates() {
     return batchingUpdates;
   }
@@ -253,12 +255,25 @@ public class InputControlsView extends View {
 
     if (profile != null && (showTouchscreenControls || editMode) && !isFocusedOnStick()) {
       if (!profile.isElementsLoaded()) profile.loadElements(this);
+      boolean clipped = !editMode && canvas.getClipBounds(clipBounds);
       for (ControlElement element : profile.getElements()) {
+        if (clipped && !intersectsDamage(element, clipBounds)) continue;
         element.draw(canvas);
       }
     }
 
     super.onDraw(canvas);
+  }
+
+  private boolean intersectsDamage(ControlElement element, Rect damage) {
+    Rect box = element.getBoundingBox();
+    int padding = elementDamagePadding();
+    return damage.intersects(
+        box.left - padding, box.top - padding, box.right + padding, box.bottom + padding);
+  }
+
+  private int elementDamagePadding() {
+    return Math.max(getSnappingSize() * 4, 32);
   }
 
   public void resetStickPosition() {
@@ -965,7 +980,7 @@ public class InputControlsView extends View {
     if (element == null) return;
 
     Rect dirtyRect = element.getBoundingBox();
-    int padding = Math.max(getSnappingSize() * 4, 32);
+    int padding = elementDamagePadding();
     postInvalidateOnAnimation(
         dirtyRect.left - padding,
         dirtyRect.top - padding,

@@ -518,6 +518,24 @@ class ShortcutSettingsComposeDialog private constructor(
                 ?.coerceIn(0, 100)
                 ?: 100
 
+        state.frameGenEnabled.value =
+            getShortcutSetting("frameGen", container.getExtra("frameGen", "0")) == "1"
+        state.frameGenMultiplier.intValue =
+            getShortcutSetting("frameGenMultiplier", container.getExtra("frameGenMultiplier", "2"))
+                .toIntOrNull()
+                ?.coerceIn(2, 4)
+                ?: 2
+        state.frameGenTargetRate.intValue =
+            getShortcutSetting("frameGenTargetRate", container.getExtra("frameGenTargetRate", "0"))
+                .toIntOrNull()
+                ?.coerceAtLeast(0)
+                ?: 0
+        state.frameGenFlowScale.intValue =
+            getShortcutSetting("frameGenFlowScale", container.getExtra("frameGenFlowScale", "100"))
+                .toIntOrNull()
+                ?.coerceIn(25, 100)
+                ?: 100
+
         // shortcut override else container value; legacy single reshadeEffect/flat params migrated in parse
         val reshadeEffects = com.winlator.cmod.runtime.reshade.ReshadeManager.scanEffects(context)
         state.reshadeEffects.value = reshadeEffects
@@ -1295,6 +1313,18 @@ class ShortcutSettingsComposeDialog private constructor(
                 shortcut.putExtra("sgsrEnabled", null)
                 shortcut.putExtra("sgsrUpscaleMode", null)
                 shortcut.putExtra("sgsrSharpness", null)
+            }
+
+            if (state.frameGenEnabled.value) {
+                shortcut.putExtra("frameGen", "1")
+                shortcut.putExtra("frameGenMultiplier", state.frameGenMultiplier.intValue.coerceIn(2, 4).toString())
+                shortcut.putExtra("frameGenTargetRate", state.frameGenTargetRate.intValue.coerceAtLeast(0).toString())
+                shortcut.putExtra("frameGenFlowScale", state.frameGenFlowScale.intValue.coerceIn(25, 100).toString())
+            } else {
+                shortcut.putExtra("frameGen", null)
+                shortcut.putExtra("frameGenMultiplier", null)
+                shortcut.putExtra("frameGenTargetRate", null)
+                shortcut.putExtra("frameGenFlowScale", null)
             }
 
             // saveOverride not putExtra: putExtra leaves hasContainerOverride false, so a reshade-only shortcut gets use_container_defaults=1 and reads back the container's extras

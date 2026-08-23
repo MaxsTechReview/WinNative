@@ -58,6 +58,7 @@ import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Monitor
+import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SportsEsports
@@ -144,6 +145,7 @@ import com.winlator.cmod.runtime.reshade.ReshadeLoadout
 import com.winlator.cmod.runtime.reshade.ReshadeManager
 import com.winlator.cmod.shared.theme.GameSettingsStyle
 import com.winlator.cmod.runtime.wine.WineThemeManager
+import com.winlator.cmod.runtime.display.lsfg.LosslessScaling
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -419,6 +421,13 @@ class GameSettingsStateHolder {
     val sgsrUpscaleMode = mutableIntStateOf(1)
     val sgsrSharpness = mutableIntStateOf(100)
 
+    val frameGenEnabled = mutableStateOf(false)
+    val frameGenMultiplier = mutableIntStateOf(2)
+    val frameGenTargetRate = mutableIntStateOf(0)
+    val frameGenFlowScale = mutableIntStateOf(100)
+    val frameGenShaderState = mutableIntStateOf(FRAMEGEN_SHADERS_CHECKING)
+    val frameGenSourceName = mutableStateOf("")
+
     // scanned drop-in pool + ordered loadout; saved as a reshadeLoadout array plus nested reshadeParams object.
     val reshadeEffects = mutableStateOf<List<ReshadeManager.ReshadeEffect>>(emptyList())
     val reshadeLoadout = ReshadeLoadoutState()
@@ -648,6 +657,15 @@ private data class SidebarSection(
     val icon: ImageVector,
     val labelResId: Int
 )
+
+const val FRAMEGEN_SHADERS_CHECKING = 0
+const val FRAMEGEN_SHADERS_READY = 1
+const val FRAMEGEN_SHADERS_IMPORTING = 2
+const val FRAMEGEN_SHADERS_MISSING = 3
+const val FRAMEGEN_SHADERS_FAILED = 4
+
+val FrameGenMultiplierOptions = listOf(2, 3, 4)
+val FrameGenTargetOptions = listOf(0, 60, 90, 120, 144)
 
 private const val SEC_GENERAL = 0
 private const val SEC_STEAM = 1
@@ -1707,6 +1725,10 @@ private fun DisplaySection(
 
     Spacer(Modifier.height(SettingItemGap))
 
+    FrameGenerationCard(state)
+
+    Spacer(Modifier.height(SettingItemGap))
+
     val dxWrapperEntries = state.dxWrapperEntries.value
     val dxWrapperIdx = state.selectedDxWrapper.intValue
     val selectedDxWrapper = if (dxWrapperIdx in dxWrapperEntries.indices)
@@ -1719,6 +1741,149 @@ private fun DisplaySection(
         WineD3DConfigCard(state)
     }
 
+}
+
+@Composable
+private fun FrameGenerationCard(state: GameSettingsStateHolder) {
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        if (state.frameGenShaderState.intValue != FRAMEGEN_SHADERS_CHECKING) return@LaunchedEffect
+        state.frameGenShaderState.intValue = FRAMEGEN_SHADERS_IMPORTING
+        val (status, source) =
+            withContext(Dispatchers.IO) {
+                if (LosslessScaling.isInstalled(context)) {
+                    LosslessScaling.STATUS_OK to null
+                } else {
+                    val dll = LosslessAutoImport.findDll(context)
+                    if (dll == null) {
+                        LosslessScaling.STATUS_NOT_INSTALLED to null
+                    } else {
+                        LosslessScaling.installFrom(context, dll) to dll
+                    }
+                }
+            }
+        state.frameGenSourceName.value = source?.parentFile?.name.orEmpty()
+        state.frameGenShaderState.intValue =
+            when (status) {
+                LosslessScaling.STATUS_OK -> FRAMEGEN_SHADERS_READY
+                LosslessScaling.STATUS_NOT_INSTALLED -> FRAMEGEN_SHADERS_MISSING
+                else -> FRAMEGEN_SHADERS_FAILED
+            }
+    }
+
+    val shaders = state.frameGenShaderState.intValue
+    val ready = shaders == FRAMEGEN_SHADERS_READY
+    val enabled = ready && state.frameGenEnabled.value
+    val targetRate = state.frameGenTargetRate.intValue
+
+    SettingGroup {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Outlined.Speed,
+                contentDescription = null,
+                tint = AccentBlue,
+                modifier = Modifier.size(SettingIconSize),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                stringResource(R.string.settings_frame_generation_title),
+                color = TextPrimary,
+                fontSize = SettingValueSize,
+                fontWeight = FontWeight.Medium,
+            )
+        }
+
+        Spacer(Modifier.height(SettingItemGap))
+
+        SettingSwitch(
+            label = stringResource(R.string.session_drawer_frame_generation_enable),
+            checked = enabled,
+            enabled = ready,
+            onCheckedChange = { state.frameGenEnabled.value = it },
+        )
+
+        Text(
+            text =
+                when (shaders) {
+                    FRAMEGEN_SHADERS_IMPORTING, FRAMEGEN_SHADERS_CHECKING ->
+                        stringResource(R.string.settings_frame_generation_importing)
+                    FRAMEGEN_SHADERS_READY ->
+                        if (state.frameGenSourceName.value.isEmpty()) {
+                            stringResource(R.string.settings_frame_generation_ready)
+                        } else {
+                            stringResource(
+                                R.string.settings_frame_generation_imported,
+                                state.frameGenSourceName.value,
+                            )
+                        }
+                    FRAMEGEN_SHADERS_FAILED -> stringResource(R.string.settings_frame_generation_failed)
+                    else -> stringResource(R.string.settings_frame_generation_not_found)
+                },
+            color = TextSecondary,
+            fontSize = SettingLabelSize,
+            lineHeight = SettingLabelSize * 1.4f,
+        )
+
+        if (enabled) {
+            Spacer(Modifier.height(SettingItemGap))
+
+            SettingPairRow {
+                Box(Modifier.weight(1f)) {
+                    SettingDropdown(
+                        label = stringResource(R.string.session_drawer_frame_generation_target),
+                        entries =
+                            FrameGenTargetOptions.map { rate ->
+                                if (rate == 0) {
+                                    stringResource(R.string.session_drawer_frame_generation_target_off)
+                                } else {
+                                    stringResource(R.string.session_drawer_frame_generation_target_value, rate)
+                                }
+                            },
+                        selectedIndex = FrameGenTargetOptions.indexOf(targetRate).coerceAtLeast(0),
+                        onSelected = { state.frameGenTargetRate.intValue = FrameGenTargetOptions[it] },
+                    )
+                }
+                Box(Modifier.weight(1f)) {
+                    SettingDropdown(
+                        label = stringResource(R.string.session_drawer_frame_generation_multiplier),
+                        entries =
+                            FrameGenMultiplierOptions.map { multiplier ->
+                                stringResource(
+                                    R.string.session_drawer_frame_generation_multiplier_value,
+                                    multiplier,
+                                )
+                            },
+                        selectedIndex =
+                            FrameGenMultiplierOptions
+                                .indexOf(state.frameGenMultiplier.intValue)
+                                .coerceAtLeast(0),
+                        onSelected = {
+                            state.frameGenMultiplier.intValue = FrameGenMultiplierOptions[it]
+                        },
+                        enabled = targetRate == 0,
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(SettingItemGap))
+
+            SettingSlider(
+                label = stringResource(R.string.session_drawer_frame_generation_flow_scale),
+                value = state.frameGenFlowScale.intValue,
+                range = 25..100,
+                steps = 14,
+                onValueChange = { state.frameGenFlowScale.intValue = it },
+            )
+
+            Text(
+                text = stringResource(R.string.session_drawer_frame_generation_note),
+                color = TextSecondary,
+                fontSize = SettingLabelSize,
+                lineHeight = SettingLabelSize * 1.4f,
+            )
+        }
+    }
 }
 
 @Composable
