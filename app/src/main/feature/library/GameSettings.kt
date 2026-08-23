@@ -59,6 +59,8 @@ import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Monitor
 import androidx.compose.material.icons.outlined.Speed
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SportsEsports
@@ -663,6 +665,8 @@ const val FRAMEGEN_SHADERS_READY = 1
 const val FRAMEGEN_SHADERS_IMPORTING = 2
 const val FRAMEGEN_SHADERS_MISSING = 3
 const val FRAMEGEN_SHADERS_FAILED = 4
+const val FRAMEGEN_SHADERS_UPDATED = 5
+const val FRAMEGEN_SHADERS_NOT_OWNED = 6
 
 val FrameGenMultiplierOptions = listOf(2, 3, 4)
 val FrameGenTargetOptions = listOf(0, 60, 90, 120, 144)
@@ -1750,30 +1754,26 @@ private fun FrameGenerationCard(state: GameSettingsStateHolder) {
     LaunchedEffect(Unit) {
         if (state.frameGenShaderState.intValue != FRAMEGEN_SHADERS_CHECKING) return@LaunchedEffect
         state.frameGenShaderState.intValue = FRAMEGEN_SHADERS_IMPORTING
-        val (status, source) =
-            withContext(Dispatchers.IO) {
-                if (LosslessScaling.isInstalled(context)) {
-                    LosslessScaling.STATUS_OK to null
-                } else {
-                    val dll = LosslessAutoImport.findDll(context)
-                    if (dll == null) {
-                        LosslessScaling.STATUS_NOT_INSTALLED to null
-                    } else {
-                        LosslessScaling.installFrom(context, dll) to dll
-                    }
-                }
-            }
-        state.frameGenSourceName.value = source?.parentFile?.name.orEmpty()
-        state.frameGenShaderState.intValue =
-            when (status) {
-                LosslessScaling.STATUS_OK -> FRAMEGEN_SHADERS_READY
-                LosslessScaling.STATUS_NOT_INSTALLED -> FRAMEGEN_SHADERS_MISSING
-                else -> FRAMEGEN_SHADERS_FAILED
-            }
+        val outcome = withContext(Dispatchers.IO) { LosslessAutoImport.sync(context) }
+        state.frameGenSourceName.value = outcome.sourceName
+        state.frameGenShaderState.intValue = frameGenStateFor(outcome.result)
     }
 
+    val scope = rememberCoroutineScope()
+    val picker =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri == null) return@rememberLauncherForActivityResult
+            state.frameGenShaderState.intValue = FRAMEGEN_SHADERS_IMPORTING
+            scope.launch {
+                val outcome = withContext(Dispatchers.IO) { LosslessAutoImport.importFrom(context, uri) }
+                state.frameGenSourceName.value = outcome.sourceName
+                state.frameGenShaderState.intValue = frameGenStateFor(outcome.result)
+            }
+        }
+
     val shaders = state.frameGenShaderState.intValue
-    val ready = shaders == FRAMEGEN_SHADERS_READY
+    val ready = shaders == FRAMEGEN_SHADERS_READY || shaders == FRAMEGEN_SHADERS_UPDATED
+    val busy = shaders == FRAMEGEN_SHADERS_IMPORTING || shaders == FRAMEGEN_SHADERS_CHECKING
     val enabled = ready && state.frameGenEnabled.value
     val targetRate = state.frameGenTargetRate.intValue
 
@@ -1817,6 +1817,12 @@ private fun FrameGenerationCard(state: GameSettingsStateHolder) {
                                 state.frameGenSourceName.value,
                             )
                         }
+                    FRAMEGEN_SHADERS_UPDATED ->
+                        stringResource(
+                            R.string.settings_frame_generation_updated,
+                            state.frameGenSourceName.value,
+                        )
+                    FRAMEGEN_SHADERS_NOT_OWNED -> stringResource(R.string.settings_frame_generation_not_owned)
                     FRAMEGEN_SHADERS_FAILED -> stringResource(R.string.settings_frame_generation_failed)
                     else -> stringResource(R.string.settings_frame_generation_not_found)
                 },
@@ -1824,6 +1830,15 @@ private fun FrameGenerationCard(state: GameSettingsStateHolder) {
             fontSize = SettingLabelSize,
             lineHeight = SettingLabelSize * 1.4f,
         )
+
+        if (shaders != FRAMEGEN_SHADERS_NOT_OWNED) {
+            Spacer(Modifier.height(SettingItemGap))
+            SettingActionButton(
+                label = stringResource(R.string.settings_frame_generation_locate),
+                enabled = !busy,
+                onClick = { picker.launch(arrayOf("*/*")) },
+            )
+        }
 
         if (enabled) {
             Spacer(Modifier.height(SettingItemGap))
@@ -5502,6 +5517,49 @@ private fun EmulatorSectionHeader(title: String, usage: String?) {
         }
     }
 }
+
+@Composable
+private fun SettingActionButton(
+    label: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    val alpha = if (enabled) 1f else 0.4f
+    Box(
+        modifier = Modifier
+            .alpha(alpha)
+            .clip(RoundedCornerShape(10.dp))
+            .background(AccentBlue.copy(alpha = 0.08f))
+            .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+            .then(
+                if (enabled) {
+                    Modifier
+                        .paneNavItem(cornerRadius = 10.dp, onActivate = onClick, highlightColor = NavHighlight)
+                        .clickable { onClick() }
+                } else {
+                    Modifier
+                }
+            )
+            .padding(horizontal = 12.dp, vertical = 7.dp)
+    ) {
+        Text(
+            text = label,
+            color = AccentBlue,
+            fontSize = SettingValueSize,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1
+        )
+    }
+}
+
+private fun frameGenStateFor(result: Int): Int =
+    when (result) {
+        LosslessAutoImport.RESULT_READY, LosslessAutoImport.RESULT_IMPORTED -> FRAMEGEN_SHADERS_READY
+        LosslessAutoImport.RESULT_UPDATED -> FRAMEGEN_SHADERS_UPDATED
+        LosslessAutoImport.RESULT_NOT_OWNED -> FRAMEGEN_SHADERS_NOT_OWNED
+        LosslessAutoImport.RESULT_NOT_FOUND -> FRAMEGEN_SHADERS_MISSING
+        else -> FRAMEGEN_SHADERS_FAILED
+    }
 
 @Composable
 private fun SettingGroup(

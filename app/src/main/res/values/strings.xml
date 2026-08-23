@@ -782,6 +782,9 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_frame_generation_imported">Imported from %1$s.</string>
     <string name="settings_frame_generation_not_found">Lossless Scaling was not found. Install it from Steam and reopen this screen to import it automatically.</string>
     <string name="settings_frame_generation_failed">Lossless.dll was found but its shaders could not be read. Verify the Steam files and try again.</string>
+    <string name="settings_frame_generation_updated">Updated from %1$s.</string>
+    <string name="settings_frame_generation_not_owned">Frame generation uses shaders from Lossless Scaling. Buy it on Steam with the signed-in account to enable this.</string>
+    <string name="settings_frame_generation_locate">Select Lossless.dll…</string>
     <string name="session_drawer_vivid">Vivid</string>
     <string name="session_drawer_vivid_strength">Vivid Strength</string>
     <string name="session_drawer_color_profile">Color Effect</string>

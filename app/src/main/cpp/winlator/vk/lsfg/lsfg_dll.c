@@ -653,6 +653,33 @@ LsfgStatus lsfg_build_cache(const char* dll_path, const char* cache_path, bool p
     return status;
 }
 
+LsfgStatus lsfg_cache_matches_source(const char* cache_path, const char* dll_path,
+                                     bool* out_matches) {
+    if (!cache_path || !dll_path || !out_matches) return LSFG_CACHE_UNUSABLE;
+    *out_matches = false;
+
+    FILE* file = fopen(cache_path, "rb");
+    if (!file) return LSFG_NOT_INSTALLED;
+
+    CacheHeader header;
+    const bool header_read = fread(&header, sizeof(header), 1, file) == 1;
+    fclose(file);
+    if (!header_read || header.magic != CACHE_MAGIC || header.version != CACHE_VERSION) {
+        return LSFG_CACHE_UNUSABLE;
+    }
+
+    PeImage image;
+    int fd = -1;
+    size_t mapped_size = 0;
+    if (!pe_open(dll_path, &image, &fd, &mapped_size)) return LSFG_NOT_INSTALLED;
+
+    *out_matches = header.source_size == (uint64_t)image.size
+                && header.source_hash == fnv1a64(image.data, image.size);
+
+    pe_close(&image, fd, mapped_size);
+    return LSFG_OK;
+}
+
 LsfgStatus lsfg_load_modules(const char* cache_path, LsfgModuleSet* out_set) {
     if (!cache_path || !out_set) return LSFG_CACHE_UNUSABLE;
     memset(out_set, 0, sizeof(*out_set));

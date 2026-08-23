@@ -51,6 +51,9 @@ LsfgStatus lsfg_build_cache(const char* dll_path, const char* cache_path, bool p
 
 LsfgStatus lsfg_load_modules(const char* cache_path, LsfgModuleSet* out_set);
 
+LsfgStatus lsfg_cache_matches_source(const char* cache_path, const char* dll_path,
+                                     bool* out_matches);
+
 void lsfg_release_modules(LsfgModuleSet* set);
 
 const uint32_t* lsfg_find_module(const LsfgModuleSet* set, uint32_t id, uint32_t* out_word_count);

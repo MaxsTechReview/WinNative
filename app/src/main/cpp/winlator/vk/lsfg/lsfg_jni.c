@@ -1,4 +1,5 @@
 #include <jni.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -35,6 +36,20 @@ JNIEXPORT jint JNICALL LSFG_FN(nativeBuildCache)(JNIEnv* env, jclass clazz, jstr
     free(dll);
     free(cache);
     return (jint)status;
+}
+
+JNIEXPORT jboolean JNICALL LSFG_FN(nativeCacheMatchesSource)(JNIEnv* env, jclass clazz,
+                                                             jstring cachePath, jstring dllPath) {
+    (void)clazz;
+    char* cache = copy_utf(env, cachePath);
+    char* dll = copy_utf(env, dllPath);
+    bool matches = false;
+    if (cache && dll) {
+        if (lsfg_cache_matches_source(cache, dll, &matches) != LSFG_OK) matches = false;
+    }
+    free(cache);
+    free(dll);
+    return matches ? JNI_TRUE : JNI_FALSE;
 }
 
 JNIEXPORT jint JNICALL LSFG_FN(nativeInspectCache)(JNIEnv* env, jclass clazz, jstring cachePath) {

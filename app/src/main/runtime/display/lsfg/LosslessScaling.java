@@ -87,6 +87,13 @@ public final class LosslessScaling {
         return nativeInspectCache(cache.getAbsolutePath());
     }
 
+    public static boolean isCacheStale(Context context, File dll) {
+        if (dll == null || !dll.isFile()) return false;
+        File cache = resolveCacheFile(context, true);
+        if (cache == null) return true;
+        return !nativeCacheMatchesSource(cache.getAbsolutePath(), dll.getAbsolutePath());
+    }
+
     public static int getVariant(Context context, boolean preferFp16) {
         File cache = resolveCacheFile(context, preferFp16);
         if (cache == null) return VARIANT_NONE;
@@ -239,6 +246,8 @@ public final class LosslessScaling {
     private static native int nativeInspectCache(String cachePath);
 
     private static native int nativeCacheVariant(String cachePath);
+
+    private static native boolean nativeCacheMatchesSource(String cachePath, String dllPath);
 
     private static native boolean nativeSupportsFrameGeneration(String driverName, Context context);
 }
