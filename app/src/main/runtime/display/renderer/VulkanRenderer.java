@@ -217,6 +217,9 @@ public class VulkanRenderer
                 if (requestedScaleFilter != SCALE_FILTER_OFF) {
                     nativeSetScaleFilter(nativeHandle, requestedScaleFilter);
                 }
+                if (frameGenerationRequested) {
+                    nativeSetFrameGenerationEnabled(nativeHandle, true);
+                }
                 destroyed.set(false);
                 xServer.windowManager.addOnWindowModificationListener(this);
                 xServer.pointer.addOnPointerMotionListener(this);
@@ -884,6 +887,21 @@ public class VulkanRenderer
         if (nativeHandle != 0) nativeSetPresentMode(nativeHandle, mode);
     }
 
+    private boolean frameGenerationRequested = false;
+
+    public void setFrameGenerationEnabled(boolean enabled) {
+        frameGenerationRequested = enabled;
+        if (nativeHandle != 0) nativeSetFrameGenerationEnabled(nativeHandle, enabled);
+    }
+
+    public boolean isFrameGenerationRequested() {
+        return frameGenerationRequested;
+    }
+
+    public boolean isFrameGenerationSupported() {
+        return nativeHandle != 0 && nativeIsFrameGenerationSupported(nativeHandle);
+    }
+
     public static int parsePresentMode(String name) {
         if (name == null) return PRESENT_MODE_FIFO;
         switch (name.trim().toLowerCase()) {
@@ -937,4 +955,6 @@ public class VulkanRenderer
     private static native void nativeSetFpsLimit(long handle, int fps);
     private static native void nativeSetPresentMode(long handle, int mode);
     private static native void nativeSetScaleFilter(long handle, int mode);
+    private static native void nativeSetFrameGenerationEnabled(long handle, boolean enabled);
+    private static native boolean nativeIsFrameGenerationSupported(long handle);
 }

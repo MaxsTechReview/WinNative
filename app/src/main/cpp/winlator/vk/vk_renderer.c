@@ -66,6 +66,9 @@ static bool create_offscreen(VkRenderer* r, uint32_t w, uint32_t h, bool need_se
 static void destroy_offscreen(VkRenderer* r);
 static bool create_sgsr1_resources(VkRenderer* r, uint32_t w, uint32_t h);
 static void destroy_sgsr1_resources(VkRenderer* r);
+static void destroy_composite_targets(VkRenderer* r);
+static bool create_composite_targets(VkRenderer* r, uint32_t w, uint32_t h, uint32_t count);
+static bool composite_format_supported(VkRenderer* r);
 static bool create_quad_vbo(VkRenderer* r);
 static void destroy_quad_vbo(VkRenderer* r);
 static bool is_plain_rotation_transform(VkSurfaceTransformFlagBitsKHR transform);
@@ -691,6 +694,52 @@ static bool create_render_passes(VkRenderer* r) {
         }
     }
 
+    {
+        VkAttachmentDescription att = {0};
+        att.format = r->swapchain_format;
+        att.samples = VK_SAMPLE_COUNT_1_BIT;
+        att.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        att.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        att.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        att.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        att.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        att.finalLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+        VkAttachmentReference ref = {0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+
+        VkSubpassDescription sp = {0};
+        sp.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        sp.colorAttachmentCount = 1;
+        sp.pColorAttachments = &ref;
+
+        VkSubpassDependency deps[2] = {0};
+        deps[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+        deps[0].dstSubpass = 0;
+        deps[0].srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT
+                             | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+        deps[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        deps[0].srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_SHADER_READ_BIT;
+        deps[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        deps[1].srcSubpass = 0;
+        deps[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+        deps[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        deps[1].dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT
+                             | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+        deps[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        deps[1].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_SHADER_READ_BIT;
+
+        VkRenderPassCreateInfo rci = {VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
+        rci.attachmentCount = 1;
+        rci.pAttachments = &att;
+        rci.subpassCount = 1;
+        rci.pSubpasses = &sp;
+        rci.dependencyCount = 2;
+        rci.pDependencies = deps;
+        if (vkCreateRenderPass(r->device, &rci, NULL, &r->pipelines.composite_pass) != VK_SUCCESS) {
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -1039,6 +1088,7 @@ static void destroy_pipelines(VkRenderer* r) {
     if (r->pipelines.sampler_set_layout) vkDestroyDescriptorSetLayout(r->device, r->pipelines.sampler_set_layout, NULL);
     if (r->pipelines.swapchain_pass)  vkDestroyRenderPass(r->device, r->pipelines.swapchain_pass, NULL);
     if (r->pipelines.offscreen_pass)  vkDestroyRenderPass(r->device, r->pipelines.offscreen_pass, NULL);
+    if (r->pipelines.composite_pass)  vkDestroyRenderPass(r->device, r->pipelines.composite_pass, NULL);
     memset(&r->pipelines, 0, sizeof(r->pipelines));
     r->pipelines_built = false;
 }
@@ -1205,6 +1255,9 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
         && (caps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT)) {
         sci.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT; // blit source for the encoder mirror
     }
+    bool transfer_dst_capable = (caps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT) != 0;
+    r->swapchain_transfer_dst = r->framegen_requested && transfer_dst_capable;
+    if (r->swapchain_transfer_dst) sci.imageUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     sci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     sci.preTransform = pre_transform;
     sci.compositeAlpha = (caps.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
@@ -1245,6 +1298,7 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
         goto fail;
     }
     r->swapchain_image_count = got;
+    r->framegen_supported = transfer_dst_capable && composite_format_supported(r);
 
     if (!r->pipelines_built) {
         if (!create_pipelines(r)) goto fail;
@@ -1305,6 +1359,7 @@ static void destroy_swapchain_resources(VkRenderer* r) {
 }
 
 static void destroy_swapchain(VkRenderer* r) {
+    destroy_composite_targets(r);
     destroy_swapchain_resources(r);
     if (r->swapchain) { vkDestroySwapchainKHR(r->device, r->swapchain, NULL); r->swapchain = VK_NULL_HANDLE; }
 }
@@ -1679,6 +1734,107 @@ static void destroy_offscreen(VkRenderer* r) {
     destroy_one_offscreen(r, &r->offscreen[0]);
     destroy_one_offscreen(r, &r->offscreen[1]);
     r->offscreen_built = false;
+}
+
+static void destroy_one_composite(VkRenderer* r, VkCompositeTarget* c) {
+    if (c->framebuffer) vkDestroyFramebuffer(r->device, c->framebuffer, NULL);
+    if (c->view)        vkDestroyImageView(r->device, c->view, NULL);
+    if (c->image)       vkDestroyImage(r->device, c->image, NULL);
+    if (c->memory)      vkFreeMemory(r->device, c->memory, NULL);
+    memset(c, 0, sizeof(*c));
+}
+
+static void destroy_composite_targets(VkRenderer* r) {
+    for (uint32_t i = 0; i < VK_MAX_COMPOSITE_TARGETS; i++) {
+        destroy_one_composite(r, &r->composite[i]);
+    }
+    r->composite_count = 0;
+    r->composite_built = false;
+}
+
+static bool create_one_composite(VkRenderer* r, VkCompositeTarget* c, uint32_t w, uint32_t h) {
+    c->width = w;
+    c->height = h;
+
+    VkImageCreateInfo ic = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+    ic.imageType = VK_IMAGE_TYPE_2D;
+    ic.format = r->swapchain_format;
+    ic.extent.width = w;
+    ic.extent.height = h;
+    ic.extent.depth = 1;
+    ic.mipLevels = 1;
+    ic.arrayLayers = 1;
+    ic.samples = VK_SAMPLE_COUNT_1_BIT;
+    ic.tiling = VK_IMAGE_TILING_OPTIMAL;
+    ic.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
+             | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    ic.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    ic.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    if (vkCreateImage(r->device, &ic, NULL, &c->image) != VK_SUCCESS) return false;
+
+    VkMemoryRequirements mr;
+    vkGetImageMemoryRequirements(r->device, c->image, &mr);
+    VkMemoryAllocateInfo ai = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    ai.allocationSize = mr.size;
+    ai.memoryTypeIndex = vkr_find_memory_type(r, mr.memoryTypeBits,
+                                              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if (ai.memoryTypeIndex == UINT32_MAX) return false;
+    if (vkAllocateMemory(r->device, &ai, NULL, &c->memory) != VK_SUCCESS) return false;
+    vkBindImageMemory(r->device, c->image, c->memory, 0);
+
+    VkImageViewCreateInfo vi = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+    vi.image = c->image;
+    vi.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    vi.format = ic.format;
+    vi.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    vi.subresourceRange.levelCount = 1;
+    vi.subresourceRange.layerCount = 1;
+    if (vkCreateImageView(r->device, &vi, NULL, &c->view) != VK_SUCCESS) return false;
+
+    VkFramebufferCreateInfo fbci = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
+    fbci.renderPass = r->pipelines.composite_pass;
+    fbci.attachmentCount = 1;
+    fbci.pAttachments = &c->view;
+    fbci.width = w;
+    fbci.height = h;
+    fbci.layers = 1;
+    if (vkCreateFramebuffer(r->device, &fbci, NULL, &c->framebuffer) != VK_SUCCESS) return false;
+
+    return true;
+}
+
+static bool create_composite_targets(VkRenderer* r, uint32_t w, uint32_t h, uint32_t count) {
+    if (count == 0 || count > VK_MAX_COMPOSITE_TARGETS) return false;
+    if (r->composite_built && r->composite_count == count
+        && r->composite[0].width == w && r->composite[0].height == h) {
+        return true;
+    }
+
+    destroy_composite_targets(r);
+    for (uint32_t i = 0; i < count; i++) {
+        if (!create_one_composite(r, &r->composite[i], w, h)) {
+            destroy_composite_targets(r);
+            return false;
+        }
+    }
+    r->composite_count = count;
+    r->composite_built = true;
+    return true;
+}
+
+static bool composite_format_supported(VkRenderer* r) {
+    if (r->swapchain_format == VK_FORMAT_UNDEFINED) return false;
+
+    VkFormatProperties props;
+    memset(&props, 0, sizeof(props));
+    vkGetPhysicalDeviceFormatProperties(r->physical_device, r->swapchain_format, &props);
+
+    const VkFormatFeatureFlags required = VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT
+                                        | VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
+                                        | VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
+                                        | VK_FORMAT_FEATURE_BLIT_SRC_BIT
+                                        | VK_FORMAT_FEATURE_BLIT_DST_BIT;
+    return (props.optimalTilingFeatures & required) == required;
 }
 
 static bool create_sgsr1_resources(VkRenderer* r, uint32_t w, uint32_t h) {
@@ -2182,6 +2338,28 @@ static bool record_and_submit_frame(VkRenderer* r) {
         destroy_sgsr1_resources(r);
     }
 
+    bool via_composite = r->framegen_requested && r->framegen_supported
+                      && r->swapchain_transfer_dst;
+    if (via_composite) {
+        bool composite_stale = !r->composite_built
+            || r->composite[0].width != r->swapchain_extent.width
+            || r->composite[0].height != r->swapchain_extent.height;
+        if (composite_stale) {
+            wait_inflight_frames(r);
+            if (!create_composite_targets(r, r->swapchain_extent.width,
+                                          r->swapchain_extent.height, VK_FRAMES_IN_FLIGHT)) {
+                VK_LOGW("Composite targets unavailable; frame generation path disabled");
+                r->framegen_supported = false;
+                via_composite = false;
+            }
+        }
+    } else if (r->composite_built) {
+        wait_inflight_frames(r);
+        destroy_composite_targets(r);
+    }
+
+    VkCompositeTarget* composite = via_composite ? &r->composite[r->frame_index] : NULL;
+
     uint32_t image_index = 0;
     VkResult acq = vkAcquireNextImageKHR(r->device, r->swapchain, UINT64_MAX,
                                          f->image_available, VK_NULL_HANDLE, &image_index);
@@ -2254,6 +2432,11 @@ static bool record_and_submit_frame(VkRenderer* r) {
         has_effects = full_ok && (!wants_sgsr1 || r->sgsr1.built);
     }
 
+    VkRenderPass final_pass = composite ? r->pipelines.composite_pass
+                                        : r->pipelines.swapchain_pass;
+    VkFramebuffer final_fb = composite ? composite->framebuffer
+                                       : r->swapchain_framebuffers[image_index];
+
     VkClearValue clear = {0};
     clear.color.float32[0] = 0.0f;
     clear.color.float32[1] = 0.0f;
@@ -2287,8 +2470,8 @@ static bool record_and_submit_frame(VkRenderer* r) {
             VkEffectSlot* eff = &snap.effects[i];
 
             if (last) {
-                rpbi.renderPass = r->pipelines.swapchain_pass;
-                rpbi.framebuffer = r->swapchain_framebuffers[image_index];
+                rpbi.renderPass = final_pass;
+                rpbi.framebuffer = final_fb;
                 rpbi.renderArea.extent = r->swapchain_extent;
             } else {
                 rpbi.renderPass = r->pipelines.offscreen_pass;
@@ -2308,8 +2491,8 @@ static bool record_and_submit_frame(VkRenderer* r) {
         }
     } else {
         VkRenderPassBeginInfo rpbi = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
-        rpbi.renderPass = r->pipelines.swapchain_pass;
-        rpbi.framebuffer = r->swapchain_framebuffers[image_index];
+        rpbi.renderPass = final_pass;
+        rpbi.framebuffer = final_fb;
         rpbi.renderArea.extent = r->swapchain_extent;
         rpbi.clearValueCount = 1;
         rpbi.pClearValues = &clear;
@@ -2317,6 +2500,33 @@ static bool record_and_submit_frame(VkRenderer* r) {
         draw_scene_pass(r, f->cmd, &snap, false,
                         r->swapchain_extent.width, r->swapchain_extent.height);
         vkCmdEndRenderPass(f->cmd);
+    }
+
+    if (composite) {
+        VkImage disp_img = r->swapchain_images[image_index];
+        vkr_image_barrier(f->cmd, disp_img,
+                          VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                          VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                          0, VK_ACCESS_TRANSFER_WRITE_BIT);
+
+        VkImageBlit blit = {0};
+        blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        blit.srcSubresource.layerCount = 1;
+        blit.srcOffsets[1].x = (int32_t)composite->width;
+        blit.srcOffsets[1].y = (int32_t)composite->height;
+        blit.srcOffsets[1].z = 1;
+        blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        blit.dstSubresource.layerCount = 1;
+        blit.dstOffsets[1].x = (int32_t)r->swapchain_extent.width;
+        blit.dstOffsets[1].y = (int32_t)r->swapchain_extent.height;
+        blit.dstOffsets[1].z = 1;
+        vkCmdBlitImage(f->cmd, composite->image, VK_IMAGE_LAYOUT_GENERAL,
+                       disp_img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_NEAREST);
+
+        vkr_image_barrier(f->cmd, disp_img,
+                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                          VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                          VK_ACCESS_TRANSFER_WRITE_BIT, 0);
     }
 
     // Blit the final composited image (in PRESENT_SRC after the render pass) into the encoder image.
@@ -2389,7 +2599,9 @@ static bool record_and_submit_frame(VkRenderer* r) {
 
     // The mirror's acquire/present-ready semaphores are appended only when capturing this frame.
     VkPipelineStageFlags wait_stages[2] = {
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT };
+        composite ? (VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT)
+                  : VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT };
     VkSemaphore wait_sems[2] = { f->image_available, r->rec.acquire[r->frame_index] };
     VkSemaphore signal_sems[2] = {
         render_finished, rec_this_frame ? r->rec.present_ready[rec_index] : VK_NULL_HANDLE };
@@ -3086,6 +3298,46 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetPresentMode)(JNIEnv* env, jclass clazz, j
         pthread_mutex_unlock(&r->scene_mutex);
     }
     pthread_mutex_unlock(&r->render_mutex);
+}
+
+JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenerationEnabled)(JNIEnv* env, jclass clazz,
+                                                               jlong handle, jboolean enabled) {
+    (void)env; (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
+    if (!r) return;
+
+    const bool want = (enabled == JNI_TRUE);
+    if (r->framegen_requested == want) return;
+
+    pthread_mutex_lock(&r->render_mutex);
+    r->framegen_requested = want;
+    if (r->surface && r->swapchain) {
+        lifecycle_begin(r);
+        if (r->device) vkDeviceWaitIdle(r->device);
+        uint32_t fw = r->surface_extent.width;
+        uint32_t fh = r->surface_extent.height;
+        destroy_sgsr1_resources(r);
+        destroy_offscreen(r);
+        destroy_swapchain(r);
+        if (!create_swapchain(r, fw, fh)) {
+            VK_LOGE("Swapchain re-create failed in nativeSetFrameGenerationEnabled");
+        } else {
+            pthread_mutex_lock(&r->scene_mutex);
+            r->surface_ready = true;
+            pthread_mutex_unlock(&r->scene_mutex);
+        }
+    }
+    pthread_mutex_unlock(&r->render_mutex);
+    VK_LOGI("Frame generation composite path %s (supported=%d)",
+            want ? "enabled" : "disabled", (int)r->framegen_supported);
+}
+
+JNIEXPORT jboolean JNICALL JNI_FN(nativeIsFrameGenerationSupported)(JNIEnv* env, jclass clazz,
+                                                                    jlong handle) {
+    (void)env; (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
+    if (!r) return JNI_FALSE;
+    return r->framegen_supported ? JNI_TRUE : JNI_FALSE;
 }
 
 // ============================================================
