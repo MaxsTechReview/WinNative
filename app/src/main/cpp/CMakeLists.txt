@@ -147,6 +147,9 @@ add_library(winlator SHARED
         winlator/vk/vk_dispatch.c
         winlator/vk/vk_image.c
         winlator/vk/vk_renderer.c
+        winlator/vk/lsfg/lsfg_dll.c
+        winlator/vk/lsfg/lsfg_probe.c
+        winlator/vk/lsfg/lsfg_jni.c
 )
 
 add_dependencies(winlator winlator_shaders)
