@@ -344,23 +344,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
     private static final String[] SHELL_AFFINITY_PROCESSES = {
         "explorer.exe", "steamwebhelper.exe"
     };
-    /**
-     * External SxS manifest that switches an ANSI executable to the UTF-8 active code page.
-     * Wine 10 reads it via the process activation context (ntdll locale_init queries
-     * RtlQueryActivationContextApplicationSettings for "activeCodePage").
-     */
-    private static final String UTF8_ACTIVE_CODEPAGE_MANIFEST =
-        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n"
-        + "<assembly xmlns=\"urn:schemas-microsoft-com:asm.v1\" manifestVersion=\"1.0\">\n"
-        + "  <assemblyIdentity type=\"win32\" name=\"WinNative.Utf8CodePage\" version=\"1.0.0.0\"/>\n"
-        + "  <application xmlns=\"urn:schemas-microsoft-com:asm.v3\">\n"
-        + "    <windowsSettings>\n"
-        + "      <activeCodePage xmlns=\"http://schemas.microsoft.com/SMI/2019/WindowsSettings\">UTF-8</activeCodePage>\n"
-        + "    </windowsSettings>\n"
-        + "  </application>\n"
-        + "</assembly>\n";
-    /** assemblyIdentity marker identifying locale manifests deployed by us (never overwrite game-owned manifests). */
+    // assemblyIdentity names marking the SxS activeCodePage manifests we deploy; anything else is game-owned and never touched.
+    private static final String UTF8_MANIFEST_MARKER = "WinNative.Utf8CodePage";
     private static final String LOCALE_MANIFEST_MARKER = "WinNative.LocaleCodePage";
+    private static final String UTF8_ACTIVE_CODEPAGE_MANIFEST = codePageManifest(UTF8_MANIFEST_MARKER, "UTF-8");
     private int frameRatingWindowId = -1;
     private android.net.wifi.WifiManager.MulticastLock multicastLock;
     private final float[] xform = XForm.getInstance();
@@ -6759,11 +6746,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
 
         cleanupLingeringSessionProcesses("new launch");
 
-        // LC_ALL is pinned to C.UTF-8 (built into glibc, works even though the
-        // imagefs has no locale data): a real locale would make setlocale()
-        // fail and fall back to the ASCII-only "C", breaking every non-ASCII
-        // path on the wine command line. The user's original locale is passed
-        // via LANG instead.
+        // Pinned to C.UTF-8: the imagefs ships no locale data, so a real locale makes setlocale()
+        // fall back to ASCII-only "C" and mangles non-ASCII paths on the wine command line.
         envVars.put("LC_ALL", LocaleEnv.normalize());
         envVars.put("LANG", LocaleEnv.normalizeLang(lc_all));
         String winePrefix = (shortcut != null && container != null && shortcut.path != null && shortcut.path.matches("^[cC]:.*")) ? new File(container.getRootDir(), ".wine").getAbsolutePath() : imageFs.wineprefix;
@@ -6795,8 +6779,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
 
                 GameFixes.applyForLaunch(container, shortcut);
 
-                // Must run before the guest program starts: deploys/refreshes the
-                // locale activeCodePage manifest next to the game executable.
+                // Must run before the guest program starts.
                 ensureGameLocaleCodePageManifest();
 
                 String wineStartCmd = getWineStartCommand(guestProgramLauncherComponent);
@@ -7736,13 +7719,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
     }
 
     /**
-     * winhandler.exe/wfm.exe are ANSI binaries: their CRT argv is built from GetCommandLineA
-     * and games are launched via ShellExecuteA. When the process codepage is a legacy ANSI
-     * codepage (e.g. 1252), every non-ASCII character in the path becomes '?', which is an
-     * invalid Windows filename character, so ShellExecuteA fails with ERROR_INVALID_NAME
-     * ("invalid name" dialog) and the game never starts. The UTF-8 activeCodePage manifest
-     * deployed next to these executables makes Wine use UTF-8 for all A-variant APIs in
-     * those processes, so non-ASCII paths pass through unchanged.
+     * winhandler.exe/wfm.exe are ANSI binaries (GetCommandLineA argv, ShellExecuteA launch): under a
+     * legacy codepage every non-ASCII path character becomes '?' and ShellExecuteA fails with
+     * ERROR_INVALID_NAME. The UTF-8 activeCodePage manifest makes Wine use UTF-8 for their A-variant APIs.
      */
     private void ensureUtf8CodePageManifests(File windowsDir, String[] exeNames) {
         if (windowsDir == null || !windowsDir.isDirectory()) return;
@@ -7762,45 +7741,25 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         }
     }
 
-    /**
-     * External SxS manifest that pins the process ANSI/OEM code page to a specific
-     * locale's defaults (e.g. ja-JP -> 932/Shift-JIS). Wine 10's ntdll locale_init
-     * accepts any locale name as the activeCodePage value (find_lcname_entry lookup
-     * in its NLS tables) — unlike Windows where only "UTF-8" is documented — so this
-     * is the Wine equivalent of running the game through Locale Emulator.
-     */
-    private static String localeCodePageManifest(String localeName) {
+    /** External SxS manifest setting the process activeCodePage; Wine 10 reads it via the activation context. */
+    private static String codePageManifest(String identity, String codePage) {
         return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n"
             + "<assembly xmlns=\"urn:schemas-microsoft-com:asm.v1\" manifestVersion=\"1.0\">\n"
-            + "  <assemblyIdentity type=\"win32\" name=\"" + LOCALE_MANIFEST_MARKER + "\" version=\"1.0.0.0\"/>\n"
+            + "  <assemblyIdentity type=\"win32\" name=\"" + identity + "\" version=\"1.0.0.0\"/>\n"
             + "  <application xmlns=\"urn:schemas-microsoft-com:asm.v3\">\n"
             + "    <windowsSettings>\n"
             + "      <activeCodePage xmlns=\"http://schemas.microsoft.com/SMI/2019/WindowsSettings\">"
-            + localeName + "</activeCodePage>\n"
+            + codePage + "</activeCodePage>\n"
             + "    </windowsSettings>\n"
             + "  </application>\n"
             + "</assembly>\n";
     }
 
     /**
-     * The imagefs runs on Android's bionic libc, whose setlocale() only accepts
-     * C/POSIX/C.UTF-8. Wine therefore can never learn a real guest locale (e.g.
-     * ja_JP) from LANG/LC_ALL and always derives the legacy ANSI code page 1252.
-     * ANSI games built for a Japanese system (Shift-JIS strings, A-variant APIs)
-     * then render every Japanese character as '?' and fail to resolve their own
-     * Shift-JIS paths, typically aborting with an unreadable error dialog.
-     *
-     * Wine 10 supports per-process code page overrides through the SxS
-     * activeCodePage application setting, and — unlike Windows — accepts a locale
-     * name there. Driven by the shortcut/container LC_ALL setting, we deploy
-     * "<game>.exe.manifest" next to the game executable so the game runs with its
-     * locale's real ANSI/OEM code page. This is the Wine equivalent of running
-     * the game through Locale Emulator, and is only needed for legacy ANSI
-     * games; Unicode/UTF-8 games run fine without it because non-ASCII paths
-     * already pass through the launch chain losslessly (winhandler's UTF-8
-     * manifest). Only manifests carrying our marker are managed; game-shipped
-     * manifests are never touched. Clearing the locale removes a manifest we
-     * deployed earlier.
+     * Wine never sees a real guest locale (see LocaleEnv) so its ANSI code page is stuck at 1252, and legacy
+     * Shift-JIS/GBK games render as '?'. Wine 10 — unlike Windows — accepts a locale name in the SxS
+     * activeCodePage setting (ja-JP -> 932), so deploying "&lt;game&gt;.exe.manifest" is the Locale Emulator
+     * equivalent. Only manifests carrying our marker are managed; clearing LC_ALL removes ours again.
      */
     private void ensureGameLocaleCodePageManifest() {
         if (shortcut == null || container == null) return;
@@ -7825,18 +7784,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 return;
             }
 
-            // Wine prefers an embedded RT_MANIFEST resource over the external
-            // <exe>.manifest file; if the game ships one without activeCodePage,
-            // our override is silently ignored (ANSI code page stays 1252).
+            // An embedded RT_MANIFEST wins over the external file, silently ignoring our override.
             if (exeHasEmbeddedManifest(exeFile)) {
                 Log.w("ContainerLaunch", "Game exe has an embedded manifest; the external "
                         + localeName + " activeCodePage manifest may be ignored for " + gamePath);
             }
 
-            String manifest = localeCodePageManifest(localeName);
+            String manifest = codePageManifest(LOCALE_MANIFEST_MARKER, localeName);
             if (manifest.equals(current)) return;
             if (current != null && !current.contains(LOCALE_MANIFEST_MARKER)
-                    && !current.contains("WinNative.Utf8CodePage")) {
+                    && !current.contains(UTF8_MANIFEST_MARKER)) {
                 Log.w("ContainerLaunch", "Game ships its own manifest, not overriding: " + manifestFile);
                 return;
             }
@@ -7892,17 +7849,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
     }
 
     /**
-     * Returns the data blob of the first resource of the given integer type
-     * (e.g. RT_VERSION 16, RT_MANIFEST 24), or null. Walks the three-level
-     * resource directory (type -> name -> language) to its data entry.
+     * Data blob of the first resource of the given type (RT_MANIFEST is 24), or null.
+     * Walks the three-level resource directory (type -> name -> language) to its data entry.
      */
     private static byte[] exeResourceData(File exeFile, int typeId) {
         try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(exeFile, "r")) {
             long resBase = exeResourceDirOffset(raf);
             if (resBase < 0) return null;
 
-            // Level 1: resource type. Entries are {id, offset} pairs after the
-            // 16-byte directory header plus any named (string) entries.
+            // Level 1 (type): {id, offset} pairs after the 16-byte header plus any named entries.
             raf.seek(resBase + 12);
             int named = Short.reverseBytes(raf.readShort()) & 0xFFFF;
             int ided = Short.reverseBytes(raf.readShort()) & 0xFFFF;
