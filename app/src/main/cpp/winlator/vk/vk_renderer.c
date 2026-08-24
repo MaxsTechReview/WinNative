@@ -2804,9 +2804,14 @@ static bool record_and_submit_frame(VkRenderer* r) {
         VkResult gpr = vkQueuePresentKHR(r->graphics_queue, &gpi);
         if (gpr != VK_SUCCESS && gpr != VK_SUBOPTIMAL_KHR) {
             VK_LOGW("generated frame present failed (%d)", gpr);
+        } else {
+            __atomic_fetch_add(&r->presented_frames, 1, __ATOMIC_RELAXED);
         }
     }
     VkResult pr = vkQueuePresentKHR(r->graphics_queue, &pi);
+    if (pr == VK_SUCCESS || pr == VK_SUBOPTIMAL_KHR) {
+        __atomic_fetch_add(&r->presented_frames, 1, __ATOMIC_RELAXED);
+    }
     // Present the mirror separately so its result doesn't disturb the display recreate logic below.
     if (rec_this_frame) {
         VkPresentInfoKHR rpi = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
@@ -3558,6 +3563,14 @@ JNIEXPORT jlong JNICALL JNI_FN(nativeGetGeneratedFrameCount)(JNIEnv* env, jclass
     VkRenderer* r = (VkRenderer*)(intptr_t)handle;
     if (!r) return 0;
     return (jlong)r->framegen_made_frames;
+}
+
+JNIEXPORT jlong JNICALL JNI_FN(nativeGetPresentedFrameCount)(JNIEnv* env, jclass clazz,
+                                                             jlong handle) {
+    (void)env; (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
+    if (!r) return 0;
+    return (jlong)__atomic_load_n(&r->presented_frames, __ATOMIC_RELAXED);
 }
 
 // ============================================================

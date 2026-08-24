@@ -939,6 +939,10 @@ public class VulkanRenderer
         return nativeHandle != 0 ? nativeGetGeneratedFrameCount(nativeHandle) : 0L;
     }
 
+    public long getPresentedFrameCount() {
+        return nativeHandle != 0 ? nativeGetPresentedFrameCount(nativeHandle) : 0L;
+    }
+
     public static int parsePresentMode(String name) {
         if (name == null) return PRESENT_MODE_FIFO;
         switch (name.trim().toLowerCase()) {
@@ -998,4 +1002,5 @@ public class VulkanRenderer
     private static native void nativeSetFrameGenerationMode(long handle, int multiplier,
                                                             int targetRate, int flowScalePercent);
     private static native long nativeGetGeneratedFrameCount(long handle);
+    private static native long nativeGetPresentedFrameCount(long handle);
 }

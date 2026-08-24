@@ -783,6 +783,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
 
         if (!frameGenEnabled || frameGenCachePath == null) {
             renderer.setFrameGenerationEnabled(false);
+            syncFrameGenerationHud();
             return;
         }
 
@@ -790,9 +791,31 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         renderer.setFrameGenerationMode(frameGenMultiplier, frameGenTargetRate, frameGenFlowScale);
         renderer.setFrameGenerationEnabled(true);
         applyFrameGenerationDisplayMode();
+        syncFrameGenerationHud();
         Log.i("XServerDisplayActivity", "Frame generation on: multiplier=" + frameGenMultiplier
                 + " targetRate=" + frameGenTargetRate + " flowScale=" + frameGenFlowScale);
     }
+
+    private void syncFrameGenerationHud() {
+        if (frameRating == null) return;
+        frameRating.setOutputFrameSource(frameGenEnabled ? frameGenOutputSource : null);
+        frameRating.setFrameGenerationActive(frameGenEnabled && frameGenCachePath != null);
+    }
+
+    private final FrameRating.OutputFrameSource frameGenOutputSource =
+            new FrameRating.OutputFrameSource() {
+                @Override
+                public long getPresentedFrameCount() {
+                    VulkanRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
+                    return renderer != null ? renderer.getPresentedFrameCount() : 0L;
+                }
+
+                @Override
+                public long getGeneratedFrameCount() {
+                    VulkanRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
+                    return renderer != null ? renderer.getGeneratedFrameCount() : 0L;
+                }
+            };
 
     private void applyFrameGenerationDisplayMode() {
         android.view.Window window = getWindow();
@@ -5903,6 +5926,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                     if (lastGpuName != null) frameRating.setGpuName(lastGpuName);
                     frameRating.setVisibility(View.GONE);
                     applyHUDSettings();
+                    syncFrameGenerationHud();
                     rootView.addView(frameRating);
                     if (perfController != null) perfController.attachToFrameRating(frameRating);
                 }
@@ -7663,6 +7687,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         if (lastGpuName != null) frameRating.setGpuName(lastGpuName);
         frameRating.setVisibility(effectiveShowFPS ? View.VISIBLE : View.GONE);
         applyHUDSettings();
+        syncFrameGenerationHud();
         updateHUDRenderMode();
         rootView.addView(frameRating);
         if (perfController != null) perfController.attachToFrameRating(frameRating);

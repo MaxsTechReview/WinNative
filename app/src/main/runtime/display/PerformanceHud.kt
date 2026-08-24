@@ -42,6 +42,7 @@ object PerformanceHudState {
         val batteryWatts: Float = 0f,
         val tempC: Int = -1,
         val renderer: String = "",
+        val outputFps: Float = 0f,
     )
 
     private val _state = MutableStateFlow(Snapshot())
@@ -61,10 +62,12 @@ object PerformanceHudState {
     fun updateValues(
         fps: Float, frametimeMs: Float, gpuLoad: Int, cpuPercent: Int,
         ramPercent: Int, batteryWatts: Float, tempC: Int, renderer: String,
+        outputFps: Float,
     ) {
         _state.value = _state.value.copy(
             fps = fps, frametimeMs = frametimeMs, gpuLoad = gpuLoad, cpuPercent = cpuPercent,
             ramPercent = ramPercent, batteryWatts = batteryWatts, tempC = tempC, renderer = renderer,
+            outputFps = outputFps,
         )
     }
 }
@@ -76,6 +79,7 @@ private val HudBad = Color(0xFFFF5A5A)
 private val HudText = Color(0xFFF0F4FF)
 private val HudSub = Color(0xFF7A8FA8)
 private val HudTrack = Color(0x33FFFFFF)
+private val HudGen = Color(0xFF00E5FF)
 
 private data class GaugeSpec(
     val label: String,
@@ -92,7 +96,11 @@ fun PerformanceHudOverlay(modifier: Modifier = Modifier) {
     // A gauge stays while its element is enabled; a momentarily-unavailable value shows N/A rather than dropping the gauge (which would make the row jump).
     val gauges = ArrayList<GaugeSpec>(8)
     if (s.enabled.getOrElse(0) { false }) {
-        gauges.add(GaugeSpec("FPS", s.fps.toInt().toString(), s.fps / 120f, HudAccent))
+        gauges.add(GaugeSpec(
+            "FPS", s.fps.toInt().toString(), s.fps / 120f, HudAccent,
+            sublabel = if (s.outputFps > 0f) "→ ${s.outputFps.toInt()}" else null,
+            sublabelColor = HudGen,
+        ))
     }
     if (s.enabled.getOrElse(2) { false }) {
         gauges.add(GaugeSpec("GPU", pctText(s.gpuLoad), pctFraction(s.gpuLoad), loadColor(maxOf(s.gpuLoad, 0))))

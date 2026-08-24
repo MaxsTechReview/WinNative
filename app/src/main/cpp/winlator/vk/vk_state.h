@@ -424,6 +424,7 @@ typedef struct VkRenderer {
     uint64_t          framegen_real_frames;
     uint64_t          framegen_made_frames;
     uint64_t          framegen_acquire_misses;
+    uint64_t          presented_frames;
 
     // record_blit_src adds TRANSFER_SRC usage to the display swapchain (toggled by start/stop recording).
     bool             record_blit_src;
