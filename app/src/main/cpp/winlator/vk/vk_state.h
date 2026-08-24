@@ -27,6 +27,8 @@
 #define VK_MAX_RECORD_IMAGES 32
 #define VK_MAX_EFFECTS 8
 #define VK_MAX_COMPOSITE_TARGETS 8
+#define VK_FRAMEGEN_ACQUIRE_TIMEOUT_NS 3000000ULL
+#define VK_FRAMEGEN_ACQUIRE_TIMEOUT_MAX_NS 12000000ULL
 #define VK_MAX_RENDERABLE_WINDOWS 64
 // Number of in-flight upload slots. Each slot owns a persistently-mapped staging buffer,
 // fence, and command pool. An upload only blocks when this many uploads are still pending
@@ -421,7 +423,12 @@ typedef struct VkRenderer {
     uint32_t          framegen_multiplier;
     uint32_t          framegen_target_rate;
     float             framegen_flow_scale;
+    float             framegen_refresh_rate;
+    int32_t           framegen_refresh_mhz;
+    uint64_t          framegen_source_frames;
     uint64_t          framegen_real_frames;
+    uint64_t          framegen_log_real;
+    uint64_t          framegen_log_made;
     uint64_t          framegen_made_frames;
     uint64_t          framegen_acquire_misses;
     uint64_t          presented_frames;

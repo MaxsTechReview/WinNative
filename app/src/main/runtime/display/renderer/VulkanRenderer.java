@@ -29,6 +29,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /** Native Vulkan compositor: owns the C-side renderer handle and pushes a scene snapshot per frame. */
 public class VulkanRenderer
@@ -117,6 +118,8 @@ public class VulkanRenderer
             ByteBuffer.allocateDirect(SCENE_BUF_SIZE).order(ByteOrder.nativeOrder());
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final AtomicBoolean renderRequested = new AtomicBoolean(false);
+    private final AtomicLong sourceFrames = new AtomicLong();
+    private final AtomicLong presentFrames = new AtomicLong();
 
     // Reusable scratch — sized once, refilled per frame.
     private final float[] sceneXform = XForm.getInstance();
@@ -170,6 +173,10 @@ public class VulkanRenderer
     private volatile Choreographer mainChoreographer;
     private final Choreographer.FrameCallback coalescedRenderCallback;
 
+    public void onGuestFramePresented() {
+        presentFrames.incrementAndGet();
+    }
+
     public void requestRenderCoalesced() {
         if (renderRequested.compareAndSet(false, true)) {
             // Post directly (thread-safe): a handler hop arms past the next doFrame and halves the visible cursor rate.
@@ -222,6 +229,7 @@ public class VulkanRenderer
                 }
                 nativeSetFrameGenerationMode(nativeHandle, frameGenerationMultiplier,
                         frameGenerationTargetRate, frameGenerationFlowScale);
+                nativeSetFrameGenerationRefreshRate(nativeHandle, frameGenerationRefreshRate);
                 if (frameGenerationRequested) {
                     nativeSetFrameGenerationEnabled(nativeHandle, true);
                 }
@@ -574,6 +582,8 @@ public class VulkanRenderer
         }
 
         nativeSetScene(nativeHandle, buf);
+        long presents = presentFrames.get();
+        nativeSetSourceFrameCount(nativeHandle, presents > 0 ? presents : sourceFrames.get());
         // nativeSetFpsLimit is a native no-op (pacing is done elsewhere); not called per frame.
         nativeRenderFrame(nativeHandle);
     }
@@ -600,6 +610,7 @@ public class VulkanRenderer
 
     @Override
     public void onUpdateWindowContent(Window window) {
+        sourceFrames.incrementAndGet();
         requestRenderCoalesced();
     }
 
@@ -897,6 +908,7 @@ public class VulkanRenderer
     private int frameGenerationMultiplier = 2;
     private int frameGenerationTargetRate = 0;
     private int frameGenerationFlowScale = 100;
+    private float frameGenerationRefreshRate = 0f;
 
     public void setFrameGenerationEnabled(boolean enabled) {
         frameGenerationRequested = enabled;
@@ -924,6 +936,13 @@ public class VulkanRenderer
         if (nativeHandle != 0) {
             nativeSetFrameGenerationMode(nativeHandle, frameGenerationMultiplier,
                     frameGenerationTargetRate, frameGenerationFlowScale);
+        }
+    }
+
+    public void setFrameGenerationRefreshRate(float refreshRate) {
+        frameGenerationRefreshRate = refreshRate > 0f ? refreshRate : 0f;
+        if (nativeHandle != 0) {
+            nativeSetFrameGenerationRefreshRate(nativeHandle, frameGenerationRefreshRate);
         }
     }
 
@@ -999,6 +1018,8 @@ public class VulkanRenderer
     private static native void nativeSetFrameGenerationEnabled(long handle, boolean enabled);
     private static native boolean nativeIsFrameGenerationSupported(long handle);
     private static native void nativeSetFrameGenerationShaders(long handle, String cachePath);
+    private static native void nativeSetSourceFrameCount(long handle, long count);
+    private static native void nativeSetFrameGenerationRefreshRate(long handle, float hz);
     private static native void nativeSetFrameGenerationMode(long handle, int multiplier,
                                                             int targetRate, int flowScalePercent);
     private static native long nativeGetGeneratedFrameCount(long handle);

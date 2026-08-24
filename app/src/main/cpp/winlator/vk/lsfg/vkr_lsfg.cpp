@@ -17,6 +17,7 @@ namespace {
 
 constexpr uint64_t LSFG_REQUIRED_FRAMES = 2;
 constexpr uint32_t LSFG_RECURRENCE_FRAMES = 2;
+constexpr uint64_t LSFG_TELEMETRY_INTERVAL = 120;
 
 VkImageMemoryBarrier MakeTransitionBarrier(VkImage image, VkAccessFlags src_access,
                                            VkAccessFlags dst_access, VkImageLayout old_layout,
@@ -94,7 +95,9 @@ struct VkrLsfg {
     uint64_t frame_count{};
     uint64_t last_count{};
     size_t last_generations{};
+    uint64_t plan_calls{};
     uint32_t warm_streak{};
+    bool warm{};
     bool generated{};
     bool unavailable{};
 };
@@ -125,14 +128,28 @@ void vkr_lsfg_destroy(VkrLsfg* lsfg) {
 }
 
 void vkr_lsfg_configure(VkrLsfg* lsfg, uint32_t multiplier, uint32_t target_rate,
-                        float flow_scale) {
+                        float flow_scale, float refresh_rate) {
     if (!lsfg) return;
 
-    lsfg::LsfgPacerConfig config;
+    const lsfg::LsfgPacerConfig previous = lsfg->pacer.Config();
+    lsfg::LsfgPacerConfig config = previous;
     config.multiplier = multiplier;
     config.target_rate = target_rate;
+    config.refresh_rate = refresh_rate;
     lsfg->pacer.SetConfig(config);
+    if (previous.multiplier != multiplier || previous.target_rate != target_rate) {
+        lsfg->pacer.ResetCostState();
+    }
     lsfg->flow_scale = std::clamp(flow_scale, 0.25f, 1.0f);
+}
+
+void vkr_lsfg_set_refresh_rate(VkrLsfg* lsfg, float refresh_rate) {
+    if (!lsfg) return;
+
+    lsfg::LsfgPacerConfig config = lsfg->pacer.Config();
+    if (config.refresh_rate == refresh_rate) return;
+    config.refresh_rate = refresh_rate;
+    lsfg->pacer.SetConfig(config);
 }
 
 bool vkr_lsfg_needs_rebuild(const VkrLsfg* lsfg, uint32_t width, uint32_t height,
@@ -165,7 +182,9 @@ bool vkr_lsfg_prepare(VkrLsfg* lsfg, uint32_t width, uint32_t height, VkFormat f
     lsfg->built_format = format;
     lsfg->built_flow_scale = lsfg->flow_scale;
     lsfg->frame_count = 0;
+    lsfg->plan_calls = 0;
     lsfg->warm_streak = 0;
+    lsfg->warm = false;
     lsfg->generated = false;
     lsfg->pacer.Reset();
     LSFG_LOGI("chain built at %ux%u, flow scale %.2f", width, height,
@@ -173,34 +192,49 @@ bool vkr_lsfg_prepare(VkrLsfg* lsfg, uint32_t width, uint32_t height, VkFormat f
     return true;
 }
 
-uint32_t vkr_lsfg_plan(VkrLsfg* lsfg, uint32_t capacity) {
+uint32_t vkr_lsfg_plan(VkrLsfg* lsfg, uint32_t capacity, uint64_t source_frames) {
     if (!lsfg || lsfg->unavailable) return 0;
-    lsfg->plan = lsfg->pacer.Plan(std::min<size_t>(capacity, VKR_LSFG_MAX_GENERATIONS));
-    return static_cast<uint32_t>(lsfg->plan.generations);
+
+    lsfg->plan = lsfg->pacer.Plan(std::min<size_t>(capacity, VKR_LSFG_MAX_GENERATIONS),
+                                  source_frames);
+
+    lsfg->warm = lsfg->plan.warm && lsfg->frame_count + 1 >= LSFG_REQUIRED_FRAMES;
+    lsfg->warm_streak = lsfg->warm ? lsfg->warm_streak + 1 : 0;
+    lsfg->generated =
+        lsfg->warm && lsfg->warm_streak >= LSFG_RECURRENCE_FRAMES && lsfg->plan.generations > 0;
+
+    if ((lsfg->plan_calls++ % LSFG_TELEMETRY_INTERVAL) == 0) {
+        const lsfg::LsfgPacerStats stats = lsfg->pacer.Stats();
+        LSFG_LOGI("pace gen=%zu max=%zu cap=%u guest=%.1f loop=%.1f out=%.1f refresh=%.1f "
+                  "target=%.0f slots=%.2f ceil=%zu%s%s%s",
+                  lsfg->plan.generations, lsfg->pacer.MaxGenerations(), capacity,
+                  (double)stats.source_rate, (double)stats.loop_rate,
+                  (double)(stats.loop_rate * (float)(lsfg->plan.generations + 1)),
+                  (double)stats.refresh_rate, (double)stats.target_rate,
+                  (double)stats.slots, stats.cost_ceiling, stats.settling ? " settling" : "",
+                  stats.backing_off ? " backoff" : "",
+                  stats.rates_settled ? (lsfg->warm ? "" : " cold") : " sampling");
+        LSFG_LOGI("pace raw src=%llu drawn=%llu elapsed=%.4f fails=%u%s",
+                  (unsigned long long)stats.source_frames, (unsigned long long)stats.last_drawn,
+                  (double)stats.last_elapsed, stats.cost_failures,
+                  stats.probing ? " probing" : "");
+    }
+
+    return lsfg->generated ? static_cast<uint32_t>(lsfg->plan.generations) : 0;
 }
 
 void vkr_lsfg_process(VkrLsfg* lsfg, VkCommandBuffer cmd, VkImage source, uint32_t width,
-                      uint32_t height) {
+                      uint32_t height, uint32_t generations) {
     if (!lsfg || !lsfg->chain || !lsfg->chain->Valid()) return;
 
     const uint64_t count = lsfg->frame_count++;
     lsfg->last_count = count;
-    lsfg->last_generations = lsfg->plan.generations;
-
-    const bool warm = lsfg->plan.warm && count + 1 >= LSFG_REQUIRED_FRAMES;
-    lsfg->warm_streak = warm ? lsfg->warm_streak + 1 : 0;
-    lsfg->generated =
-        warm && lsfg->warm_streak >= LSFG_RECURRENCE_FRAMES && lsfg->plan.generations > 0;
+    lsfg->last_generations = generations;
 
     CopyPresentedFrame(cmd, source, lsfg->chain->Input(count), VkExtent2D{width, height});
-    if (warm) {
+    if (lsfg->warm) {
         lsfg->chain->DispatchShared(cmd, count);
     }
-}
-
-uint32_t vkr_lsfg_generated_count(const VkrLsfg* lsfg) {
-    if (!lsfg || !lsfg->generated) return 0;
-    return static_cast<uint32_t>(lsfg->last_generations);
 }
 
 void vkr_lsfg_generate_into(VkrLsfg* lsfg, VkCommandBuffer cmd, uint32_t generation,
@@ -224,6 +258,7 @@ void vkr_lsfg_reset(VkrLsfg* lsfg) {
     if (!lsfg) return;
     lsfg->pacer.Reset();
     lsfg->warm_streak = 0;
+    lsfg->warm = false;
     lsfg->generated = false;
     lsfg->plan = {};
 }

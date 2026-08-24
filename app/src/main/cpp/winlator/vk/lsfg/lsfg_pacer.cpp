@@ -24,7 +24,34 @@ constexpr float PROBE_MARGINAL_GAIN = 1.15f;
 constexpr float TARGET_SATISFIED_RATIO = 0.95f;
 constexpr float UNLOADED_BASE_RETENTION = 0.75f;
 constexpr float CREDIT_EPSILON = 1.0e-4f;
+constexpr float SOURCE_SMOOTHING = 0.15f;
+constexpr float SOURCE_STALE_SECONDS = 0.5f;
+constexpr float HEADROOM_EPSILON = 0.02f;
+constexpr float HEADROOM_HYSTERESIS = 0.20f;
+constexpr float REGRESSION_RATIO = 1.20f;
+constexpr uint32_t MIN_RATE_SAMPLES = 20;
 constexpr uint32_t MAX_PROBE_FAILURES = 4;
+
+constexpr float COST_PROBE_GAIN = 0.10f;
+
+constexpr auto RAISE_SETTLE_DURATION = std::chrono::milliseconds(600);
+constexpr uint32_t MAX_COST_FAILURES = 4;
+
+[[nodiscard]] std::chrono::steady_clock::duration CostBackoff(uint32_t failures) {
+    switch (failures) {
+    case 0:
+    case 1:
+        return std::chrono::seconds(8);
+    case 2:
+        return std::chrono::seconds(20);
+    case 3:
+        return std::chrono::seconds(45);
+    default:
+        return std::chrono::seconds(90);
+    }
+}
+constexpr auto COST_PROBE_INTERVAL = std::chrono::seconds(15);
+constexpr auto COST_PROBE_WINDOW = std::chrono::milliseconds(700);
 
 constexpr auto STABILIZATION_DURATION = std::chrono::seconds(1);
 constexpr auto PROBE_DURATION = std::chrono::seconds(1);
@@ -52,7 +79,159 @@ size_t LsfgPacer::MaxGenerations() const {
     return std::min<size_t>(config.multiplier, LSFG_MAX_MULTIPLIER) - 1;
 }
 
-LsfgPlan LsfgPacer::Plan(size_t capacity) {
+void LsfgPacer::TrackSourceRate(Clock::time_point now, uint64_t source_frames) {
+    if (!last_source_sample) {
+        last_source_sample = now;
+        last_source_frames = source_frames;
+        return;
+    }
+
+    const float elapsed = std::chrono::duration<float>(now - *last_source_sample).count();
+    if (source_frames <= last_source_frames) {
+        if (elapsed > SOURCE_STALE_SECONDS) {
+            source_interval = 0.0f;
+            last_source_sample = now;
+            last_source_frames = source_frames;
+        }
+        return;
+    }
+
+    last_source_sample = now;
+    const uint64_t drawn = source_frames - last_source_frames;
+    last_source_frames = source_frames;
+    if (elapsed <= 0.0f || elapsed > SOURCE_STALE_SECONDS) {
+        source_interval = 0.0f;
+        return;
+    }
+
+    last_drawn = drawn;
+    last_elapsed = elapsed;
+    const float measured = elapsed / static_cast<float>(drawn);
+    source_interval = source_interval > 0.0f
+                          ? source_interval + (measured - source_interval) * SOURCE_SMOOTHING
+                          : measured;
+    if (source_samples < MIN_RATE_SAMPLES) ++source_samples;
+}
+
+void LsfgPacer::TrackLoopRate(float interval_seconds) {
+    loop_interval = loop_interval > 0.0f
+                        ? loop_interval + (interval_seconds - loop_interval) * INTERVAL_SMOOTHING
+                        : interval_seconds;
+    if (loop_samples < MIN_RATE_SAMPLES) ++loop_samples;
+}
+
+bool LsfgPacer::RatesSettled() const {
+    return source_samples >= MIN_RATE_SAMPLES && loop_samples >= MIN_RATE_SAMPLES;
+}
+
+size_t LsfgPacer::CostLimit(Clock::time_point now, size_t current) {
+    if (cost_probe_until) {
+        const size_t probe_limit = cost_probe_from > 0 ? cost_probe_from - 1 : 0;
+        if (now < *cost_probe_until) {
+            cost_probe_active = true;
+            return probe_limit;
+        }
+        cost_probe_until.reset();
+        cost_probe_active = true;
+        if (cost_probe_baseline > 0.0f && loop_interval > 0.0f &&
+            loop_interval < cost_probe_baseline * (1.0f - COST_PROBE_GAIN)) {
+            cost_failures = std::min(cost_failures + 1, MAX_COST_FAILURES);
+            cost_ceiling = probe_limit;
+            cost_backoff_until = now + CostBackoff(cost_failures);
+            return cost_ceiling;
+        }
+    } else {
+        cost_probe_active = false;
+    }
+
+    if (settle_until) {
+        if (now < *settle_until) {
+            return current;
+        }
+        settle_until.reset();
+
+        const bool source_regressed =
+            pre_raise_source_interval > 0.0f && source_interval > 0.0f &&
+            source_interval > pre_raise_source_interval * REGRESSION_RATIO;
+        const bool loop_regressed = pre_raise_loop_interval > 0.0f && loop_interval > 0.0f &&
+                                    loop_interval > pre_raise_loop_interval * REGRESSION_RATIO;
+
+        if (source_regressed || loop_regressed) {
+            cost_failures = std::min(cost_failures + 1, MAX_COST_FAILURES);
+            cost_ceiling = pre_raise_limit;
+            cost_backoff_until = now + CostBackoff(cost_failures);
+            return cost_ceiling;
+        }
+        cost_failures = 0;
+    }
+
+    if (cost_backoff_until) {
+        if (now < *cost_backoff_until) {
+            return cost_ceiling;
+        }
+        cost_backoff_until.reset();
+        cost_ceiling = LSFG_MAX_MULTIPLIER - 1;
+    }
+
+    if (current > 0 && !settle_until && RatesSettled()) {
+        if (!next_cost_probe) {
+            next_cost_probe = now + COST_PROBE_INTERVAL;
+        } else if (now >= *next_cost_probe) {
+            cost_probe_baseline = loop_interval;
+            cost_probe_from = current;
+            cost_probe_until = now + COST_PROBE_WINDOW;
+            next_cost_probe = now + COST_PROBE_INTERVAL;
+            cost_probe_active = true;
+            return current - 1;
+        }
+    }
+
+    return cost_ceiling;
+}
+
+void LsfgPacer::NoteLimitChange(Clock::time_point now, size_t previous_limit) {
+    if (cost_probe_active) {
+        settle_until.reset();
+        return;
+    }
+    if (limit > previous_limit) {
+        if (!RatesSettled()) {
+            settle_until.reset();
+            return;
+        }
+        pre_raise_source_interval = source_interval;
+        pre_raise_loop_interval = loop_interval;
+        pre_raise_limit = previous_limit;
+        settle_until = now + RAISE_SETTLE_DURATION;
+    } else if (limit < previous_limit) {
+        settle_until.reset();
+    }
+}
+
+size_t LsfgPacer::HeadroomLimit(size_t current, bool allow_fractional) const {
+    if (config.refresh_rate <= 0.0f || source_interval <= 0.0f ||
+        source_samples < MIN_RATE_SAMPLES) {
+        return 0;
+    }
+
+    const float slots = config.refresh_rate * source_interval;
+
+    if (allow_fractional) {
+        const float budget = std::ceil(slots - HEADROOM_EPSILON);
+        return budget < 2.0f ? 0 : static_cast<size_t>(budget) - 1;
+    }
+
+    float budget = slots + HEADROOM_EPSILON;
+    if (current > 0 && slots + HEADROOM_HYSTERESIS >= static_cast<float>(current + 1)) {
+        budget = std::max(budget, static_cast<float>(current + 1));
+    }
+    if (budget < 2.0f) {
+        return 0;
+    }
+    return static_cast<size_t>(std::floor(budget)) - 1;
+}
+
+LsfgPlan LsfgPacer::Plan(size_t capacity, uint64_t source_frames) {
     const size_t ceiling = std::min(capacity, MaxGenerations());
     if (ceiling == 0) {
         Reset();
@@ -60,6 +239,7 @@ LsfgPlan LsfgPacer::Plan(size_t capacity) {
     }
 
     const Clock::time_point now = Clock::now();
+    TrackSourceRate(now, source_frames);
     const size_t previous_generations = std::exchange(issued_generations, 0);
     if (!last_frame) {
         last_frame = now;
@@ -75,7 +255,14 @@ LsfgPlan LsfgPacer::Plan(size_t capacity) {
         return {};
     }
 
-    const float target_rate = static_cast<float>(config.target_rate);
+    float target_rate = static_cast<float>(config.target_rate);
+    if (target_rate > 0.0f && config.refresh_rate > 0.0f) {
+        target_rate = std::min(target_rate, config.refresh_rate);
+    }
+
+    if (interval_seconds <= FIXED_DISCONTINUITY_SECONDS) {
+        TrackLoopRate(interval_seconds);
+    }
 
     if (target_rate == 0.0f) {
         output_credit = 0.0f;
@@ -83,7 +270,9 @@ LsfgPlan LsfgPacer::Plan(size_t capacity) {
             issued_generations = 0;
             return {};
         }
-        limit = ceiling;
+        const size_t previous_limit = limit;
+        limit = std::min({ceiling, HeadroomLimit(limit, false), CostLimit(now, limit)});
+        NoteLimitChange(now, previous_limit);
         issued_generations = limit;
         return LsfgPlan{limit, limit > 0};
     }
@@ -127,7 +316,7 @@ LsfgPlan LsfgPacer::Plan(size_t capacity) {
 
     UpdateLimit(now, 1.0f / smoothed_interval, target_rate, ceiling);
 
-    const size_t allowed = std::min(limit, ceiling);
+    const size_t allowed = std::min({limit, ceiling, HeadroomLimit(limit, true)});
     const float desired_outputs = smoothed_interval * target_rate;
     if (allowed == 0 || desired_outputs <= 1.0f) {
         output_credit = 0.0f;
@@ -231,8 +420,61 @@ void LsfgPacer::Stabilize(Clock::time_point now) {
     output_credit = 0.0f;
 }
 
+LsfgPacerStats LsfgPacer::Stats() const {
+    LsfgPacerStats stats;
+    stats.source_rate = source_interval > 0.0f ? 1.0f / source_interval : 0.0f;
+    stats.loop_rate = loop_interval > 0.0f ? 1.0f / loop_interval : 0.0f;
+    stats.refresh_rate = config.refresh_rate;
+    stats.slots = config.refresh_rate * source_interval;
+    stats.target_rate = static_cast<float>(config.target_rate);
+    stats.limit = limit;
+    stats.cost_ceiling = cost_ceiling;
+    stats.settling = settle_until.has_value();
+    stats.backing_off = cost_backoff_until.has_value();
+    stats.rates_settled = RatesSettled();
+    stats.probing = cost_probe_until.has_value();
+    stats.cost_failures = cost_failures;
+    stats.last_drawn = last_drawn;
+    stats.last_elapsed = last_elapsed;
+    stats.source_frames = last_source_frames;
+    return stats;
+}
+
+void LsfgPacer::ResetCostState() {
+    settle_until.reset();
+    cost_backoff_until.reset();
+    cost_probe_until.reset();
+    next_cost_probe.reset();
+    cost_probe_baseline = 0.0f;
+    cost_probe_from = 0;
+    pre_raise_limit = 0;
+    cost_probe_active = false;
+    cost_failures = 0;
+    pre_raise_source_interval = 0.0f;
+    pre_raise_loop_interval = 0.0f;
+    cost_ceiling = LSFG_MAX_MULTIPLIER - 1;
+}
+
 void LsfgPacer::Reset() {
     last_frame.reset();
+    last_source_sample.reset();
+    settle_until.reset();
+    cost_backoff_until.reset();
+    cost_probe_until.reset();
+    next_cost_probe.reset();
+    cost_probe_baseline = 0.0f;
+    cost_probe_from = 0;
+    pre_raise_limit = 0;
+    cost_probe_active = false;
+    cost_failures = 0;
+    last_source_frames = 0;
+    source_interval = 0.0f;
+    loop_interval = 0.0f;
+    pre_raise_source_interval = 0.0f;
+    pre_raise_loop_interval = 0.0f;
+    source_samples = 0;
+    loop_samples = 0;
+    cost_ceiling = LSFG_MAX_MULTIPLIER - 1;
     stable_until.reset();
     probe_until.reset();
     next_probe.reset();

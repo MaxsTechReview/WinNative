@@ -1853,7 +1853,8 @@ static void create_lsfg(VkRenderer* r) {
     }
     vkr_lsfg_configure(r->lsfg, r->framegen_multiplier ? r->framegen_multiplier : 2u,
                        r->framegen_target_rate,
-                       r->framegen_flow_scale > 0.0f ? r->framegen_flow_scale : 1.0f);
+                       r->framegen_flow_scale > 0.0f ? r->framegen_flow_scale : 1.0f,
+                       r->framegen_refresh_rate);
 }
 
 static uint32_t framegen_extra_images(const VkRenderer* r) {
@@ -2473,8 +2474,14 @@ static bool record_and_submit_frame(VkRenderer* r) {
         destroy_composite_targets(r);
     }
 
+    uint32_t framegen_planned = 0;
     if (via_composite && r->lsfg) {
-        vkr_lsfg_plan(r->lsfg, framegen_capacity);
+        const int32_t pending_mhz = __atomic_load_n(&r->framegen_refresh_mhz, __ATOMIC_RELAXED);
+        r->framegen_refresh_rate = pending_mhz > 0 ? (float)pending_mhz / 1000.0f : 0.0f;
+        vkr_lsfg_set_refresh_rate(r->lsfg, r->framegen_refresh_rate);
+        framegen_planned = vkr_lsfg_plan(r->lsfg, framegen_capacity,
+                                         __atomic_load_n(&r->framegen_source_frames,
+                                                         __ATOMIC_RELAXED));
     }
 
     VkCompositeTarget* composite = via_composite ? &r->composite[r->frame_index] : NULL;
@@ -2500,6 +2507,35 @@ static bool record_and_submit_frame(VkRenderer* r) {
         return false;
     }
     VkSemaphore render_finished = r->swapchain_render_finished[image_index];
+
+    uint64_t gen_acquire_timeout = VK_FRAMEGEN_ACQUIRE_TIMEOUT_NS;
+    if (r->framegen_refresh_rate > 1.0f) {
+        gen_acquire_timeout = (uint64_t)(1000000000.0f / r->framegen_refresh_rate);
+        if (gen_acquire_timeout < VK_FRAMEGEN_ACQUIRE_TIMEOUT_NS) {
+            gen_acquire_timeout = VK_FRAMEGEN_ACQUIRE_TIMEOUT_NS;
+        }
+        if (gen_acquire_timeout > VK_FRAMEGEN_ACQUIRE_TIMEOUT_MAX_NS) {
+            gen_acquire_timeout = VK_FRAMEGEN_ACQUIRE_TIMEOUT_MAX_NS;
+        }
+    }
+
+    uint32_t gen_count = 0;
+    uint32_t gen_image_index[VKR_LSFG_MAX_GENERATIONS] = {0};
+    for (uint32_t g = 0; g < framegen_planned; g++) {
+        uint32_t idx = 0;
+        VkResult ga = vkAcquireNextImageKHR(r->device, r->swapchain, gen_acquire_timeout,
+                                            f->image_available_gen[g], VK_NULL_HANDLE, &idx);
+        if (ga != VK_SUCCESS && ga != VK_SUBOPTIMAL_KHR) {
+            if (r->framegen_acquire_misses++ % 120 == 0) {
+                VK_LOGW("Generated frame %u/%u dropped: acquire returned %d "
+                        "(swapchain images=%u capacity=%u)",
+                        g + 1, framegen_planned, (int)ga, r->swapchain_image_count,
+                        framegen_capacity);
+            }
+            break;
+        }
+        gen_image_index[gen_count++] = idx;
+    }
 
     // Sample the render rate down to the requested fps on a fixed grid, then acquire an encoder
     // image to blit this frame into (bounded timeout so a busy encoder skips rather than stalls).
@@ -2621,32 +2657,10 @@ static bool record_and_submit_frame(VkRenderer* r) {
         vkCmdEndRenderPass(f->cmd);
     }
 
-    uint32_t gen_count = 0;
-    uint32_t gen_image_index[VKR_LSFG_MAX_GENERATIONS] = {0};
-
     if (composite) {
         if (r->lsfg && framegen_capacity > 0) {
             vkr_lsfg_process(r->lsfg, f->cmd, composite->image,
-                             r->swapchain_extent.width, r->swapchain_extent.height);
-
-            uint32_t want = vkr_lsfg_generated_count(r->lsfg);
-            if (want > framegen_capacity) want = framegen_capacity;
-
-            for (uint32_t g = 0; g < want; g++) {
-                uint32_t idx = 0;
-                VkResult ga = vkAcquireNextImageKHR(r->device, r->swapchain, 8000000ULL,
-                                                    f->image_available_gen[g], VK_NULL_HANDLE,
-                                                    &idx);
-                if (ga != VK_SUCCESS && ga != VK_SUBOPTIMAL_KHR) {
-                    if (r->framegen_acquire_misses++ % 120 == 0) {
-                        VK_LOGW("Generated frame %u/%u dropped: acquire returned %d "
-                                "(swapchain images=%u capacity=%u)",
-                                g + 1, want, (int)ga, r->swapchain_image_count, framegen_capacity);
-                    }
-                    break;
-                }
-                gen_image_index[gen_count++] = idx;
-            }
+                             r->swapchain_extent.width, r->swapchain_extent.height, gen_count);
 
             for (uint32_t g = 0; g < gen_count; g++) {
                 VkCompositeTarget* gt = &r->composite[VK_FRAMES_IN_FLIGHT + g];
@@ -2658,6 +2672,21 @@ static bool record_and_submit_frame(VkRenderer* r) {
             }
             r->framegen_real_frames++;
             r->framegen_made_frames += gen_count;
+            if ((r->framegen_real_frames % 120) == 0) {
+                const uint64_t d_real = r->framegen_real_frames - r->framegen_log_real;
+                const uint64_t d_made = r->framegen_made_frames - r->framegen_log_made;
+                r->framegen_log_real = r->framegen_real_frames;
+                r->framegen_log_made = r->framegen_made_frames;
+                VK_LOGI("framegen delivered real=%llu made=%llu ratio=%.2f planned=%u got=%u "
+                        "misses=%llu timeout=%.1fms images=%u capacity=%u",
+                        (unsigned long long)r->framegen_real_frames,
+                        (unsigned long long)r->framegen_made_frames,
+                        d_real ? (double)d_made / (double)d_real : 0.0,
+                        framegen_planned, gen_count,
+                        (unsigned long long)r->framegen_acquire_misses,
+                        (double)gen_acquire_timeout / 1000000.0,
+                        r->swapchain_image_count, framegen_capacity);
+            }
         }
 
         blit_composite_to_swapchain(r, f->cmd, composite, r->swapchain_images[image_index]);
@@ -3534,6 +3563,23 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenerationShaders)(JNIEnv* env, jcla
     pthread_mutex_unlock(&r->render_mutex);
 }
 
+JNIEXPORT void JNICALL JNI_FN(nativeSetSourceFrameCount)(JNIEnv* env, jclass clazz, jlong handle,
+                                                         jlong count) {
+    (void)env; (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
+    if (!r) return;
+    __atomic_store_n(&r->framegen_source_frames, (uint64_t)count, __ATOMIC_RELAXED);
+}
+
+JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenerationRefreshRate)(JNIEnv* env, jclass clazz,
+                                                                   jlong handle, jfloat hz) {
+    (void)env; (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
+    if (!r) return;
+    const int32_t mhz = hz > 0.0f ? (int32_t)((float)hz * 1000.0f + 0.5f) : 0;
+    __atomic_store_n(&r->framegen_refresh_mhz, mhz, __ATOMIC_RELAXED);
+}
+
 JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenerationMode)(JNIEnv* env, jclass clazz,
                                                             jlong handle, jint multiplier,
                                                             jint targetRate, jint flowScalePct) {
@@ -3548,7 +3594,7 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenerationMode)(JNIEnv* env, jclass 
     r->framegen_flow_scale = flowScalePct <= 0 ? 1.0f : (float)flowScalePct / 100.0f;
     if (r->lsfg) {
         vkr_lsfg_configure(r->lsfg, r->framegen_multiplier, r->framegen_target_rate,
-                           r->framegen_flow_scale);
+                           r->framegen_flow_scale, r->framegen_refresh_rate);
     }
     if (framegen_extra_images(r) != previous_images) {
         wait_inflight_frames(r);

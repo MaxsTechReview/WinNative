@@ -788,12 +788,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         }
 
         renderer.setFrameGenerationShaders(frameGenCachePath);
+        float refreshRate = applyFrameGenerationDisplayMode();
         renderer.setFrameGenerationMode(frameGenMultiplier, frameGenTargetRate, frameGenFlowScale);
+        renderer.setFrameGenerationRefreshRate(refreshRate);
         renderer.setFrameGenerationEnabled(true);
-        applyFrameGenerationDisplayMode();
         syncFrameGenerationHud();
         Log.i("XServerDisplayActivity", "Frame generation on: multiplier=" + frameGenMultiplier
-                + " targetRate=" + frameGenTargetRate + " flowScale=" + frameGenFlowScale);
+                + " targetRate=" + frameGenTargetRate + " flowScale=" + frameGenFlowScale
+                + " refreshRate=" + refreshRate);
     }
 
     private void syncFrameGenerationHud() {
@@ -817,9 +819,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 }
             };
 
-    private void applyFrameGenerationDisplayMode() {
+    private float applyFrameGenerationDisplayMode() {
         android.view.Window window = getWindow();
-        if (window == null) return;
+        if (window == null) return 0f;
 
         android.view.WindowManager.LayoutParams params = window.getAttributes();
         if (!frameGenEnabled) {
@@ -827,42 +829,57 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 params.preferredDisplayModeId = 0;
                 window.setAttributes(params);
             }
-            return;
+            return 0f;
         }
 
-        int wanted = frameGenTargetRate > 0
-                ? frameGenTargetRate
-                : frameGenMultiplier * Math.max(30, runtimeFpsLimit > 0 ? runtimeFpsLimit : 60);
-
         android.view.Display display = getDisplayCompat();
-        if (display == null) return;
+        if (display == null) return 0f;
 
         android.view.Display.Mode active = display.getMode();
+        int wanted = frameGenTargetRate > 0
+                ? frameGenTargetRate
+                : frameGenMultiplier * (runtimeFpsLimit > 0 ? runtimeFpsLimit : 60);
+
         android.view.Display.Mode best = null;
         for (android.view.Display.Mode mode : display.getSupportedModes()) {
             if (mode.getPhysicalWidth() != active.getPhysicalWidth()
                     || mode.getPhysicalHeight() != active.getPhysicalHeight()) {
                 continue;
             }
-            if (best == null || betterFrameGenMode(mode, best, wanted)) best = mode;
+            if (best == null || betterFrameGenMode(mode, best, wanted, runtimeFpsLimit)) best = mode;
         }
-        if (best == null || best.getModeId() == params.preferredDisplayModeId) return;
+        if (best == null) return active.getRefreshRate();
+        if (best.getModeId() == params.preferredDisplayModeId && params.preferredRefreshRate == 0f) {
+            return best.getRefreshRate();
+        }
 
         params.preferredDisplayModeId = best.getModeId();
+        params.preferredRefreshRate = 0f;
         window.setAttributes(params);
         Log.i("XServerDisplayActivity", "Frame generation display mode: wanted " + wanted
                 + "Hz, selected " + Math.round(best.getRefreshRate()) + "Hz (mode "
-                + best.getModeId() + ")");
+                + best.getModeId() + ") fpsLimit=" + runtimeFpsLimit + " cadenceOk="
+                + (runtimeFpsLimit <= 0
+                        || RefreshRateUtils.isFrameCadenceCompatible(
+                                best.getRefreshRate(), runtimeFpsLimit)));
+        return best.getRefreshRate();
     }
 
     private static boolean betterFrameGenMode(android.view.Display.Mode candidate,
-                                              android.view.Display.Mode current, int wanted) {
+                                              android.view.Display.Mode current, int wanted,
+                                              int fpsLimit) {
         float a = candidate.getRefreshRate();
         float b = current.getRefreshRate();
         boolean aMeets = a + 0.5f >= wanted;
         boolean bMeets = b + 0.5f >= wanted;
         if (aMeets != bMeets) return aMeets;
-        return aMeets ? a < b : a > b;
+        if (!aMeets) return a > b;
+        if (fpsLimit > 0) {
+            boolean aCadence = RefreshRateUtils.isFrameCadenceCompatible(a, fpsLimit);
+            boolean bCadence = RefreshRateUtils.isFrameCadenceCompatible(b, fpsLimit);
+            if (aCadence != bCadence) return aCadence;
+        }
+        return a < b;
     }
 
     private android.view.Display getDisplayCompat() {
@@ -876,7 +893,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
 
     private void applyFrameGenerationLive() {
         applyFrameGeneration(xServerView != null ? xServerView.getRenderer() : null);
-        applyFrameGenerationDisplayMode();
+        if (!frameGenEnabled || frameGenCachePath == null) applyPreferredRefreshRate();
         saveFrameGenerationSettings();
         renderDrawerMenu();
     }
@@ -1100,6 +1117,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         Runnable applyRefresh = () -> {
             if (isFinishing() || isDestroyed()) return;
 
+            if (frameGenEnabled && frameGenCachePath != null) {
+                float refreshRate = applyFrameGenerationDisplayMode();
+                VulkanRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
+                if (renderer != null) renderer.setFrameGenerationRefreshRate(refreshRate);
+                return;
+            }
             RefreshRateUtils.applyPreferredRefreshRate(this, getRefreshRateOverride(), runtimeFpsLimit);
         };
 
