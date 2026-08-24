@@ -487,7 +487,7 @@ public class PresentExtension
 
         if (client.xServer.getRenderer() != null) {
           client.xServer.getRenderer().onGuestFramePresented();
-          client.xServer.getRenderer().requestRenderCoalesced();
+          client.xServer.getRenderer().requestRenderImmediate();
         }
         break;
       }

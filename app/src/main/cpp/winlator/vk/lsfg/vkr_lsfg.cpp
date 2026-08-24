@@ -137,9 +137,6 @@ void vkr_lsfg_configure(VkrLsfg* lsfg, uint32_t multiplier, uint32_t target_rate
     config.target_rate = target_rate;
     config.refresh_rate = refresh_rate;
     lsfg->pacer.SetConfig(config);
-    if (previous.multiplier != multiplier || previous.target_rate != target_rate) {
-        lsfg->pacer.ResetCostState();
-    }
     lsfg->flow_scale = std::clamp(flow_scale, 0.25f, 1.0f);
 }
 
@@ -205,19 +202,13 @@ uint32_t vkr_lsfg_plan(VkrLsfg* lsfg, uint32_t capacity, uint64_t source_frames)
 
     if ((lsfg->plan_calls++ % LSFG_TELEMETRY_INTERVAL) == 0) {
         const lsfg::LsfgPacerStats stats = lsfg->pacer.Stats();
-        LSFG_LOGI("pace gen=%zu max=%zu cap=%u guest=%.1f loop=%.1f out=%.1f refresh=%.1f "
-                  "target=%.0f slots=%.2f ceil=%zu%s%s%s",
+        LSFG_LOGI("pace gen=%zu max=%zu cap=%u guest=%.1f loop=%.1f refresh=%.1f target=%.0f "
+                  "slots=%.2f drawn=%llu%s",
                   lsfg->plan.generations, lsfg->pacer.MaxGenerations(), capacity,
                   (double)stats.source_rate, (double)stats.loop_rate,
-                  (double)(stats.loop_rate * (float)(lsfg->plan.generations + 1)),
-                  (double)stats.refresh_rate, (double)stats.target_rate,
-                  (double)stats.slots, stats.cost_ceiling, stats.settling ? " settling" : "",
-                  stats.backing_off ? " backoff" : "",
+                  (double)stats.refresh_rate, (double)stats.target_rate, (double)stats.slots,
+                  (unsigned long long)stats.last_drawn,
                   stats.rates_settled ? (lsfg->warm ? "" : " cold") : " sampling");
-        LSFG_LOGI("pace raw src=%llu drawn=%llu elapsed=%.4f fails=%u%s",
-                  (unsigned long long)stats.source_frames, (unsigned long long)stats.last_drawn,
-                  (double)stats.last_elapsed, stats.cost_failures,
-                  stats.probing ? " probing" : "");
     }
 
     return lsfg->generated ? static_cast<uint32_t>(lsfg->plan.generations) : 0;

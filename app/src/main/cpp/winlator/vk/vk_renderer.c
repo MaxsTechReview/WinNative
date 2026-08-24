@@ -325,10 +325,23 @@ static bool pick_physical_device(VkRenderer* r) {
 
     r->graphics_queue_family = UINT32_MAX;
     for (uint32_t i = 0; i < qf_count; i++) {
-        if (qf[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+        VK_LOGI("queue family %u: count=%u%s%s%s%s", i, qf[i].queueCount,
+                (qf[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) ? " graphics" : "",
+                (qf[i].queueFlags & VK_QUEUE_COMPUTE_BIT) ? " compute" : "",
+                (qf[i].queueFlags & VK_QUEUE_TRANSFER_BIT) ? " transfer" : "",
+                (qf[i].queueFlags & VK_QUEUE_SPARSE_BINDING_BIT) ? " sparse" : "");
+        if ((qf[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            && r->graphics_queue_family == UINT32_MAX) {
             r->graphics_queue_family = i;
-            break;
         }
+    }
+    {
+        VkPhysicalDeviceProperties dp;
+        vkGetPhysicalDeviceProperties(r->physical_device, &dp);
+        VK_LOGI("device \"%s\" api=%u.%u.%u driver=0x%x families=%u chosen=%u",
+                dp.deviceName, VK_VERSION_MAJOR(dp.apiVersion),
+                VK_VERSION_MINOR(dp.apiVersion), VK_VERSION_PATCH(dp.apiVersion),
+                dp.driverVersion, qf_count, r->graphics_queue_family);
     }
     free(qf);
     if (r->graphics_queue_family == UINT32_MAX) return false;
@@ -1841,6 +1854,10 @@ static void destroy_lsfg(VkRenderer* r) {
     r->lsfg = NULL;
     r->framegen_real_frames = 0;
     r->framegen_made_frames = 0;
+    r->framegen_draw_ns = 0;
+    r->framegen_gap_ns = 0;
+    r->framegen_last_end_ns = 0;
+    r->framegen_timed_frames = 0;
 }
 
 static void create_lsfg(VkRenderer* r) {
@@ -2341,8 +2358,16 @@ static VkExtent2D compute_sgsr1_source_extent(VkRenderer* r, const VkScene* s) {
     return source;
 }
 
+static uint64_t vkr_monotonic_ns(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
+}
+
 static bool record_and_submit_frame(VkRenderer* r) {
     if (!r->surface_ready || !r->swapchain) return false;
+
+    const uint64_t draw_begin_ns = vkr_monotonic_ns();
 
     pthread_mutex_lock(&r->render_mutex);
 
@@ -2677,15 +2702,22 @@ static bool record_and_submit_frame(VkRenderer* r) {
                 const uint64_t d_made = r->framegen_made_frames - r->framegen_log_made;
                 r->framegen_log_real = r->framegen_real_frames;
                 r->framegen_log_made = r->framegen_made_frames;
+                const uint64_t timed = r->framegen_timed_frames;
+                const double draw_ms = timed ? (double)r->framegen_draw_ns / (double)timed / 1.0e6 : 0.0;
+                const double gap_ms = timed ? (double)r->framegen_gap_ns / (double)timed / 1.0e6 : 0.0;
+                r->framegen_draw_ns = 0;
+                r->framegen_gap_ns = 0;
+                r->framegen_timed_frames = 0;
                 VK_LOGI("framegen delivered real=%llu made=%llu ratio=%.2f planned=%u got=%u "
-                        "misses=%llu timeout=%.1fms images=%u capacity=%u",
+                        "misses=%llu timeout=%.1fms images=%u capacity=%u draw=%.2fms gap=%.2fms",
                         (unsigned long long)r->framegen_real_frames,
                         (unsigned long long)r->framegen_made_frames,
                         d_real ? (double)d_made / (double)d_real : 0.0,
                         framegen_planned, gen_count,
                         (unsigned long long)r->framegen_acquire_misses,
                         (double)gen_acquire_timeout / 1000000.0,
-                        r->swapchain_image_count, framegen_capacity);
+                        r->swapchain_image_count, framegen_capacity,
+                        draw_ms, gap_ms);
             }
         }
 
@@ -2871,6 +2903,14 @@ static bool record_and_submit_frame(VkRenderer* r) {
 
     r->frame_index = (r->frame_index + 1) % VK_FRAMES_IN_FLIGHT;
     r->graveyard_index = (r->graveyard_index + 1) % (VK_FRAMES_IN_FLIGHT + 1);
+
+    const uint64_t draw_end_ns = vkr_monotonic_ns();
+    if (r->framegen_last_end_ns != 0 && draw_begin_ns > r->framegen_last_end_ns) {
+        r->framegen_gap_ns += draw_begin_ns - r->framegen_last_end_ns;
+    }
+    if (draw_end_ns > draw_begin_ns) r->framegen_draw_ns += draw_end_ns - draw_begin_ns;
+    r->framegen_last_end_ns = draw_end_ns;
+    r->framegen_timed_frames++;
 
     return true;
 }

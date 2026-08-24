@@ -51,6 +51,8 @@ import java.io.InputStream;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import com.winlator.cmod.runtime.display.renderer.VulkanRenderer;
+
 public class InputControlsView extends View {
   public static final float DEFAULT_OVERLAY_OPACITY = 0.4f;
   private static final byte MOUSE_WHEEL_DELTA = 120;
@@ -562,7 +564,7 @@ public class InputControlsView extends View {
                 } else {
                   xServer.injectPointerMoveDelta(dx, dy);
                 }
-                if (xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
+                if (xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced(VulkanRenderer.WAKE_INPUTVIEW);
               }
             }
           },
@@ -664,7 +666,7 @@ public class InputControlsView extends View {
     WinHandler winHandler = xServer != null ? xServer.getWinHandler() : null;
     if (winHandler != null) {
       winHandler.sendGamepadState(controller);
-      if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
+      if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced(VulkanRenderer.WAKE_INPUTVIEW);
     }
   }
 
@@ -1046,7 +1048,7 @@ public class InputControlsView extends View {
 
     if (winHandler != null && sendUpdate) {
       winHandler.sendGamepadState();
-      if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
+      if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced(VulkanRenderer.WAKE_INPUTVIEW);
     }
   }
 
@@ -1124,7 +1126,7 @@ public class InputControlsView extends View {
       if (winHandler != null && sendUpdate && stateChanged) {
         if (controller != null) winHandler.sendGamepadState(controller);
         else winHandler.sendGamepadState();
-        if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
+        if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced(VulkanRenderer.WAKE_INPUTVIEW);
       }
     } else {
       if (binding == Binding.MOUSE_MOVE_LEFT || binding == Binding.MOUSE_MOVE_RIGHT) {

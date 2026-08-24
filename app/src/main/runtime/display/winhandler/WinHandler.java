@@ -51,6 +51,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import com.winlator.cmod.runtime.display.renderer.VulkanRenderer;
+
 public class WinHandler {
   private static final short CLIENT_PORT = 7946;
   public static final byte DEFAULT_INPUT_TYPE = 4;
@@ -421,7 +423,7 @@ public class WinHandler {
           sendMouseEventPacket(flags, dx, dy, wheelDelta);
           XServer xServer = activity.getXServer();
           if (xServer != null && xServer.getRenderer() != null)
-            xServer.getRenderer().requestRenderCoalesced();
+            xServer.getRenderer().requestRenderCoalesced(VulkanRenderer.WAKE_WINHANDLER);
         });
   }
 
@@ -673,7 +675,7 @@ public class WinHandler {
     maybeClearGyroTarget(GAMEPAD_SOURCE_VIRTUAL, null);
     writeVirtualGamepadState(shouldApplyGyroToTarget(GAMEPAD_SOURCE_VIRTUAL, null));
     XServer xServer = activity.getXServer();
-    if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
+    if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced(VulkanRenderer.WAKE_WINHANDLER);
   }
 
   public boolean canUseScreenTouchStick() {
@@ -713,7 +715,7 @@ public class WinHandler {
 
   private void requestScreenTouchRender() {
     XServer xServer = activity.getXServer();
-    if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
+    if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced(VulkanRenderer.WAKE_WINHANDLER);
   }
 
   private void writeVirtualGamepadState(boolean applyGyroOverlay) {
@@ -729,7 +731,7 @@ public class WinHandler {
     setLastGamepadSource(GAMEPAD_SOURCE_VIRTUAL, null);
     writeVirtualGamepadState(shouldApplyGyroToTarget(GAMEPAD_SOURCE_VIRTUAL, null), true);
     XServer xServer = activity.getXServer();
-    if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
+    if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced(VulkanRenderer.WAKE_WINHANDLER);
   }
 
   private void writeVirtualGamepadState(boolean applyGyroOverlay, boolean allowHiddenControls) {
@@ -765,7 +767,7 @@ public class WinHandler {
     writeControllerGamepadState(
         controller, shouldApplyGyroToTarget(GAMEPAD_SOURCE_CONTROLLER, controller));
     XServer xServer = activity.getXServer();
-    if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
+    if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced(VulkanRenderer.WAKE_WINHANDLER);
   }
 
   // Menu owns the controller while open; zero tracked state and push it once so nothing stays held in the guest.
@@ -1638,7 +1640,7 @@ public class WinHandler {
     }
 
     XServer xServer = activity.getXServer();
-    if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
+    if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced(VulkanRenderer.WAKE_WINHANDLER);
 
     this.lastGyroTargetSource = gyroActive ? targetSource : GAMEPAD_SOURCE_NONE;
     this.lastGyroTargetController =
