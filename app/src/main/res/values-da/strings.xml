@@ -1138,6 +1138,7 @@ Installeret sti:
     <string name="session_drawer_color_profile_crt">CRT-effekt</string>
     <string name="session_drawer_calibrate_advanced">Avanceret kalibrering</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_frame_gen">FG</string>
     <string name="session_drawer_rail_label_gyro">Gyro</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">Mere</string>

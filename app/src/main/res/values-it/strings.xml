@@ -1138,6 +1138,7 @@ Percorso installato:
     <string name="session_drawer_color_profile_crt">Effetto CRT</string>
     <string name="session_drawer_calibrate_advanced">Calibrazione avanzata</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_frame_gen">FG</string>
     <string name="session_drawer_rail_label_gyro">Giro</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">Altro</string>

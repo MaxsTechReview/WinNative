@@ -834,6 +834,7 @@ E.g. <b>META</b> için <i>META tuşu</i>, \n
     <string name="session_drawer_reset_effects">Efektleri sıfırla</string>
     <string name="session_drawer_calibrate_advanced">Gelişmiş kalibrasyon</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_frame_gen">FG</string>
     <string name="session_drawer_rail_label_gyro">Jiro</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_output">Çıkış</string>

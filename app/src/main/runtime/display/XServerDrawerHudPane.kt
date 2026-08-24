@@ -192,12 +192,6 @@ internal fun HUDPaneContent(
     listener: XServerDrawerActionListener,
 ) {
     var activeEditor by remember { mutableStateOf<HUDMetricEditor?>(null) }
-    var fpsLimitMemory by remember {
-        mutableStateOf(if (state.fpsLimit > 0) state.fpsLimit else FPS_LIMITER_DEFAULT)
-    }
-    LaunchedEffect(state.fpsLimit) {
-        if (state.fpsLimit > 0) fpsLimitMemory = state.fpsLimit
-    }
     val elementNames =
         listOf(
             stringResource(R.string.session_drawer_hud_element_fps),
@@ -258,27 +252,7 @@ internal fun HUDPaneContent(
                 onCheckedChange = { listener.onActionSelected(R.id.main_menu_fps_monitor) },
             )
 
-            // FPS limiter sits directly under the HUD toggle, shown whether the HUD is on or off.
-            Box(
-                Modifier.fillMaxWidth().paneNavItem(
-                    cornerRadius = (12f * paneScale).dp,
-                    onActivate = { listener.onFPSLimitChanged(if (state.fpsLimit > 0) 0 else fpsLimitMemory.coerceIn(FPS_LIMITER_MIN, state.maxRefreshRate)) },
-                    onAdjust = { dir ->
-                        val base = if (state.fpsLimit > 0) state.fpsLimit else fpsLimitMemory
-                        val q = base / 5.0
-                        val units = if (dir > 0) Math.floor(q + 1e-4) + 1 else Math.ceil(q - 1e-4) - 1
-                        listener.onFPSLimitChanged((units * 5).toInt().coerceIn(FPS_LIMITER_MIN, state.maxRefreshRate))
-                    },
-                ),
-            ) {
-                FPSLimiterCard(
-                    currentLimit = state.fpsLimit,
-                    maxRefreshRate = state.maxRefreshRate,
-                    onLimitChanged = listener::onFPSLimitChanged,
-                )
-            }
-
-            // Mango-style HUD toggle + settings gear, shown like the limiter whether the HUD is on or off.
+            // Mango-style HUD toggle + settings gear, shown whether the HUD is on or off.
             var mangoSettingsOpen by remember { mutableStateOf(false) }
             Row(
                 horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),

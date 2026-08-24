@@ -681,6 +681,7 @@
     <string name="session_drawer_color_profile_crt">ЭЛТ-эффект</string>
     <string name="session_drawer_calibrate_advanced">Расширенная калибровка</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_frame_gen">Кадры</string>
     <string name="session_drawer_rail_label_gyro">Гироскоп</string>
     <string name="session_drawer_rail_label_effects">Эффекты</string>
     <string name="session_drawer_rail_label_apps">Еще</string>

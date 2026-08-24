@@ -88,6 +88,7 @@ import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.ScreenRotation
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.TouchApp
@@ -467,7 +468,7 @@ internal enum class HUDMetricEditor(
     BACKGROUND_ALPHA(minPercent = 10, maxPercent = 100),
 }
 
-internal enum class DrawerPane { INPUT_CONTROLS, HUD, GYROSCOPE, SCREEN_EFFECTS, RESHADE, OUTPUT, TASK_MANAGER, LOGS, TOUCH }
+internal enum class DrawerPane { INPUT_CONTROLS, HUD, FRAME_GEN, GYROSCOPE, SCREEN_EFFECTS, RESHADE, OUTPUT, TASK_MANAGER, LOGS, TOUCH }
 
 internal const val LogsPaneMaxLines = 2000
 internal const val LogsFlushIntervalMs = 200L
@@ -519,6 +520,12 @@ private val RAIL_PANES =
             pane = DrawerPane.HUD,
             itemId = R.id.main_menu_fps_monitor,
             labelRes = R.string.session_drawer_rail_label_hud,
+        ),
+        RailPaneSpec(
+            pane = DrawerPane.FRAME_GEN,
+            itemId = R.id.main_menu_frame_generation,
+            labelRes = R.string.session_drawer_rail_label_frame_gen,
+            iconOverride = Icons.Outlined.Speed,
         ),
         RailPaneSpec(
             pane = DrawerPane.GYROSCOPE,
@@ -1487,16 +1494,18 @@ fun withFrameGenState(
     multiplier: Int,
     targetRate: Int,
     flowScale: Int,
+    frameGenTitle: String,
 ): XServerDrawerState =
     state.copy(
         items =
-            if (!enabled) {
-                state.items
-            } else {
-                state.items.map {
-                    if (it.itemId == R.id.main_menu_screen_effects) it.copy(active = true) else it
-                }
-            },
+            state.items +
+                XServerDrawerItem(
+                    itemId = R.id.main_menu_frame_generation,
+                    title = frameGenTitle,
+                    subtitle = "",
+                    icon = Icons.Outlined.Speed,
+                    active = enabled || state.fpsLimit > 0,
+                ),
         frameGenAvailable = available,
         frameGenEnabled = enabled,
         frameGenMultiplier = multiplier.coerceIn(2, FrameGenMultipliers.last()),
@@ -1715,6 +1724,7 @@ internal fun XServerDrawerContent(
                             when (pane) {
                                 DrawerPane.INPUT_CONTROLS -> InputControlsPaneContent(state = state, listener = listener)
                                 DrawerPane.HUD -> HUDPaneContent(state = state, listener = listener)
+                                DrawerPane.FRAME_GEN -> FrameGenPaneContent(state = state, listener = listener)
                                 DrawerPane.GYROSCOPE -> GyroscopePaneContent(state = state, listener = listener)
                                 DrawerPane.TOUCH -> TouchPaneContent(state = state, listener = listener, onClose = { onOpenPaneChange(null) })
                                 DrawerPane.SCREEN_EFFECTS -> ScreenEffectsPaneContent(state = state, listener = listener)
@@ -2841,7 +2851,7 @@ internal fun DrawerBooleanRow(
 
 internal val RECORD_QUALITY_LABELS = listOf("Performance", "Balance", "Quality")
 
-internal const val FPS_LIMITER_MIN = 30
+internal const val FPS_LIMITER_MIN = 15
 internal const val FPS_LIMITER_DEFAULT = 60
 
 @OptIn(ExperimentalLayoutApi::class)

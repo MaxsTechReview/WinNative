@@ -1624,7 +1624,7 @@ private fun GeneralSection(
     if (!isContainer) {
         Spacer(Modifier.height(SettingSectionGap))
         SettingGroup(verticalPadding = SettingTightGap) {
-            val fpsMin = 30
+            val fpsMin = 15
             // Cap the slider at the panel's highest supported refresh rate (parsed from entries like "120 Hz"); fall back to 60.
             val supportedMax = state.refreshRateEntries.value
                 .mapNotNull { it.trim().substringBefore(" ").toIntOrNull() }

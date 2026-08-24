@@ -1138,6 +1138,7 @@ Caminho instalado:
     <string name="session_drawer_color_profile_crt">Efeito CRT</string>
     <string name="session_drawer_calibrate_advanced">Calibração avançada</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_frame_gen">FG</string>
     <string name="session_drawer_rail_label_gyro">Giro</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">Mais</string>

@@ -834,6 +834,7 @@
     <string name="session_drawer_reset_effects">エフェクトをリセット</string>
     <string name="session_drawer_calibrate_advanced">詳細キャリブレーション</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_frame_gen">フレーム生成</string>
     <string name="session_drawer_rail_label_gyro">ジャイロ</string>
     <string name="session_drawer_rail_label_effects">エフェクト</string>
     <string name="session_drawer_rail_label_output">出力</string>

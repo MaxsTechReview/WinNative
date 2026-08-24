@@ -4473,7 +4473,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 frameGenEnabled,
                 frameGenMultiplier,
                 frameGenTargetRate,
-                frameGenFlowScale);
+                frameGenFlowScale,
+                getString(R.string.session_drawer_frame_generation));
 
         // Always-present "Output" tab (live controls while swapped, otherwise a Cast entry point).
         if (externalDisplayController != null) {
