@@ -736,6 +736,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         return shortcut != null ? shortcut.getSettingExtra(key, containerValue) : containerValue;
     }
 
+    private String getFrameGenSetting(String key, String containerValue) {
+        if (shortcut == null) return containerValue;
+        String own = shortcut.getExtra(key, "");
+        return own.isEmpty() ? containerValue : own;
+    }
+
     private void applyFrameGenerationSettings(VulkanRenderer renderer, Container container) {
         if (renderer == null) return;
 
@@ -744,13 +750,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         String containerTargetRate = container != null ? container.getExtra("frameGenTargetRate", "0") : "0";
         String containerFlowScale = container != null ? container.getExtra("frameGenFlowScale", "100") : "100";
 
-        frameGenEnabled = "1".equals(getShortcutSetting("frameGen", containerValue));
+        frameGenEnabled = "1".equals(getFrameGenSetting("frameGen", containerValue));
         frameGenMultiplier = clampFrameGenMultiplier(
-                parseSettingInt(getShortcutSetting("frameGenMultiplier", containerMultiplier), 2));
+                parseSettingInt(getFrameGenSetting("frameGenMultiplier", containerMultiplier), 2));
         frameGenTargetRate = Math.max(0,
-                parseSettingInt(getShortcutSetting("frameGenTargetRate", containerTargetRate), 0));
+                parseSettingInt(getFrameGenSetting("frameGenTargetRate", containerTargetRate), 0));
         frameGenFlowScale = clampFrameGenFlowScale(
-                parseSettingInt(getShortcutSetting("frameGenFlowScale", containerFlowScale), 100));
+                parseSettingInt(getFrameGenSetting("frameGenFlowScale", containerFlowScale), 100));
 
         if (frameGenEnabled) {
             int result = com.winlator.cmod.feature.library.LosslessAutoImport.INSTANCE.sync(this).getResult();
@@ -783,12 +789,71 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         renderer.setFrameGenerationShaders(frameGenCachePath);
         renderer.setFrameGenerationMode(frameGenMultiplier, frameGenTargetRate, frameGenFlowScale);
         renderer.setFrameGenerationEnabled(true);
+        applyFrameGenerationDisplayMode();
         Log.i("XServerDisplayActivity", "Frame generation on: multiplier=" + frameGenMultiplier
                 + " targetRate=" + frameGenTargetRate + " flowScale=" + frameGenFlowScale);
     }
 
+    private void applyFrameGenerationDisplayMode() {
+        android.view.Window window = getWindow();
+        if (window == null) return;
+
+        android.view.WindowManager.LayoutParams params = window.getAttributes();
+        if (!frameGenEnabled) {
+            if (params.preferredDisplayModeId != 0) {
+                params.preferredDisplayModeId = 0;
+                window.setAttributes(params);
+            }
+            return;
+        }
+
+        int wanted = frameGenTargetRate > 0
+                ? frameGenTargetRate
+                : frameGenMultiplier * Math.max(30, runtimeFpsLimit > 0 ? runtimeFpsLimit : 60);
+
+        android.view.Display display = getDisplayCompat();
+        if (display == null) return;
+
+        android.view.Display.Mode active = display.getMode();
+        android.view.Display.Mode best = null;
+        for (android.view.Display.Mode mode : display.getSupportedModes()) {
+            if (mode.getPhysicalWidth() != active.getPhysicalWidth()
+                    || mode.getPhysicalHeight() != active.getPhysicalHeight()) {
+                continue;
+            }
+            if (best == null || betterFrameGenMode(mode, best, wanted)) best = mode;
+        }
+        if (best == null || best.getModeId() == params.preferredDisplayModeId) return;
+
+        params.preferredDisplayModeId = best.getModeId();
+        window.setAttributes(params);
+        Log.i("XServerDisplayActivity", "Frame generation display mode: wanted " + wanted
+                + "Hz, selected " + Math.round(best.getRefreshRate()) + "Hz (mode "
+                + best.getModeId() + ")");
+    }
+
+    private static boolean betterFrameGenMode(android.view.Display.Mode candidate,
+                                              android.view.Display.Mode current, int wanted) {
+        float a = candidate.getRefreshRate();
+        float b = current.getRefreshRate();
+        boolean aMeets = a + 0.5f >= wanted;
+        boolean bMeets = b + 0.5f >= wanted;
+        if (aMeets != bMeets) return aMeets;
+        return aMeets ? a < b : a > b;
+    }
+
+    private android.view.Display getDisplayCompat() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            android.view.Display d = getDisplay();
+            if (d != null) return d;
+        }
+        android.view.WindowManager wm = getWindowManager();
+        return wm != null ? wm.getDefaultDisplay() : null;
+    }
+
     private void applyFrameGenerationLive() {
         applyFrameGeneration(xServerView != null ? xServerView.getRenderer() : null);
+        applyFrameGenerationDisplayMode();
         saveFrameGenerationSettings();
         renderDrawerMenu();
     }
