@@ -29,13 +29,19 @@ object LosslessAutoImport {
     }
 
     fun findDll(context: Context): File? {
+        val candidates = LinkedHashSet<File>()
         for (dir in steamCandidateDirs()) {
             val dll = File(dir, DLL_NAME)
-            if (dll.isFile && dll.canRead()) return dll
+            if (dll.isFile && dll.canRead()) candidates += dll
         }
-        return runCatching {
-            LosslessScaling.findInContainers(ContainerManager(context).containers).firstOrNull()
-        }.getOrNull()
+        runCatching { LosslessScaling.findInContainers(ContainerManager(context).containers) }
+            .getOrDefault(emptyList())
+            .forEach { candidates += it }
+
+        return candidates.maxWithOrNull(
+            compareBy<File> { LosslessScaling.variantRank(LosslessScaling.dllVariant(it)) }
+                .thenBy { it.length() },
+        )
     }
 
     fun sync(context: Context): Outcome {

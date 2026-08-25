@@ -47,6 +47,8 @@ const uint32_t* lsfg_shader_ids(size_t* out_count);
 
 LsfgStatus lsfg_validate_dll(const char* dll_path);
 
+LsfgVariant lsfg_dll_variant(const char* dll_path);
+
 LsfgStatus lsfg_build_cache(const char* dll_path, const char* cache_path, bool prefer_fp16);
 
 LsfgStatus lsfg_load_modules(const char* cache_path, LsfgModuleSet* out_set);

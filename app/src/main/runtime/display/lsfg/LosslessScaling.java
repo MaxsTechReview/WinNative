@@ -100,6 +100,29 @@ public final class LosslessScaling {
         return nativeCacheVariant(cache.getAbsolutePath());
     }
 
+    public static int dllVariant(File dll) {
+        if (dll == null || !dll.isFile()) return VARIANT_NONE;
+        return nativeDllVariant(dll.getAbsolutePath());
+    }
+
+    public static int variantRank(int variant) {
+        switch (variant) {
+            case VARIANT_FP16: return 3;
+            case VARIANT_FP32: return 2;
+            case VARIANT_DXBC: return 1;
+            default: return 0;
+        }
+    }
+
+    public static String variantName(int variant) {
+        switch (variant) {
+            case VARIANT_FP16: return "spirv-fp16";
+            case VARIANT_FP32: return "spirv-fp32";
+            case VARIANT_DXBC: return "dxbc-translated";
+            default: return "none";
+        }
+    }
+
     public static int validate(File dll) {
         if (dll == null || !dll.isFile()) return STATUS_NOT_INSTALLED;
         return nativeValidateDll(dll.getAbsolutePath());
@@ -128,18 +151,18 @@ public final class LosslessScaling {
                 deleteQuietly(fp32);
                 return STATUS_CACHE_UNUSABLE;
             }
-            logInstalled(VARIANT_FP16, false);
+            logInstalled(dll, VARIANT_FP16, false);
             return STATUS_OK;
         }
 
         if (nativeBuildCache(source, fp16.getAbsolutePath(), true) != STATUS_OK
                 || nativeCacheVariant(fp16.getAbsolutePath()) != VARIANT_FP16) {
             deleteQuietly(fp16);
-            logInstalled(VARIANT_FP32, false);
+            logInstalled(dll, nativeCacheVariant(fp32.getAbsolutePath()), false);
             return STATUS_OK;
         }
 
-        logInstalled(VARIANT_FP32, true);
+        logInstalled(dll, nativeCacheVariant(fp32.getAbsolutePath()), true);
         return STATUS_OK;
     }
 
@@ -211,10 +234,10 @@ public final class LosslessScaling {
         gpuSupportedDriver = null;
     }
 
-    private static void logInstalled(int variant, boolean bothVariants) {
+    private static void logInstalled(File source, int variant, boolean bothVariants) {
         if (!ApplicationLogGate.isEnabled()) return;
-        Log.i(TAG, "Shader cache built: variant="
-                + (variant == VARIANT_FP16 ? "fp16" : "fp32")
+        Log.i(TAG, "Shader cache built from " + source.getAbsolutePath()
+                + " (" + source.length() + " bytes): variant=" + variantName(variant)
                 + (bothVariants ? " (fp16 alternate available)" : ""));
     }
 
@@ -239,6 +262,8 @@ public final class LosslessScaling {
     }
 
     private static native int nativeValidateDll(String dllPath);
+
+    private static native int nativeDllVariant(String dllPath);
 
     private static native int nativeBuildCache(String dllPath, String cachePath,
                                                boolean preferFp16);

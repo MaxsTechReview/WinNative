@@ -194,6 +194,68 @@ internal fun SteamService.Companion.isDepotEntitled(
     return depot.dlcAppId == INVALID_APP_ID
 }
 
+private val SUPERSEDED_DEPOTS: Map<Int, Map<Int, Int>> =
+    mapOf(
+        993090 to mapOf(993092 to 993091),
+    )
+
+internal fun SteamService.Companion.dropSupersededDepots(
+    appId: Int,
+    depots: Map<Int, DepotInfo>,
+): Map<Int, DepotInfo> {
+    val rules = SUPERSEDED_DEPOTS[appId] ?: return depots
+    val dropped = depots.keys.filter { rules[it]?.let { preferred -> preferred in depots } == true }
+    if (dropped.isEmpty()) return depots
+    Timber.i("Dropping superseded depots $dropped for appId=$appId; preferred twin is present")
+    return depots.filterKeys { it !in dropped }
+}
+
+internal fun SteamService.Companion.repairSupersededInstall(
+    appId: Int,
+    appDirPath: String,
+    selectedDepotIds: Set<Int>,
+): Boolean {
+    val rules = SUPERSEDED_DEPOTS[appId] ?: return false
+    if (appDirPath.isBlank()) return false
+
+    val installed = readInstalledDepotManifestIds(appDirPath)
+    val stale = rules.filterKeys { it in installed }.filterValues { it in selectedDepotIds }
+    if (stale.isEmpty()) return false
+
+    val depotDir = File(appDirPath, ".DepotDownloader")
+    val configFile = File(depotDir, "depot.config")
+    val affected = stale.keys + stale.values
+
+    val rewritten =
+        runCatching {
+            if (!configFile.isFile) return@runCatching false
+            val json = JSONObject(configFile.readText())
+            val manifests = json.optJSONObject("installedManifestIDs") ?: return@runCatching false
+            affected.forEach { manifests.remove(it.toString()) }
+            configFile.writeText(json.toString())
+            true
+        }.getOrElse {
+            Timber.w(it, "Could not rewrite depot.config repairing superseded depots for appId=$appId")
+            false
+        }
+    if (!rewritten) return false
+
+    depotDir
+        .listFiles()
+        .orEmpty()
+        .forEach { file ->
+            if (!file.name.endsWith(".manifest")) return@forEach
+            val depotId = file.name.substringBefore('_').toIntOrNull() ?: return@forEach
+            if (depotId in affected) file.delete()
+        }
+
+    Timber.i(
+        "Repaired superseded Steam install for appId=$appId: cleared depots $affected " +
+            "so ${stale.values} re-download and overwrite files the stale twin had won",
+    )
+    return true
+}
+
 internal fun SteamService.Companion.getSelectedDownloadDepots(
     appId: Int,
     userSelectedDlcAppIds: Collection<Int>,

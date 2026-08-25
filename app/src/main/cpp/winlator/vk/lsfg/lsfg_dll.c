@@ -572,6 +572,31 @@ LsfgStatus lsfg_validate_dll(const char* dll_path) {
     return status;
 }
 
+LsfgVariant lsfg_dll_variant(const char* dll_path) {
+    if (!dll_path) return LSFG_VARIANT_NONE;
+
+    PeImage image;
+    int fd = -1;
+    size_t mapped_size = 0;
+    if (!pe_open(dll_path, &image, &fd, &mapped_size)) return LSFG_VARIANT_NONE;
+
+    ResourceTable* table = (ResourceTable*)calloc(1, sizeof(ResourceTable));
+    if (!table) {
+        pe_close(&image, fd, mapped_size);
+        return LSFG_VARIANT_NONE;
+    }
+
+    LsfgVariant variant = LSFG_VARIANT_NONE;
+    if (parse_resources(&image, table) == LSFG_OK) {
+        variant = select_variant(table, true);
+        if (variant == LSFG_VARIANT_NONE && has_base_chain(table)) variant = LSFG_VARIANT_DXBC;
+    }
+
+    free(table);
+    pe_close(&image, fd, mapped_size);
+    return variant;
+}
+
 LsfgStatus lsfg_build_cache(const char* dll_path, const char* cache_path, bool prefer_fp16) {
     if (!dll_path || !cache_path) return LSFG_NOT_INSTALLED;
 

@@ -26,6 +26,15 @@ JNIEXPORT jint JNICALL LSFG_FN(nativeValidateDll)(JNIEnv* env, jclass clazz, jst
     return (jint)status;
 }
 
+JNIEXPORT jint JNICALL LSFG_FN(nativeDllVariant)(JNIEnv* env, jclass clazz, jstring dllPath) {
+    (void)clazz;
+    char* path = copy_utf(env, dllPath);
+    if (!path) return (jint)LSFG_VARIANT_NONE;
+    const LsfgVariant variant = lsfg_dll_variant(path);
+    free(path);
+    return (jint)variant;
+}
+
 JNIEXPORT jint JNICALL LSFG_FN(nativeBuildCache)(JNIEnv* env, jclass clazz, jstring dllPath,
                                                  jstring cachePath, jboolean preferFp16) {
     (void)clazz;

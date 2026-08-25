@@ -1250,12 +1250,15 @@ class SteamService : Service() {
                     it.osArch == OSArch.Arch64 && (it.osList.contains(OS.windows) || (it.osList.isEmpty() || it.osList.contains(OS.none)))
                 }
 
-            return appInfo.depots
-                .asSequence()
-                .filter { (depotId, depot) ->
-                    return@filter isDepotEntitled(depotId, depot, entitledDepotIds) &&
-                        filterForDownloadableDepots(depot, has64Bit, preferredLanguage, ownedDlc)
-                }.associate { it.toPair() }
+            return dropSupersededDepots(
+                appId,
+                appInfo.depots
+                    .asSequence()
+                    .filter { (depotId, depot) ->
+                        return@filter isDepotEntitled(depotId, depot, entitledDepotIds) &&
+                            filterForDownloadableDepots(depot, has64Bit, preferredLanguage, ownedDlc)
+                    }.associate { it.toPair() },
+            )
         }
 
         /** Downloadable depots for an app, including all DLCs. */
@@ -1307,7 +1310,7 @@ class SteamService : Service() {
                 }
             }
 
-            return map
+            return dropSupersededDepots(appId, map)
         }
 
         internal data class GroupedBaseAppDlcDepot(
@@ -3825,6 +3828,8 @@ class SteamService : Service() {
                 if (selectedDepots.isEmpty()) {
                     return@withContext SteamUpdateInfo(message = "No installed depots to update").logged()
                 }
+
+                repairSupersededInstall(appId, appDirPath, selectedDepots.keys)
 
                 val installedManifestIds = readInstalledDepotManifestIds(appDirPath)
                 val cachedManifestFiles: Set<String> =
