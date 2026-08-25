@@ -739,8 +739,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
 
     private String getFrameGenSetting(String key, String containerValue) {
         if (shortcut == null) return containerValue;
-        String own = shortcut.getExtra(key, "");
-        return own.isEmpty() ? containerValue : own;
+        return shortcut.getSettingExtra(key, containerValue);
+    }
+
+    private String frameGenContainerValue(String key, String fallback) {
+        Container base = shortcut != null ? shortcut.container : container;
+        return base != null ? base.getExtra(key, fallback) : fallback;
+    }
+
+    private boolean saveFrameGenOverride(String key, String value, String fallback) {
+        if (value.equals(frameGenContainerValue(key, fallback))) {
+            shortcut.putExtra(key, null);
+            return false;
+        }
+        shortcut.putExtra(key, value);
+        return true;
     }
 
     private void applyFrameGenerationSettings(VulkanRenderer renderer, Container container) {
@@ -906,19 +919,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
 
     private void saveFrameGenerationSettings() {
         if (shortcut != null) {
-            if (frameGenEnabled) {
-                shortcut.putExtra("frameGen", "1");
-                shortcut.putExtra("frameGenMultiplier", String.valueOf(frameGenMultiplier));
-                shortcut.putExtra("frameGenTargetRate", String.valueOf(frameGenTargetRate));
-                shortcut.putExtra("frameGenFlowScale", String.valueOf(frameGenFlowScale));
-                shortcut.putExtra("frameGenFlowScaleAuto", frameGenFlowScaleAuto ? "1" : "0");
-            } else {
-                shortcut.putExtra("frameGen", null);
-                shortcut.putExtra("frameGenMultiplier", null);
-                shortcut.putExtra("frameGenTargetRate", null);
-                shortcut.putExtra("frameGenFlowScale", null);
-                shortcut.putExtra("frameGenFlowScaleAuto", null);
-            }
+            boolean overridden = saveFrameGenOverride("frameGen", frameGenEnabled ? "1" : "0", "0");
+            overridden |= saveFrameGenOverride("frameGenMultiplier",
+                    String.valueOf(frameGenMultiplier), "2");
+            overridden |= saveFrameGenOverride("frameGenTargetRate",
+                    String.valueOf(frameGenTargetRate), "0");
+            overridden |= saveFrameGenOverride("frameGenFlowScale",
+                    String.valueOf(frameGenFlowScale), "70");
+            overridden |= saveFrameGenOverride("frameGenFlowScaleAuto",
+                    frameGenFlowScaleAuto ? "1" : "0", "1");
+            if (overridden) shortcut.putExtra("use_container_defaults", "0");
             shortcut.saveData();
         } else if (container != null) {
             container.putExtra("frameGen", frameGenEnabled ? "1" : "0");

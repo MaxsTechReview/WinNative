@@ -1320,19 +1320,31 @@ class ShortcutSettingsComposeDialog private constructor(
                 shortcut.putExtra("sgsrSharpness", null)
             }
 
-            if (state.frameGenEnabled.value) {
-                shortcut.putExtra("frameGen", "1")
-                shortcut.putExtra("frameGenMultiplier", state.frameGenMultiplier.intValue.coerceIn(2, 4).toString())
-                shortcut.putExtra("frameGenTargetRate", state.frameGenTargetRate.intValue.coerceAtLeast(0).toString())
-                shortcut.putExtra("frameGenFlowScale", state.frameGenFlowScale.intValue.coerceIn(25, 100).toString())
-                shortcut.putExtra("frameGenFlowScaleAuto", if (state.frameGenFlowScaleAuto.value) "1" else "0")
-            } else {
-                shortcut.putExtra("frameGen", null)
-                shortcut.putExtra("frameGenMultiplier", null)
-                shortcut.putExtra("frameGenTargetRate", null)
-                shortcut.putExtra("frameGenFlowScale", null)
-                shortcut.putExtra("frameGenFlowScaleAuto", null)
-            }
+            hasContainerOverride = hasContainerOverride or saveOverride(
+                "frameGen",
+                if (state.frameGenEnabled.value) "1" else "0",
+                container.getExtra("frameGen", "0"),
+            )
+            hasContainerOverride = hasContainerOverride or saveOverride(
+                "frameGenMultiplier",
+                state.frameGenMultiplier.intValue.coerceIn(2, 4).toString(),
+                container.getExtra("frameGenMultiplier", "2"),
+            )
+            hasContainerOverride = hasContainerOverride or saveOverride(
+                "frameGenTargetRate",
+                state.frameGenTargetRate.intValue.coerceAtLeast(0).toString(),
+                container.getExtra("frameGenTargetRate", "0"),
+            )
+            hasContainerOverride = hasContainerOverride or saveOverride(
+                "frameGenFlowScale",
+                state.frameGenFlowScale.intValue.coerceIn(25, 100).toString(),
+                container.getExtra("frameGenFlowScale", "70"),
+            )
+            hasContainerOverride = hasContainerOverride or saveOverride(
+                "frameGenFlowScaleAuto",
+                if (state.frameGenFlowScaleAuto.value) "1" else "0",
+                container.getExtra("frameGenFlowScaleAuto", "1"),
+            )
 
             // saveOverride not putExtra: putExtra leaves hasContainerOverride false, so a reshade-only shortcut gets use_container_defaults=1 and reads back the container's extras
             run {
