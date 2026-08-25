@@ -14,12 +14,10 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -374,7 +372,7 @@ internal fun FPSLimiterCard(
 
     val borderColor by animateColorAsState(
         targetValue = if (enabled) ActiveCardBorder else RestingCardBorder,
-        animationSpec = tween(140),
+        animationSpec = snap(),
         label = "fpsLimiterCardBorder",
     )
     val shape = RoundedCornerShape((14f * paneScale).dp)
@@ -430,14 +428,14 @@ internal fun FPSLimiterCard(
             visible = enabled,
             enter =
                 expandVertically(
-                    animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                    animationSpec = snap(),
                     expandFrom = Alignment.Top,
-                ) + fadeIn(animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing)),
+                ) + fadeIn(animationSpec = snap()),
             exit =
                 shrinkVertically(
-                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                    animationSpec = snap(),
                     shrinkTowards = Alignment.Top,
-                ) + fadeOut(animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)),
+                ) + fadeOut(animationSpec = snap()),
         ) {
             Column {
                 Spacer(Modifier.height((6f * paneScale).dp))

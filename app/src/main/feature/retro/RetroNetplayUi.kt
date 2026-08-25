@@ -48,7 +48,7 @@ import com.winlator.cmod.R
 import com.winlator.cmod.shared.theme.GameSettingsStyle
 
 private val RoomBg = Color(0xF0121824)
-private val RoomBorder = Color(0xFF1A9FFF).copy(alpha = 0.45f)
+private val RoomBorder = Color(0xFFFF7A00).copy(alpha = 0.45f)
 private val OnlineDot = Color(0xFF3FB950)
 private val RoomCardBg = Color(0xFF141C28)
 private val RoomCardBorder = Color(0xFF2A3A4E)
@@ -96,7 +96,7 @@ fun RetroNetplayRoomBanner(
                             RetroNetplayPhase.SCAN_RESULTS -> stringResource(R.string.retro_netplay_scan_results)
                             else -> stringResource(R.string.retro_netplay_title)
                         },
-                    color = Color(0xFFF0F4FF),
+                    color = Color(0xFFF5F0EA),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -105,7 +105,7 @@ fun RetroNetplayRoomBanner(
                 if (status.isNotBlank()) {
                     Text(
                         status,
-                        color = Color(0xFF93A6BC),
+                        color = Color(0xFFC7A88F),
                         fontSize = 11.sp,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
@@ -182,7 +182,7 @@ private fun RoomResultRow(
         Column(Modifier.weight(1f)) {
             Text(
                 "${room.gameName} · ${room.hostPlayerName}",
-                color = Color(0xFFF0F4FF),
+                color = Color(0xFFF5F0EA),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
@@ -190,7 +190,7 @@ private fun RoomResultRow(
             )
             Text(
                 "${room.hostAddress}:${room.port}",
-                color = Color(0xFF93A6BC),
+                color = Color(0xFFC7A88F),
                 fontSize = 11.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -218,7 +218,7 @@ fun RetroNetplayEventToast(modifier: Modifier = Modifier) {
     ) {
         Text(
             text = message.orEmpty(),
-            color = Color(0xFFF0F4FF),
+            color = Color(0xFFF5F0EA),
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center,

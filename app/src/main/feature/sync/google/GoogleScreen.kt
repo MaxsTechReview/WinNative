@@ -1,15 +1,10 @@
 package com.winlator.cmod.feature.sync.google
 import android.app.Activity
 import android.text.format.DateUtils
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -81,13 +76,13 @@ private val BgDark = Color(0xFF11111C)
 private val CardDark = Color(0xFF1C1C2A)
 private val CardBorder = Color(0xFF2A2A3A)
 private val IconBoxBg = Color(0xFF242434)
-private val Accent = Color(0xFF1A9FFF)
-private val TextPrimary = Color(0xFFF0F4FF)
-private val TextSecondary = Color(0xFF7A8FA8)
+private val Accent = Color(0xFFFF7A00)
+private val TextPrimary = Color(0xFFF5F0EA)
+private val TextSecondary = Color(0xFFAD9782)
 private val StatusGreen = Color(0xFF3FB950)
 private val WarningAmber = Color(0xFFFFC857)
 private val DangerRed = Color(0xFFFF6B6B)
-private val NavHighlight = Color(0xFF4FC3F7)
+private val NavHighlight = Color(0xFFFFB74D)
 private val StoreLoginActionButtonWidth = 112.dp
 
 @Composable
@@ -337,27 +332,9 @@ private fun GoogleAccountCard(
     onSignIn: () -> Unit,
     onSignOut: () -> Unit,
 ) {
-    val pulse = rememberInfiniteTransition(label = "pulse_google")
-    val pulseScale by pulse.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.7f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(1200, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse,
-            ),
-        label = "scale_google",
-    )
-    val pulseAlpha by pulse.animateFloat(
-        initialValue = 0.5f,
-        targetValue = 0f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(1200, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse,
-            ),
-        label = "alpha_google",
-    )
+    // Static "connected" indicator (no continuous animation).
+    val pulseScale = 1f
+    val pulseAlpha = 0.25f
 
     BoxWithConstraints {
         val compact = maxWidth < 400.dp
@@ -845,7 +822,7 @@ private fun ActionButton(
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (isPressed && enabled) 0.93f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
+        animationSpec = snap(),
         label = "btnScale",
     )
 

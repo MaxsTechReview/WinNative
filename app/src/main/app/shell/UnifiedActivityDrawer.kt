@@ -27,17 +27,11 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -220,7 +214,6 @@ import com.winlator.cmod.shared.android.RefreshRateUtils
 import com.winlator.cmod.shared.io.StorageUtils
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.ui.CarouselView
-import com.winlator.cmod.shared.ui.layout.screenWidthDp
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.dialog.PopupTextAction
 import androidx.compose.foundation.focusGroup
@@ -314,7 +307,7 @@ internal fun UnifiedActivity.LoginRequiredScreen(
             val isPressed by interactionSource.collectIsPressedAsState()
             val btnScale by animateFloatAsState(
                 targetValue = if (isPressed) 0.95f else 1f,
-                animationSpec = tween(100),
+                animationSpec = snap(),
                 label = "btnScale",
             )
             Row(
@@ -349,13 +342,11 @@ internal fun UnifiedActivity.DrawerContent(
     libraryLayoutMode: LibraryLayoutMode,
     immersiveMode: Boolean,
     immersiveBlur: Boolean,
-    forceLandscape: Boolean,
     onLibraryLayoutSelected: (LibraryLayoutMode) -> Unit,
     onStoreVisibleChanged: (String, Boolean) -> Unit,
     onContentFiltersChanged: (String, Boolean) -> Unit,
     onImmersiveModeChanged: (Boolean) -> Unit,
     onImmersiveBlurChanged: (Boolean) -> Unit,
-    onForceLandscapeChanged: (Boolean) -> Unit,
     onExportAll: () -> Unit,
     onExitApp: () -> Unit,
 ) {
@@ -372,7 +363,7 @@ internal fun UnifiedActivity.DrawerContent(
         drawerContainerColor = Color(0xFF12121B),
         drawerContentColor = TextPrimary,
         windowInsets = WindowInsets(0, 0, 0, 0),
-        modifier = Modifier.width(minOf(324.dp, screenWidthDp() - 56.dp)),
+        modifier = Modifier.width(324.dp),
     ) {
         CompositionLocalProvider(LocalPaneNav provides navRegistry) {
         Column(
@@ -382,15 +373,6 @@ internal fun UnifiedActivity.DrawerContent(
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
         ) {
-
-            DrawerSwitchCard(
-                label = stringResource(R.string.library_games_force_landscape),
-                description = stringResource(R.string.library_games_force_landscape_description),
-                checked = forceLandscape,
-                onCheckedChange = onForceLandscapeChanged,
-            )
-
-            Spacer(Modifier.height(16.dp))
 
             // ── Layouts ──
             Text(
@@ -442,7 +424,7 @@ internal fun UnifiedActivity.DrawerContent(
                 onCheckedChange = onImmersiveModeChanged,
             )
 
-            AnimatedVisibility(visible = immersiveMode) {
+            AnimatedVisibility(visible = immersiveMode, enter = EnterTransition.None, exit = ExitTransition.None) {
                 Column {
                     Spacer(Modifier.height(8.dp))
                     DrawerSwitchCard(
@@ -523,7 +505,7 @@ internal fun UnifiedActivity.DrawerExitAppCard(onClick: () -> Unit) {
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = tween(100),
+        animationSpec = snap(),
         label = "exitAppCardScale",
     )
 
@@ -584,7 +566,7 @@ internal fun UnifiedActivity.DrawerActionCard(
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = tween(100),
+        animationSpec = snap(),
         label = "drawerActionCardScale",
     )
 
@@ -648,22 +630,22 @@ internal fun UnifiedActivity.DrawerFilterButton(
 
     val bgColor by animateColorAsState(
         targetValue = if (checked) Accent.copy(alpha = 0.2f) else CardDark,
-        animationSpec = tween(200),
+        animationSpec = snap(),
         label = "filterBg",
     )
     val borderColor by animateColorAsState(
         targetValue = if (checked) Accent else CardBorder,
-        animationSpec = tween(200),
+        animationSpec = snap(),
         label = "filterBorder",
     )
     val textColor by animateColorAsState(
         targetValue = if (checked) Accent else TextSecondary,
-        animationSpec = tween(200),
+        animationSpec = snap(),
         label = "filterText",
     )
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.92f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh),
+        animationSpec = snap(),
         label = "filterScale",
     )
 
@@ -708,22 +690,22 @@ internal fun UnifiedActivity.DrawerSwitchCard(
 
     val bgColor by animateColorAsState(
         targetValue = if (checked) Accent.copy(alpha = 0.18f) else CardDark,
-        animationSpec = tween(200),
+        animationSpec = snap(),
         label = "switchCardBg",
     )
     val borderColor by animateColorAsState(
         targetValue = if (checked) Accent else CardBorder,
-        animationSpec = tween(200),
+        animationSpec = snap(),
         label = "switchCardBorder",
     )
     val labelColor by animateColorAsState(
         targetValue = if (checked) Accent else TextPrimary,
-        animationSpec = tween(200),
+        animationSpec = snap(),
         label = "switchCardLabel",
     )
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = tween(120),
+        animationSpec = snap(),
         label = "switchCardScale",
     )
 
@@ -856,17 +838,14 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
             } else {
                 LibraryShortcutUtils.detectCustomGameFolder(path)
             }
+        // Auto-generate a game name from the EXE name (without extension)
         if (gameName.isBlank()) {
             gameName =
-                if (detectedRetro != null) {
-                    java.io
-                        .File(path)
-                        .nameWithoutExtension
-                        .replace("_", " ")
-                        .replace("-", " ")
-                } else {
-                    LibraryShortcutUtils.suggestCustomGameName(path)
-                }
+                java.io
+                    .File(path)
+                    .nameWithoutExtension
+                    .replace("_", " ")
+                    .replace("-", " ")
         }
     }
 

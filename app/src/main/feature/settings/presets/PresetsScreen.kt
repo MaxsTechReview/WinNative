@@ -5,8 +5,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -92,7 +91,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.winlator.cmod.shared.ui.layout.isPortraitLayout
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
@@ -106,11 +104,11 @@ private val BgDark = Color(0xFF11111C)
 private val CardDark = Color(0xFF1C1C2A)
 private val CardDarker = Color(0xFF15151E)
 private val CardBorder = Color(0xFF2A2A3A)
-private val Accent = Color(0xFF1A9FFF)
-private val NavHighlight = Color(0xFF4FC3F7)
+private val Accent = Color(0xFFFF7A00)
+private val NavHighlight = Color(0xFFFFB74D)
 private val DangerRed = Color(0xFFFF7A88)
-private val TextPrimary = Color(0xFFF0F4FF)
-private val TextSecondary = Color(0xFF7A8FA8)
+private val TextPrimary = Color(0xFFF5F0EA)
+private val TextSecondary = Color(0xFFAD9782)
 
 @Composable
 private fun Modifier.noRippleClickable(
@@ -369,20 +367,11 @@ private fun AnimatedContentTransitionScope<PresetEngine>.engineSwapTransition():
     val forward = targetState.ordinal > initialState.ordinal
     val direction = if (forward) 1 else -1
     val slideSpec =
-        tween<IntOffset>(
-            durationMillis = 220,
-            easing = FastOutSlowInEasing,
-        )
+        snap<IntOffset>()
     val fadeInSpec =
-        tween<Float>(
-            durationMillis = 200,
-            easing = FastOutSlowInEasing,
-        )
+        snap<Float>()
     val fadeOutSpec =
-        tween<Float>(
-            durationMillis = 140,
-            easing = FastOutSlowInEasing,
-        )
+        snap<Float>()
     return (
         fadeIn(animationSpec = fadeInSpec) +
             slideInHorizontally(animationSpec = slideSpec) { fullWidth ->
@@ -395,7 +384,7 @@ private fun AnimatedContentTransitionScope<PresetEngine>.engineSwapTransition():
             },
     ).using(
         SizeTransform(clip = false) { _, _ ->
-            tween(durationMillis = 240, easing = FastOutSlowInEasing)
+            snap()
         },
     )
 }
@@ -892,7 +881,7 @@ private fun EnvVarCard(
     val borderColor = if (expanded) Accent.copy(alpha = 0.45f) else CardBorder
     val chevronRotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
-        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+        animationSpec = snap(),
         label = "envVarChevron_${definition.name}",
     )
     val helpText =
@@ -957,15 +946,15 @@ private fun EnvVarCard(
             AnimatedVisibility(
                 visible = expanded && helpText.isNotBlank(),
                 enter =
-                    fadeIn(tween(110)) +
+                    fadeIn(snap()) +
                         expandVertically(
-                            animationSpec = tween(durationMillis = 170, easing = FastOutSlowInEasing),
+                            animationSpec = snap(),
                             expandFrom = Alignment.Top,
                         ),
                 exit =
-                    fadeOut(tween(90)) +
+                    fadeOut(snap()) +
                         shrinkVertically(
-                            animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
+                            animationSpec = snap(),
                             shrinkTowards = Alignment.Top,
                         ),
             ) {
@@ -992,14 +981,10 @@ private fun EnvVarInlineControl(
     editable: Boolean,
     onValueChanged: (String) -> Unit,
 ) {
-    val compactControl = isPortraitLayout()
     Box(
         modifier =
             Modifier
-                .widthIn(
-                    min = if (compactControl) 76.dp else 112.dp,
-                    max = if (compactControl) 108.dp else 172.dp,
-                )
+                .widthIn(min = 112.dp, max = 172.dp)
                 .alpha(if (editable) 1f else 0.55f),
         contentAlignment = Alignment.CenterEnd,
     ) {

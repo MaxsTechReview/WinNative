@@ -7,8 +7,7 @@ import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -106,7 +105,6 @@ import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.winlator.cmod.R
-import com.winlator.cmod.shared.ui.layout.isPortraitLayout
 import androidx.compose.runtime.CompositionLocalProvider
 import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
@@ -120,10 +118,10 @@ import java.util.Locale
 
 private val LaunchBlack = Color.Black
 private val LaunchCard = Color(0xFF12121B)
-private val LaunchAccent = Color(0xFF1A9FFF)
-private val LaunchAccentGlow = Color(0xFF58A6FF)
-private val LaunchTextPrimary = Color(0xFFF0F4FF)
-private val LaunchTextSecondary = Color(0xFF93A6BC)
+private val LaunchAccent = Color(0xFFFF7A00)
+private val LaunchAccentGlow = Color(0xFFFFB74D)
+private val LaunchTextPrimary = Color(0xFFF5F0EA)
+private val LaunchTextSecondary = Color(0xFFC7A88F)
 private val LaunchDanger = Color(0xFFFF6B6B)
 
 @Composable
@@ -191,11 +189,23 @@ internal fun LibraryGameLaunchScreen(
     Box(Modifier.fillMaxSize()) {
         val edgePadding = 22.dp
         val bottomPadding = 20.dp
-        val actionIconSize = 46.dp
+        // The stat-chip row and the action-button column share one horizontal Row; on a
+        // narrow phone-portrait width the fixed landscape sizing below would starve the
+        // FlowRow of stat chips down to almost nothing, so scale both down together
+        // (mirrors the same fix in StoreGameDetailScreen).
+        val launchScreenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
+        val isNarrowLaunch = launchScreenWidth < 480.dp
+        val actionIconSize = if (isNarrowLaunch) 40.dp else 46.dp
         val actionIconSpacing = 8.dp
-        val actionWidth = actionIconSize * actionIconCount + actionIconSpacing * (actionIconCount - 1).coerceAtLeast(0)
-        val playHeight = 56.dp
-        val contentGap = 18.dp
+        val naturalActionWidth = actionIconSize * actionIconCount + actionIconSpacing * (actionIconCount - 1).coerceAtLeast(0)
+        val actionWidth =
+            if (isNarrowLaunch) {
+                (launchScreenWidth * 0.42f).coerceAtMost(naturalActionWidth)
+            } else {
+                naturalActionWidth
+            }
+        val playHeight = if (isNarrowLaunch) 48.dp else 56.dp
+        val contentGap = if (isNarrowLaunch) 10.dp else 18.dp
         val horizontalNavInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
 
         if (heroImageUrl != null) {
@@ -357,12 +367,12 @@ internal fun LibraryGameLaunchScreen(
                 }
             }
 
-            val portraitHero = isPortraitLayout()
-            val statChips: @Composable (Modifier) -> Unit = { statsModifier ->
+            // Extracted so the narrow (portrait) and wide (landscape) branches below can
+            // share the exact same content while arranging it differently.
+            val statsContent: @Composable () -> Unit = {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = statsModifier,
                 ) {
                     if (totalPlaytimeMillis > 0L) {
                         val playtimeText = remember(totalPlaytimeMillis) { formatLibraryPlaytime(totalPlaytimeMillis) }
@@ -397,9 +407,9 @@ internal fun LibraryGameLaunchScreen(
                 }
             }
 
-            val actionBlock: @Composable (Modifier) -> Unit = { actionsModifier ->
+            val actionContent: @Composable (columnWidthModifier: Modifier) -> Unit = { columnWidthModifier ->
                 Column(
-                    modifier = actionsModifier,
+                    modifier = columnWidthModifier,
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
@@ -407,7 +417,7 @@ internal fun LibraryGameLaunchScreen(
                         LaunchAltEngineToggle(
                             label = altEngineLabel,
                             checked = altEngineEnabled,
-                            width = actionWidth,
+                            modifier = if (isNarrowLaunch) Modifier.fillMaxWidth() else Modifier.width(actionWidth),
                             onCheckedChange = onAltEngineChange,
                         )
                     }
@@ -419,9 +429,12 @@ internal fun LibraryGameLaunchScreen(
                         onClick = onPlay,
                     )
 
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(actionIconSpacing),
-                        verticalAlignment = Alignment.CenterVertically,
+                    // FlowRow (not Row) so the icon cluster wraps to a second line instead of
+                    // overflowing when the action column is narrower than all icons combined
+                    // (narrow/portrait widths, or a game with every optional icon showing).
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(actionIconSpacing, Alignment.CenterHorizontally),
+                        verticalArrangement = Arrangement.spacedBy(actionIconSpacing),
                     ) {
                         LaunchIconActionButton(
                             icon = Icons.Outlined.Settings,
@@ -484,13 +497,15 @@ internal fun LibraryGameLaunchScreen(
                 }
             }
 
-            if (portraitHero) {
+            if (isNarrowLaunch) {
+                // Portrait/narrow: stack stats above actions, both full width, instead of
+                // squeezing them side by side into a Row that starves the stat chips.
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(contentGap),
                 ) {
-                    statChips(Modifier.fillMaxWidth())
-                    actionBlock(Modifier.fillMaxWidth())
+                    statsContent()
+                    actionContent(Modifier.fillMaxWidth())
                 }
             } else {
                 Row(
@@ -498,8 +513,8 @@ internal fun LibraryGameLaunchScreen(
                     horizontalArrangement = Arrangement.spacedBy(contentGap),
                     verticalAlignment = Alignment.Bottom,
                 ) {
-                    statChips(Modifier.weight(1f))
-                    actionBlock(Modifier.width(actionWidth))
+                    Box(modifier = Modifier.weight(1f)) { statsContent() }
+                    actionContent(Modifier.width(actionWidth))
                 }
             }
         }
@@ -634,7 +649,7 @@ internal fun LaunchDangerConfirmMenu(
         containerColor = LaunchCard,
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
         tonalElevation = 0.dp,
-        shadowElevation = 14.dp,
+        shadowElevation = 0.dp,
     ) {
         Column(
             modifier =
@@ -735,7 +750,7 @@ internal fun LaunchDangerConfirmDialog(
                     shape = RoundedCornerShape(12.dp),
                     color = LaunchCard,
                     border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
-                    shadowElevation = 14.dp,
+                    shadowElevation = 0.dp,
                     tonalElevation = 0.dp,
                 ) {
                     LaunchDangerConfirmContent(
@@ -1005,20 +1020,17 @@ private fun LaunchSourceActionPopup(
         AnimatedVisibility(
             visibleState = transitionState,
             enter =
-                fadeIn(animationSpec = tween(durationMillis = 90)) +
+                fadeIn(animationSpec = snap()) +
                     scaleIn(
                         animationSpec =
-                            spring(
-                                dampingRatio = 0.78f,
-                                stiffness = Spring.StiffnessMediumLow,
-                            ),
+                            snap(),
                         initialScale = 0.88f,
                         transformOrigin = TransformOrigin(1f, 0f),
                     ),
             exit =
-                fadeOut(animationSpec = tween(durationMillis = 80)) +
+                fadeOut(animationSpec = snap()) +
                     scaleOut(
-                        animationSpec = tween(durationMillis = 110),
+                        animationSpec = snap(),
                         targetScale = 0.92f,
                         transformOrigin = TransformOrigin(1f, 0f),
                     ),
@@ -1028,7 +1040,7 @@ private fun LaunchSourceActionPopup(
                 shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f)),
                 tonalElevation = 0.dp,
-                shadowElevation = 16.dp,
+                shadowElevation = 0.dp,
             ) {
                 Column { content() }
             }
@@ -1124,12 +1136,11 @@ private fun GameStatChip(
 private fun LaunchAltEngineToggle(
     label: String,
     checked: Boolean,
-    width: Dp,
+    modifier: Modifier = Modifier,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .width(width)
+        modifier = modifier
             .clip(RoundedCornerShape(14.dp))
             .background(Color.White.copy(alpha = 0.06f))
             .clickable { onCheckedChange(!checked) }
@@ -1165,65 +1176,17 @@ private fun LaunchPlayButton(
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (enabled && isPressed) 0.96f else 1f,
-        animationSpec = spring(dampingRatio = 0.5f, stiffness = 600f),
+        animationSpec = snap(),
         label = "launchPlayScale",
-    )
-    val flare by animateFloatAsState(
-        targetValue = if (enabled && isPressed) 1f else 0f,
-        animationSpec = spring(dampingRatio = 0.6f, stiffness = 500f),
-        label = "launchPlayFlare",
     )
 
     val playShape = remember { RoundedCornerShape(14.dp) }
     // Disabled: drop the clickable entirely so focus skips it and a stray controller A-press can't fire onClick.
-    val backgroundBrush =
-        if (enabled) {
-            Brush.horizontalGradient(
-                colors =
-                    listOf(
-                        Color(0xFF00B4D8).copy(alpha = 0.38f),
-                        LaunchAccent.copy(alpha = 0.38f),
-                        Color(0xFF7B2FF7).copy(alpha = 0.38f),
-                    ),
-            )
-        } else {
-            Brush.horizontalGradient(
-                colors =
-                    listOf(
-                        Color(0xFF3A3F4A).copy(alpha = 0.35f),
-                        Color(0xFF2D313A).copy(alpha = 0.35f),
-                        Color(0xFF3A3F4A).copy(alpha = 0.35f),
-                    ),
-            )
-        }
-    val glassSheenBrush =
-        if (enabled) {
-            Brush.verticalGradient(
-                0.00f to Color.White.copy(alpha = 0.28f),
-                0.35f to Color.White.copy(alpha = 0.06f),
-                0.55f to Color.Transparent,
-                1.00f to Color.Black.copy(alpha = 0.12f),
-            )
-        } else {
-            Brush.verticalGradient(
-                0.0f to Color.White.copy(alpha = 0.10f),
-                0.6f to Color.Transparent,
-                1.0f to Color.Black.copy(alpha = 0.08f),
-            )
-        }
-    val glassRimBrush =
-        if (enabled) {
-            Brush.verticalGradient(
-                0.0f to Color.White.copy(alpha = 0.55f + 0.35f * flare),
-                0.5f to Color.White.copy(alpha = 0.08f + 0.18f * flare),
-                1.0f to Color.White.copy(alpha = 0.22f + 0.22f * flare),
-            )
-        } else {
-            Brush.verticalGradient(
-                0.0f to Color.White.copy(alpha = 0.16f),
-                1.0f to Color.White.copy(alpha = 0.04f),
-            )
-        }
+    // Flat single-color fill and border instead of the previous layered
+    // background/sheen/rim gradients - same enabled/disabled distinction,
+    // no glass-sheen look, no press-driven gradient recompute.
+    val backgroundColor = if (enabled) LaunchAccent else Color(0xFF31353E).copy(alpha = 0.9f)
+    val borderColor = if (enabled) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f)
     val foregroundAlpha = if (enabled) 1f else 0.75f
 
     val baseModifier =
@@ -1234,9 +1197,8 @@ private fun LaunchPlayButton(
                 scaleX = scale
                 scaleY = scale
             }.clip(playShape)
-            .background(backgroundBrush)
-            .background(glassSheenBrush)
-            .border(1.dp, glassRimBrush, playShape)
+            .background(backgroundColor)
+            .border(1.dp, borderColor, playShape)
     val finalModifier =
         if (enabled) {
             baseModifier

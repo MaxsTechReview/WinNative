@@ -62,7 +62,7 @@ fun <T> ListView(
     // Scroll to selected index when changed externally (d-pad)
     LaunchedEffect(selectedIndex) {
         if (selectedIndex in items.indices) {
-            listState.animateScrollToItem(selectedIndex)
+            listState.scrollToItem(selectedIndex)
         }
     }
 

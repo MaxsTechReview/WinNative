@@ -2000,7 +2000,7 @@ class RetroInputView(
                 paint.shader = null
                 paint.style = Paint.Style.STROKE
                 paint.strokeWidth = max(2f, u * 0.22f)
-                paint.color = 0xFF29B6F6.toInt()
+                paint.color = 0xFFFFA940.toInt()
                 paint.pathEffect = DashPathEffect(floatArrayOf(u * 0.9f, u * 0.6f), 0f)
                 canvas.drawRoundRect(
                     rect.left - pad,

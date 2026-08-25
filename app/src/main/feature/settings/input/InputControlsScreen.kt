@@ -2,9 +2,8 @@
 
 package com.winlator.cmod.feature.settings
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -130,10 +129,10 @@ private val InputSubcard = Color(0xFF161622)
 private val InputField = Color(0xFF14141E)
 private val InputOutline = Color(0xFF2A2A3A)
 private val InputIconBox = Color(0xFF242434)
-private val InputAccent = Color(0xFF1A9FFF)
-private val InputNavHighlight = Color(0xFF4FC3F7)
-private val InputTextPrimary = Color(0xFFF0F4FF)
-private val InputTextSecondary = Color(0xFF7A8FA8)
+private val InputAccent = Color(0xFFFF7A00)
+private val InputNavHighlight = Color(0xFFFFB74D)
+private val InputTextPrimary = Color(0xFFF5F0EA)
+private val InputTextSecondary = Color(0xFFAD9782)
 private val InputDanger = Color(0xFFFF7A88)
 private val InputTickHidden = Color.Transparent
 
@@ -1376,7 +1375,7 @@ private fun ProfileCard(
     val selectorPressed by selectionInteraction.collectIsPressedAsState()
     val selectorTint by animateFloatAsState(
         targetValue = if (selectorPressed) 1f else 0f,
-        animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing),
+        animationSpec = snap(),
         label = "profileSelectorPressed",
     )
 
@@ -1786,7 +1785,7 @@ private fun Subcard(
 ) {
     val chevronRotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
-        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+        animationSpec = snap(),
         label = "subcardChevronRotation",
     )
     val borderColor = if (expanded) InputAccent.copy(alpha = 0.45f) else InputOutline
@@ -1833,15 +1832,15 @@ private fun Subcard(
         AnimatedVisibility(
             visible = expanded,
             enter =
-                fadeIn(tween(110)) +
+                fadeIn(snap()) +
                     expandVertically(
-                        animationSpec = tween(durationMillis = 170, easing = FastOutSlowInEasing),
+                        animationSpec = snap(),
                         expandFrom = Alignment.Top,
                     ),
             exit =
-                fadeOut(tween(90)) +
+                fadeOut(snap()) +
                     shrinkVertically(
-                        animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
+                        animationSpec = snap(),
                         shrinkTowards = Alignment.Top,
                     ),
         ) {
@@ -2124,7 +2123,7 @@ private fun GestureProfileCard(
     val selectorPressed by selectionInteraction.collectIsPressedAsState()
     val selectorTint by animateFloatAsState(
         targetValue = if (selectorPressed) 1f else 0f,
-        animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing),
+        animationSpec = snap(),
         label = "gestureSelectorPressed",
     )
 

@@ -28,7 +28,6 @@ public class ContentsManager {
   public static final String REMOTE_PROFILES =
       "https://raw.githubusercontent.com/nicholasx417/WinNative-Components/refs/heads/main/contents.json";
   private static final long EXTRACTION_PROGRESS_INTERVAL_MS = 120L;
-  private static final String REMOTE_ALIAS_PREFIX = "remote_profile_alias_";
   public static final String[] DXVK_TRUST_FILES = {
     "${system32}/d3d8.dll",
     "${system32}/d3d9.dll",
@@ -648,20 +647,7 @@ public class ContentsManager {
 
   public void removeContent(ContentProfile profile) {
     FileUtils.delete(getInstallDir(context, profile));
-    forgetRemoteProfileAliases(profile);
     syncContents();
-  }
-
-  private void forgetRemoteProfileAliases(ContentProfile profile) {
-    String profileKey = getProfileKey(profile);
-    SharedPreferences.Editor editor = preferences.edit();
-    for (Map.Entry<String, ?> entry : preferences.getAll().entrySet()) {
-      if (entry.getKey().startsWith(REMOTE_ALIAS_PREFIX)
-          && profileKey.equals(entry.getValue())) {
-        editor.remove(entry.getKey());
-      }
-    }
-    editor.apply();
   }
 
   public static String getEntryName(ContentProfile profile) {
@@ -694,31 +680,11 @@ public class ContentsManager {
     if (remoteProfile.isOfficial) {
       localProfile.isOfficial = true;
     }
-    if (remoteProfile.isInstalled) {
-      localProfile.isInstalled = true;
-    }
+    localProfile.isInstalled = true;
   }
 
   public boolean isRemoteUrlInstalled(String remoteUrl) {
-    String profileKey = getRemoteProfileAlias(remoteUrl);
-    if (profileKey == null) return false;
-    if (isProfileKeyInstalled(profileKey)) return true;
-    preferences.edit().remove(getRemoteAliasPreferenceKey(remoteUrl)).apply();
-    return false;
-  }
-
-  private boolean isProfileKeyInstalled(String profileKey) {
-    int firstSeparator = profileKey.indexOf('|');
-    int lastSeparator = profileKey.lastIndexOf('|');
-    if (firstSeparator < 0 || firstSeparator == lastSeparator) return false;
-
-    ContentProfile.ContentType type =
-        ContentProfile.ContentType.getTypeByName(profileKey.substring(0, firstSeparator));
-    if (type == null) return false;
-
-    String verName = profileKey.substring(firstSeparator + 1, lastSeparator);
-    String verCode = profileKey.substring(lastSeparator + 1);
-    return new File(getContentTypeDir(context, type), verName + "-" + verCode).exists();
+    return getRemoteProfileAlias(remoteUrl) != null;
   }
 
   private String getRemoteProfileAlias(String remoteUrl) {
@@ -729,7 +695,7 @@ public class ContentsManager {
   }
 
   private String getRemoteAliasPreferenceKey(String remoteUrl) {
-    return REMOTE_ALIAS_PREFIX + remoteUrl;
+    return "remote_profile_alias_" + remoteUrl;
   }
 
   private ContentProfile createInstalledFallbackProfile(

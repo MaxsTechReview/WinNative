@@ -5,7 +5,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -113,9 +113,9 @@ import kotlinx.coroutines.withContext
 private val PageBg = Color(0xFF12121B)
 private val SurfaceDark = Color(0xFF1C1C2A)
 private val CardBorder = Color(0xFF2A2A3A)
-private val Accent = Color(0xFF1A9FFF)
-private val TextPrimary = Color(0xFFF0F4FF)
-private val TextSecondary = Color(0xFF7A8FA8)
+private val Accent = Color(0xFFFF7A00)
+private val TextPrimary = Color(0xFFF5F0EA)
+private val TextSecondary = Color(0xFFAD9782)
 private val CloudPanel = Color(0xFF1C1C2A)
 private val CloudPanelRaised = Color(0xFF232334)
 private val CloudBorder = Color(0xFF2A2A3A)
@@ -1704,7 +1704,7 @@ private fun ActionWithHelper(
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = spring(dampingRatio = 0.7f, stiffness = 700f),
+        animationSpec = snap(),
         label = "cloudActionScale",
     )
     Surface(

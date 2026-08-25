@@ -1,8 +1,7 @@
 package com.winlator.cmod.feature.settings
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -101,12 +100,12 @@ private val CardDark = Color(0xFF1C1C2A)
 private val CardDarker = Color(0xFF15151E)
 private val CardBorder = Color(0xFF2A2A3A)
 private val IconBoxBg = Color(0xFF242434)
-private val Accent = Color(0xFF1A9FFF)
-private val NavHighlight = Color(0xFF4FC3F7)
+private val Accent = Color(0xFFFF7A00)
+private val NavHighlight = Color(0xFFFFB74D)
 private val SuccessGreen = Color(0xFF5BD68F)
 private val DangerRed = Color(0xFFFF7A88)
 private val TextPrimary = Color(0xFFD6DAE0)
-private val TextSecondary = Color(0xFF7A8FA8)
+private val TextSecondary = Color(0xFFAD9782)
 
 @Composable
 private fun Modifier.noRippleClickable(
@@ -694,7 +693,7 @@ private fun RepoCard(
     val borderColor = if (isExpanded) Accent.copy(alpha = 0.45f) else CardBorder
     val chevronRotation by animateFloatAsState(
         targetValue = if (isExpanded) 90f else 0f,
-        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+        animationSpec = snap(),
         label = "repoChevron_${source.apiUrl}",
     )
     var menuOpen by remember { mutableStateOf(false) }
@@ -812,14 +811,14 @@ private fun RepoCard(
             AnimatedVisibility(
                 visible = isExpanded,
                 enter =
-                    fadeIn(tween(200)) +
+                    fadeIn(snap()) +
                         expandVertically(
-                            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                            animationSpec = snap(),
                         ),
                 exit =
-                    fadeOut(tween(140)) +
+                    fadeOut(snap()) +
                         shrinkVertically(
-                            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                            animationSpec = snap(),
                         ),
             ) {
                 Column(
@@ -902,7 +901,7 @@ private fun ReleaseCard(
     val borderColor = if (expanded) Accent.copy(alpha = 0.45f) else CardBorder
     val chevronRotation by animateFloatAsState(
         targetValue = if (expanded) 90f else 0f,
-        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+        animationSpec = snap(),
         label = "releaseChevron_${release.id}",
     )
     Box(
@@ -968,14 +967,14 @@ private fun ReleaseCard(
             AnimatedVisibility(
                 visible = expanded,
                 enter =
-                    fadeIn(tween(200)) +
+                    fadeIn(snap()) +
                         expandVertically(
-                            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                            animationSpec = snap(),
                         ),
                 exit =
-                    fadeOut(tween(140)) +
+                    fadeOut(snap()) +
                         shrinkVertically(
-                            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                            animationSpec = snap(),
                         ),
             ) {
                 Column(

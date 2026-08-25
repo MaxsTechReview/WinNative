@@ -2,13 +2,13 @@ package com.winlator.cmod.feature.retro
 
 import android.view.KeyEvent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -237,7 +237,7 @@ val RetroColorPalette: List<Int> =
     listOf(
         0xFFFFFFFF, 0xFFB0B4BC, 0xFF6B7280, 0xFF2A2A30, 0xFF000000,
         0xFFE53935, 0xFFFF7043, 0xFFFFB300, 0xFFFFF176, 0xFF7CB342,
-        0xFF2F9E44, 0xFF26A69A, 0xFF29B6F6, 0xFF2E63C9, 0xFF5E35B1,
+        0xFF2F9E44, 0xFF26A69A, 0xFFFFA940, 0xFF2E63C9, 0xFF5E35B1,
         0xFF8E24AA, 0xFFD81B60, 0xFF8D6E63,
     ).map { it.toInt() }
 
@@ -464,7 +464,7 @@ fun RetroDrawerMenu(controller: RetroMenuController) {
         val closedOffset = -(DrawerWidth + DrawerStartPadding + 8.dp)
         val sheetOffset by animateDpAsState(
             targetValue = if (controller.visible) 0.dp else closedOffset,
-            animationSpec = tween(durationMillis = 200, easing = LinearEasing),
+            animationSpec = snap(),
             label = "retroDrawerOffset",
         )
         if (sheetOffset > closedOffset) {
@@ -609,7 +609,7 @@ private fun RetroRailTile(
     val pressed = interactionSource.collectIsPressedAsState().value
     val scale by animateFloatAsState(
         targetValue = if (pressed) 0.94f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+        animationSpec = snap(),
         label = "retroTileScale",
     )
     val bgColor by animateColorAsState(
@@ -619,12 +619,12 @@ private fun RetroRailTile(
                 pressed && !selected -> PaneSurfacePressed
                 else -> Color.Transparent
             },
-        animationSpec = tween(120),
+        animationSpec = snap(),
         label = "retroTileBg",
     )
     val tint by animateColorAsState(
         targetValue = if (selected) DrawerAccent else DrawerTextPrimary,
-        animationSpec = tween(120),
+        animationSpec = snap(),
         label = "retroTileTint",
     )
     val cornerRadius = (12f * paneScale).dp
@@ -732,7 +732,7 @@ private fun RetroActionCard(
     val pressed = interactionSource.collectIsPressedAsState().value
     val scale by animateFloatAsState(
         targetValue = if (pressed) 0.96f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+        animationSpec = snap(),
         label = "retroCardScale",
     )
     val bgColor by animateColorAsState(
@@ -742,12 +742,12 @@ private fun RetroActionCard(
                 pressed -> PaneInnerPressed
                 else -> PaneInnerResting
             },
-        animationSpec = tween(120),
+        animationSpec = snap(),
         label = "retroCardBg",
     )
     val borderColor by animateColorAsState(
         targetValue = if (entry.active) ActiveCardBorder else RestingCardBorder,
-        animationSpec = tween(120),
+        animationSpec = snap(),
         label = "retroCardBorder",
     )
     val tint =
@@ -1012,12 +1012,12 @@ private fun RetroRowShell(
                 pressed -> PaneInnerPressed
                 else -> PaneInnerResting
             },
-        animationSpec = tween(140),
+        animationSpec = snap(),
         label = "retroRowBg",
     )
     val borderColor by animateColorAsState(
         targetValue = if (activeBorder) ActiveCardBorder else RestingCardBorder,
-        animationSpec = tween(140),
+        animationSpec = snap(),
         label = "retroRowBorder",
     )
     val cornerRadius = (14f * paneScale).dp
@@ -1352,12 +1352,12 @@ private fun RetroHudChip(
                 pressed -> PaneInnerPressed
                 else -> PaneInnerResting
             },
-        animationSpec = tween(140),
+        animationSpec = snap(),
         label = "retroChipBg",
     )
     val borderColor by animateColorAsState(
         targetValue = if (checked) DrawerAccent else RestingCardBorder,
-        animationSpec = tween(140),
+        animationSpec = snap(),
         label = "retroChipBorder",
     )
     val cornerRadius = (12f * paneScale).dp
@@ -1757,7 +1757,7 @@ private fun RetroColorRow(
                 fontSize = (16f * paneScale).sp,
             )
         }
-        AnimatedVisibility(visible = expanded) {
+        AnimatedVisibility(visible = expanded, enter = EnterTransition.None, exit = ExitTransition.None) {
             FlowRow(
                 modifier =
                     Modifier
@@ -1923,7 +1923,7 @@ private fun RetroBottomActionButton(
                 pressed -> PaneSurfacePressed
                 else -> PaneInnerResting
             },
-        animationSpec = tween(120),
+        animationSpec = snap(),
         label = "retroBottomBg",
     )
     val borderColor =

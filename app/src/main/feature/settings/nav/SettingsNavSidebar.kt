@@ -1,7 +1,7 @@
 package com.winlator.cmod.feature.settings
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -37,7 +37,6 @@ import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material.icons.outlined.SportsEsports
@@ -53,7 +52,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.CornerRadius
@@ -76,18 +74,18 @@ import com.winlator.cmod.shared.ui.widget.chasingBorder
 
 // ─── Palette ────────────────────────────────────────────────────────
 
-private val SidebarBgTop = Color(0xFF171E2E)
-private val SidebarBgBot = Color(0xFF11161F)
-private val SectionLabelClr = Color(0xFF3D4F65)
-private val HeaderTextClr = Color(0xFF58708C)
-private val TextNormal = Color(0xFF7A8FA8)
-private val TextSelected = Color(0xFFF0F4FF)
-private val IconMuted = Color(0xFF4A7A8F)
-private val SelectedBg = Color(0xFF131D2F)
-private val DividerColor = Color(0xFF212C3F)
+private val SidebarBgTop = Color(0xFF1E1712)
+private val SidebarBgBot = Color(0xFF141414)
+private val SectionLabelClr = Color(0xFF6B5A47)
+private val HeaderTextClr = Color(0xFF8F7862)
+private val TextNormal = Color(0xFFAD9782)
+private val TextSelected = Color(0xFFF5F0EA)
+private val IconMuted = Color(0xFF8F6A46)
+private val SelectedBg = Color(0xFF241C15)
+private val DividerColor = Color(0xFF2E2117)
 
-private val AccentSelected = Color(0xFF4FC3F7)
-private val AccentPressed = Color(0xFF8BDEFF)
+private val AccentSelected = Color(0xFFFFB74D)
+private val AccentPressed = Color(0xFFFFCC80)
 
 private val InterFamily = FontFamily(Font(R.font.inter_medium, FontWeight.Medium))
 
@@ -136,8 +134,11 @@ fun SettingsNavSidebar(
     onItemSelected: (SettingsNavItem) -> Unit,
     onBackPressed: () -> Unit,
     bordersPaused: Boolean = false,
-    sidebarWidth: Dp = 220.dp,
-    showHeader: Boolean = true,
+    // Fixed 220dp rail width for the normal side-by-side (landscape/tablet) layout.
+    // Callers presenting this as a full-screen list on narrow/portrait widths pass
+    // Modifier.fillMaxWidth() instead so it isn't squeezed into a thin column.
+    columnWidthModifier: Modifier = Modifier.width(220.dp),
+    showEdgeDivider: Boolean = true,
 ) {
     val layoutDirection = LocalLayoutDirection.current
     val navBarPadding = WindowInsets.navigationBars.asPaddingValues()
@@ -167,7 +168,7 @@ fun SettingsNavSidebar(
             visible != null &&
                 visible.offset >= info.viewportStartOffset &&
                 visible.offset + visible.size <= info.viewportEndOffset
-        if (!fullyVisible) runCatching { listState.animateScrollToItem(selectedLazyIndex) }
+        if (!fullyVisible) runCatching { listState.scrollToItem(selectedLazyIndex) }
     }
 
     Row(
@@ -178,16 +179,12 @@ fun SettingsNavSidebar(
     ) {
         Column(
             modifier =
-                Modifier
-                    .width(sidebarWidth)
+                columnWidthModifier
                     .fillMaxHeight()
                     .background(Brush.verticalGradient(listOf(SidebarBgTop, SidebarBgBot))),
         ) {
-            if (showHeader) {
-                SidebarHeader(onBackPressed)
-            } else {
-                Spacer(Modifier.height(12.dp))
-            }
+            // Header
+            SidebarHeader(onBackPressed)
 
             // Scrollable nav items
             LazyColumn(
@@ -230,82 +227,16 @@ fun SettingsNavSidebar(
             }
         }
 
-        // Right-edge divider
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxHeight()
-                    .width(1.dp)
-                    .background(DividerColor),
-        )
-    }
-}
-
-@Composable
-fun SettingsPortraitTopBar(
-    title: String,
-    onBackPressed: () -> Unit,
-    onOpenSections: () -> Unit,
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .background(Brush.verticalGradient(listOf(SidebarBgTop, SidebarBgBot)))
-                .padding(start = 6.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable(onClick = onBackPressed),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                contentDescription = stringResource(R.string.common_ui_back),
-                tint = AccentSelected,
-                modifier = Modifier.size(22.dp),
+        // Right-edge divider — omitted when the sidebar is presented full-width as its
+        // own screen (narrow/portrait master list), since there's no content pane beside it.
+        if (showEdgeDivider) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxHeight()
+                        .width(1.dp)
+                        .background(DividerColor),
             )
-        }
-        Text(
-            text = title,
-            color = TextSelected,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            fontFamily = InterFamily,
-            maxLines = 1,
-            modifier = Modifier.weight(1f).padding(start = 6.dp, end = 6.dp),
-        )
-        Box(
-            modifier =
-                Modifier
-                    .height(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(SelectedBg)
-                    .clickable(onClick = onOpenSections)
-                    .padding(horizontal = 12.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Outlined.Menu,
-                    contentDescription = stringResource(R.string.common_ui_settings),
-                    tint = AccentSelected,
-                    modifier = Modifier.size(20.dp),
-                )
-                Text(
-                    text = stringResource(R.string.common_ui_settings).uppercase(),
-                    color = AccentSelected,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = InterFamily,
-                    letterSpacing = 1.sp,
-                    modifier = Modifier.padding(start = 8.dp),
-                )
-            }
         }
     }
 }
@@ -318,7 +249,7 @@ private fun SidebarHeader(onBackPressed: () -> Unit) {
     val isPressed by interactionSource.collectIsPressedAsState()
     val arrowTint by animateColorAsState(
         targetValue = if (isPressed) AccentPressed else AccentSelected,
-        animationSpec = tween(120),
+        animationSpec = snap(),
         label = "sidebarHeaderArrowTint",
     )
 
@@ -387,12 +318,12 @@ private fun NavItemRow(
 
     val iconTint by animateColorAsState(
         targetValue = if (isSelected) AccentSelected else IconMuted,
-        animationSpec = tween(280),
+        animationSpec = snap(),
         label = "iconTint",
     )
     val textColor by animateColorAsState(
         targetValue = if (isSelected) TextSelected else TextNormal,
-        animationSpec = tween(280),
+        animationSpec = snap(),
         label = "textColor",
     )
     val showFill = isSelected && railActive
@@ -403,7 +334,7 @@ private fun NavItemRow(
                 isHovered -> 0.5f
                 else -> 0f
             },
-        animationSpec = tween(200),
+        animationSpec = snap(),
         label = "bgAlpha",
     )
 

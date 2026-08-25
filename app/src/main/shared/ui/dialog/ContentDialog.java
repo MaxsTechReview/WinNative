@@ -61,6 +61,27 @@ public class ContentDialog extends Dialog {
       this.getContext().setTheme(R.style.ContentDialog_Dark);
     }
 
+    // TVMessage/ListView have fixed 300dp/340dp widths in content_dialog.xml, which can exceed
+    // the usable width on narrow portrait screens (e.g. sw360dp devices). Clamp them to fit.
+    {
+      DisplayMetrics dm = context.getResources().getDisplayMetrics();
+      int maxContentWidthPx = dm.widthPixels - (int) (48 * dm.density);
+      if (maxContentWidthPx > 0) {
+        TextView tvMessage = contentView.findViewById(R.id.TVMessage);
+        ViewGroup.LayoutParams msgLp = tvMessage.getLayoutParams();
+        if (msgLp.width > maxContentWidthPx) {
+          msgLp.width = maxContentWidthPx;
+          tvMessage.setLayoutParams(msgLp);
+        }
+        ListView contentListView = contentView.findViewById(R.id.ListView);
+        ViewGroup.LayoutParams listLp = contentListView.getLayoutParams();
+        if (listLp.width > maxContentWidthPx) {
+          listLp.width = maxContentWidthPx;
+          contentListView.setLayoutParams(listLp);
+        }
+      }
+    }
+
     if (layoutResId > 0) {
       FrameLayout frameLayout = contentView.findViewById(R.id.FrameLayout);
       frameLayout.setVisibility(View.VISIBLE);

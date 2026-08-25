@@ -14,12 +14,10 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -762,12 +760,12 @@ internal fun HUDToggleChip(
                 pressed -> PaneInnerPressed
                 else -> PaneInnerResting
             },
-        animationSpec = tween(140),
+        animationSpec = snap(),
         label = "hudChipBg",
     )
     val borderColor by animateColorAsState(
         targetValue = if (checked) DrawerAccent else RestingCardBorder,
-        animationSpec = tween(140),
+        animationSpec = snap(),
         label = "hudChipBorder",
     )
     val cornerRadius = (12f * paneScale).dp

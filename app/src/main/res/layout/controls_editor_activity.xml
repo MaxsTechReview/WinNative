@@ -6,74 +6,82 @@
     android:layout_height="match_parent"
     android:background="@color/control_editor_background">
 
-    <LinearLayout
-        android:id="@+id/LLToolbar"
-        android:clickable="true"
-        android:layout_width="wrap_content"
+    <HorizontalScrollView
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
         android:layout_gravity="center_horizontal"
         android:layout_marginTop="12dp"
-        android:background="@drawable/input_controls_toolbar"
-        android:gravity="center_vertical"
-        android:padding="6dp">
+        android:scrollbars="none"
+        android:overScrollMode="ifContentScrolls">
 
         <LinearLayout
+            android:id="@+id/LLToolbar"
+            android:clickable="true"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingLeft="10dp"
-            android:paddingRight="10dp">
+            android:layout_gravity="center_horizontal"
+            android:orientation="horizontal"
+            android:background="@drawable/input_controls_toolbar"
+            android:gravity="center_vertical"
+            android:padding="6dp">
 
-            <TextView
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textStyle="bold"
-                android:textSize="11sp"
-                android:textColor="@color/settings_text_secondary"
-                android:textAllCaps="true"
-                android:letterSpacing="0.04"
-                android:text="@string/common_ui_profile" />
+                android:orientation="vertical"
+                android:paddingLeft="10dp"
+                android:paddingRight="10dp">
 
-            <TextView
-                android:id="@+id/TVProfileName"
-                android:layout_width="wrap_content"
-                android:textColor="@color/settings_accent"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:layout_height="wrap_content" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textStyle="bold"
+                    android:textSize="11sp"
+                    android:textColor="@color/settings_text_secondary"
+                    android:textAllCaps="true"
+                    android:letterSpacing="0.04"
+                    android:text="@string/common_ui_profile" />
+
+                <TextView
+                    android:id="@+id/TVProfileName"
+                    android:layout_width="wrap_content"
+                    android:textColor="@color/settings_accent"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <View style="@style/VerticalLine.Dark" />
+
+            <ImageButton
+                android:id="@+id/BTAddElement"
+                style="@style/ToolButton.Dark"
+                android:src="@drawable/icon_add"  />
+
+            <ImageButton
+                android:id="@+id/BTRemoveElement"
+                style="@style/ToolButton.Dark"
+                android:src="@drawable/icon_remove"  />
+
+            <ImageButton
+                android:id="@+id/BTElementSettings"
+                style="@style/ToolButton.Dark"
+                android:src="@drawable/icon_settings"  />
+
+            <ImageButton
+                android:id="@+id/BTColorPicker"
+                style="@style/ToolButton.Dark"
+                android:src="@drawable/pickercolorcontrol"  />
+
+            <ImageButton
+                android:id="@+id/BTAccentTheme"
+                style="@style/ToolButton.Dark"
+                android:src="@drawable/pickerthemecontrol"  />
+
+            <ImageButton
+                android:id="@+id/BTVisualStyle"
+                style="@style/ToolButton.Dark"
+                android:src="@drawable/icon_style"  />
         </LinearLayout>
-
-        <View style="@style/VerticalLine.Dark" />
-
-        <ImageButton
-            android:id="@+id/BTAddElement"
-            style="@style/ToolButton.Dark"
-            android:src="@drawable/icon_add"  />
-
-        <ImageButton
-            android:id="@+id/BTRemoveElement"
-            style="@style/ToolButton.Dark"
-            android:src="@drawable/icon_remove"  />
-
-        <ImageButton
-            android:id="@+id/BTElementSettings"
-            style="@style/ToolButton.Dark"
-            android:src="@drawable/icon_settings"  />
-
-        <ImageButton
-            android:id="@+id/BTColorPicker"
-            style="@style/ToolButton.Dark"
-            android:src="@drawable/pickercolorcontrol"  />
-
-        <ImageButton
-            android:id="@+id/BTAccentTheme"
-            style="@style/ToolButton.Dark"
-            android:src="@drawable/pickerthemecontrol"  />
-
-        <ImageButton
-            android:id="@+id/BTVisualStyle"
-            style="@style/ToolButton.Dark"
-            android:src="@drawable/icon_style"  />
-    </LinearLayout>
+    </HorizontalScrollView>
 </FrameLayout>

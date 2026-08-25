@@ -9,7 +9,7 @@ import android.view.Window
 import android.view.WindowManager
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -80,16 +80,16 @@ class ContainerProgressPopup(
                     ) {
                         AnimatedVisibility(
                             visible = visible.value,
-                            enter = fadeIn(tween(180)) +
-                                scaleIn(tween(180), initialScale = 0.9f),
-                            exit = fadeOut(tween(120)) +
-                                scaleOut(tween(120), targetScale = 0.9f),
+                            enter = fadeIn(snap()) +
+                                scaleIn(snap(), initialScale = 0.9f),
+                            exit = fadeOut(snap()) +
+                                scaleOut(snap(), targetScale = 0.9f),
                         ) {
                             PopupDialog(
                                 title = stringResource(titleRes),
                                 icon = Icons.Outlined.Info,
                                 progress = progress.value,
-                                accentColor = Color(0xFF1A9FFF),
+                                accentColor = Color(0xFFFF7A00),
                                 modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
                             )
                         }

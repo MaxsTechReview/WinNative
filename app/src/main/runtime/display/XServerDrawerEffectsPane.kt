@@ -14,12 +14,10 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -214,14 +212,14 @@ internal fun ScreenEffectsPaneContent(
                         visible = state.sgsrEnabled,
                         enter =
                             expandVertically(
-                                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                                animationSpec = snap(),
                                 expandFrom = Alignment.Top,
-                            ) + fadeIn(animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing)),
+                            ) + fadeIn(animationSpec = snap()),
                         exit =
                             shrinkVertically(
-                                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                                animationSpec = snap(),
                                 shrinkTowards = Alignment.Top,
-                            ) + fadeOut(animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)),
+                            ) + fadeOut(animationSpec = snap()),
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                             NavSliderRow(

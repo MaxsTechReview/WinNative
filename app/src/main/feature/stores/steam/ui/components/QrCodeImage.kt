@@ -2,6 +2,7 @@ package com.winlator.cmod.feature.stores.steam.ui.components
 
 import android.graphics.Bitmap
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -44,6 +45,7 @@ fun QrCodeImage(
     Crossfade(
         modifier = Modifier,
         targetState = qrBitmap,
+        animationSpec = snap(),
     ) { bitmap ->
         Box(
             modifier =

@@ -38,7 +38,6 @@ import com.winlator.cmod.runtime.input.ui.InputControlsView;
 import com.winlator.cmod.shared.android.AppUtils;
 import com.winlator.cmod.shared.ui.toast.WinToast;
 import com.winlator.cmod.shared.android.FixedFontScaleAppCompatActivity;
-import com.winlator.cmod.shared.android.LandscapeOnlyActivity;
 import com.winlator.cmod.shared.io.FileUtils;
 import com.winlator.cmod.shared.math.Mathf;
 import com.winlator.cmod.shared.ui.widget.NumberPicker;
@@ -47,8 +46,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 
-public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity
-    implements View.OnClickListener, LandscapeOnlyActivity {
+public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity implements View.OnClickListener {
   private InputControlsView inputControlsView;
   private ControlsProfile profile;
   private boolean blockingUpdate = false;
@@ -98,7 +96,7 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity
               public void handleOnBackPressed() {
                 finish();
                 AppUtils.applyCloseActivityTransition(
-                    ControlsEditorActivity.this, R.anim.slide_in_down, R.anim.slide_out_up);
+                    ControlsEditorActivity.this, R.anim.no_animation, R.anim.no_animation);
               }
             });
   }

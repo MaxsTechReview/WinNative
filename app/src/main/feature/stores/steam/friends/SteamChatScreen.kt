@@ -85,10 +85,10 @@ private val WsBg = Color(0xFF12121B)
 private val CardBorder = Color(0xFF2A2A3A)
 private val BgDark = Color(0xFF171722)
 private val SurfaceDark = Color(0xFF1B1B27)
-private val Accent = Color(0xFF1A9FFF)
-private val AccentGlow = Color(0xFF58A6FF)
-private val TextPrimary = Color(0xFFF0F4FF)
-private val TextSecondary = Color(0xFF93A6BC)
+private val Accent = Color(0xFFFF7A00)
+private val AccentGlow = Color(0xFFFFB74D)
+private val TextPrimary = Color(0xFFF5F0EA)
+private val TextSecondary = Color(0xFFC7A88F)
 
 private val IMG_BBCODE = Regex("""\[img](.+?)\[/img]""", RegexOption.IGNORE_CASE)
 // Steam delivers chat images as [img src=URL] or as a bare UGC URL.
@@ -143,7 +143,7 @@ fun SteamChatScreen(
                 val url = SteamService.instance?.sendChatImage(friend.steamId, bytes, "image.$ext")
                 if (url.isNullOrBlank()) {
                     messages.add(SteamChatMessage(fromSelf = true, text = context.getString(R.string.steam_chat_image_failed), timestamp = 0))
-                    listState.animateScrollToItem(messages.size - 1)
+                    listState.scrollToItem(messages.size - 1)
                 }
                 uploading = false
             }
@@ -172,7 +172,7 @@ fun SteamChatScreen(
                 messages[optIdx] = m
             } else {
                 messages.add(m)
-                listState.animateScrollToItem(messages.size - 1)
+                listState.scrollToItem(messages.size - 1)
             }
         }
     }
@@ -188,7 +188,7 @@ fun SteamChatScreen(
         val optimistic = SteamChatMessage(fromSelf = true, text = text, timestamp = 0, ordinal = 0)
         messages.add(optimistic)
         scope.launch {
-            listState.animateScrollToItem(messages.size - 1)
+            listState.scrollToItem(messages.size - 1)
             val ok = SteamService.instance?.sendChatMessage(friend.steamId, text) ?: false
             if (!ok) {
                 val idx = messages.indexOf(optimistic)

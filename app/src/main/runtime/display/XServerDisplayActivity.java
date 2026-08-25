@@ -141,7 +141,6 @@ import com.winlator.cmod.runtime.display.ui.MagnifierView;
 import com.winlator.cmod.runtime.display.ui.MangoHudView;
 import com.winlator.cmod.runtime.display.ui.XServerSurfaceView;
 import com.winlator.cmod.shared.android.FixedFontScaleAppCompatActivity;
-import com.winlator.cmod.shared.android.SelfManagedOrientationActivity;
 import com.winlator.cmod.runtime.input.ui.InputControlsView;
 import com.winlator.cmod.runtime.input.ui.TouchpadView;
 import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags;
@@ -198,8 +197,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import cn.sherlock.com.sun.media.sound.SF2Soundbank;
 import static com.winlator.cmod.runtime.display.XServerDisplayUtils.*;
 
-public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
-        implements SelfManagedOrientationActivity {
+public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private static final long STEAM_TERMINATION_GRACE_MS = 10000L;
     private static final long STEAM_TERMINATION_POLL_MS = 1000L;
     private static final long STEAM_PROCESS_RESPONSE_TIMEOUT_MS = 2000L;
@@ -562,6 +560,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
     private final AtomicBoolean steamStateSanitizedForClose = new AtomicBoolean(false);
     private final AtomicBoolean sessionCleanupStarted = new AtomicBoolean(false);
     private final AtomicBoolean switchLaunchInProgress = new AtomicBoolean(false);
+    private final AtomicBoolean rotateScreenInProgress = new AtomicBoolean(false);
     private final AtomicBoolean winHandlerStopped = new AtomicBoolean(false);
 
     private SessionRecordingController perfController;
@@ -1134,6 +1133,74 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 recreate();
             });
         }, "XServerSwitchCleanup").start();
+    }
+
+    // Swaps the configured screen width/height (e.g. 1280x720 <-> 720x1280) and restarts the
+    // guest session with the rotated resolution. The X server / Wine desktop are sized once at
+    // session start (see targetPortrait handling above), so a genuine live in-place resize of the
+    // running desktop isn't supported -- rotating goes through the same forced-cleanup + recreate
+    // path used when switching launch targets, which is the proven-safe way this app already
+    // tears down and reboots a session.
+    private void rotateScreenOrientation() {
+        if (!rotateScreenInProgress.compareAndSet(false, true)) {
+            Log.d("XServerDisplayActivity", "Screen rotate already in progress; ignoring duplicate request");
+            return;
+        }
+
+        String baseScreenSize = (sgsrBaseScreenSize != null && !sgsrBaseScreenSize.isEmpty())
+                ? sgsrBaseScreenSize
+                : (xServer != null ? xServer.screenInfo.toString() : Container.DEFAULT_SCREEN_SIZE);
+
+        String[] parts = baseScreenSize != null ? baseScreenSize.split("x") : null;
+        if (parts == null || parts.length != 2) {
+            Log.w("XServerDisplayActivity", "Cannot rotate screen: invalid screenSize '" + baseScreenSize + "'");
+            rotateScreenInProgress.set(false);
+            return;
+        }
+
+        String rotatedScreenSize;
+        try {
+            int w = Integer.parseInt(parts[0].trim());
+            int h = Integer.parseInt(parts[1].trim());
+            rotatedScreenSize = h + "x" + w;
+        } catch (NumberFormatException e) {
+            Log.w("XServerDisplayActivity", "Cannot rotate screen: failed to parse '" + baseScreenSize + "'", e);
+            rotateScreenInProgress.set(false);
+            return;
+        }
+
+        Log.i("XServerDisplayActivity", "Rotating screen: '" + baseScreenSize + "' -> '" + rotatedScreenSize + "'");
+
+        if (shortcut != null) {
+            shortcut.putExtra("screenSize", rotatedScreenSize);
+            shortcut.saveData();
+        } else if (container != null) {
+            container.setScreenSize(rotatedScreenSize);
+            container.saveData();
+        }
+
+        closeDrawerMenu();
+        exitRequested.set(true);
+        if (preloaderDialog != null) {
+            preloaderDialog.showOnUiThread(getString(R.string.preloader_initializing));
+        }
+
+        Intent relaunchIntent = new Intent(getIntent());
+        relaunchIntent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
+
+        new Thread(() -> {
+            performForcedSessionCleanup("rotate screen");
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    Log.w("XServerDisplayActivity", "Rotate-screen cleanup finished after activity was destroyed");
+                    rotateScreenInProgress.set(false);
+                    return;
+                }
+                setIntent(relaunchIntent);
+                recreate();
+                rotateScreenInProgress.set(false);
+            });
+        }, "XServerRotateScreenCleanup").start();
     }
 
     @Override
@@ -5736,6 +5803,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 touchpadView.toggleFullscreen();
                 renderDrawerMenu();
                 break;
+            case R.id.main_menu_rotate_screen:
+                rotateScreenOrientation();
+                break;
             case R.id.main_menu_refactor_size:
                 isRefactorSizeEnabled = !isRefactorSizeEnabled;
                 applyRefactorSize(isRefactorSizeEnabled);
@@ -6088,6 +6158,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
             case R.id.main_menu_disable_mouse:
             case R.id.main_menu_toggle_fullscreen:
             case R.id.main_menu_magnifier:
+            case R.id.main_menu_rotate_screen:
                 return true;
             default:
                 return false;

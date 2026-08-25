@@ -4,8 +4,7 @@ import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -137,13 +136,13 @@ private val BgDark = Color(0xFF11111C)
 private val CardDark = Color(0xFF1C1C2A)
 private val CardBorder = Color(0xFF2A2A3A)
 private val IconBoxBg = Color(0xFF242434)
-private val SurfaceDark = Color(0xFF21212A)
-private val Accent = Color(0xFF1A9FFF)
-private val NavHighlight = Color(0xFF4FC3F7)
+private val SurfaceDark = Color(0xFF1E1712)
+private val Accent = Color(0xFFFF7A00)
+private val NavHighlight = Color(0xFFFFB74D)
 private val Warning = Color(0xFFFF4444)
 private val Success = Color(0xFF7CC142)
-private val TextPrimary = Color(0xFFF0F4FF)
-private val TextSecondary = Color(0xFF7A8FA8)
+private val TextPrimary = Color(0xFFF5F0EA)
+private val TextSecondary = Color(0xFFAD9782)
 
 // State
 data class DebugState(
@@ -726,7 +725,7 @@ private fun SmallActionButton(
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.93f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
+        animationSpec = snap(),
         label = "debugBtnScale",
     )
     Box(
@@ -1003,7 +1002,7 @@ private fun RowScope.LogActionButton(
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.96f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
+        animationSpec = snap(),
         label = "logActionScale",
     )
     Row(
@@ -1142,9 +1141,9 @@ private fun LogsBrowserDialog(
                                 } else {
                                     AnimatedContentTransitionScope.SlideDirection.Right
                                 }
-                            (slideIntoContainer(direction, tween(280)) + fadeIn(tween(280)))
+                            (slideIntoContainer(direction, snap()) + fadeIn(snap()))
                                 .togetherWith(
-                                    slideOutOfContainer(direction, tween(280)) + fadeOut(tween(280)),
+                                    slideOutOfContainer(direction, snap()) + fadeOut(snap()),
                                 )
                         },
                         modifier = Modifier.fillMaxSize(),
@@ -1212,7 +1211,7 @@ private fun LogsHeaderShareAll(onClick: () -> Unit) {
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.93f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
+        animationSpec = snap(),
         label = "shareAllScale",
     )
     Row(
@@ -1257,7 +1256,7 @@ private fun LogsHeaderDownloadAll(onClick: () -> Unit) {
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.93f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
+        animationSpec = snap(),
         label = "downloadAllScale",
     )
     Row(
@@ -1302,7 +1301,7 @@ private fun LogsHeaderDeleteAll(onClick: () -> Unit) {
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.93f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
+        animationSpec = snap(),
         label = "deleteAllScale",
     )
     Row(
@@ -1615,7 +1614,7 @@ private fun LogDetailView(
     }
     val titleAlpha by animateFloatAsState(
         targetValue = if (content != null) 1f else 0f,
-        animationSpec = tween(durationMillis = 320),
+        animationSpec = snap(),
         label = "logTitleFade",
     )
     Column(modifier = Modifier.fillMaxSize()) {
@@ -1682,7 +1681,7 @@ private fun LogContentBody(
         }
         AnimatedVisibility(
             visible = content != null,
-            enter = fadeIn(animationSpec = tween(durationMillis = 320)),
+            enter = fadeIn(animationSpec = snap()),
             exit = fadeOut(),
             modifier = Modifier.fillMaxSize(),
         ) {
@@ -1704,10 +1703,7 @@ private fun LogContentBody(
                 val scrollbarAlpha by animateFloatAsState(
                     targetValue = if (logScrollState.isScrollInProgress) 1f else 0f,
                     animationSpec =
-                        tween(
-                            durationMillis = if (logScrollState.isScrollInProgress) 150 else 500,
-                            delayMillis = if (logScrollState.isScrollInProgress) 0 else 300,
-                        ),
+                        snap(),
                     label = "scrollbarAlpha",
                 )
                 Box(

@@ -139,19 +139,19 @@ fun BoxScope.RetroAchievementOverlayBanner() {
                     modifier =
                         Modifier
                             .background(Color(0xF0121824), RoundedCornerShape(9.dp))
-                            .border(1.dp, Color(0xFF1A9FFF).copy(alpha = 0.55f), RoundedCornerShape(9.dp))
+                            .border(1.dp, Color(0xFFFF7A00).copy(alpha = 0.55f), RoundedCornerShape(9.dp))
                             .padding(horizontal = 10.dp, vertical = 7.dp),
                 ) {
                     Text(
                         "ACHIEVEMENT UNLOCKED",
-                        color = Color(0xFF1A9FFF),
+                        color = Color(0xFFFF7A00),
                         fontSize = 8.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp,
                     )
                     Text(
                         b.title,
-                        color = Color(0xFFF0F4FF),
+                        color = Color(0xFFF5F0EA),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(top = 2.dp),
@@ -159,7 +159,7 @@ fun BoxScope.RetroAchievementOverlayBanner() {
                     if (b.description.isNotBlank()) {
                         Text(
                             b.description,
-                            color = Color(0xFF93A6BC),
+                            color = Color(0xFFC7A88F),
                             fontSize = 9.sp,
                             modifier = Modifier.padding(top = 2.dp),
                         )
@@ -184,7 +184,7 @@ fun BoxScope.RetroAchievementOverlayBanner() {
             if (text != null) {
                 Text(
                     text = text,
-                    color = Color(0xFFF0F4FF),
+                    color = Color(0xFFF5F0EA),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     modifier =

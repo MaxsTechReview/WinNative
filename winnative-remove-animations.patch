@@ -1,0 +1,3305 @@
+From e02697938d10c216c4009d81b2e3debb1d1e133a Mon Sep 17 00:00:00 2001
+From: Claude <claude@example.com>
+Date: Tue, 25 Aug 2026 05:21:22 +0000
+Subject: [PATCH] Simplify menus: remove animations, minimize continuous
+ processing
+
+- Removed all continuous/infinite animations (pulsing indicators, expanding
+  ripples, orbiting background glow + particle field, marquee progress
+  gradient) that redrew every frame regardless of user activity
+- Converted ~200 tween()/spring()/keyframes() animation specs to instant
+  snap() across 41 files (menu expand/collapse, screen fades, dialog
+  open/close, button press feedback, nav transitions)
+- Disabled default Compose enter/exit animations on AnimatedVisibility/
+  Crossfade calls that had none specified explicitly
+- Converted smooth-scroll calls (animateScrollTo/animateScrollToItem) to
+  instant scrolling across 10 files
+- Removed legacy View-system dialog scale/fade animation and activity
+  slide transition, pointing them at the existing no_animation resource
+- Deleted now-orphaned animation XML resources
+- Cleaned up unused imports and dead code left behind by the above
+---
+ .../main/app/shell/LibraryGameLaunchScreen.kt |  16 +-
+ .../main/app/shell/StoreGameDetailScreen.kt   |  16 +-
+ app/src/main/app/shell/UnifiedActivity.kt     |  16 +-
+ .../app/shell/UnifiedActivityDownloads.kt     |  10 +-
+ .../main/app/shell/UnifiedActivityDrawer.kt   |  32 +-
+ .../app/shell/UnifiedActivityGameDialogs.kt   |   9 +-
+ app/src/main/app/shell/UnifiedActivityHub.kt  |  43 +--
+ .../main/app/shell/UnifiedActivityInput.kt    |   7 -
+ .../main/app/shell/UnifiedActivityLaunch.kt   |   7 -
+ .../app/shell/UnifiedActivityShortcuts.kt     |   7 -
+ .../main/app/shell/UnifiedActivityStartup.kt  |   7 -
+ .../main/app/shell/UnifiedActivityStores.kt   |  24 +-
+ .../app/shell/UnifiedActivityUpdateChecks.kt  |   7 -
+ app/src/main/feature/library/GameSettings.kt  |  19 +-
+ .../main/feature/retro/Gen1LoadingScreen.kt   |   4 +-
+ app/src/main/feature/retro/RetroDrawerMenu.kt |  32 +-
+ .../settings/contents/ComponentsScreen.kt     |   5 +-
+ .../feature/settings/debug/DebugScreen.kt     |  26 +-
+ .../feature/settings/drivers/DriversScreen.kt |  23 +-
+ .../settings/input/InputControlsScreen.kt     |  17 +-
+ .../feature/settings/nav/SettingsNavGraph.kt  |  10 +-
+ .../settings/nav/SettingsNavSidebar.kt        |  12 +-
+ .../feature/settings/presets/PresetsScreen.kt |  30 +-
+ .../feature/settings/stores/StoresScreen.kt   |  41 +--
+ .../main/feature/setup/SetupWizardActivity.kt | 273 ++----------------
+ .../stores/steam/SteamLoginActivity.kt        |  82 ++----
+ .../stores/steam/chat/ChatOverlayService.kt   |  13 +-
+ .../steam/friends/FriendsDrawerContent.kt     |   5 +-
+ .../stores/steam/friends/SteamChatScreen.kt   |   6 +-
+ .../stores/steam/ui/components/QrCodeImage.kt |   2 +
+ .../main/feature/sync/google/GoogleScreen.kt  |  33 +--
+ .../feature/sync/ui/CloudSavesUIContent.kt    |   4 +-
+ .../main/res/anim/content_dialog_enter.xml    |  19 --
+ app/src/main/res/anim/content_dialog_exit.xml |  19 --
+ app/src/main/res/anim/slide_in_down.xml       |   4 -
+ app/src/main/res/anim/slide_out_up.xml        |   4 -
+ app/src/main/res/values/styles.xml            |   4 +-
+ .../runtime/display/XServerDisplayHost.kt     |   8 +-
+ .../display/XServerDrawerControlsPane.kt      |  20 +-
+ .../display/XServerDrawerEffectsPane.kt       |  12 +-
+ .../runtime/display/XServerDrawerHudPane.kt   |   8 +-
+ .../display/XServerDrawerInputPanes.kt        |   6 +-
+ .../runtime/display/XServerDrawerLogsPane.kt  |   6 +-
+ .../main/runtime/display/XServerDrawerMenu.kt |  68 ++---
+ .../display/XServerDrawerOutputPane.kt        |   3 -
+ .../display/XServerDrawerRecordDialogs.kt     |  14 +-
+ .../display/XServerDrawerTaskManagerPane.kt   |  36 ++-
+ .../runtime/input/ControlsEditorActivity.java |   2 +-
+ .../shared/android/DirectoryPickerDialog.kt   |  21 +-
+ app/src/main/shared/theme/WinNativeTheme.kt   |   6 +-
+ app/src/main/shared/ui/CarouselView.kt        |  19 +-
+ app/src/main/shared/ui/FourByTwoGridView.kt   |   9 +-
+ app/src/main/shared/ui/ListView.kt            |   2 +-
+ .../ui/dialog/ContainerProgressPopup.kt       |  10 +-
+ app/src/main/shared/ui/dialog/PopupDialog.kt  |   5 +-
+ .../ui/dialog/PreloaderDialogContent.kt       |  19 +-
+ .../ui/focus/ControllerMenuModifiers.kt       |   6 +-
+ .../main/shared/ui/toast/WinToastContent.kt   |   6 +-
+ 58 files changed, 327 insertions(+), 847 deletions(-)
+ delete mode 100644 app/src/main/res/anim/content_dialog_enter.xml
+ delete mode 100644 app/src/main/res/anim/content_dialog_exit.xml
+ delete mode 100644 app/src/main/res/anim/slide_in_down.xml
+ delete mode 100644 app/src/main/res/anim/slide_out_up.xml
+
+diff --git a/app/src/main/app/shell/LibraryGameLaunchScreen.kt b/app/src/main/app/shell/LibraryGameLaunchScreen.kt
+index 75d5bc0..d329177 100644
+--- a/app/src/main/app/shell/LibraryGameLaunchScreen.kt
++++ b/app/src/main/app/shell/LibraryGameLaunchScreen.kt
+@@ -7,8 +7,7 @@ import androidx.compose.animation.core.MutableTransitionState
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateFloat
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+ import androidx.compose.animation.scaleIn
+@@ -1021,20 +1020,17 @@ private fun LaunchSourceActionPopup(
+         AnimatedVisibility(
+             visibleState = transitionState,
+             enter =
+-                fadeIn(animationSpec = tween(durationMillis = 90)) +
++                fadeIn(animationSpec = snap()) +
+                     scaleIn(
+                         animationSpec =
+-                            spring(
+-                                dampingRatio = 0.78f,
+-                                stiffness = Spring.StiffnessMediumLow,
+-                            ),
++                            snap(),
+                         initialScale = 0.88f,
+                         transformOrigin = TransformOrigin(1f, 0f),
+                     ),
+             exit =
+-                fadeOut(animationSpec = tween(durationMillis = 80)) +
++                fadeOut(animationSpec = snap()) +
+                     scaleOut(
+-                        animationSpec = tween(durationMillis = 110),
++                        animationSpec = snap(),
+                         targetScale = 0.92f,
+                         transformOrigin = TransformOrigin(1f, 0f),
+                     ),
+@@ -1180,7 +1176,7 @@ private fun LaunchPlayButton(
+     val isPressed by interactionSource.collectIsPressedAsState()
+     val scale by animateFloatAsState(
+         targetValue = if (enabled && isPressed) 0.96f else 1f,
+-        animationSpec = spring(dampingRatio = 0.5f, stiffness = 600f),
++        animationSpec = snap(),
+         label = "launchPlayScale",
+     )
+ 
+diff --git a/app/src/main/app/shell/StoreGameDetailScreen.kt b/app/src/main/app/shell/StoreGameDetailScreen.kt
+index c8020fc..5cf7983 100644
+--- a/app/src/main/app/shell/StoreGameDetailScreen.kt
++++ b/app/src/main/app/shell/StoreGameDetailScreen.kt
+@@ -6,8 +6,7 @@ import androidx.compose.animation.AnimatedVisibility
+ import androidx.compose.animation.core.MutableTransitionState
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+@@ -949,20 +948,17 @@ private fun StoreSourceActionPopup(
+         AnimatedVisibility(
+             visibleState = transitionState,
+             enter =
+-                fadeIn(animationSpec = tween(durationMillis = 90)) +
++                fadeIn(animationSpec = snap()) +
+                     scaleIn(
+                         animationSpec =
+-                            spring(
+-                                dampingRatio = 0.78f,
+-                                stiffness = Spring.StiffnessMediumLow,
+-                            ),
++                            snap(),
+                         initialScale = 0.88f,
+                         transformOrigin = TransformOrigin(1f, 0f),
+                     ),
+             exit =
+-                fadeOut(animationSpec = tween(durationMillis = 80)) +
++                fadeOut(animationSpec = snap()) +
+                     scaleOut(
+-                        animationSpec = tween(durationMillis = 110),
++                        animationSpec = snap(),
+                         targetScale = 0.92f,
+                         transformOrigin = TransformOrigin(1f, 0f),
+                     ),
+@@ -1108,7 +1104,7 @@ private fun StoreCtaButton(
+     val isPressed by interactionSource.collectIsPressedAsState()
+     val scale by animateFloatAsState(
+         targetValue = if (isPressed && enabled) 0.96f else 1f,
+-        animationSpec = spring(dampingRatio = 0.5f, stiffness = 600f),
++        animationSpec = snap(),
+         label = "storeCtaScale",
+     )
+     val shape = remember { RoundedCornerShape(14.dp) }
+diff --git a/app/src/main/app/shell/UnifiedActivity.kt b/app/src/main/app/shell/UnifiedActivity.kt
+index 71f23b3..265b667 100644
+--- a/app/src/main/app/shell/UnifiedActivity.kt
++++ b/app/src/main/app/shell/UnifiedActivity.kt
+@@ -24,17 +24,11 @@ import androidx.compose.animation.AnimatedVisibility
+ import androidx.compose.animation.EnterTransition
+ import androidx.compose.animation.ExitTransition
+ import androidx.compose.animation.animateColorAsState
+-import androidx.compose.animation.core.FastOutSlowInEasing
+-import androidx.compose.animation.core.LinearEasing
+-import androidx.compose.animation.core.RepeatMode
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateDpAsState
+ import androidx.compose.animation.core.animateFloat
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.infiniteRepeatable
+-import androidx.compose.animation.core.rememberInfiniteTransition
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+@@ -1106,7 +1100,7 @@ class UnifiedActivity :
+                                     (fromRoute?.startsWith("settings") == true && toRoute == "hub")
+                             )
+                         ) {
+-                            fadeIn(tween(220, easing = FastOutSlowInEasing))
++                            fadeIn(snap())
+                         } else {
+                             EnterTransition.None
+                         }
+@@ -1120,7 +1114,7 @@ class UnifiedActivity :
+                                     (fromRoute?.startsWith("settings") == true && toRoute == "hub")
+                             )
+                         ) {
+-                            fadeOut(tween(220, easing = FastOutSlowInEasing))
++                            fadeOut(snap())
+                         } else {
+                             ExitTransition.None
+                         }
+@@ -1134,7 +1128,7 @@ class UnifiedActivity :
+                                     (fromRoute?.startsWith("settings") == true && toRoute == "hub")
+                             )
+                         ) {
+-                            fadeIn(tween(220, easing = FastOutSlowInEasing))
++                            fadeIn(snap())
+                         } else {
+                             EnterTransition.None
+                         }
+@@ -1148,7 +1142,7 @@ class UnifiedActivity :
+                                     (fromRoute?.startsWith("settings") == true && toRoute == "hub")
+                             )
+                         ) {
+-                            fadeOut(tween(220, easing = FastOutSlowInEasing))
++                            fadeOut(snap())
+                         } else {
+                             ExitTransition.None
+                         }
+diff --git a/app/src/main/app/shell/UnifiedActivityDownloads.kt b/app/src/main/app/shell/UnifiedActivityDownloads.kt
+index 4afcc34..f431a80 100644
+--- a/app/src/main/app/shell/UnifiedActivityDownloads.kt
++++ b/app/src/main/app/shell/UnifiedActivityDownloads.kt
+@@ -25,12 +25,10 @@ import androidx.compose.animation.AnimatedVisibility
+ import androidx.compose.animation.EnterTransition
+ import androidx.compose.animation.ExitTransition
+ import androidx.compose.animation.animateColorAsState
+-import androidx.compose.animation.core.FastOutSlowInEasing
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateDpAsState
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+@@ -672,7 +670,7 @@ internal fun UnifiedActivity.SteamTaskProgressBody(info: DownloadInfo) {
+     val fraction = progress.coerceIn(0f, 1f)
+     val animatedFraction by animateFloatAsState(
+         targetValue = fraction,
+-        animationSpec = tween(durationMillis = 400),
++        animationSpec = snap(),
+         label = "steamTaskProgress",
+     )
+     val (doneBytes, totalBytes) =
+@@ -973,7 +971,7 @@ internal fun UnifiedActivity.DownloadItemDeck(
+     val clickInteractionSource = remember { MutableInteractionSource() }
+     val animatedProgress by animateFloatAsState(
+         targetValue = if (status == DownloadPhase.COMPLETE) 1f else progress.coerceIn(0f, 1f),
+-        animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing),
++        animationSpec = snap(),
+         label = "downloadItemProgress",
+     )
+ 
+@@ -1215,7 +1213,7 @@ internal fun UnifiedActivity.DownloadItemDeck(
+ 
+                 AnimatedVisibility(
+                     visible = status != DownloadPhase.COMPLETE || showCompletedProgressBar,
+-                    exit = fadeOut(tween(180)) + shrinkVertically(tween(180)),
++                    exit = fadeOut(snap()) + shrinkVertically(snap()),
+                 ) {
+                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                         DownloadChasingProgressBar(
+diff --git a/app/src/main/app/shell/UnifiedActivityDrawer.kt b/app/src/main/app/shell/UnifiedActivityDrawer.kt
+index 0fd85a2..ce444bb 100644
+--- a/app/src/main/app/shell/UnifiedActivityDrawer.kt
++++ b/app/src/main/app/shell/UnifiedActivityDrawer.kt
+@@ -27,17 +27,11 @@ import androidx.compose.animation.AnimatedVisibility
+ import androidx.compose.animation.EnterTransition
+ import androidx.compose.animation.ExitTransition
+ import androidx.compose.animation.animateColorAsState
+-import androidx.compose.animation.core.FastOutSlowInEasing
+-import androidx.compose.animation.core.LinearEasing
+-import androidx.compose.animation.core.RepeatMode
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateDpAsState
+ import androidx.compose.animation.core.animateFloat
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.infiniteRepeatable
+-import androidx.compose.animation.core.rememberInfiniteTransition
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+@@ -313,7 +307,7 @@ internal fun UnifiedActivity.LoginRequiredScreen(
+             val isPressed by interactionSource.collectIsPressedAsState()
+             val btnScale by animateFloatAsState(
+                 targetValue = if (isPressed) 0.95f else 1f,
+-                animationSpec = tween(100),
++                animationSpec = snap(),
+                 label = "btnScale",
+             )
+             Row(
+@@ -430,7 +424,7 @@ internal fun UnifiedActivity.DrawerContent(
+                 onCheckedChange = onImmersiveModeChanged,
+             )
+ 
+-            AnimatedVisibility(visible = immersiveMode) {
++            AnimatedVisibility(visible = immersiveMode, enter = EnterTransition.None, exit = ExitTransition.None) {
+                 Column {
+                     Spacer(Modifier.height(8.dp))
+                     DrawerSwitchCard(
+@@ -511,7 +505,7 @@ internal fun UnifiedActivity.DrawerExitAppCard(onClick: () -> Unit) {
+     val isPressed by interactionSource.collectIsPressedAsState()
+     val scale by animateFloatAsState(
+         targetValue = if (isPressed) 0.97f else 1f,
+-        animationSpec = tween(100),
++        animationSpec = snap(),
+         label = "exitAppCardScale",
+     )
+ 
+@@ -572,7 +566,7 @@ internal fun UnifiedActivity.DrawerActionCard(
+     val isPressed by interactionSource.collectIsPressedAsState()
+     val scale by animateFloatAsState(
+         targetValue = if (isPressed) 0.97f else 1f,
+-        animationSpec = tween(100),
++        animationSpec = snap(),
+         label = "drawerActionCardScale",
+     )
+ 
+@@ -636,22 +630,22 @@ internal fun UnifiedActivity.DrawerFilterButton(
+ 
+     val bgColor by animateColorAsState(
+         targetValue = if (checked) Accent.copy(alpha = 0.2f) else CardDark,
+-        animationSpec = tween(200),
++        animationSpec = snap(),
+         label = "filterBg",
+     )
+     val borderColor by animateColorAsState(
+         targetValue = if (checked) Accent else CardBorder,
+-        animationSpec = tween(200),
++        animationSpec = snap(),
+         label = "filterBorder",
+     )
+     val textColor by animateColorAsState(
+         targetValue = if (checked) Accent else TextSecondary,
+-        animationSpec = tween(200),
++        animationSpec = snap(),
+         label = "filterText",
+     )
+     val scale by animateFloatAsState(
+         targetValue = if (isPressed) 0.92f else 1f,
+-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh),
++        animationSpec = snap(),
+         label = "filterScale",
+     )
+ 
+@@ -696,22 +690,22 @@ internal fun UnifiedActivity.DrawerSwitchCard(
+ 
+     val bgColor by animateColorAsState(
+         targetValue = if (checked) Accent.copy(alpha = 0.18f) else CardDark,
+-        animationSpec = tween(200),
++        animationSpec = snap(),
+         label = "switchCardBg",
+     )
+     val borderColor by animateColorAsState(
+         targetValue = if (checked) Accent else CardBorder,
+-        animationSpec = tween(200),
++        animationSpec = snap(),
+         label = "switchCardBorder",
+     )
+     val labelColor by animateColorAsState(
+         targetValue = if (checked) Accent else TextPrimary,
+-        animationSpec = tween(200),
++        animationSpec = snap(),
+         label = "switchCardLabel",
+     )
+     val scale by animateFloatAsState(
+         targetValue = if (isPressed) 0.97f else 1f,
+-        animationSpec = tween(120),
++        animationSpec = snap(),
+         label = "switchCardScale",
+     )
+ 
+diff --git a/app/src/main/app/shell/UnifiedActivityGameDialogs.kt b/app/src/main/app/shell/UnifiedActivityGameDialogs.kt
+index b3d56d6..0277932 100644
+--- a/app/src/main/app/shell/UnifiedActivityGameDialogs.kt
++++ b/app/src/main/app/shell/UnifiedActivityGameDialogs.kt
+@@ -31,16 +31,11 @@ import androidx.compose.animation.AnimatedVisibility
+ import androidx.compose.animation.EnterTransition
+ import androidx.compose.animation.ExitTransition
+ import androidx.compose.animation.animateColorAsState
+-import androidx.compose.animation.core.FastOutSlowInEasing
+-import androidx.compose.animation.core.LinearEasing
+-import androidx.compose.animation.core.RepeatMode
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateDpAsState
+ import androidx.compose.animation.core.animateFloat
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.infiniteRepeatable
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+@@ -481,7 +476,7 @@ internal fun UnifiedActivity.GameSettingsActionCard(
+     val isPressed by interactionSource.collectIsPressedAsState()
+     val scale by animateFloatAsState(
+         targetValue = if (isPressed) 0.96f else 1f,
+-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
++        animationSpec = snap(),
+         label = "actionCardScale",
+     )
+     Row(
+diff --git a/app/src/main/app/shell/UnifiedActivityHub.kt b/app/src/main/app/shell/UnifiedActivityHub.kt
+index 5d79bba..9a9b4d2 100644
+--- a/app/src/main/app/shell/UnifiedActivityHub.kt
++++ b/app/src/main/app/shell/UnifiedActivityHub.kt
+@@ -25,17 +25,11 @@ import androidx.compose.animation.AnimatedVisibility
+ import androidx.compose.animation.EnterTransition
+ import androidx.compose.animation.ExitTransition
+ import androidx.compose.animation.animateColorAsState
+-import androidx.compose.animation.core.FastOutSlowInEasing
+-import androidx.compose.animation.core.LinearEasing
+-import androidx.compose.animation.core.RepeatMode
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateDpAsState
+ import androidx.compose.animation.core.animateFloat
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.infiniteRepeatable
+-import androidx.compose.animation.core.rememberInfiniteTransition
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+@@ -757,8 +751,8 @@ internal fun UnifiedActivity.UnifiedHub() {
+                     }
+                 AnimatedVisibility(
+                     visible = immersiveModel != null,
+-                    enter = fadeIn(tween(400)),
+-                    exit = fadeOut(tween(400)),
++                    enter = fadeIn(snap()),
++                    exit = fadeOut(snap()),
+                     modifier = Modifier.matchParentSize(),
+                 ) {
+                     Box(Modifier.matchParentSize()) {
+@@ -900,7 +894,7 @@ internal fun UnifiedActivity.UnifiedHub() {
+                         AnimatedContent(
+                             targetState = key,
+                             transitionSpec = {
+-                                fadeIn(tween(200)) togetherWith fadeOut(tween(150))
++                                fadeIn(snap()) togetherWith fadeOut(snap())
+                             },
+                             label = "tabContent",
+                         ) { animatedKey ->
+@@ -1404,7 +1398,7 @@ internal fun UnifiedActivity.TopBar(
+ 
+                     LaunchedEffect(selectedIdx) {
+                         val scrollTo = maxOf(0, selectedIdx - 1)
+-                        tabListState.animateScrollToItem(scrollTo)
++                        tabListState.scrollToItem(scrollTo)
+                     }
+ 
+                     Box(
+@@ -1433,12 +1427,12 @@ internal fun UnifiedActivity.TopBar(
+                                 val isPressed by interactionSource.collectIsPressedAsState()
+                                 val tabScale by animateFloatAsState(
+                                     targetValue = if (isPressed) 0.92f else 1f,
+-                                    animationSpec = spring(stiffness = Spring.StiffnessHigh),
++                                    animationSpec = snap(),
+                                     label = "tabScale",
+                                 )
+                                 val textColor by animateColorAsState(
+                                     targetValue = if (selected) Accent else TextSecondary,
+-                                    animationSpec = tween(280),
++                                    animationSpec = snap(),
+                                     label = "tabTextColor",
+                                 )
+ 
+@@ -1520,10 +1514,7 @@ internal fun UnifiedActivity.TopBar(
+                 val searchIconRotation by animateFloatAsState(
+                     targetValue = if (isSearchExpanded) 90f else 0f,
+                     animationSpec =
+-                        spring(
+-                            dampingRatio = Spring.DampingRatioMediumBouncy,
+-                            stiffness = Spring.StiffnessLow,
+-                        ),
++                        snap(),
+                     label = "searchIconRotation",
+                 )
+ 
+@@ -1702,21 +1693,15 @@ internal fun UnifiedActivity.TopBar(
+             enter =
+                 expandVertically(
+                     animationSpec =
+-                        spring(
+-                            dampingRatio = Spring.DampingRatioNoBouncy,
+-                            stiffness = Spring.StiffnessMedium,
+-                        ),
++                        snap(),
+                     expandFrom = Alignment.Top,
+-                ) + fadeIn(animationSpec = tween(200)),
++                ) + fadeIn(animationSpec = snap()),
+             exit =
+                 shrinkVertically(
+                     animationSpec =
+-                        spring(
+-                            dampingRatio = Spring.DampingRatioNoBouncy,
+-                            stiffness = Spring.StiffnessMedium,
+-                        ),
++                        snap(),
+                     shrinkTowards = Alignment.Top,
+-                ) + fadeOut(animationSpec = tween(120)),
++                ) + fadeOut(animationSpec = snap()),
+         ) {
+             Box(
+                 modifier =
+@@ -2240,7 +2225,7 @@ internal fun UnifiedActivity.LibraryCarousel(
+         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+             val spinAlpha by animateFloatAsState(
+                 targetValue = 1f,
+-                animationSpec = tween(durationMillis = 600),
++                animationSpec = snap(),
+                 label = "loaderFade",
+             )
+             CircularProgressIndicator(
+@@ -2329,7 +2314,7 @@ internal fun UnifiedActivity.LibraryCarousel(
+             focusRequesters.isNotEmpty() &&
+             focusIndex in focusRequesters.indices
+         ) {
+-            gridState.animateScrollToItem(focusIndex)
++            gridState.scrollToItem(focusIndex)
+             try {
+                 focusRequesters[focusIndex].requestFocus()
+             } catch (_: Exception) {
+diff --git a/app/src/main/app/shell/UnifiedActivityInput.kt b/app/src/main/app/shell/UnifiedActivityInput.kt
+index 9b08d45..2fa6247 100644
+--- a/app/src/main/app/shell/UnifiedActivityInput.kt
++++ b/app/src/main/app/shell/UnifiedActivityInput.kt
+@@ -24,17 +24,10 @@ import androidx.compose.animation.AnimatedVisibility
+ import androidx.compose.animation.EnterTransition
+ import androidx.compose.animation.ExitTransition
+ import androidx.compose.animation.animateColorAsState
+-import androidx.compose.animation.core.FastOutSlowInEasing
+-import androidx.compose.animation.core.LinearEasing
+-import androidx.compose.animation.core.RepeatMode
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateDpAsState
+ import androidx.compose.animation.core.animateFloat
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.infiniteRepeatable
+-import androidx.compose.animation.core.rememberInfiniteTransition
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
+ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+diff --git a/app/src/main/app/shell/UnifiedActivityLaunch.kt b/app/src/main/app/shell/UnifiedActivityLaunch.kt
+index eb21145..a977d65 100644
+--- a/app/src/main/app/shell/UnifiedActivityLaunch.kt
++++ b/app/src/main/app/shell/UnifiedActivityLaunch.kt
+@@ -24,17 +24,10 @@ import androidx.compose.animation.AnimatedVisibility
+ import androidx.compose.animation.EnterTransition
+ import androidx.compose.animation.ExitTransition
+ import androidx.compose.animation.animateColorAsState
+-import androidx.compose.animation.core.FastOutSlowInEasing
+-import androidx.compose.animation.core.LinearEasing
+-import androidx.compose.animation.core.RepeatMode
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateDpAsState
+ import androidx.compose.animation.core.animateFloat
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.infiniteRepeatable
+-import androidx.compose.animation.core.rememberInfiniteTransition
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
+ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+diff --git a/app/src/main/app/shell/UnifiedActivityShortcuts.kt b/app/src/main/app/shell/UnifiedActivityShortcuts.kt
+index 26efbd4..45a28ee 100644
+--- a/app/src/main/app/shell/UnifiedActivityShortcuts.kt
++++ b/app/src/main/app/shell/UnifiedActivityShortcuts.kt
+@@ -25,17 +25,10 @@ import androidx.compose.animation.AnimatedVisibility
+ import androidx.compose.animation.EnterTransition
+ import androidx.compose.animation.ExitTransition
+ import androidx.compose.animation.animateColorAsState
+-import androidx.compose.animation.core.FastOutSlowInEasing
+-import androidx.compose.animation.core.LinearEasing
+-import androidx.compose.animation.core.RepeatMode
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateDpAsState
+ import androidx.compose.animation.core.animateFloat
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.infiniteRepeatable
+-import androidx.compose.animation.core.rememberInfiniteTransition
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
+ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+diff --git a/app/src/main/app/shell/UnifiedActivityStartup.kt b/app/src/main/app/shell/UnifiedActivityStartup.kt
+index 887ef15..2b2ed26 100644
+--- a/app/src/main/app/shell/UnifiedActivityStartup.kt
++++ b/app/src/main/app/shell/UnifiedActivityStartup.kt
+@@ -26,17 +26,10 @@ import androidx.compose.animation.AnimatedVisibility
+ import androidx.compose.animation.EnterTransition
+ import androidx.compose.animation.ExitTransition
+ import androidx.compose.animation.animateColorAsState
+-import androidx.compose.animation.core.FastOutSlowInEasing
+-import androidx.compose.animation.core.LinearEasing
+-import androidx.compose.animation.core.RepeatMode
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateDpAsState
+ import androidx.compose.animation.core.animateFloat
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.infiniteRepeatable
+-import androidx.compose.animation.core.rememberInfiniteTransition
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
+ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+diff --git a/app/src/main/app/shell/UnifiedActivityStores.kt b/app/src/main/app/shell/UnifiedActivityStores.kt
+index f466d40..e14aaee 100644
+--- a/app/src/main/app/shell/UnifiedActivityStores.kt
++++ b/app/src/main/app/shell/UnifiedActivityStores.kt
+@@ -24,17 +24,11 @@ import androidx.compose.animation.AnimatedVisibility
+ import androidx.compose.animation.EnterTransition
+ import androidx.compose.animation.ExitTransition
+ import androidx.compose.animation.animateColorAsState
+-import androidx.compose.animation.core.FastOutSlowInEasing
+-import androidx.compose.animation.core.LinearEasing
+-import androidx.compose.animation.core.RepeatMode
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateDpAsState
+ import androidx.compose.animation.core.animateFloat
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.infiniteRepeatable
+-import androidx.compose.animation.core.rememberInfiniteTransition
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+@@ -264,12 +258,12 @@ internal fun UnifiedActivity.CompactActionButton(
+     val isPressed by interactionSource.collectIsPressedAsState()
+     val scale by animateFloatAsState(
+         targetValue = if (isPressed) 0.93f else 1f,
+-        animationSpec = spring(dampingRatio = 0.6f, stiffness = 800f),
++        animationSpec = snap(),
+         label = "btnScale",
+     )
+     val glowAlpha by animateFloatAsState(
+         targetValue = if (isPressed) 0.18f else 0f,
+-        animationSpec = tween(durationMillis = 120),
++        animationSpec = snap(),
+         label = "btnGlow",
+     )
+     Surface(
+@@ -360,7 +354,7 @@ internal fun UnifiedActivity.GameCapsule(
+     val isFocused = isControllerActive && isFocusedOverride
+     val glowAlpha by animateFloatAsState(
+         targetValue = if (isPressed) 0.7f else 0f,
+-        animationSpec = if (isPressed) tween(100) else tween(400),
++        animationSpec = if (isPressed) snap() else snap(),
+         label = "capsuleGlow",
+     )
+     val clickModifier =
+@@ -697,7 +691,7 @@ internal fun UnifiedActivity.EpicStoreTab(
+             }
+         LaunchedEffect(focusIndex, focusRequesters.size) {
+             if (searchQuery.isEmpty() && focusRequesters.isNotEmpty() && focusIndex in focusRequesters.indices) {
+-                gridState.animateScrollToItem(focusIndex)
++                gridState.scrollToItem(focusIndex)
+                 try {
+                     focusRequesters[focusIndex].requestFocus()
+                 } catch (_: Exception) {
+@@ -792,7 +786,7 @@ internal fun UnifiedActivity.EpicStoreCapsule(
+     val isPressed by clickInteraction.collectIsPressedAsState()
+     val glowAlpha by animateFloatAsState(
+         targetValue = if (isPressed) 0.7f else 0f,
+-        animationSpec = if (isPressed) tween(100) else tween(400),
++        animationSpec = if (isPressed) snap() else snap(),
+         label = "epicCapsuleGlow",
+     )
+     val effectiveFocus = isControllerActive && (isFocusedOverride || isFocused)
+@@ -1428,7 +1422,7 @@ internal fun UnifiedActivity.GOGStoreTab(
+             }
+         LaunchedEffect(focusIndex, focusRequesters.size) {
+             if (searchQuery.isEmpty() && focusRequesters.isNotEmpty() && focusIndex in focusRequesters.indices) {
+-                gridState.animateScrollToItem(focusIndex)
++                gridState.scrollToItem(focusIndex)
+                 try {
+                     focusRequesters[focusIndex].requestFocus()
+                 } catch (_: Exception) {
+@@ -2001,7 +1995,7 @@ internal fun UnifiedActivity.SteamStoreTab(
+             }
+         LaunchedEffect(focusIndex, focusRequesters.size) {
+             if (searchQuery.isEmpty() && focusRequesters.isNotEmpty() && focusIndex in focusRequesters.indices) {
+-                gridState.animateScrollToItem(focusIndex)
++                gridState.scrollToItem(focusIndex)
+                 try {
+                     focusRequesters[focusIndex].requestFocus()
+                 } catch (_: Exception) {
+@@ -2066,7 +2060,7 @@ internal fun UnifiedActivity.SteamStoreCapsule(
+     val isPressed by clickInteraction.collectIsPressedAsState()
+     val glowAlpha by animateFloatAsState(
+         targetValue = if (isPressed) 0.7f else 0f,
+-        animationSpec = if (isPressed) tween(100) else tween(400),
++        animationSpec = if (isPressed) snap() else snap(),
+         label = "steamCapsuleGlow",
+     )
+     val effectiveFocus = isControllerActive && (isFocusedOverride || isFocused)
+diff --git a/app/src/main/app/shell/UnifiedActivityUpdateChecks.kt b/app/src/main/app/shell/UnifiedActivityUpdateChecks.kt
+index e40519c..8a98815 100644
+--- a/app/src/main/app/shell/UnifiedActivityUpdateChecks.kt
++++ b/app/src/main/app/shell/UnifiedActivityUpdateChecks.kt
+@@ -24,17 +24,10 @@ import androidx.compose.animation.AnimatedVisibility
+ import androidx.compose.animation.EnterTransition
+ import androidx.compose.animation.ExitTransition
+ import androidx.compose.animation.animateColorAsState
+-import androidx.compose.animation.core.FastOutSlowInEasing
+-import androidx.compose.animation.core.LinearEasing
+-import androidx.compose.animation.core.RepeatMode
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateDpAsState
+ import androidx.compose.animation.core.animateFloat
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.infiniteRepeatable
+-import androidx.compose.animation.core.rememberInfiniteTransition
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
+ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+diff --git a/app/src/main/feature/library/GameSettings.kt b/app/src/main/feature/library/GameSettings.kt
+index a05d596..8f630ad 100644
+--- a/app/src/main/feature/library/GameSettings.kt
++++ b/app/src/main/feature/library/GameSettings.kt
+@@ -1,7 +1,6 @@
+ package com.winlator.cmod.feature.library
+ import androidx.compose.animation.AnimatedContent
+-import androidx.compose.animation.core.FastOutSlowInEasing
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+ import androidx.compose.animation.slideInHorizontally
+@@ -309,15 +308,15 @@ private val SettingControlIconSize = 16.dp
+ private val SettingSliderHeight = 24.dp
+ 
+ private fun graphicsCardExpandEnter() =
+-    fadeIn(tween(200)) +
++    fadeIn(snap()) +
+         expandVertically(
+-            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
++            animationSpec = snap()
+         )
+ 
+ private fun graphicsCardExpandExit() =
+-    fadeOut(tween(140)) +
++    fadeOut(snap()) +
+         shrinkVertically(
+-            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
++            animationSpec = snap()
+         )
+ private val SettingSliderThumbSize = 18.dp
+ private const val SettingSliderTrackScaleY = 0.5f
+@@ -842,12 +841,12 @@ private fun SectionContent(
+         transitionSpec = {
+             val direction = if (targetState > initialState) 1 else -1
+             (slideInHorizontally(
+-                animationSpec = tween(220)
+-            ) { direction * it / 6 } + fadeIn(tween(200)))
++                animationSpec = snap()
++            ) { direction * it / 6 } + fadeIn(snap()))
+                 .togetherWith(
+                     slideOutHorizontally(
+-                        animationSpec = tween(180)
+-                    ) { -direction * it / 6 } + fadeOut(tween(120))
++                        animationSpec = snap()
++                    ) { -direction * it / 6 } + fadeOut(snap())
+                 )
+         },
+         label = "SectionTransition"
+diff --git a/app/src/main/feature/retro/Gen1LoadingScreen.kt b/app/src/main/feature/retro/Gen1LoadingScreen.kt
+index 7ccec38..9753f0b 100644
+--- a/app/src/main/feature/retro/Gen1LoadingScreen.kt
++++ b/app/src/main/feature/retro/Gen1LoadingScreen.kt
+@@ -1,7 +1,7 @@
+ package com.winlator.cmod.feature.retro
+ 
+ import androidx.compose.animation.AnimatedVisibility
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.fadeOut
+ import androidx.compose.runtime.Composable
+ import androidx.compose.runtime.remember
+@@ -21,7 +21,7 @@ fun Gen1LoadingScreen(
+     AnimatedVisibility(
+         visible = visible,
+         enter = androidx.compose.animation.EnterTransition.None,
+-        exit = fadeOut(tween(320)),
++        exit = fadeOut(snap()),
+     ) {
+         val context = LocalContext.current
+         val preloader = remember { PreloaderDialogState() }
+diff --git a/app/src/main/feature/retro/RetroDrawerMenu.kt b/app/src/main/feature/retro/RetroDrawerMenu.kt
+index 37d7b73..d4bb65f 100644
+--- a/app/src/main/feature/retro/RetroDrawerMenu.kt
++++ b/app/src/main/feature/retro/RetroDrawerMenu.kt
+@@ -2,13 +2,13 @@ package com.winlator.cmod.feature.retro
+ 
+ import android.view.KeyEvent
+ import androidx.compose.animation.AnimatedVisibility
++import androidx.compose.animation.EnterTransition
++import androidx.compose.animation.ExitTransition
+ import androidx.compose.animation.animateColorAsState
+-import androidx.compose.animation.core.LinearEasing
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateDpAsState
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.border
+ import androidx.compose.foundation.clickable
+@@ -464,7 +464,7 @@ fun RetroDrawerMenu(controller: RetroMenuController) {
+         val closedOffset = -(DrawerWidth + DrawerStartPadding + 8.dp)
+         val sheetOffset by animateDpAsState(
+             targetValue = if (controller.visible) 0.dp else closedOffset,
+-            animationSpec = tween(durationMillis = 200, easing = LinearEasing),
++            animationSpec = snap(),
+             label = "retroDrawerOffset",
+         )
+         if (sheetOffset > closedOffset) {
+@@ -609,7 +609,7 @@ private fun RetroRailTile(
+     val pressed = interactionSource.collectIsPressedAsState().value
+     val scale by animateFloatAsState(
+         targetValue = if (pressed) 0.94f else 1f,
+-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
++        animationSpec = snap(),
+         label = "retroTileScale",
+     )
+     val bgColor by animateColorAsState(
+@@ -619,12 +619,12 @@ private fun RetroRailTile(
+                 pressed && !selected -> PaneSurfacePressed
+                 else -> Color.Transparent
+             },
+-        animationSpec = tween(120),
++        animationSpec = snap(),
+         label = "retroTileBg",
+     )
+     val tint by animateColorAsState(
+         targetValue = if (selected) DrawerAccent else DrawerTextPrimary,
+-        animationSpec = tween(120),
++        animationSpec = snap(),
+         label = "retroTileTint",
+     )
+     val cornerRadius = (12f * paneScale).dp
+@@ -732,7 +732,7 @@ private fun RetroActionCard(
+     val pressed = interactionSource.collectIsPressedAsState().value
+     val scale by animateFloatAsState(
+         targetValue = if (pressed) 0.96f else 1f,
+-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
++        animationSpec = snap(),
+         label = "retroCardScale",
+     )
+     val bgColor by animateColorAsState(
+@@ -742,12 +742,12 @@ private fun RetroActionCard(
+                 pressed -> PaneInnerPressed
+                 else -> PaneInnerResting
+             },
+-        animationSpec = tween(120),
++        animationSpec = snap(),
+         label = "retroCardBg",
+     )
+     val borderColor by animateColorAsState(
+         targetValue = if (entry.active) ActiveCardBorder else RestingCardBorder,
+-        animationSpec = tween(120),
++        animationSpec = snap(),
+         label = "retroCardBorder",
+     )
+     val tint =
+@@ -1012,12 +1012,12 @@ private fun RetroRowShell(
+                 pressed -> PaneInnerPressed
+                 else -> PaneInnerResting
+             },
+-        animationSpec = tween(140),
++        animationSpec = snap(),
+         label = "retroRowBg",
+     )
+     val borderColor by animateColorAsState(
+         targetValue = if (activeBorder) ActiveCardBorder else RestingCardBorder,
+-        animationSpec = tween(140),
++        animationSpec = snap(),
+         label = "retroRowBorder",
+     )
+     val cornerRadius = (14f * paneScale).dp
+@@ -1352,12 +1352,12 @@ private fun RetroHudChip(
+                 pressed -> PaneInnerPressed
+                 else -> PaneInnerResting
+             },
+-        animationSpec = tween(140),
++        animationSpec = snap(),
+         label = "retroChipBg",
+     )
+     val borderColor by animateColorAsState(
+         targetValue = if (checked) DrawerAccent else RestingCardBorder,
+-        animationSpec = tween(140),
++        animationSpec = snap(),
+         label = "retroChipBorder",
+     )
+     val cornerRadius = (12f * paneScale).dp
+@@ -1757,7 +1757,7 @@ private fun RetroColorRow(
+                 fontSize = (16f * paneScale).sp,
+             )
+         }
+-        AnimatedVisibility(visible = expanded) {
++        AnimatedVisibility(visible = expanded, enter = EnterTransition.None, exit = ExitTransition.None) {
+             FlowRow(
+                 modifier =
+                     Modifier
+@@ -1923,7 +1923,7 @@ private fun RetroBottomActionButton(
+                 pressed -> PaneSurfacePressed
+                 else -> PaneInnerResting
+             },
+-        animationSpec = tween(120),
++        animationSpec = snap(),
+         label = "retroBottomBg",
+     )
+     val borderColor =
+diff --git a/app/src/main/feature/settings/contents/ComponentsScreen.kt b/app/src/main/feature/settings/contents/ComponentsScreen.kt
+index 72556bf..3df5ed6 100644
+--- a/app/src/main/feature/settings/contents/ComponentsScreen.kt
++++ b/app/src/main/feature/settings/contents/ComponentsScreen.kt
+@@ -2,8 +2,7 @@ package com.winlator.cmod.feature.settings
+ import androidx.compose.animation.AnimatedContent
+ import androidx.compose.animation.Crossfade
+ import androidx.compose.animation.SizeTransform
+-import androidx.compose.animation.core.FastOutSlowInEasing
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+ import androidx.compose.animation.togetherWith
+@@ -505,7 +504,7 @@ private fun TypeTabsContent(
+         Spacer(Modifier.height(8.dp))
+         Crossfade(
+             targetState = currentType,
+-            animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
++            animationSpec = snap(),
+             label = "componentsTypeDescription",
+         ) { type ->
+             Text(
+diff --git a/app/src/main/feature/settings/debug/DebugScreen.kt b/app/src/main/feature/settings/debug/DebugScreen.kt
+index a617a6e..c913c49 100644
+--- a/app/src/main/feature/settings/debug/DebugScreen.kt
++++ b/app/src/main/feature/settings/debug/DebugScreen.kt
+@@ -4,8 +4,7 @@ import androidx.compose.animation.AnimatedContentTransitionScope
+ import androidx.compose.animation.AnimatedVisibility
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+ import androidx.compose.animation.togetherWith
+@@ -726,7 +725,7 @@ private fun SmallActionButton(
+     var isPressed by remember { mutableStateOf(false) }
+     val scale by animateFloatAsState(
+         targetValue = if (isPressed) 0.93f else 1f,
+-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
++        animationSpec = snap(),
+         label = "debugBtnScale",
+     )
+     Box(
+@@ -1003,7 +1002,7 @@ private fun RowScope.LogActionButton(
+     var isPressed by remember { mutableStateOf(false) }
+     val scale by animateFloatAsState(
+         targetValue = if (isPressed) 0.96f else 1f,
+-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
++        animationSpec = snap(),
+         label = "logActionScale",
+     )
+     Row(
+@@ -1142,9 +1141,9 @@ private fun LogsBrowserDialog(
+                                 } else {
+                                     AnimatedContentTransitionScope.SlideDirection.Right
+                                 }
+-                            (slideIntoContainer(direction, tween(280)) + fadeIn(tween(280)))
++                            (slideIntoContainer(direction, snap()) + fadeIn(snap()))
+                                 .togetherWith(
+-                                    slideOutOfContainer(direction, tween(280)) + fadeOut(tween(280)),
++                                    slideOutOfContainer(direction, snap()) + fadeOut(snap()),
+                                 )
+                         },
+                         modifier = Modifier.fillMaxSize(),
+@@ -1212,7 +1211,7 @@ private fun LogsHeaderShareAll(onClick: () -> Unit) {
+     var isPressed by remember { mutableStateOf(false) }
+     val scale by animateFloatAsState(
+         targetValue = if (isPressed) 0.93f else 1f,
+-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
++        animationSpec = snap(),
+         label = "shareAllScale",
+     )
+     Row(
+@@ -1257,7 +1256,7 @@ private fun LogsHeaderDownloadAll(onClick: () -> Unit) {
+     var isPressed by remember { mutableStateOf(false) }
+     val scale by animateFloatAsState(
+         targetValue = if (isPressed) 0.93f else 1f,
+-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
++        animationSpec = snap(),
+         label = "downloadAllScale",
+     )
+     Row(
+@@ -1302,7 +1301,7 @@ private fun LogsHeaderDeleteAll(onClick: () -> Unit) {
+     var isPressed by remember { mutableStateOf(false) }
+     val scale by animateFloatAsState(
+         targetValue = if (isPressed) 0.93f else 1f,
+-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
++        animationSpec = snap(),
+         label = "deleteAllScale",
+     )
+     Row(
+@@ -1615,7 +1614,7 @@ private fun LogDetailView(
+     }
+     val titleAlpha by animateFloatAsState(
+         targetValue = if (content != null) 1f else 0f,
+-        animationSpec = tween(durationMillis = 320),
++        animationSpec = snap(),
+         label = "logTitleFade",
+     )
+     Column(modifier = Modifier.fillMaxSize()) {
+@@ -1682,7 +1681,7 @@ private fun LogContentBody(
+         }
+         AnimatedVisibility(
+             visible = content != null,
+-            enter = fadeIn(animationSpec = tween(durationMillis = 320)),
++            enter = fadeIn(animationSpec = snap()),
+             exit = fadeOut(),
+             modifier = Modifier.fillMaxSize(),
+         ) {
+@@ -1704,10 +1703,7 @@ private fun LogContentBody(
+                 val scrollbarAlpha by animateFloatAsState(
+                     targetValue = if (logScrollState.isScrollInProgress) 1f else 0f,
+                     animationSpec =
+-                        tween(
+-                            durationMillis = if (logScrollState.isScrollInProgress) 150 else 500,
+-                            delayMillis = if (logScrollState.isScrollInProgress) 0 else 300,
+-                        ),
++                        snap(),
+                     label = "scrollbarAlpha",
+                 )
+                 Box(
+diff --git a/app/src/main/feature/settings/drivers/DriversScreen.kt b/app/src/main/feature/settings/drivers/DriversScreen.kt
+index ac2a05e..290a763 100644
+--- a/app/src/main/feature/settings/drivers/DriversScreen.kt
++++ b/app/src/main/feature/settings/drivers/DriversScreen.kt
+@@ -1,8 +1,7 @@
+ package com.winlator.cmod.feature.settings
+ import androidx.compose.animation.AnimatedVisibility
+-import androidx.compose.animation.core.FastOutSlowInEasing
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+@@ -694,7 +693,7 @@ private fun RepoCard(
+     val borderColor = if (isExpanded) Accent.copy(alpha = 0.45f) else CardBorder
+     val chevronRotation by animateFloatAsState(
+         targetValue = if (isExpanded) 90f else 0f,
+-        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
++        animationSpec = snap(),
+         label = "repoChevron_${source.apiUrl}",
+     )
+     var menuOpen by remember { mutableStateOf(false) }
+@@ -812,14 +811,14 @@ private fun RepoCard(
+             AnimatedVisibility(
+                 visible = isExpanded,
+                 enter =
+-                    fadeIn(tween(200)) +
++                    fadeIn(snap()) +
+                         expandVertically(
+-                            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
++                            animationSpec = snap(),
+                         ),
+                 exit =
+-                    fadeOut(tween(140)) +
++                    fadeOut(snap()) +
+                         shrinkVertically(
+-                            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
++                            animationSpec = snap(),
+                         ),
+             ) {
+                 Column(
+@@ -902,7 +901,7 @@ private fun ReleaseCard(
+     val borderColor = if (expanded) Accent.copy(alpha = 0.45f) else CardBorder
+     val chevronRotation by animateFloatAsState(
+         targetValue = if (expanded) 90f else 0f,
+-        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
++        animationSpec = snap(),
+         label = "releaseChevron_${release.id}",
+     )
+     Box(
+@@ -968,14 +967,14 @@ private fun ReleaseCard(
+             AnimatedVisibility(
+                 visible = expanded,
+                 enter =
+-                    fadeIn(tween(200)) +
++                    fadeIn(snap()) +
+                         expandVertically(
+-                            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
++                            animationSpec = snap(),
+                         ),
+                 exit =
+-                    fadeOut(tween(140)) +
++                    fadeOut(snap()) +
+                         shrinkVertically(
+-                            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
++                            animationSpec = snap(),
+                         ),
+             ) {
+                 Column(
+diff --git a/app/src/main/feature/settings/input/InputControlsScreen.kt b/app/src/main/feature/settings/input/InputControlsScreen.kt
+index 10ce308..ad596b1 100644
+--- a/app/src/main/feature/settings/input/InputControlsScreen.kt
++++ b/app/src/main/feature/settings/input/InputControlsScreen.kt
+@@ -2,9 +2,8 @@
+ 
+ package com.winlator.cmod.feature.settings
+ import androidx.compose.animation.AnimatedVisibility
+-import androidx.compose.animation.core.FastOutSlowInEasing
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+@@ -1376,7 +1375,7 @@ private fun ProfileCard(
+     val selectorPressed by selectionInteraction.collectIsPressedAsState()
+     val selectorTint by animateFloatAsState(
+         targetValue = if (selectorPressed) 1f else 0f,
+-        animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing),
++        animationSpec = snap(),
+         label = "profileSelectorPressed",
+     )
+ 
+@@ -1786,7 +1785,7 @@ private fun Subcard(
+ ) {
+     val chevronRotation by animateFloatAsState(
+         targetValue = if (expanded) 180f else 0f,
+-        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
++        animationSpec = snap(),
+         label = "subcardChevronRotation",
+     )
+     val borderColor = if (expanded) InputAccent.copy(alpha = 0.45f) else InputOutline
+@@ -1833,15 +1832,15 @@ private fun Subcard(
+         AnimatedVisibility(
+             visible = expanded,
+             enter =
+-                fadeIn(tween(110)) +
++                fadeIn(snap()) +
+                     expandVertically(
+-                        animationSpec = tween(durationMillis = 170, easing = FastOutSlowInEasing),
++                        animationSpec = snap(),
+                         expandFrom = Alignment.Top,
+                     ),
+             exit =
+-                fadeOut(tween(90)) +
++                fadeOut(snap()) +
+                     shrinkVertically(
+-                        animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
++                        animationSpec = snap(),
+                         shrinkTowards = Alignment.Top,
+                     ),
+         ) {
+@@ -2124,7 +2123,7 @@ private fun GestureProfileCard(
+     val selectorPressed by selectionInteraction.collectIsPressedAsState()
+     val selectorTint by animateFloatAsState(
+         targetValue = if (selectorPressed) 1f else 0f,
+-        animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing),
++        animationSpec = snap(),
+         label = "gestureSelectorPressed",
+     )
+ 
+diff --git a/app/src/main/feature/settings/nav/SettingsNavGraph.kt b/app/src/main/feature/settings/nav/SettingsNavGraph.kt
+index 9520f1c..402f26b 100644
+--- a/app/src/main/feature/settings/nav/SettingsNavGraph.kt
++++ b/app/src/main/feature/settings/nav/SettingsNavGraph.kt
+@@ -1,6 +1,6 @@
+ package com.winlator.cmod.feature.settings
+ import android.os.Bundle
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+ import androidx.compose.foundation.background
+@@ -308,10 +308,10 @@ private fun SettingsContentNavHost(
+     NavHost(
+         navController = navController,
+         startDestination = SettingsRoutes.fromNavItem(startItem),
+-        enterTransition = { fadeIn(tween(250, easing = androidx.compose.animation.core.FastOutSlowInEasing)) },
+-        exitTransition = { fadeOut(tween(250, easing = androidx.compose.animation.core.FastOutSlowInEasing)) },
+-        popEnterTransition = { fadeIn(tween(250, easing = androidx.compose.animation.core.FastOutSlowInEasing)) },
+-        popExitTransition = { fadeOut(tween(250, easing = androidx.compose.animation.core.FastOutSlowInEasing)) },
++        enterTransition = { fadeIn(snap()) },
++        exitTransition = { fadeOut(snap()) },
++        popEnterTransition = { fadeIn(snap()) },
++        popExitTransition = { fadeOut(snap()) },
+         modifier = Modifier.fillMaxSize(),
+     ) {
+         composable(SettingsRoutes.fromNavItem(SettingsNavItem.CONTAINERS)) {
+diff --git a/app/src/main/feature/settings/nav/SettingsNavSidebar.kt b/app/src/main/feature/settings/nav/SettingsNavSidebar.kt
+index 03aa312..f0888c9 100644
+--- a/app/src/main/feature/settings/nav/SettingsNavSidebar.kt
++++ b/app/src/main/feature/settings/nav/SettingsNavSidebar.kt
+@@ -1,7 +1,7 @@
+ package com.winlator.cmod.feature.settings
+ import androidx.compose.animation.animateColorAsState
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.foundation.ExperimentalFoundationApi
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.clickable
+@@ -168,7 +168,7 @@ fun SettingsNavSidebar(
+             visible != null &&
+                 visible.offset >= info.viewportStartOffset &&
+                 visible.offset + visible.size <= info.viewportEndOffset
+-        if (!fullyVisible) runCatching { listState.animateScrollToItem(selectedLazyIndex) }
++        if (!fullyVisible) runCatching { listState.scrollToItem(selectedLazyIndex) }
+     }
+ 
+     Row(
+@@ -249,7 +249,7 @@ private fun SidebarHeader(onBackPressed: () -> Unit) {
+     val isPressed by interactionSource.collectIsPressedAsState()
+     val arrowTint by animateColorAsState(
+         targetValue = if (isPressed) AccentPressed else AccentSelected,
+-        animationSpec = tween(120),
++        animationSpec = snap(),
+         label = "sidebarHeaderArrowTint",
+     )
+ 
+@@ -318,12 +318,12 @@ private fun NavItemRow(
+ 
+     val iconTint by animateColorAsState(
+         targetValue = if (isSelected) AccentSelected else IconMuted,
+-        animationSpec = tween(280),
++        animationSpec = snap(),
+         label = "iconTint",
+     )
+     val textColor by animateColorAsState(
+         targetValue = if (isSelected) TextSelected else TextNormal,
+-        animationSpec = tween(280),
++        animationSpec = snap(),
+         label = "textColor",
+     )
+     val showFill = isSelected && railActive
+@@ -334,7 +334,7 @@ private fun NavItemRow(
+                 isHovered -> 0.5f
+                 else -> 0f
+             },
+-        animationSpec = tween(200),
++        animationSpec = snap(),
+         label = "bgAlpha",
+     )
+ 
+diff --git a/app/src/main/feature/settings/presets/PresetsScreen.kt b/app/src/main/feature/settings/presets/PresetsScreen.kt
+index 52fad29..eb46e53 100644
+--- a/app/src/main/feature/settings/presets/PresetsScreen.kt
++++ b/app/src/main/feature/settings/presets/PresetsScreen.kt
+@@ -5,8 +5,7 @@ import androidx.compose.animation.AnimatedVisibility
+ import androidx.compose.animation.ContentTransform
+ import androidx.compose.animation.SizeTransform
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.FastOutSlowInEasing
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+@@ -368,20 +367,11 @@ private fun AnimatedContentTransitionScope<PresetEngine>.engineSwapTransition():
+     val forward = targetState.ordinal > initialState.ordinal
+     val direction = if (forward) 1 else -1
+     val slideSpec =
+-        tween<IntOffset>(
+-            durationMillis = 220,
+-            easing = FastOutSlowInEasing,
+-        )
++        snap<IntOffset>()
+     val fadeInSpec =
+-        tween<Float>(
+-            durationMillis = 200,
+-            easing = FastOutSlowInEasing,
+-        )
++        snap<Float>()
+     val fadeOutSpec =
+-        tween<Float>(
+-            durationMillis = 140,
+-            easing = FastOutSlowInEasing,
+-        )
++        snap<Float>()
+     return (
+         fadeIn(animationSpec = fadeInSpec) +
+             slideInHorizontally(animationSpec = slideSpec) { fullWidth ->
+@@ -394,7 +384,7 @@ private fun AnimatedContentTransitionScope<PresetEngine>.engineSwapTransition():
+             },
+     ).using(
+         SizeTransform(clip = false) { _, _ ->
+-            tween(durationMillis = 240, easing = FastOutSlowInEasing)
++            snap()
+         },
+     )
+ }
+@@ -891,7 +881,7 @@ private fun EnvVarCard(
+     val borderColor = if (expanded) Accent.copy(alpha = 0.45f) else CardBorder
+     val chevronRotation by animateFloatAsState(
+         targetValue = if (expanded) 180f else 0f,
+-        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
++        animationSpec = snap(),
+         label = "envVarChevron_${definition.name}",
+     )
+     val helpText =
+@@ -956,15 +946,15 @@ private fun EnvVarCard(
+             AnimatedVisibility(
+                 visible = expanded && helpText.isNotBlank(),
+                 enter =
+-                    fadeIn(tween(110)) +
++                    fadeIn(snap()) +
+                         expandVertically(
+-                            animationSpec = tween(durationMillis = 170, easing = FastOutSlowInEasing),
++                            animationSpec = snap(),
+                             expandFrom = Alignment.Top,
+                         ),
+                 exit =
+-                    fadeOut(tween(90)) +
++                    fadeOut(snap()) +
+                         shrinkVertically(
+-                            animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
++                            animationSpec = snap(),
+                             shrinkTowards = Alignment.Top,
+                         ),
+             ) {
+diff --git a/app/src/main/feature/settings/stores/StoresScreen.kt b/app/src/main/feature/settings/stores/StoresScreen.kt
+index 8827a6d..ff4e82d 100644
+--- a/app/src/main/feature/settings/stores/StoresScreen.kt
++++ b/app/src/main/feature/settings/stores/StoresScreen.kt
+@@ -1,15 +1,10 @@
+ package com.winlator.cmod.feature.settings
+ import androidx.compose.animation.AnimatedContent
+ import androidx.compose.animation.SizeTransform
+-import androidx.compose.animation.core.FastOutSlowInEasing
+-import androidx.compose.animation.core.RepeatMode
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateFloat
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.infiniteRepeatable
+-import androidx.compose.animation.core.rememberInfiniteTransition
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+ import androidx.compose.animation.togetherWith
+@@ -202,8 +197,8 @@ fun StoresScreen(
+             AnimatedContent(
+                 targetState = state.sharedFolder,
+                 transitionSpec = {
+-                    fadeIn(tween(220)) togetherWith fadeOut(tween(160)) using
+-                        SizeTransform(clip = true, sizeAnimationSpec = { _, _ -> tween(240) })
++                    fadeIn(snap()) togetherWith fadeOut(snap()) using
++                        SizeTransform(clip = true, sizeAnimationSpec = { _, _ -> snap() })
+                 },
+                 label = "folderPaths",
+             ) { shared ->
+@@ -368,27 +363,9 @@ private fun StoreCard(
+         )
+     }
+ 
+-    val pulse = rememberInfiniteTransition(label = "pulse_$name")
+-    val pulseScale by pulse.animateFloat(
+-        initialValue = 1f,
+-        targetValue = 1.7f,
+-        animationSpec =
+-            infiniteRepeatable(
+-                animation = tween(1000, easing = FastOutSlowInEasing),
+-                repeatMode = RepeatMode.Reverse,
+-            ),
+-        label = "scale_$name",
+-    )
+-    val pulseAlpha by pulse.animateFloat(
+-        initialValue = 0.5f,
+-        targetValue = 0f,
+-        animationSpec =
+-            infiniteRepeatable(
+-                animation = tween(1000, easing = FastOutSlowInEasing),
+-                repeatMode = RepeatMode.Reverse,
+-            ),
+-        label = "alpha_$name",
+-    )
++    // Static "connected" indicator (no continuous animation).
++    val pulseScale = 1f
++    val pulseAlpha = 0.25f
+ 
+     Box(
+         modifier =
+@@ -492,7 +469,7 @@ private fun ActionButton(
+     var isPressed by remember { mutableStateOf(false) }
+     val scale by animateFloatAsState(
+         targetValue = if (isPressed) 0.93f else 1f,
+-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
++        animationSpec = snap(),
+         label = "btnScale",
+     )
+     Box(
+@@ -652,7 +629,7 @@ private fun SettingsDropdownCard(
+                 var isPressed by remember { mutableStateOf(false) }
+                 val scale by animateFloatAsState(
+                     targetValue = if (isPressed) 0.93f else 1f,
+-                    animationSpec = spring(stiffness = Spring.StiffnessHigh),
++                    animationSpec = snap(),
+                     label = "dropdownScale",
+                 )
+                 Row(
+@@ -799,7 +776,7 @@ private fun BrowseButton(onClick: () -> Unit) {
+     var isPressed by remember { mutableStateOf(false) }
+     val scale by animateFloatAsState(
+         targetValue = if (isPressed) 0.92f else 1f,
+-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
++        animationSpec = snap(),
+         label = "browseScale",
+     )
+     Box(
+diff --git a/app/src/main/feature/setup/SetupWizardActivity.kt b/app/src/main/feature/setup/SetupWizardActivity.kt
+index 9a53bc3..a13ce63 100644
+--- a/app/src/main/feature/setup/SetupWizardActivity.kt
++++ b/app/src/main/feature/setup/SetupWizardActivity.kt
+@@ -21,14 +21,9 @@ import androidx.compose.animation.AnimatedContent
+ import androidx.compose.animation.SizeTransform
+ import androidx.compose.animation.animateColorAsState
+ import androidx.compose.animation.core.Animatable
+-import androidx.compose.animation.core.EaseInOut
+-import androidx.compose.animation.core.LinearEasing
+-import androidx.compose.animation.core.RepeatMode
+ import androidx.compose.animation.core.animateFloat
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.infiniteRepeatable
+-import androidx.compose.animation.core.rememberInfiniteTransition
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+ import androidx.compose.animation.slideInHorizontally
+@@ -90,7 +85,6 @@ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.draw.clip
+ import androidx.compose.ui.draw.drawBehind
+-import androidx.compose.ui.geometry.Offset
+ import androidx.compose.ui.graphics.Brush
+ import androidx.compose.ui.graphics.Color
+ import androidx.compose.ui.graphics.RectangleShape
+@@ -136,17 +130,6 @@ import kotlinx.coroutines.launch
+ import kotlinx.coroutines.withContext
+ import org.json.JSONArray
+ import java.io.File
+-import kotlin.math.PI
+-import kotlin.math.cos
+-import kotlin.math.sin
+-
+-private data class Particle(
+-    val x: Float,
+-    val speed: Float,
+-    val size: Float,
+-    val phaseOffset: Float,
+-)
+-
+ private val SetupDownloadChaseGradientStops =
+     arrayOf(
+         0.00f to Color(0xFFFF7A00),
+@@ -206,7 +189,7 @@ private suspend fun LazyListState.scrollToSelected(index: Int) {
+         visible != null &&
+             visible.offset >= info.viewportStartOffset &&
+             visible.offset + visible.size <= info.viewportEndOffset
+-    if (!fullyVisible) runCatching { animateScrollToItem(index) }
++    if (!fullyVisible) runCatching { scrollToItem(index) }
+ }
+ 
+ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
+@@ -1576,193 +1559,13 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
+             }
+         }
+ 
+-        // Particle seeds — stable across recomposition
+-        val particles =
+-            remember {
+-                List(20) { i ->
+-                    val hash = ((i * 7919 + 104729) % 10000) / 10000f
+-                    Particle(
+-                        x = ((i * 3571 + 7321) % 10000) / 10000f,
+-                        speed = 0.6f + hash * 0.4f,
+-                        size = 1f + hash * 1.5f,
+-                        phaseOffset = hash * 6.2832f,
+-                    )
+-                }
+-            }
+-
+-        // Page-reactive orb anchors — orbs smoothly migrate when page changes
+-        val orb1TargetX =
+-            when (page) {
+-                0 -> 0.25f
+-                1 -> 0.50f
+-                else -> 0.75f
+-            }
+-        val orb1TargetY =
+-            when (page) {
+-                0 -> 0.30f
+-                1 -> 0.20f
+-                else -> 0.25f
+-            }
+-        val orb2TargetX =
+-            when (page) {
+-                0 -> 0.70f
+-                1 -> 0.30f
+-                else -> 0.20f
+-            }
+-        val orb2TargetY =
+-            when (page) {
+-                0 -> 0.70f
+-                1 -> 0.55f
+-                else -> 0.75f
+-            }
+-        val orb3TargetX =
+-            when (page) {
+-                0 -> 0.50f
+-                1 -> 0.75f
+-                else -> 0.50f
+-            }
+-        val orb3TargetY =
+-            when (page) {
+-                0 -> 0.50f
+-                1 -> 0.80f
+-                else -> 0.50f
+-            }
+-
+-        val orbAnim = tween<Float>(2000, easing = EaseInOut)
+-        val o1x by animateFloatAsState(orb1TargetX, orbAnim, label = "o1x")
+-        val o1y by animateFloatAsState(orb1TargetY, orbAnim, label = "o1y")
+-        val o2x by animateFloatAsState(orb2TargetX, orbAnim, label = "o2x")
+-        val o2y by animateFloatAsState(orb2TargetY, orbAnim, label = "o2y")
+-        val o3x by animateFloatAsState(orb3TargetX, orbAnim, label = "o3x")
+-        val o3y by animateFloatAsState(orb3TargetY, orbAnim, label = "o3y")
+-
+-        val infiniteTransition = rememberInfiniteTransition(label = "bgGlow")
+-        val phase1 =
+-            infiniteTransition.animateFloat(
+-                initialValue = 0f,
+-                targetValue = 6.2832f,
+-                animationSpec = infiniteRepeatable(tween(30000, easing = LinearEasing), RepeatMode.Restart),
+-                label = "phase1",
+-            )
+-        val phase2 =
+-            infiniteTransition.animateFloat(
+-                initialValue = 6.2832f,
+-                targetValue = 0f,
+-                animationSpec = infiniteRepeatable(tween(38000, easing = LinearEasing), RepeatMode.Restart),
+-                label = "phase2",
+-            )
+-        val pulse =
+-            infiniteTransition.animateFloat(
+-                initialValue = 0.85f,
+-                targetValue = 1f,
+-                animationSpec = infiniteRepeatable(tween(8000, easing = EaseInOut), RepeatMode.Reverse),
+-                label = "pulse",
+-            )
+-        val particlePhase =
+-            infiniteTransition.animateFloat(
+-                initialValue = 0f,
+-                targetValue = 1f,
+-                animationSpec = infiniteRepeatable(tween(20000, easing = LinearEasing), RepeatMode.Restart),
+-                label = "particlePhase",
+-            )
+-
++        // Flat, static background — no continuous canvas redraws or
++        // per-frame animation (previously an infinite orb/particle glow).
+         Box(
+             modifier =
+                 Modifier
+                     .fillMaxSize()
+-                    .background(Color(0xFF120E0A))
+-                    .drawBehind {
+-                        val w = size.width
+-                        val h = size.height
+-                        val p1 = phase1.value
+-                        val p2 = phase2.value
+-                        val p = pulse.value
+-
+-                        // Orb 1 — cyan, page-reactive + gentle drift
+-                        val c1 =
+-                            Offset(
+-                                w * (o1x + 0.04f * cos(p1)),
+-                                h * (o1y + 0.03f * sin(p1)),
+-                            )
+-                        drawCircle(
+-                            brush =
+-                                Brush.radialGradient(
+-                                    colors =
+-                                        listOf(
+-                                            Color(0xFFFF7A00).copy(alpha = 0.04f * p),
+-                                            Color(0xFFFF7A00).copy(alpha = 0.015f * p),
+-                                            Color.Transparent,
+-                                        ),
+-                                    center = c1,
+-                                    radius = w * 0.6f,
+-                                ),
+-                            radius = w * 0.6f,
+-                            center = c1,
+-                        )
+-
+-                        // Orb 2 — blue, page-reactive + gentle drift
+-                        val c2 =
+-                            Offset(
+-                                w * (o2x + 0.04f * cos(p2)),
+-                                h * (o2y + 0.03f * sin(p2)),
+-                            )
+-                        drawCircle(
+-                            brush =
+-                                Brush.radialGradient(
+-                                    colors =
+-                                        listOf(
+-                                            Color(0xFFFFA940).copy(alpha = 0.035f * p),
+-                                            Color(0xFFFFA940).copy(alpha = 0.01f * p),
+-                                            Color.Transparent,
+-                                        ),
+-                                    center = c2,
+-                                    radius = w * 0.55f,
+-                                ),
+-                            radius = w * 0.55f,
+-                            center = c2,
+-                        )
+-
+-                        // Orb 3 — teal accent, page-reactive + gentle drift
+-                        val c3 =
+-                            Offset(
+-                                w * (o3x + 0.03f * sin(p1 * 0.7f)),
+-                                h * (o3y + 0.03f * cos(p2 * 0.6f)),
+-                            )
+-                        drawCircle(
+-                            brush =
+-                                Brush.radialGradient(
+-                                    colors =
+-                                        listOf(
+-                                            Color(0xFF2DD4BF).copy(alpha = 0.02f * p),
+-                                            Color.Transparent,
+-                                        ),
+-                                    center = c3,
+-                                    radius = w * 0.45f,
+-                                ),
+-                            radius = w * 0.45f,
+-                            center = c3,
+-                        )
+-
+-                        // Floating particles
+-                        val pp = particlePhase.value
+-                        particles.forEach { pt ->
+-                            val t = (pp * pt.speed + pt.phaseOffset) % 1f
+-                            val py = h * (1f - t)
+-                            val px = w * pt.x + w * 0.02f * sin((t * 2f * PI).toFloat() + pt.phaseOffset)
+-                            // Fade in at bottom, fade out at top
+-                            val alpha =
+-                                when {
+-                                    t < 0.15f -> t / 0.15f
+-                                    t > 0.85f -> (1f - t) / 0.15f
+-                                    else -> 1f
+-                                } * 0.12f
+-                            drawCircle(
+-                                color = Color(0xFFFF7A00).copy(alpha = alpha),
+-                                radius = pt.size.dp.toPx(),
+-                                center = Offset(px, py),
+-                            )
+-                        }
+-                    },
++                    .background(Color(0xFF120E0A)),
+         ) {
+             Column(
+                 modifier =
+@@ -1841,14 +1644,14 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
+                             val forward = targetState > initialState
+                             val enter =
+                                 slideInHorizontally(
+-                                    animationSpec = tween(220),
++                                    animationSpec = snap(),
+                                 ) { if (forward) it / 4 else -it / 4 } +
+-                                    fadeIn(tween(160, delayMillis = 40))
++                                    fadeIn(snap())
+                             val exit =
+                                 slideOutHorizontally(
+-                                    animationSpec = tween(220),
++                                    animationSpec = snap(),
+                                 ) { if (forward) -it / 4 else it / 4 } +
+-                                    fadeOut(tween(140))
++                                    fadeOut(snap())
+                             (enter togetherWith exit).using(
+                                 SizeTransform(clip = false),
+                             )
+@@ -1944,7 +1747,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
+             } else {
+                 progressAnim.animateTo(
+                     targetValue = targetProgress,
+-                    animationSpec = tween(durationMillis = 240, easing = LinearEasing),
++                    animationSpec = snap(),
+                 )
+             }
+         }
+@@ -2032,41 +1835,15 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
+         }
+     }
+ 
+-    @Composable
+-    private fun SetupAnimatedProgressFill(
+-        modifier: Modifier,
+-        widthPx: Float,
+-    ) {
+-        val infiniteTransition = rememberInfiniteTransition(label = "setupTransferProgressGradient")
+-        val gradientOffset by infiniteTransition.animateFloat(
+-            initialValue = -widthPx,
+-            targetValue = 0f,
+-            animationSpec =
+-                infiniteRepeatable(
+-                    animation = tween(durationMillis = 5000, easing = LinearEasing),
+-                    repeatMode = RepeatMode.Restart,
+-                ),
+-            label = "setupTransferProgressGradientOffset",
+-        )
+-
+-        Box(
+-            modifier.background(
+-                Brush.horizontalGradient(
+-                    colorStops = SetupDownloadChaseGradientStops,
+-                    startX = gradientOffset,
+-                    endX = gradientOffset + (widthPx * 2f),
+-                    tileMode = TileMode.Repeated,
+-                ),
+-            ),
+-        )
+-    }
+-
+     @Composable
+     private fun SetupChasingProgressBar(
+         progress: Float,
+         animate: Boolean,
+         modifier: Modifier = Modifier,
+     ) {
++        // "animate" param kept for call-site compatibility; the fill is
++        // always static now (no continuous marquee redraw while a
++        // transfer is in progress).
+         BoxWithConstraints(
+             modifier =
+                 modifier
+@@ -2084,19 +1861,15 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
+                         .fillMaxWidth(clampedProgress.coerceAtLeast(0.015f))
+                         .clip(RectangleShape)
+ 
+-                if (animate) {
+-                    SetupAnimatedProgressFill(fillModifier, widthPx)
+-                } else {
+-                    Box(
+-                        fillModifier.background(
+-                            Brush.horizontalGradient(
+-                                colorStops = SetupDownloadChaseGradientStops,
+-                                endX = widthPx * 2f,
+-                                tileMode = TileMode.Repeated,
+-                            ),
++                Box(
++                    fillModifier.background(
++                        Brush.horizontalGradient(
++                            colorStops = SetupDownloadChaseGradientStops,
++                            endX = widthPx * 2f,
++                            tileMode = TileMode.Repeated,
+                         ),
+-                    )
+-                }
++                    ),
++                )
+             }
+         }
+     }
+@@ -2175,7 +1948,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
+     ) {
+         val borderColor by animateColorAsState(
+             targetValue = if (enabled) Color(0xFFFF7A00) else Color(0xFF222D3D),
+-            animationSpec = tween(300),
++            animationSpec = snap(),
+             label = "accentBorder",
+         )
+         OutlinedButton(
+@@ -3207,7 +2980,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
+             if (progress != null) {
+                 val animatedProgress by animateFloatAsState(
+                     targetValue = progress,
+-                    animationSpec = tween(durationMillis = 400, easing = LinearEasing),
++                    animationSpec = snap(),
+                     label = "cardProgress",
+                 )
+                 Spacer(Modifier.height(8.dp))
+diff --git a/app/src/main/feature/stores/steam/SteamLoginActivity.kt b/app/src/main/feature/stores/steam/SteamLoginActivity.kt
+index 55eb31c..3edd09b 100644
+--- a/app/src/main/feature/stores/steam/SteamLoginActivity.kt
++++ b/app/src/main/feature/stores/steam/SteamLoginActivity.kt
+@@ -126,15 +126,15 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
+             AnimatedVisibility(
+                 visible = entered,
+                 enter =
+-                    fadeIn(tween(360)) +
++                    fadeIn(snap()) +
+                         slideInVertically(
+                             initialOffsetY = { it / 11 },
+-                            animationSpec = tween(380, easing = FastOutSlowInEasing),
++                            animationSpec = snap(),
+                         ),
+             ) {
+                 AnimatedContent(
+                     targetState = state.loginScreen,
+-                    transitionSpec = { fadeIn(tween(240)) togetherWith fadeOut(tween(160)) },
++                    transitionSpec = { fadeIn(snap()) togetherWith fadeOut(snap()) },
+                     label = "screenSwitch",
+                 ) { screen ->
+                     when (screen) {
+@@ -315,8 +315,8 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
+                 // Error overlaid at bottom of password field — no layout shift
+                 androidx.compose.animation.AnimatedVisibility(
+                     visible = showLoginError,
+-                    enter = fadeIn(tween(200)),
+-                    exit = fadeOut(tween(150)),
++                    enter = fadeIn(snap()),
++                    exit = fadeOut(snap()),
+                     modifier = Modifier.align(Alignment.BottomStart).offset(y = 8.dp),
+                 ) {
+                     Text(stringResource(R.string.steam_login_invalid_username_or_password), color = DangerRed, fontSize = 11.sp)
+@@ -367,14 +367,8 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
+     ) {
+         val isLoading = state.qrCode == null && !state.isQrFailed
+ 
+-        // Border pulses while QR loads
+-        val pulse = rememberInfiniteTransition(label = "qrPulse")
+-        val borderAlpha by pulse.animateFloat(
+-            initialValue = 0.14f,
+-            targetValue = 0.55f,
+-            animationSpec = infiniteRepeatable(tween(1100, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+-            label = "qrBorder",
+-        )
++        // Static border tint while QR loads (no continuous animation).
++        val borderAlpha = 0.35f
+ 
+         Box(
+             modifier =
+@@ -452,10 +446,10 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
+             AnimatedVisibility(
+                 visible = cardVisible,
+                 enter =
+-                    fadeIn(tween(320)) +
++                    fadeIn(snap()) +
+                         scaleIn(
+                             initialScale = 0.92f,
+-                            animationSpec = tween(340, easing = FastOutSlowInEasing),
++                            animationSpec = snap(),
+                         ),
+             ) {
+                 Box(
+@@ -552,52 +546,10 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
+         }
+     }
+ 
+-    // Expanding ripple for Steam Guard wait
++    // Static waiting indicator for Steam Guard wait (no continuous animation).
+     @Composable
+     private fun WaitingRipple() {
+-        val inf = rememberInfiniteTransition(label = "ripple")
+-        val scale1 by inf.animateFloat(
+-            initialValue = 1f,
+-            targetValue = 2.8f,
+-            animationSpec = infiniteRepeatable(tween(1600, easing = FastOutSlowInEasing), RepeatMode.Restart),
+-            label = "r1s",
+-        )
+-        val alpha1 by inf.animateFloat(
+-            initialValue = 0.40f,
+-            targetValue = 0f,
+-            animationSpec = infiniteRepeatable(tween(1600, easing = FastOutSlowInEasing), RepeatMode.Restart),
+-            label = "r1a",
+-        )
+-        val scale2 by inf.animateFloat(
+-            initialValue = 1f,
+-            targetValue = 2.8f,
+-            animationSpec = infiniteRepeatable(tween(1600, 620, easing = FastOutSlowInEasing), RepeatMode.Restart),
+-            label = "r2s",
+-        )
+-        val alpha2 by inf.animateFloat(
+-            initialValue = 0.40f,
+-            targetValue = 0f,
+-            animationSpec = infiniteRepeatable(tween(1600, 620, easing = FastOutSlowInEasing), RepeatMode.Restart),
+-            label = "r2a",
+-        )
+-
+         Box(modifier = Modifier.size(72.dp), contentAlignment = Alignment.Center) {
+-            Box(
+-                modifier =
+-                    Modifier
+-                        .size(52.dp)
+-                        .scale(scale1)
+-                        .clip(CircleShape)
+-                        .background(Accent.copy(alpha = alpha1)),
+-            )
+-            Box(
+-                modifier =
+-                    Modifier
+-                        .size(52.dp)
+-                        .scale(scale2)
+-                        .clip(CircleShape)
+-                        .background(Accent.copy(alpha = alpha2)),
+-            )
+             Box(
+                 modifier =
+                     Modifier
+@@ -623,12 +575,12 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
+         var pressed by remember { mutableStateOf(false) }
+         val scale by animateFloatAsState(
+             targetValue = if (pressed) 0.97f else 1f,
+-            animationSpec = spring(stiffness = Spring.StiffnessHigh),
++            animationSpec = snap(),
+             label = "loginScale",
+         )
+         val bgAlpha by animateFloatAsState(
+             targetValue = if (enabled) 1f else 0.32f,
+-            animationSpec = tween(200),
++            animationSpec = snap(),
+             label = "loginBgAlpha",
+         )
+ 
+@@ -681,17 +633,17 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
+         var pressed by remember { mutableStateOf(false) }
+         val scale by animateFloatAsState(
+             targetValue = if (pressed) 0.95f else 1f,
+-            animationSpec = spring(stiffness = Spring.StiffnessHigh),
++            animationSpec = snap(),
+             label = "2faSubmitScale",
+         )
+         val bgAlpha by animateFloatAsState(
+             targetValue = if (enabled) 0.18f else 0.08f,
+-            animationSpec = tween(200),
++            animationSpec = snap(),
+             label = "2faSubmitBg",
+         )
+         val borderAlpha by animateFloatAsState(
+             targetValue = if (enabled) 0.5f else 0.2f,
+-            animationSpec = tween(200),
++            animationSpec = snap(),
+             label = "2faSubmitBorder",
+         )
+ 
+@@ -744,7 +696,7 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
+         var pressed by remember { mutableStateOf(false) }
+         val scale by animateFloatAsState(
+             targetValue = if (pressed) 0.93f else 1f,
+-            animationSpec = spring(stiffness = Spring.StiffnessHigh),
++            animationSpec = snap(),
+             label = "smallBtnScale",
+         )
+         Box(
+@@ -776,7 +728,7 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
+         var pressed by remember { mutableStateOf(false) }
+         val scale by animateFloatAsState(
+             targetValue = if (pressed) 0.95f else 1f,
+-            animationSpec = spring(stiffness = Spring.StiffnessHigh),
++            animationSpec = snap(),
+             label = "cancelScale",
+         )
+         Box(
+diff --git a/app/src/main/feature/stores/steam/chat/ChatOverlayService.kt b/app/src/main/feature/stores/steam/chat/ChatOverlayService.kt
+index 1b2a2e4..02d21e9 100644
+--- a/app/src/main/feature/stores/steam/chat/ChatOverlayService.kt
++++ b/app/src/main/feature/stores/steam/chat/ChatOverlayService.kt
+@@ -18,6 +18,7 @@ import android.widget.FrameLayout
+ import androidx.compose.animation.AnimatedVisibility
+ import androidx.compose.animation.Crossfade
+ import androidx.compose.animation.core.animateFloatAsState
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.scaleIn
+ import androidx.compose.foundation.background
+@@ -290,7 +291,11 @@ class ChatOverlayService : Service() {
+                     val friends by svc?.friendsList?.collectAsState() ?: remember { mutableStateOf(emptyList<SteamFriendEntry>()) }
+                     val unread by svc?.unreadCounts?.collectAsState() ?: remember { mutableStateOf(emptyMap<Long, Int>()) }
+                     val head = friends.firstOrNull { it.steamId == headFriendId.longValue }
+-                    val alpha by animateFloatAsState(if (bubbleDimmed.value) 0.2f else 1f, label = "bubbleAlpha")
++                    val alpha by animateFloatAsState(
++                        if (bubbleDimmed.value) 0.2f else 1f,
++                        animationSpec = snap(),
++                        label = "bubbleAlpha",
++                    )
+                     Box(Modifier.alpha(alpha)) {
+                         BubbleContent(head, unread.values.sum())
+                     }
+@@ -687,7 +692,7 @@ class ChatOverlayService : Service() {
+                                 Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.steam_common_back), tint = TextSecondary)
+                             }
+                         }
+-                        Crossfade(targetState = convId, label = "panelBody", modifier = Modifier.weight(1f)) { id ->
++                        Crossfade(targetState = convId, label = "panelBody", animationSpec = snap(), modifier = Modifier.weight(1f)) { id ->
+                             val conv = friends.firstOrNull { it.steamId == id }
+                             if (id != 0L && conv != null) {
+                                 ConversationView(conv, Modifier.fillMaxSize())
+@@ -824,7 +829,7 @@ class ChatOverlayService : Service() {
+                 val optIdx = if (m.fromSelf) messages.indexOfFirst { it.fromSelf && it.timestamp == 0 && it.text == m.text } else -1
+                 if (optIdx >= 0) messages[optIdx] = m else {
+                     messages.add(m)
+-                    listState.animateScrollToItem(messages.size - 1)
++                    listState.scrollToItem(messages.size - 1)
+                 }
+             }
+         }
+@@ -837,7 +842,7 @@ class ChatOverlayService : Service() {
+             val optimistic = SteamChatMessage(fromSelf = true, text = text, timestamp = 0, ordinal = 0)
+             messages.add(optimistic)
+             scope.launch {
+-                listState.animateScrollToItem(messages.size - 1)
++                listState.scrollToItem(messages.size - 1)
+                 val ok = SteamService.instance?.sendChatMessage(friend.steamId, text) ?: false
+                 if (!ok) {
+                     val idx = messages.indexOf(optimistic)
+diff --git a/app/src/main/feature/stores/steam/friends/FriendsDrawerContent.kt b/app/src/main/feature/stores/steam/friends/FriendsDrawerContent.kt
+index 0a4ee62..b781ecf 100644
+--- a/app/src/main/feature/stores/steam/friends/FriendsDrawerContent.kt
++++ b/app/src/main/feature/stores/steam/friends/FriendsDrawerContent.kt
+@@ -1,6 +1,8 @@
+ package com.winlator.cmod.feature.stores.steam.friends
+ 
+ import androidx.compose.animation.AnimatedVisibility
++import androidx.compose.animation.EnterTransition
++import androidx.compose.animation.ExitTransition
+ import androidx.compose.animation.core.animateFloatAsState
+ import androidx.compose.foundation.BorderStroke
+ import androidx.compose.foundation.background
+@@ -266,7 +268,7 @@ private fun SelfCard(self: SteamFriend, chatEnabled: Boolean, onSetState: (EPers
+                     )
+                 }
+             }
+-            AnimatedVisibility(visible = expanded && chatEnabled) {
++            AnimatedVisibility(visible = expanded && chatEnabled, enter = EnterTransition.None, exit = ExitTransition.None) {
+                 Column {
+                     Spacer(Modifier.height(8.dp))
+                     HorizontalDivider(color = TextSecondary.copy(alpha = 0.15f))
+@@ -625,7 +627,6 @@ private fun FriendRow(
+     onPlayGame: (SteamFriendEntry) -> Unit,
+ ) {
+     val ctx = LocalContext.current
+-    val scale by animateFloatAsState(1f, label = "row")
+     Surface(
+         shape = RoundedCornerShape(10.dp),
+         color = if (friend.isPlayingGame) Accent.copy(alpha = 0.07f) else Color.Transparent,
+diff --git a/app/src/main/feature/stores/steam/friends/SteamChatScreen.kt b/app/src/main/feature/stores/steam/friends/SteamChatScreen.kt
+index 08e8d8e..7054230 100644
+--- a/app/src/main/feature/stores/steam/friends/SteamChatScreen.kt
++++ b/app/src/main/feature/stores/steam/friends/SteamChatScreen.kt
+@@ -143,7 +143,7 @@ fun SteamChatScreen(
+                 val url = SteamService.instance?.sendChatImage(friend.steamId, bytes, "image.$ext")
+                 if (url.isNullOrBlank()) {
+                     messages.add(SteamChatMessage(fromSelf = true, text = context.getString(R.string.steam_chat_image_failed), timestamp = 0))
+-                    listState.animateScrollToItem(messages.size - 1)
++                    listState.scrollToItem(messages.size - 1)
+                 }
+                 uploading = false
+             }
+@@ -172,7 +172,7 @@ fun SteamChatScreen(
+                 messages[optIdx] = m
+             } else {
+                 messages.add(m)
+-                listState.animateScrollToItem(messages.size - 1)
++                listState.scrollToItem(messages.size - 1)
+             }
+         }
+     }
+@@ -188,7 +188,7 @@ fun SteamChatScreen(
+         val optimistic = SteamChatMessage(fromSelf = true, text = text, timestamp = 0, ordinal = 0)
+         messages.add(optimistic)
+         scope.launch {
+-            listState.animateScrollToItem(messages.size - 1)
++            listState.scrollToItem(messages.size - 1)
+             val ok = SteamService.instance?.sendChatMessage(friend.steamId, text) ?: false
+             if (!ok) {
+                 val idx = messages.indexOf(optimistic)
+diff --git a/app/src/main/feature/stores/steam/ui/components/QrCodeImage.kt b/app/src/main/feature/stores/steam/ui/components/QrCodeImage.kt
+index dc2c390..97efdf8 100644
+--- a/app/src/main/feature/stores/steam/ui/components/QrCodeImage.kt
++++ b/app/src/main/feature/stores/steam/ui/components/QrCodeImage.kt
+@@ -2,6 +2,7 @@ package com.winlator.cmod.feature.stores.steam.ui.components
+ 
+ import android.graphics.Bitmap
+ import androidx.compose.animation.Crossfade
++import androidx.compose.animation.core.snap
+ import androidx.compose.foundation.Image
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.layout.Box
+@@ -44,6 +45,7 @@ fun QrCodeImage(
+     Crossfade(
+         modifier = Modifier,
+         targetState = qrBitmap,
++        animationSpec = snap(),
+     ) { bitmap ->
+         Box(
+             modifier =
+diff --git a/app/src/main/feature/sync/google/GoogleScreen.kt b/app/src/main/feature/sync/google/GoogleScreen.kt
+index 8cf7f27..8029de1 100644
+--- a/app/src/main/feature/sync/google/GoogleScreen.kt
++++ b/app/src/main/feature/sync/google/GoogleScreen.kt
+@@ -1,15 +1,10 @@
+ package com.winlator.cmod.feature.sync.google
+ import android.app.Activity
+ import android.text.format.DateUtils
+-import androidx.compose.animation.core.FastOutSlowInEasing
+-import androidx.compose.animation.core.RepeatMode
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateFloat
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.infiniteRepeatable
+-import androidx.compose.animation.core.rememberInfiniteTransition
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.border
+ import androidx.compose.foundation.gestures.detectTapGestures
+@@ -337,27 +332,9 @@ private fun GoogleAccountCard(
+     onSignIn: () -> Unit,
+     onSignOut: () -> Unit,
+ ) {
+-    val pulse = rememberInfiniteTransition(label = "pulse_google")
+-    val pulseScale by pulse.animateFloat(
+-        initialValue = 1f,
+-        targetValue = 1.7f,
+-        animationSpec =
+-            infiniteRepeatable(
+-                animation = tween(1200, easing = FastOutSlowInEasing),
+-                repeatMode = RepeatMode.Reverse,
+-            ),
+-        label = "scale_google",
+-    )
+-    val pulseAlpha by pulse.animateFloat(
+-        initialValue = 0.5f,
+-        targetValue = 0f,
+-        animationSpec =
+-            infiniteRepeatable(
+-                animation = tween(1200, easing = FastOutSlowInEasing),
+-                repeatMode = RepeatMode.Reverse,
+-            ),
+-        label = "alpha_google",
+-    )
++    // Static "connected" indicator (no continuous animation).
++    val pulseScale = 1f
++    val pulseAlpha = 0.25f
+ 
+     BoxWithConstraints {
+         val compact = maxWidth < 400.dp
+@@ -845,7 +822,7 @@ private fun ActionButton(
+     var isPressed by remember { mutableStateOf(false) }
+     val scale by animateFloatAsState(
+         targetValue = if (isPressed && enabled) 0.93f else 1f,
+-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
++        animationSpec = snap(),
+         label = "btnScale",
+     )
+ 
+diff --git a/app/src/main/feature/sync/ui/CloudSavesUIContent.kt b/app/src/main/feature/sync/ui/CloudSavesUIContent.kt
+index 8e808f5..f6325de 100644
+--- a/app/src/main/feature/sync/ui/CloudSavesUIContent.kt
++++ b/app/src/main/feature/sync/ui/CloudSavesUIContent.kt
+@@ -5,7 +5,7 @@ import android.widget.Toast
+ import androidx.activity.compose.rememberLauncherForActivityResult
+ import androidx.activity.result.contract.ActivityResultContracts
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.spring
++import androidx.compose.animation.core.snap
+ import androidx.compose.foundation.BorderStroke
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.border
+@@ -1704,7 +1704,7 @@ private fun ActionWithHelper(
+     val isPressed by interactionSource.collectIsPressedAsState()
+     val scale by animateFloatAsState(
+         targetValue = if (isPressed) 0.97f else 1f,
+-        animationSpec = spring(dampingRatio = 0.7f, stiffness = 700f),
++        animationSpec = snap(),
+         label = "cloudActionScale",
+     )
+     Surface(
+diff --git a/app/src/main/res/anim/content_dialog_enter.xml b/app/src/main/res/anim/content_dialog_enter.xml
+deleted file mode 100644
+index db2959f..0000000
+--- a/app/src/main/res/anim/content_dialog_enter.xml
++++ /dev/null
+@@ -1,19 +0,0 @@
+-<?xml version="1.0" encoding="utf-8"?>
+-<!-- Enter animation for Components dialogs and notices. -->
+-<set xmlns:android="http://schemas.android.com/apk/res/android"
+-    android:interpolator="@android:interpolator/fast_out_linear_in">
+-
+-    <scale
+-        android:duration="95"
+-        android:fromXScale="0.97"
+-        android:fromYScale="0.97"
+-        android:pivotX="50%"
+-        android:pivotY="50%"
+-        android:toXScale="1.0"
+-        android:toYScale="1.0" />
+-
+-    <alpha
+-        android:duration="95"
+-        android:fromAlpha="0.0"
+-        android:toAlpha="1.0" />
+-</set>
+\ No newline at end of file
+diff --git a/app/src/main/res/anim/content_dialog_exit.xml b/app/src/main/res/anim/content_dialog_exit.xml
+deleted file mode 100644
+index 746c85e..0000000
+--- a/app/src/main/res/anim/content_dialog_exit.xml
++++ /dev/null
+@@ -1,19 +0,0 @@
+-<?xml version="1.0" encoding="utf-8"?>
+-<!-- Exit animation for Components dialogs and notices. -->
+-<set xmlns:android="http://schemas.android.com/apk/res/android"
+-    android:interpolator="@android:interpolator/fast_out_linear_in">
+-
+-    <scale
+-        android:duration="70"
+-        android:fromXScale="1.0"
+-        android:fromYScale="1.0"
+-        android:pivotX="50%"
+-        android:pivotY="50%"
+-        android:toXScale="0.985"
+-        android:toYScale="0.985" />
+-
+-    <alpha
+-        android:duration="70"
+-        android:fromAlpha="1.0"
+-        android:toAlpha="0.0" />
+-</set>
+\ No newline at end of file
+diff --git a/app/src/main/res/anim/slide_in_down.xml b/app/src/main/res/anim/slide_in_down.xml
+deleted file mode 100644
+index 31b4b40..0000000
+--- a/app/src/main/res/anim/slide_in_down.xml
++++ /dev/null
+@@ -1,4 +0,0 @@
+-<?xml version="1.0" encoding="utf-8"?>
+-<translate xmlns:android="http://schemas.android.com/apk/res/android"
+-    android:fromYDelta="-100%" android:toYDelta="0%"
+-    android:duration="300"/>
+diff --git a/app/src/main/res/anim/slide_out_up.xml b/app/src/main/res/anim/slide_out_up.xml
+deleted file mode 100644
+index bf82975..0000000
+--- a/app/src/main/res/anim/slide_out_up.xml
++++ /dev/null
+@@ -1,4 +0,0 @@
+-<?xml version="1.0" encoding="utf-8"?>
+-<translate xmlns:android="http://schemas.android.com/apk/res/android"
+-    android:fromYDelta="0%" android:toYDelta="-100%"
+-    android:duration="300"/>
+diff --git a/app/src/main/res/values/styles.xml b/app/src/main/res/values/styles.xml
+index 6782945..f247b2d 100644
+--- a/app/src/main/res/values/styles.xml
++++ b/app/src/main/res/values/styles.xml
+@@ -167,8 +167,8 @@
+     </style>
+ 
+     <style name="ContentDialogAnimation">
+-        <item name="android:windowEnterAnimation">@anim/content_dialog_enter</item>
+-        <item name="android:windowExitAnimation">@anim/content_dialog_exit</item>
++        <item name="android:windowEnterAnimation">@anim/no_animation</item>
++        <item name="android:windowExitAnimation">@anim/no_animation</item>
+     </style>
+ 
+ 
+diff --git a/app/src/main/runtime/display/XServerDisplayHost.kt b/app/src/main/runtime/display/XServerDisplayHost.kt
+index df7e45c..6416c63 100644
+--- a/app/src/main/runtime/display/XServerDisplayHost.kt
++++ b/app/src/main/runtime/display/XServerDisplayHost.kt
+@@ -2,8 +2,7 @@ package com.winlator.cmod.runtime.display
+ 
+ import android.widget.FrameLayout
+ import androidx.compose.animation.core.animate
+-import androidx.compose.animation.core.LinearEasing
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.foundation.gestures.awaitEachGesture
+ import androidx.compose.foundation.gestures.awaitFirstDown
+ import androidx.compose.foundation.layout.Box
+@@ -74,10 +73,7 @@ private const val DrawerSettleAnimationMs = 200
+ private const val DrawerOpenSettleThreshold = 0.4f
+ private const val DrawerCloseSettleThreshold = 0.65f
+ private val DrawerSettleAnimationSpec =
+-    tween<Float>(
+-        durationMillis = DrawerSettleAnimationMs,
+-        easing = LinearEasing,
+-    )
++    snap<Float>()
+ 
+ interface XServerDisplayHostCallbacks {
+     fun onDrawerSlide()
+diff --git a/app/src/main/runtime/display/XServerDrawerControlsPane.kt b/app/src/main/runtime/display/XServerDrawerControlsPane.kt
+index 858fc3e..0019763 100644
+--- a/app/src/main/runtime/display/XServerDrawerControlsPane.kt
++++ b/app/src/main/runtime/display/XServerDrawerControlsPane.kt
+@@ -14,12 +14,10 @@ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+ import androidx.compose.animation.shrinkVertically
+-import androidx.compose.animation.core.FastOutSlowInEasing
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateDpAsState
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.border
+ import androidx.compose.foundation.ExperimentalFoundationApi
+@@ -300,7 +298,7 @@ internal fun InputControlsPaneContent(
+                 )
+ 
+                 LaunchedEffect(gcmEnabled) {
+-                    if (gcmEnabled) scrollState.animateScrollTo(Int.MAX_VALUE)
++                    if (gcmEnabled) scrollState.scrollTo(Int.MAX_VALUE)
+                 }
+ 
+                 NavBooleanRow(
+@@ -388,7 +386,7 @@ internal fun InputControlsSimpleDropdown(
+     val pressed = interactionSource.collectIsPressedAsState().value
+     val bgColor by animateColorAsState(
+         targetValue = if (pressed) PaneInnerPressed else PaneInnerResting,
+-        animationSpec = tween(140),
++        animationSpec = snap(),
+         label = "inputControlsSimpleBg",
+     )
+ 
+@@ -475,7 +473,7 @@ internal fun InputControlsProfileSelector(
+     val pressed = interactionSource.collectIsPressedAsState().value
+     val bgColor by animateColorAsState(
+         targetValue = if (pressed) PaneInnerPressed else PaneInnerResting,
+-        animationSpec = tween(140),
++        animationSpec = snap(),
+         label = "inputControlsProfileBg",
+     )
+ 
+@@ -609,7 +607,7 @@ internal fun InputControlsOptionItem(
+     val pressed = interactionSource.collectIsPressedAsState().value
+     val bgColor by animateColorAsState(
+         targetValue = if (pressed) DrawerAccent.copy(alpha = 0.16f) else PaneInnerResting,
+-        animationSpec = tween(120),
++        animationSpec = snap(),
+         label = "inputControlsOptionItem",
+     )
+     val shape = RoundedCornerShape((8f * paneScale).dp)
+@@ -656,7 +654,7 @@ internal fun ExpandableSection(
+     val paneScale = LocalPaneScale.current
+     val rotation by animateFloatAsState(
+         targetValue = if (expanded) 180f else 0f,
+-        animationSpec = tween(180, easing = FastOutSlowInEasing),
++        animationSpec = snap(),
+         label = "expandableRotation",
+     )
+     val headerInteractionSource = remember { MutableInteractionSource() }
+@@ -667,12 +665,12 @@ internal fun ExpandableSection(
+                 headerPressed -> PaneInnerPressed
+                 else -> PaneInnerResting
+             },
+-        animationSpec = tween(140),
++        animationSpec = snap(),
+         label = "expandableHeaderBg",
+     )
+     val headerBorder by animateColorAsState(
+         targetValue = if (expanded) DrawerAccent else RestingCardBorder,
+-        animationSpec = tween(140),
++        animationSpec = snap(),
+         label = "expandableHeaderBorder",
+     )
+     val headerShape = RoundedCornerShape((12f * paneScale).dp)
+@@ -711,7 +709,7 @@ internal fun ExpandableSection(
+                         .graphicsLayer { rotationZ = rotation },
+             )
+         }
+-        AnimatedVisibility(visible = expanded) {
++        AnimatedVisibility(visible = expanded, enter = EnterTransition.None, exit = ExitTransition.None) {
+             Column(verticalArrangement = Arrangement.spacedBy((12f * paneScale).dp)) {
+                 content()
+             }
+diff --git a/app/src/main/runtime/display/XServerDrawerEffectsPane.kt b/app/src/main/runtime/display/XServerDrawerEffectsPane.kt
+index fda9ebd..591d448 100644
+--- a/app/src/main/runtime/display/XServerDrawerEffectsPane.kt
++++ b/app/src/main/runtime/display/XServerDrawerEffectsPane.kt
+@@ -14,12 +14,10 @@ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+ import androidx.compose.animation.shrinkVertically
+-import androidx.compose.animation.core.FastOutSlowInEasing
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateDpAsState
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.border
+ import androidx.compose.foundation.ExperimentalFoundationApi
+@@ -214,14 +212,14 @@ internal fun ScreenEffectsPaneContent(
+                         visible = state.sgsrEnabled,
+                         enter =
+                             expandVertically(
+-                                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
++                                animationSpec = snap(),
+                                 expandFrom = Alignment.Top,
+-                            ) + fadeIn(animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing)),
++                            ) + fadeIn(animationSpec = snap()),
+                         exit =
+                             shrinkVertically(
+-                                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
++                                animationSpec = snap(),
+                                 shrinkTowards = Alignment.Top,
+-                            ) + fadeOut(animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)),
++                            ) + fadeOut(animationSpec = snap()),
+                     ) {
+                         Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
+                             NavSliderRow(
+diff --git a/app/src/main/runtime/display/XServerDrawerHudPane.kt b/app/src/main/runtime/display/XServerDrawerHudPane.kt
+index 8837129..0924da4 100644
+--- a/app/src/main/runtime/display/XServerDrawerHudPane.kt
++++ b/app/src/main/runtime/display/XServerDrawerHudPane.kt
+@@ -14,12 +14,10 @@ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+ import androidx.compose.animation.shrinkVertically
+-import androidx.compose.animation.core.FastOutSlowInEasing
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateDpAsState
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.border
+ import androidx.compose.foundation.ExperimentalFoundationApi
+@@ -762,12 +760,12 @@ internal fun HUDToggleChip(
+                 pressed -> PaneInnerPressed
+                 else -> PaneInnerResting
+             },
+-        animationSpec = tween(140),
++        animationSpec = snap(),
+         label = "hudChipBg",
+     )
+     val borderColor by animateColorAsState(
+         targetValue = if (checked) DrawerAccent else RestingCardBorder,
+-        animationSpec = tween(140),
++        animationSpec = snap(),
+         label = "hudChipBorder",
+     )
+     val cornerRadius = (12f * paneScale).dp
+diff --git a/app/src/main/runtime/display/XServerDrawerInputPanes.kt b/app/src/main/runtime/display/XServerDrawerInputPanes.kt
+index 970252e..62f75c7 100644
+--- a/app/src/main/runtime/display/XServerDrawerInputPanes.kt
++++ b/app/src/main/runtime/display/XServerDrawerInputPanes.kt
+@@ -14,12 +14,10 @@ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+ import androidx.compose.animation.shrinkVertically
+-import androidx.compose.animation.core.FastOutSlowInEasing
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateDpAsState
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.border
+ import androidx.compose.foundation.ExperimentalFoundationApi
+@@ -487,7 +485,7 @@ internal fun GyroscopeActivatorDropdown(
+     val pressed = interactionSource.collectIsPressedAsState().value
+     val bgColor by animateColorAsState(
+         targetValue = if (pressed) PaneInnerPressed else PaneInnerResting,
+-        animationSpec = tween(140),
++        animationSpec = snap(),
+         label = "gyroActivatorDropdownBg",
+     )
+ 
+diff --git a/app/src/main/runtime/display/XServerDrawerLogsPane.kt b/app/src/main/runtime/display/XServerDrawerLogsPane.kt
+index 2776657..51e7109 100644
+--- a/app/src/main/runtime/display/XServerDrawerLogsPane.kt
++++ b/app/src/main/runtime/display/XServerDrawerLogsPane.kt
+@@ -14,12 +14,10 @@ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+ import androidx.compose.animation.shrinkVertically
+-import androidx.compose.animation.core.FastOutSlowInEasing
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateDpAsState
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.border
+ import androidx.compose.foundation.ExperimentalFoundationApi
+@@ -300,7 +298,7 @@ internal fun LogsPaneActionTile(
+     val pressed = interactionSource.collectIsPressedAsState().value
+     val tint by animateColorAsState(
+         targetValue = if (pressed) DrawerAccent else DrawerTextPrimary,
+-        animationSpec = tween(120),
++        animationSpec = snap(),
+         label = "logsActionTileTint",
+     )
+     Box(
+diff --git a/app/src/main/runtime/display/XServerDrawerMenu.kt b/app/src/main/runtime/display/XServerDrawerMenu.kt
+index 95bd439..4526e17 100644
+--- a/app/src/main/runtime/display/XServerDrawerMenu.kt
++++ b/app/src/main/runtime/display/XServerDrawerMenu.kt
+@@ -14,12 +14,10 @@ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+ import androidx.compose.animation.shrinkVertically
+-import androidx.compose.animation.core.FastOutSlowInEasing
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateDpAsState
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.border
+ import androidx.compose.foundation.ExperimentalFoundationApi
+@@ -1614,12 +1612,12 @@ internal fun XServerDrawerContent(
+                     val railVisible = openPane != DrawerPane.TASK_MANAGER && openPane != DrawerPane.LOGS
+                     val chromeEnter =
+                         expandVertically(
+-                            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+-                        ) + fadeIn(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing))
++                            animationSpec = snap(),
++                        ) + fadeIn(animationSpec = snap())
+                     val chromeExit =
+                         shrinkVertically(
+-                            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+-                        ) + fadeOut(animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing))
++                            animationSpec = snap(),
++                        ) + fadeOut(animationSpec = snap())
+ 
+                     AnimatedVisibility(
+                         visible = railVisible,
+@@ -1662,15 +1660,15 @@ internal fun XServerDrawerContent(
+                                     (
+                                         slideInVertically(
+                                             initialOffsetY = { it / 3 },
+-                                            animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
+-                                        ) + fadeIn(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing))
+-                                    ) togetherWith fadeOut(animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)) using
++                                            animationSpec = snap(),
++                                        ) + fadeIn(animationSpec = snap())
++                                    ) togetherWith fadeOut(animationSpec = snap()) using
+                                         SizeTransform(clip = false)
+                                 } else if (returningToMenu) {
+                                     EnterTransition.None togetherWith ExitTransition.None
+                                 } else {
+-                                    fadeIn(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)) togetherWith
+-                                        fadeOut(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing))
++                                    fadeIn(animationSpec = snap()) togetherWith
++                                        fadeOut(animationSpec = snap())
+                                 }
+                             },
+                             label = "drawerBody",
+@@ -1787,7 +1785,7 @@ private fun TopRail(
+         }
+     val selectedBounds = tileBounds[selectedKey]
+ 
+-    val indicatorAnimSpec = tween<Dp>(durationMillis = 240, easing = FastOutSlowInEasing)
++    val indicatorAnimSpec = snap<Dp>()
+     val indicatorX by animateDpAsState(
+         targetValue = selectedBounds?.let { with(density) { it.offsetX.toDp() } } ?: 0.dp,
+         animationSpec = indicatorAnimSpec,
+@@ -1805,7 +1803,7 @@ private fun TopRail(
+     )
+     val indicatorAlpha by animateFloatAsState(
+         targetValue = if (selectedBounds != null) 1f else 0f,
+-        animationSpec = tween(durationMillis = 160),
++        animationSpec = snap(),
+         label = "topRailIndicatorAlpha",
+     )
+ 
+@@ -1897,10 +1895,7 @@ private fun TopRailTile(
+     val scale by animateFloatAsState(
+         targetValue = if (pressed) 0.94f else 1f,
+         animationSpec =
+-            spring(
+-                dampingRatio = Spring.DampingRatioMediumBouncy,
+-                stiffness = Spring.StiffnessMedium,
+-            ),
++            snap(),
+         label = "topRailScale_$tileKey",
+     )
+     val bgColor by animateColorAsState(
+@@ -1910,7 +1905,7 @@ private fun TopRailTile(
+                 pressed && !selected -> PaneSurfacePressed
+                 else -> Color.Transparent
+             },
+-        animationSpec = tween(120),
++        animationSpec = snap(),
+         label = "topRailBg_$tileKey",
+     )
+     val tint by animateColorAsState(
+@@ -1920,7 +1915,7 @@ private fun TopRailTile(
+                 active -> DrawerActiveAccent
+                 else -> DrawerTextPrimary
+             },
+-        animationSpec = tween(120),
++        animationSpec = snap(),
+         label = "topRailTint_$tileKey",
+     )
+ 
+@@ -2112,31 +2107,20 @@ private fun ActionCard(
+     val revealAlpha by animateFloatAsState(
+         targetValue = if (revealed) 1f else 0f,
+         animationSpec =
+-            tween(
+-                durationMillis = ActionCardRevealDurationMs,
+-                delayMillis = staggerDelay,
+-                easing = FastOutSlowInEasing,
+-            ),
++            snap(),
+         label = "actionCardReveal_${item.itemId}",
+     )
+     val revealOffsetY by animateDpAsState(
+         targetValue = if (revealed) 0.dp else 8.dp,
+         animationSpec =
+-            tween(
+-                durationMillis = ActionCardRevealDurationMs,
+-                delayMillis = staggerDelay,
+-                easing = FastOutSlowInEasing,
+-            ),
++            snap(),
+         label = "actionCardRevealOffset_${item.itemId}",
+     )
+ 
+     val scale by animateFloatAsState(
+         targetValue = if (pressed && enabled) 0.96f else 1f,
+         animationSpec =
+-            spring(
+-                dampingRatio = Spring.DampingRatioMediumBouncy,
+-                stiffness = Spring.StiffnessMedium,
+-            ),
++            snap(),
+         label = "actionCardScale_${item.itemId}",
+     )
+     val bgColor by animateColorAsState(
+@@ -2147,7 +2131,7 @@ private fun ActionCard(
+                 pressed -> PaneInnerPressed
+                 else -> PaneInnerResting
+             },
+-        animationSpec = tween(120),
++        animationSpec = snap(),
+         label = "actionCardBg_${item.itemId}",
+     )
+     val borderColor by animateColorAsState(
+@@ -2157,7 +2141,7 @@ private fun ActionCard(
+                 item.active -> ActiveCardBorder
+                 else -> RestingCardBorder
+             },
+-        animationSpec = tween(120),
++        animationSpec = snap(),
+         label = "actionCardBorder_${item.itemId}",
+     )
+     val tint by animateColorAsState(
+@@ -2167,7 +2151,7 @@ private fun ActionCard(
+                 item.active -> DrawerActiveAccent
+                 else -> DrawerTextPrimary
+             },
+-        animationSpec = tween(120),
++        animationSpec = snap(),
+         label = "actionCardTint_${item.itemId}",
+     )
+ 
+@@ -2318,7 +2302,7 @@ private fun BottomActionButton(
+                 pressed -> PaneSurfacePressed
+                 else -> PaneInnerResting
+             },
+-        animationSpec = tween(120),
++        animationSpec = snap(),
+         label = "bottomActionBg_${item.itemId}",
+     )
+     val borderColor =
+@@ -2491,12 +2475,12 @@ private fun DrawerMetricChip(
+     val pressed = interactionSource.collectIsPressedAsState().value
+     val scale by animateFloatAsState(
+         targetValue = if (pressed) 0.985f else 1f,
+-        animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
++        animationSpec = snap(),
+         label = "drawerMetricScale_$label",
+     )
+     val bgColor by animateColorAsState(
+         targetValue = if (pressed) PaneInnerPressed else PaneInnerResting,
+-        animationSpec = tween(140),
++        animationSpec = snap(),
+         label = "drawerMetricBg",
+     )
+ 
+@@ -2748,12 +2732,12 @@ internal fun DrawerBooleanRow(
+                 pressed -> PaneInnerPressed
+                 else -> PaneInnerResting
+             },
+-        animationSpec = tween(140),
++        animationSpec = snap(),
+         label = "drawerBooleanRowBg",
+     )
+     val borderColor by animateColorAsState(
+         targetValue = if (checked) ActiveCardBorder else RestingCardBorder,
+-        animationSpec = tween(140),
++        animationSpec = snap(),
+         label = "drawerBooleanRowBorder",
+     )
+     val cornerRadius = (14f * paneScale).dp
+diff --git a/app/src/main/runtime/display/XServerDrawerOutputPane.kt b/app/src/main/runtime/display/XServerDrawerOutputPane.kt
+index 4ec47fd..e9b9c9c 100644
+--- a/app/src/main/runtime/display/XServerDrawerOutputPane.kt
++++ b/app/src/main/runtime/display/XServerDrawerOutputPane.kt
+@@ -14,12 +14,9 @@ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+ import androidx.compose.animation.shrinkVertically
+-import androidx.compose.animation.core.FastOutSlowInEasing
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateDpAsState
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.border
+ import androidx.compose.foundation.ExperimentalFoundationApi
+diff --git a/app/src/main/runtime/display/XServerDrawerRecordDialogs.kt b/app/src/main/runtime/display/XServerDrawerRecordDialogs.kt
+index c3aa5f1..86cf1a1 100644
+--- a/app/src/main/runtime/display/XServerDrawerRecordDialogs.kt
++++ b/app/src/main/runtime/display/XServerDrawerRecordDialogs.kt
+@@ -14,12 +14,10 @@ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+ import androidx.compose.animation.shrinkVertically
+-import androidx.compose.animation.core.FastOutSlowInEasing
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateDpAsState
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.border
+ import androidx.compose.foundation.ExperimentalFoundationApi
+@@ -374,7 +372,7 @@ internal fun FPSLimiterCard(
+ 
+     val borderColor by animateColorAsState(
+         targetValue = if (enabled) ActiveCardBorder else RestingCardBorder,
+-        animationSpec = tween(140),
++        animationSpec = snap(),
+         label = "fpsLimiterCardBorder",
+     )
+     val shape = RoundedCornerShape((14f * paneScale).dp)
+@@ -430,14 +428,14 @@ internal fun FPSLimiterCard(
+             visible = enabled,
+             enter =
+                 expandVertically(
+-                    animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
++                    animationSpec = snap(),
+                     expandFrom = Alignment.Top,
+-                ) + fadeIn(animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing)),
++                ) + fadeIn(animationSpec = snap()),
+             exit =
+                 shrinkVertically(
+-                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
++                    animationSpec = snap(),
+                     shrinkTowards = Alignment.Top,
+-                ) + fadeOut(animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)),
++                ) + fadeOut(animationSpec = snap()),
+         ) {
+             Column {
+                 Spacer(Modifier.height((6f * paneScale).dp))
+diff --git a/app/src/main/runtime/display/XServerDrawerTaskManagerPane.kt b/app/src/main/runtime/display/XServerDrawerTaskManagerPane.kt
+index 00aea57..04415e4 100644
+--- a/app/src/main/runtime/display/XServerDrawerTaskManagerPane.kt
++++ b/app/src/main/runtime/display/XServerDrawerTaskManagerPane.kt
+@@ -14,12 +14,10 @@ import androidx.compose.animation.expandVertically
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+ import androidx.compose.animation.shrinkVertically
+-import androidx.compose.animation.core.FastOutSlowInEasing
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateDpAsState
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.spring
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.border
+ import androidx.compose.foundation.ExperimentalFoundationApi
+@@ -381,15 +379,15 @@ internal fun TaskManagerHeader(
+     AnimatedVisibility(
+         visible = cpuExpanded && cpuCorePercents.isNotEmpty(),
+         enter =
+-            fadeIn(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)) +
++            fadeIn(animationSpec = snap()) +
+                 expandVertically(
+-                    animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
++                    animationSpec = snap(),
+                     expandFrom = Alignment.Top,
+                 ),
+         exit =
+-            fadeOut(animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing)) +
++            fadeOut(animationSpec = snap()) +
+                 shrinkVertically(
+-                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
++                    animationSpec = snap(),
+                     shrinkTowards = Alignment.Top,
+                 ),
+     ) {
+@@ -406,7 +404,7 @@ internal fun TaskManagerCloseButton(onClick: () -> Unit) {
+     val pressed = interactionSource.collectIsPressedAsState().value
+     val bgColor by animateColorAsState(
+         targetValue = if (pressed) PaneInnerPressed else PaneInnerResting,
+-        animationSpec = tween(120),
++        animationSpec = snap(),
+         label = "taskManagerCloseBg",
+     )
+     val size = (38f * paneScale).dp
+@@ -453,12 +451,12 @@ internal fun TaskManagerStatTile(
+                 pressed -> PaneInnerPressed
+                 else -> PaneInnerResting
+             },
+-        animationSpec = tween(120),
++        animationSpec = snap(),
+         label = "taskManagerStatTileBg",
+     )
+     val borderColor by animateColorAsState(
+         targetValue = if (selected) DrawerAccent else RestingCardBorder,
+-        animationSpec = tween(120),
++        animationSpec = snap(),
+         label = "taskManagerStatTileBorder",
+     )
+     val clickModifier =
+@@ -573,7 +571,7 @@ internal fun TaskManagerNewTaskButton(onClick: () -> Unit) {
+     val pressed = interactionSource.collectIsPressedAsState().value
+     val bgColor by animateColorAsState(
+         targetValue = if (pressed) PaneInnerPressed else PaneInnerResting,
+-        animationSpec = tween(120),
++        animationSpec = snap(),
+         label = "taskManagerNewTaskBg",
+     )
+     val tint = if (pressed) DrawerAccent.copy(alpha = 0.76f) else DrawerAccent
+@@ -787,7 +785,7 @@ internal fun TaskManagerActionPopupItem(
+     val pressed = interactionSource.collectIsPressedAsState().value
+     val bgColor by animateColorAsState(
+         targetValue = if (pressed) DrawerAccent.copy(alpha = 0.16f) else PaneInnerResting,
+-        animationSpec = tween(120),
++        animationSpec = snap(),
+         label = "taskManagerPopupItem",
+     )
+     val shape = RoundedCornerShape((8f * paneScale).dp)
+@@ -1221,12 +1219,12 @@ internal fun TaskManagerProcessCard(
+     var menuExpanded by remember { mutableStateOf(false) }
+     val bgColor by animateColorAsState(
+         targetValue = if (pressed) PaneInnerPressed else PaneInnerResting,
+-        animationSpec = tween(120),
++        animationSpec = snap(),
+         label = "taskManagerProcessRowBg",
+     )
+     val borderColor by animateColorAsState(
+         targetValue = if (expanded) DrawerAccent.copy(alpha = 0.62f) else RestingCardBorder,
+-        animationSpec = tween(160),
++        animationSpec = snap(),
+         label = "taskManagerProcessCardBorder",
+     )
+ 
+@@ -1306,15 +1304,15 @@ internal fun TaskManagerProcessCard(
+         AnimatedVisibility(
+             visible = expanded,
+             enter =
+-                fadeIn(animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)) +
++                fadeIn(animationSpec = snap()) +
+                     expandVertically(
+-                        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
++                        animationSpec = snap(),
+                         expandFrom = Alignment.Top,
+                     ),
+             exit =
+-                fadeOut(animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)) +
++                fadeOut(animationSpec = snap()) +
+                     shrinkVertically(
+-                        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
++                        animationSpec = snap(),
+                         shrinkTowards = Alignment.Top,
+                     ),
+         ) {
+@@ -1334,7 +1332,7 @@ internal fun TaskManagerEndButton(onClick: () -> Unit) {
+     val pressed = interactionSource.collectIsPressedAsState().value
+     val bgColor by animateColorAsState(
+         targetValue = if (pressed) TileExitPressed else TileExitResting,
+-        animationSpec = tween(120),
++        animationSpec = snap(),
+         label = "taskManagerEndBtn",
+     )
+     val size = (32f * paneScale).dp
+diff --git a/app/src/main/runtime/input/ControlsEditorActivity.java b/app/src/main/runtime/input/ControlsEditorActivity.java
+index 12aba15..5c68660 100644
+--- a/app/src/main/runtime/input/ControlsEditorActivity.java
++++ b/app/src/main/runtime/input/ControlsEditorActivity.java
+@@ -96,7 +96,7 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
+               public void handleOnBackPressed() {
+                 finish();
+                 AppUtils.applyCloseActivityTransition(
+-                    ControlsEditorActivity.this, R.anim.slide_in_down, R.anim.slide_out_up);
++                    ControlsEditorActivity.this, R.anim.no_animation, R.anim.no_animation);
+               }
+             });
+   }
+diff --git a/app/src/main/shared/android/DirectoryPickerDialog.kt b/app/src/main/shared/android/DirectoryPickerDialog.kt
+index 255e410..0504428 100644
+--- a/app/src/main/shared/android/DirectoryPickerDialog.kt
++++ b/app/src/main/shared/android/DirectoryPickerDialog.kt
+@@ -14,7 +14,7 @@ import android.view.WindowManager
+ import android.widget.Toast
+ import androidx.compose.animation.core.CubicBezierEasing
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.foundation.BorderStroke
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.border
+@@ -677,19 +677,13 @@ object DirectoryPickerDialog {
+         val contentAlpha by animateFloatAsState(
+             targetValue = if (contentVisible) 1f else 0f,
+             animationSpec =
+-                tween(
+-                    durationMillis = ContentEnterMillis,
+-                    easing = ContentEnterEasing,
+-                ),
++                snap(),
+             label = "directoryPickerContentFade",
+         )
+         val contentScale by animateFloatAsState(
+             targetValue = if (contentVisible) 1f else 0.972f,
+             animationSpec =
+-                tween(
+-                    durationMillis = ContentEnterMillis,
+-                    easing = ContentEnterEasing,
+-                ),
++                snap(),
+             label = "directoryPickerContentScale",
+         )
+         val density = LocalDensity.current
+@@ -697,10 +691,7 @@ object DirectoryPickerDialog {
+         val contentTranslationY by animateFloatAsState(
+             targetValue = if (contentVisible) 0f else hiddenTranslationY,
+             animationSpec =
+-                tween(
+-                    durationMillis = ContentEnterMillis,
+-                    easing = ContentEnterEasing,
+-                ),
++                snap(),
+             label = "directoryPickerContentOffset",
+         )
+         LaunchedEffect(Unit) {
+@@ -1323,7 +1314,7 @@ object DirectoryPickerDialog {
+     ) {
+         val chevronRotation by animateFloatAsState(
+             targetValue = if (expanded) 180f else 0f,
+-            animationSpec = tween(durationMillis = 180),
++            animationSpec = snap(),
+             label = "storageRootChevronRotation",
+         )
+ 
+@@ -1886,7 +1877,7 @@ object DirectoryPickerDialog {
+     ) {
+         val chevronRotation by animateFloatAsState(
+             targetValue = if (expanded) 180f else 0f,
+-            animationSpec = tween(durationMillis = 180),
++            animationSpec = snap(),
+             label = "manageRootChevronRotation",
+         )
+         Box(modifier = modifier) {
+diff --git a/app/src/main/shared/theme/WinNativeTheme.kt b/app/src/main/shared/theme/WinNativeTheme.kt
+index 6f3805b..c378f04 100644
+--- a/app/src/main/shared/theme/WinNativeTheme.kt
++++ b/app/src/main/shared/theme/WinNativeTheme.kt
+@@ -1,5 +1,5 @@
+ package com.winlator.cmod.shared.theme
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.material3.ColorScheme
+ import androidx.compose.material3.MaterialTheme
+@@ -46,8 +46,8 @@ private val WinNativeShapes =
+ // simple avoids long-running/continuous animators competing with the app's
+ // own GPU-bound rendering (emulation surfaces, shader compiles, etc.).
+ object WinNativeMotion {
+-    val fast = tween<Float>(durationMillis = 120)
+-    val standard = tween<Float>(durationMillis = 180)
++    val fast = snap<Float>()
++    val standard = snap<Float>()
+ }
+ 
+ private val WinNativeColorScheme =
+diff --git a/app/src/main/shared/ui/CarouselView.kt b/app/src/main/shared/ui/CarouselView.kt
+index 6e2de0e..1796a12 100644
+--- a/app/src/main/shared/ui/CarouselView.kt
++++ b/app/src/main/shared/ui/CarouselView.kt
+@@ -1,7 +1,7 @@
+ package com.winlator.cmod.shared.ui
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.spring
++import androidx.compose.animation.core.snap
+ import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+ import androidx.compose.foundation.layout.Arrangement
+ import androidx.compose.foundation.layout.Box
+@@ -87,7 +87,7 @@ fun <T> CarouselView(
+         LaunchedEffect(selectedIndex) {
+             if (selectedIndex in items.indices) {
+                 lastReportedIndex.intValue = selectedIndex
+-                listState.animateScrollToItem(selectedIndex)
++                listState.scrollToItem(selectedIndex)
+             }
+         }
+ 
+@@ -159,28 +159,19 @@ fun <T> CarouselView(
+                 val scale by animateFloatAsState(
+                     targetValue = 1.12f - (0.22f * distanceFraction),
+                     animationSpec =
+-                        spring(
+-                            dampingRatio = Spring.DampingRatioNoBouncy,
+-                            stiffness = Spring.StiffnessMediumLow,
+-                        ),
++                        snap(),
+                     label = "carouselScale",
+                 )
+                 val rise by animateFloatAsState(
+                     targetValue = 1f - distanceFraction,
+                     animationSpec =
+-                        spring(
+-                            dampingRatio = Spring.DampingRatioNoBouncy,
+-                            stiffness = Spring.StiffnessMediumLow,
+-                        ),
++                        snap(),
+                     label = "carouselRise",
+                 )
+                 val itemAlpha by animateFloatAsState(
+                     targetValue = 1f - (0.15f * distanceFraction),
+                     animationSpec =
+-                        spring(
+-                            dampingRatio = Spring.DampingRatioNoBouncy,
+-                            stiffness = Spring.StiffnessMedium,
+-                        ),
++                        snap(),
+                     label = "carouselAlpha",
+                 )
+ 
+diff --git a/app/src/main/shared/ui/FourByTwoGridView.kt b/app/src/main/shared/ui/FourByTwoGridView.kt
+index 3866e1d..e9a6647 100644
+--- a/app/src/main/shared/ui/FourByTwoGridView.kt
++++ b/app/src/main/shared/ui/FourByTwoGridView.kt
+@@ -1,7 +1,7 @@
+ package com.winlator.cmod.shared.ui
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateDpAsState
+-import androidx.compose.animation.core.spring
++import androidx.compose.animation.core.snap
+ import androidx.compose.foundation.layout.Arrangement
+ import androidx.compose.foundation.layout.BoxWithConstraints
+ import androidx.compose.foundation.layout.PaddingValues
+@@ -115,10 +115,7 @@ fun <T> FourByTwoGridView(
+                 val rowHeight by animateDpAsState(
+                     targetValue = targetRowHeight,
+                     animationSpec =
+-                        spring(
+-                            dampingRatio = Spring.DampingRatioNoBouncy,
+-                            stiffness = Spring.StiffnessHigh,
+-                        ),
++                        snap(),
+                     label = "rowHeight",
+                 )
+ 
+@@ -160,7 +157,7 @@ fun <T> FourByTwoGridView(
+                                     // If more than half the first row is scrolled off, snap to the next row
+                                     val snapToNext = firstVisible.offset.y < -(firstVisible.size.height / 2)
+                                     val targetRow = if (snapToNext) row + 1 else row
+-                                    gridState.animateScrollToItem(targetRow * resolvedColumns)
++                                    gridState.scrollToItem(targetRow * resolvedColumns)
+                                 }
+                             }
+                     }
+diff --git a/app/src/main/shared/ui/ListView.kt b/app/src/main/shared/ui/ListView.kt
+index 364d247..d2987e4 100644
+--- a/app/src/main/shared/ui/ListView.kt
++++ b/app/src/main/shared/ui/ListView.kt
+@@ -62,7 +62,7 @@ fun <T> ListView(
+     // Scroll to selected index when changed externally (d-pad)
+     LaunchedEffect(selectedIndex) {
+         if (selectedIndex in items.indices) {
+-            listState.animateScrollToItem(selectedIndex)
++            listState.scrollToItem(selectedIndex)
+         }
+     }
+ 
+diff --git a/app/src/main/shared/ui/dialog/ContainerProgressPopup.kt b/app/src/main/shared/ui/dialog/ContainerProgressPopup.kt
+index 3b4b679..c1f63c2 100644
+--- a/app/src/main/shared/ui/dialog/ContainerProgressPopup.kt
++++ b/app/src/main/shared/ui/dialog/ContainerProgressPopup.kt
+@@ -9,7 +9,7 @@ import android.view.Window
+ import android.view.WindowManager
+ import androidx.annotation.StringRes
+ import androidx.compose.animation.AnimatedVisibility
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+ import androidx.compose.animation.scaleIn
+@@ -80,10 +80,10 @@ class ContainerProgressPopup(
+                     ) {
+                         AnimatedVisibility(
+                             visible = visible.value,
+-                            enter = fadeIn(tween(180)) +
+-                                scaleIn(tween(180), initialScale = 0.9f),
+-                            exit = fadeOut(tween(120)) +
+-                                scaleOut(tween(120), targetScale = 0.9f),
++                            enter = fadeIn(snap()) +
++                                scaleIn(snap(), initialScale = 0.9f),
++                            exit = fadeOut(snap()) +
++                                scaleOut(snap(), targetScale = 0.9f),
+                         ) {
+                             PopupDialog(
+                                 title = stringResource(titleRes),
+diff --git a/app/src/main/shared/ui/dialog/PopupDialog.kt b/app/src/main/shared/ui/dialog/PopupDialog.kt
+index 7fd42ad..3b2d4c3 100644
+--- a/app/src/main/shared/ui/dialog/PopupDialog.kt
++++ b/app/src/main/shared/ui/dialog/PopupDialog.kt
+@@ -1,8 +1,7 @@
+ package com.winlator.cmod.shared.ui.dialog
+ 
+-import androidx.compose.animation.core.FastOutSlowInEasing
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.foundation.BorderStroke
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.border
+@@ -179,7 +178,7 @@ private fun ProgressBarFooter(
+     } else {
+         val smoothed by animateFloatAsState(
+             targetValue = progress.coerceIn(0f, 1f),
+-            animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
++            animationSpec = snap(),
+             label = "popupProgress",
+         )
+         LinearProgressIndicator(
+diff --git a/app/src/main/shared/ui/dialog/PreloaderDialogContent.kt b/app/src/main/shared/ui/dialog/PreloaderDialogContent.kt
+index ab85e1b..6ad6228 100644
+--- a/app/src/main/shared/ui/dialog/PreloaderDialogContent.kt
++++ b/app/src/main/shared/ui/dialog/PreloaderDialogContent.kt
+@@ -1,9 +1,8 @@
+ package com.winlator.cmod.shared.ui.dialog
+ 
+ import androidx.compose.animation.AnimatedContent
+-import androidx.compose.animation.core.FastOutSlowInEasing
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+ import androidx.compose.animation.slideInVertically
+@@ -179,12 +178,12 @@ fun PreloaderDialogContent(state: PreloaderDialogState) {
+     }
+     val contentAlpha by animateFloatAsState(
+         targetValue = if (entered) 1f else 0f,
+-        animationSpec = tween(520, easing = FastOutSlowInEasing),
++        animationSpec = snap(),
+         label = "contentAlpha",
+     )
+     val contentRise by animateFloatAsState(
+         targetValue = if (entered) 0f else 18f,
+-        animationSpec = tween(520, easing = FastOutSlowInEasing),
++        animationSpec = snap(),
+         label = "contentRise",
+     )
+ 
+@@ -319,11 +318,11 @@ fun PreloaderDialogContent(state: PreloaderDialogState) {
+                     // Cross-fade with a gentle upward drift: the new line rises into place from
+                     // slightly below while the old one fades out drifting up. No 3D flip.
+                     (
+-                        fadeIn(tween(260, delayMillis = 60)) +
+-                            slideInVertically(tween(320, easing = FastOutSlowInEasing)) { it / 6 }
++                        fadeIn(snap()) +
++                            slideInVertically(snap()) { it / 6 }
+                     ) togetherWith (
+-                        fadeOut(tween(200)) +
+-                            slideOutVertically(tween(320, easing = FastOutSlowInEasing)) { -it / 6 }
++                        fadeOut(snap()) +
++                            slideOutVertically(snap()) { -it / 6 }
+                     )
+                 },
+                 label = "statusText",
+@@ -374,7 +373,7 @@ fun PreloaderDialogContent(state: PreloaderDialogState) {
+                 // bar jumps between them, which reads as having stalled.
+                 val animated by animateFloatAsState(
+                     targetValue = (progress.coerceIn(0, 100)) / 100f,
+-                    animationSpec = tween(240),
++                    animationSpec = snap(),
+                     label = "preloaderBottomProgress",
+                 )
+                 if (isIndeterminate) {
+@@ -468,7 +467,7 @@ private fun NeonCometRing(
+ ) {
+     val animatedProgress by animateFloatAsState(
+         targetValue = progress.coerceIn(0, 100) / 100f,
+-        animationSpec = tween(durationMillis = 620, easing = FastOutSlowInEasing),
++        animationSpec = snap(),
+         label = "ringProgress",
+     )
+ 
+diff --git a/app/src/main/shared/ui/focus/ControllerMenuModifiers.kt b/app/src/main/shared/ui/focus/ControllerMenuModifiers.kt
+index bef20ad..0334e8f 100644
+--- a/app/src/main/shared/ui/focus/ControllerMenuModifiers.kt
++++ b/app/src/main/shared/ui/focus/ControllerMenuModifiers.kt
+@@ -4,7 +4,7 @@ import android.os.SystemClock
+ import android.view.InputDevice
+ import android.view.MotionEvent
+ import androidx.compose.animation.core.animateFloatAsState
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.foundation.focusable
+ import androidx.compose.runtime.DisposableEffect
+ import androidx.compose.runtime.getValue
+@@ -61,7 +61,7 @@ fun Modifier.controllerFocusGlow(
+         var focused by remember { mutableStateOf(false) }
+         val intensity by animateFloatAsState(
+             targetValue = if (focused) 1f else 0f,
+-            animationSpec = tween(160),
++            animationSpec = snap(),
+             label = "controllerFocusGlow",
+         )
+         this
+@@ -95,7 +95,7 @@ fun Modifier.controllerFocusItem(
+         var focused by remember { mutableStateOf(false) }
+         val intensity by animateFloatAsState(
+             targetValue = if (focused) 1f else 0f,
+-            animationSpec = tween(160),
++            animationSpec = snap(),
+             label = "controllerFocusItem",
+         )
+         this
+diff --git a/app/src/main/shared/ui/toast/WinToastContent.kt b/app/src/main/shared/ui/toast/WinToastContent.kt
+index 7d682e5..0c77c77 100644
+--- a/app/src/main/shared/ui/toast/WinToastContent.kt
++++ b/app/src/main/shared/ui/toast/WinToastContent.kt
+@@ -2,7 +2,7 @@ package com.winlator.cmod.shared.ui.toast
+ 
+ import android.graphics.Bitmap
+ import androidx.compose.animation.AnimatedVisibility
+-import androidx.compose.animation.core.tween
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+ import androidx.compose.animation.slideInVertically
+@@ -38,8 +38,8 @@ internal fun WinToastContent(
+     WinNativeTheme {
+         AnimatedVisibility(
+             visible = visible,
+-            enter = fadeIn(tween(180)) + slideInVertically(tween(220)) { it / 4 },
+-            exit = fadeOut(tween(160)) + slideOutVertically(tween(180)) { it / 4 },
++            enter = fadeIn(snap()) + slideInVertically(snap()) { it / 4 },
++            exit = fadeOut(snap()) + slideOutVertically(snap()) { it / 4 },
+         ) {
+             Row(
+                 modifier = Modifier
+-- 
+2.43.0
+

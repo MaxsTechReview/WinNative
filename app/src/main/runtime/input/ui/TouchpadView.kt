@@ -73,6 +73,10 @@ class TouchpadView(
     private var activeTouchHandler: ((MotionEvent) -> Boolean)? = null
     private val longPressHandler = Handler(Looper.getMainLooper())
     private var longPressActive = false
+    /** Per-pointer acceptance state for simulated touchscreen mode.
+     * A pointer that starts outside the rendered game frame must never generate guest input.
+     */
+    private val touchscreenPointerActive = BooleanArray(MAX_FINGERS.toInt())
     private val longPressRunnable = Runnable {
         if (tapToClickEnabled && numFingers.toInt() == 1 && fingers[0] != null && fingers[0]!!.travelDistance() < MAX_TAP_TRAVEL_DISTANCE) {
             longPressActive = true
@@ -111,14 +115,75 @@ class TouchpadView(
     }
 
     private fun updateXform(outerWidth: Int, outerHeight: Int, innerWidth: Int, innerHeight: Int) {
-        val viewTransformation = ViewTransformation()
-        viewTransformation.update(outerWidth, outerHeight, innerWidth, innerHeight)
-        val invAspect = 1.0f / viewTransformation.aspect
-        if (!xServer.renderer!!.isFullscreen) {
-            XForm.makeTranslation(xform, -viewTransformation.viewOffsetX.toFloat(), -viewTransformation.viewOffsetY.toFloat())
-            XForm.scale(xform, invAspect, invAspect)
+        val renderer = xServer.renderer
+        if (renderer == null) {
+            XForm.makeScale(
+                xform,
+                if (outerWidth > 0) innerWidth.toFloat() / outerWidth.toFloat() else 1f,
+                if (outerHeight > 0) innerHeight.toFloat() / outerHeight.toFloat() else 1f,
+            )
+            return
+        }
+
+        // The renderer owns the authoritative display transform. Do not rebuild a second
+        // approximation here: during resize/reparent/screen-resolution changes the old copy
+        // could lag one frame and move the touch map away from the pixels.
+        val vt = renderer.viewTransformation
+        val surfaceW = renderer.surfaceWidth.takeIf { it > 0 } ?: outerWidth
+        val surfaceH = renderer.surfaceHeight.takeIf { it > 0 } ?: outerHeight
+        val sceneW = xServer.screenInfo.width.toInt()
+        val sceneH = xServer.screenInfo.height.toInt()
+
+        if (surfaceW <= 0 || surfaceH <= 0 || sceneW <= 0 || sceneH <= 0) {
+            XForm.makeScale(xform, 1f, 1f)
+            return
+        }
+
+        // renderer.isFullscreen() is the renderer's own Fullscreen-Stretched toggle
+        // (VulkanRenderer#toggleFullscreen / main_menu_toggle_fullscreen) - not the Android
+        // surface/system-UI fullscreen state. Mirror it into vt.forceStretch *before*
+        // calling update(), the same way VulkanRenderer does before every one of its own
+        // update() calls. That way vt.viewOffsetX/Y/viewWidth/Height/aspect end up holding
+        // the exact numbers the renderer's viewport used this frame - one shared computation,
+        // not a second hand-written "fill the whole surface" formula living here too.
+        vt.forceStretch = renderer.isFullscreen()
+
+        // Recompute from the current guest and surface dimensions on each input batch.
+        // Guest resolution can change without Android relaying a view-size callback.
+        vt.update(surfaceW, surfaceH, sceneW, sceneH)
+
+        // Branch on effectiveMode (what update() actually computed against), not mode (the
+        // user's selected resize setting) - they differ exactly when forceStretch overrode it.
+        if (vt.effectiveMode == ViewTransformation.FILL_MODE_STRETCH) {
+            // Exact inverse of the stretch path: surface -> guest.
+            XForm.set(
+                xform,
+                vt.sceneScaleX,
+                0f,
+                0f,
+                vt.sceneScaleY,
+                0f,
+                0f,
+            )
         } else {
-            XForm.makeScale(xform, innerWidth.toFloat() / outerWidth.toFloat(), innerHeight.toFloat() / outerHeight.toFloat())
+            /*
+             * FIT/ZOOM use one authoritative inverse:
+             *     scene = (surface - viewOffset) / aspect
+             *
+             * viewOffsetX/Y is the actual letterbox/pillarbox padding computed by
+             * ViewTransformation.update() - it is zero only along the axis that binds the
+             * aspect ratio (not necessarily both axes). ZOOM keeps the same math for its crop.
+             */
+            val invScale = if (vt.aspect > 0f) 1.0f / vt.aspect else 1.0f
+            XForm.set(
+                xform,
+                invScale,
+                0f,
+                0f,
+                invScale,
+                -vt.viewOffsetX * invScale,
+                -vt.viewOffsetY * invScale,
+            )
         }
     }
 
@@ -173,6 +238,7 @@ class TouchpadView(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        updateXform(width, height, xServer.screenInfo.width.toInt(), xServer.screenInfo.height.toInt())
         if (!mouseEnabled) return true
         resetTouchscreenTimeout()
         if (event.getToolType(0) == MotionEvent.TOOL_TYPE_STYLUS) return handleStylusEvent(event)
@@ -348,10 +414,25 @@ class TouchpadView(
         val ignorePointerId = event.getPointerId(event.actionIndex)
         if (action != MotionEvent.ACTION_MOVE && (ignorePointerId >= MAX_FINGERS || pointerIdsToIgnore.contains(ignorePointerId))) return true
         when (action) {
-            0, 5 -> { handleTouchDown(event); return true }
-            1, 6 -> { if (event.pointerCount == 2) handleTwoFingerTap(event) else handleTouchUp(event); return true }
-            2 -> { if (event.pointerCount == 2) handleTwoFingerScroll(event) else handleTouchMove(event); return true }
+            0, 5 -> {
+                handleTouchDown(event)
+                return true
+            }
+            1, 6 -> {
+                if (event.pointerCount == 2) {
+                    handleTwoFingerTap(event)
+                    handleTouchUp(event)
+                } else {
+                    handleTouchUp(event)
+                }
+                return true
+            }
+            2 -> {
+                if (event.pointerCount == 2) handleTwoFingerScroll(event) else handleTouchMove(event)
+                return true
+            }
             3 -> {
+                for (i in touchscreenPointerActive.indices) touchscreenPointerActive[i] = false
                 xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
                 xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT)
                 return true
@@ -360,34 +441,88 @@ class TouchpadView(
         return true
     }
 
+    private fun getTouchscreenPointerId(event: MotionEvent): Int {
+        val index = event.actionIndex.coerceIn(0, event.pointerCount - 1)
+        return event.getPointerId(index)
+    }
+
+    private fun getTouchscreenPointerInside(event: MotionEvent): Boolean {
+        val renderer = xServer.renderer ?: return true
+        val vt = renderer.viewTransformation
+        if (vt.aspect <= 0f) return true
+        val index = event.actionIndex.coerceIn(0, event.pointerCount - 1)
+        return vt.isInsideRenderedFrame(event.getX(index), event.getY(index))
+    }
+
+    private fun isTouchscreenPointerActive(event: MotionEvent): Boolean {
+        val pointerId = getTouchscreenPointerId(event)
+        return pointerId !in touchscreenPointerActive.indices || touchscreenPointerActive[pointerId]
+    }
+
     private fun handleTouchDown(event: MotionEvent) {
-        val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
+        val pointerId = getTouchscreenPointerId(event)
+        val index = event.actionIndex.coerceIn(0, event.pointerCount - 1)
+        val insideFrame = getTouchscreenPointerInside(event)
+        if (pointerId in touchscreenPointerActive.indices) {
+            touchscreenPointerActive[pointerId] = insideFrame
+        }
+
+        // No padding/letterbox input area: only the actual rendered game frame is interactive.
+        if (simTouchScreen && !insideFrame) return
+
+        val touchX = event.getX(index)
+        val touchY = event.getY(index)
+        val transformedPoint = XForm.transformPoint(xform, touchX, touchY)
         var tx = transformedPoint[0].toInt()
         var ty = transformedPoint[1].toInt()
-        if (event.pointerCount == 1) {
+        if (pointerId == 0 && event.pointerCount == 1) {
             val now = System.currentTimeMillis()
-            val near = Math.hypot((event.x - lastTapRawX).toDouble(), (event.y - lastTapRawY).toDouble()) < TOUCHSCREEN_DOUBLE_TAP_DISTANCE
+            val near = Math.hypot((touchX - lastTapRawX).toDouble(), (touchY - lastTapRawY).toDouble()) < TOUCHSCREEN_DOUBLE_TAP_DISTANCE
             if (now - lastTapDownTime < TOUCHSCREEN_DOUBLE_TAP_MS && near) {
                 tx = lastTapTransX
                 ty = lastTapTransY
             }
             lastTapDownTime = now
-            lastTapRawX = event.x
-            lastTapRawY = event.y
+            lastTapRawX = touchX
+            lastTapRawY = touchY
             lastTapTransX = tx
             lastTapTransY = ty
         }
         xServer.injectPointerMove(tx, ty)
-        if (event.pointerCount == 1 && tapToClickEnabled) xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
+        if (pointerId == 0 && event.pointerCount == 1 && tapToClickEnabled) {
+            xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
+        }
     }
 
     private fun handleTouchMove(event: MotionEvent) {
-        val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
+        if (simTouchScreen && !isTouchscreenPointerActive(event)) return
+
+        val index = event.actionIndex.coerceIn(0, event.pointerCount - 1)
+        val touchX = event.getX(index)
+        val touchY = event.getY(index)
+
+        if (simTouchScreen) {
+            val renderer = xServer.renderer
+            val vt = renderer?.viewTransformation
+            if (vt != null && vt.aspect > 0f && !vt.isInsideRenderedFrame(touchX, touchY)) {
+                // Keep the last valid guest position while the finger is outside the game frame.
+                return
+            }
+        }
+
+        val transformedPoint = XForm.transformPoint(xform, touchX, touchY)
         xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
     }
 
     private fun handleTouchUp(event: MotionEvent) {
-        xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+        val pointerId = getTouchscreenPointerId(event)
+        val active = pointerId !in touchscreenPointerActive.indices || touchscreenPointerActive[pointerId]
+        if (pointerId in touchscreenPointerActive.indices) {
+            touchscreenPointerActive[pointerId] = false
+        }
+        if (active) {
+            xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+        }
     }
 
     private fun handleTwoFingerScroll(event: MotionEvent) {
@@ -404,13 +539,22 @@ class TouchpadView(
     }
 
     private fun handleTwoFingerTap(event: MotionEvent) {
-        if (event.pointerCount == 2 && tapToClickEnabled) {
-            if (xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT)) {
-                xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+        if (event.pointerCount != 2 || !tapToClickEnabled) return
+
+        if (simTouchScreen) {
+            for (i in 0 until event.pointerCount) {
+                val pointerId = event.getPointerId(i)
+                if (pointerId in touchscreenPointerActive.indices && !touchscreenPointerActive[pointerId]) {
+                    return
+                }
             }
-            xServer.injectPointerButtonPress(Pointer.Button.BUTTON_RIGHT)
-            xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT)
         }
+
+        if (xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT)) {
+            xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+        }
+        xServer.injectPointerButtonPress(Pointer.Button.BUTTON_RIGHT)
+        xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT)
     }
 
     private fun handleFingerUp(finger1: Finger) {

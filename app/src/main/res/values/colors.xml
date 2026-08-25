@@ -3,30 +3,30 @@
 <resources>
     
     <color name="window_background_color">#fafafa</color>
-    <color name="colorPrimary">#607d8b</color>
-    <color name="colorPrimaryDark">#455a64</color>
-    <color name="colorAccent">#0288d1</color>
+    <color name="colorPrimary">#3A2A1E</color>
+    <color name="colorPrimaryDark">#1A1210</color>
+    <color name="colorAccent">#FF7A00</color>
 
 
-    <color name="window_background_color_dark">#1C1C1C</color>
-    <color name="colorPrimaryDarkMode">#37474f</color>
-    <color name="colorPrimaryDarkModeDark">#263238</color>
-    <color name="colorAccentDark">#80d8ff</color>
+    <color name="window_background_color_dark">#141414</color>
+    <color name="colorPrimaryDarkMode">#2A1D14</color>
+    <color name="colorPrimaryDarkModeDark">#1A1210</color>
+    <color name="colorAccentDark">#FF9500</color>
     <color name="white">#ffffff</color>
 
     
-    <color name="control_editor_background">#12121B</color>
-    <color name="settings_card_surface">#22202A</color>
-    <color name="settings_outline">#2A2A3A</color>
-    <color name="settings_chip_selected_stroke">#74D0FF</color>
-    <color name="settings_text_primary">#F5F9FF</color>
-    <color name="settings_text_secondary">#9CB0C7</color>
-    <color name="settings_icon_tint">#D7E6F7</color>
-    <color name="settings_action_surface">#12121B</color>
-    <color name="settings_action_surface_pressed">#2A2A3A</color>
-    <color name="settings_accent">#1A9FFF</color>
-    <color name="settings_popup_surface">#22202A</color>
-    <color name="settings_popup_surface_edge">#2A2A3A</color>
-    <color name="settings_input_outline_soft">#52F5F9FF</color>
+    <color name="control_editor_background">#0F0D0B</color>
+    <color name="settings_card_surface">#1E1712</color>
+    <color name="settings_outline">#2E2117</color>
+    <color name="settings_chip_selected_stroke">#FFA940</color>
+    <color name="settings_text_primary">#FBF3EC</color>
+    <color name="settings_text_secondary">#C7A88F</color>
+    <color name="settings_icon_tint">#F2DFCC</color>
+    <color name="settings_action_surface">#0F0D0B</color>
+    <color name="settings_action_surface_pressed">#2E2117</color>
+    <color name="settings_accent">#FF7A00</color>
+    <color name="settings_popup_surface">#1E1712</color>
+    <color name="settings_popup_surface_edge">#2E2117</color>
+    <color name="settings_input_outline_soft">#52FBF3EC</color>
 
 </resources>

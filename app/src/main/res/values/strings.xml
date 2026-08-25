@@ -193,8 +193,6 @@
     <string name="library_games_layout_carousel">Carousel</string>
     <string name="library_games_layout_list">List</string>
     <string name="library_games_view_options_header">VIEW OPTIONS</string>
-    <string name="library_games_force_landscape">Force Landscape</string>
-    <string name="library_games_force_landscape_description">Keep the app in landscape, ignoring device rotation</string>
     <string name="library_games_immersive_mode">Immersive Mode</string>
     <string name="library_games_immersive_mode_description">Use focused game art as background</string>
     <string name="library_games_immersive_blur">Blur Background</string>
@@ -705,6 +703,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_dual_series_battery">Dual Series Battery</string>
     <string name="session_drawer_hud_frametime_numeric">Show Frametime as Number</string>
     <string name="session_drawer_toggle_fullscreen">Toggle Fullscreen</string>
+    <string name="session_drawer_rotate_screen">Rotate Screen</string>
+    <string name="session_drawer_rotate_screen_subtitle">Restarts session in rotated resolution</string>
     <string name="session_drawer_refactor_size">Refactor Size</string>
     <string name="session_drawer_show_touchscreen_controls">Show Touchscreen Controls</string>
     <string name="session_drawer_magnifier">Magnifier</string>
@@ -923,6 +923,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_rail_label_relative_mouse">RelMouse</string>
     <string name="session_drawer_rail_label_mouse">Mouse</string>
     <string name="session_drawer_rail_label_fullscreen">Fullscreen</string>
+    <string name="session_drawer_rail_label_rotate_screen">Rotate</string>
     <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Tasks</string>

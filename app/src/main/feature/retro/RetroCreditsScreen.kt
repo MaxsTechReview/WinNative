@@ -32,8 +32,8 @@ import com.winlator.cmod.shared.ui.nav.LocalPaneNav
 import com.winlator.cmod.shared.ui.nav.paneNavItem
 
 private val CreditsBg = Color(0xFF101018)
-private val CreditsText = Color(0xFFF0F4FF)
-private val CreditsSub = Color(0xFF93A6BC)
+private val CreditsText = Color(0xFFF5F0EA)
+private val CreditsSub = Color(0xFFC7A88F)
 
 @Composable
 fun RetroCreditsScreen(bridge: SettingsNavBridge? = null) {
@@ -85,7 +85,7 @@ fun RetroCreditsScreen(bridge: SettingsNavBridge? = null) {
                                 .paneNavItem(
                                     cornerRadius = 8.dp,
                                     onActivate = { open(credit.url) },
-                                    highlightColor = Color(0xFF4FC3F7),
+                                    highlightColor = Color(0xFFFFB74D),
                                     tapToSelect = true,
                                 )
                                 .padding(vertical = 8.dp),

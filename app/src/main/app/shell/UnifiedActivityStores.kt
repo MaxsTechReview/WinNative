@@ -24,17 +24,11 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -264,12 +258,12 @@ internal fun UnifiedActivity.CompactActionButton(
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.93f else 1f,
-        animationSpec = spring(dampingRatio = 0.6f, stiffness = 800f),
+        animationSpec = snap(),
         label = "btnScale",
     )
     val glowAlpha by animateFloatAsState(
         targetValue = if (isPressed) 0.18f else 0f,
-        animationSpec = tween(durationMillis = 120),
+        animationSpec = snap(),
         label = "btnGlow",
     )
     Surface(
@@ -360,7 +354,7 @@ internal fun UnifiedActivity.GameCapsule(
     val isFocused = isControllerActive && isFocusedOverride
     val glowAlpha by animateFloatAsState(
         targetValue = if (isPressed) 0.7f else 0f,
-        animationSpec = if (isPressed) tween(100) else tween(400),
+        animationSpec = if (isPressed) snap() else snap(),
         label = "capsuleGlow",
     )
     val clickModifier =
@@ -697,7 +691,7 @@ internal fun UnifiedActivity.EpicStoreTab(
             }
         LaunchedEffect(focusIndex, focusRequesters.size) {
             if (searchQuery.isEmpty() && focusRequesters.isNotEmpty() && focusIndex in focusRequesters.indices) {
-                gridState.animateScrollToItem(focusIndex)
+                gridState.scrollToItem(focusIndex)
                 try {
                     focusRequesters[focusIndex].requestFocus()
                 } catch (_: Exception) {
@@ -792,7 +786,7 @@ internal fun UnifiedActivity.EpicStoreCapsule(
     val isPressed by clickInteraction.collectIsPressedAsState()
     val glowAlpha by animateFloatAsState(
         targetValue = if (isPressed) 0.7f else 0f,
-        animationSpec = if (isPressed) tween(100) else tween(400),
+        animationSpec = if (isPressed) snap() else snap(),
         label = "epicCapsuleGlow",
     )
     val effectiveFocus = isControllerActive && (isFocusedOverride || isFocused)
@@ -1428,7 +1422,7 @@ internal fun UnifiedActivity.GOGStoreTab(
             }
         LaunchedEffect(focusIndex, focusRequesters.size) {
             if (searchQuery.isEmpty() && focusRequesters.isNotEmpty() && focusIndex in focusRequesters.indices) {
-                gridState.animateScrollToItem(focusIndex)
+                gridState.scrollToItem(focusIndex)
                 try {
                     focusRequesters[focusIndex].requestFocus()
                 } catch (_: Exception) {
@@ -2001,7 +1995,7 @@ internal fun UnifiedActivity.SteamStoreTab(
             }
         LaunchedEffect(focusIndex, focusRequesters.size) {
             if (searchQuery.isEmpty() && focusRequesters.isNotEmpty() && focusIndex in focusRequesters.indices) {
-                gridState.animateScrollToItem(focusIndex)
+                gridState.scrollToItem(focusIndex)
                 try {
                     focusRequesters[focusIndex].requestFocus()
                 } catch (_: Exception) {
@@ -2066,7 +2060,7 @@ internal fun UnifiedActivity.SteamStoreCapsule(
     val isPressed by clickInteraction.collectIsPressedAsState()
     val glowAlpha by animateFloatAsState(
         targetValue = if (isPressed) 0.7f else 0f,
-        animationSpec = if (isPressed) tween(100) else tween(400),
+        animationSpec = if (isPressed) snap() else snap(),
         label = "steamCapsuleGlow",
     )
     val effectiveFocus = isControllerActive && (isFocusedOverride || isFocused)

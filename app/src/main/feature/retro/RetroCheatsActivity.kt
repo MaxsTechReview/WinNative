@@ -66,9 +66,9 @@ import com.winlator.cmod.shared.ui.nav.paneNavItem
 private val BgDark = Color(0xFF12121B)
 private val SurfaceDark = Color(0xFF171722)
 private val CardBorder = Color(0xFF2A2A3A)
-private val Accent = Color(0xFF1A9FFF)
-private val TextPrimary = Color(0xFFF0F4FF)
-private val TextSecondary = Color(0xFF93A6BC)
+private val Accent = Color(0xFFFF7A00)
+private val TextPrimary = Color(0xFFF5F0EA)
+private val TextSecondary = Color(0xFFC7A88F)
 private val Danger = Color(0xFFE07B6B)
 private val ScrimColor = Color(0xFF000000)
 

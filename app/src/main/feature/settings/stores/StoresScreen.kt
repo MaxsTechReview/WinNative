@@ -1,15 +1,10 @@
 package com.winlator.cmod.feature.settings
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -88,11 +83,11 @@ private val BgDark = Color(0xFF11111C)
 private val CardDark = Color(0xFF1C1C2A)
 private val CardBorder = Color(0xFF2A2A3A)
 private val IconBoxBg = Color(0xFF242434)
-private val SurfaceDark = Color(0xFF21212A)
-private val Accent = Color(0xFF1A9FFF)
-private val NavHighlight = Color(0xFF4FC3F7)
-private val TextPrimary = Color(0xFFF0F4FF)
-private val TextSecondary = Color(0xFF7A8FA8)
+private val SurfaceDark = Color(0xFF1E1712)
+private val Accent = Color(0xFFFF7A00)
+private val NavHighlight = Color(0xFFFFB74D)
+private val TextPrimary = Color(0xFFF5F0EA)
+private val TextSecondary = Color(0xFFAD9782)
 private val Divider = Color(0xFF343434)
 private val DangerRed = Color(0xFFFF7A88)
 private val StatusGreen = Color(0xFF3FB950)
@@ -202,8 +197,8 @@ fun StoresScreen(
             AnimatedContent(
                 targetState = state.sharedFolder,
                 transitionSpec = {
-                    fadeIn(tween(220)) togetherWith fadeOut(tween(160)) using
-                        SizeTransform(clip = true, sizeAnimationSpec = { _, _ -> tween(240) })
+                    fadeIn(snap()) togetherWith fadeOut(snap()) using
+                        SizeTransform(clip = true, sizeAnimationSpec = { _, _ -> snap() })
                 },
                 label = "folderPaths",
             ) { shared ->
@@ -368,27 +363,9 @@ private fun StoreCard(
         )
     }
 
-    val pulse = rememberInfiniteTransition(label = "pulse_$name")
-    val pulseScale by pulse.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.7f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(1000, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse,
-            ),
-        label = "scale_$name",
-    )
-    val pulseAlpha by pulse.animateFloat(
-        initialValue = 0.5f,
-        targetValue = 0f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(1000, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse,
-            ),
-        label = "alpha_$name",
-    )
+    // Static "connected" indicator (no continuous animation).
+    val pulseScale = 1f
+    val pulseAlpha = 0.25f
 
     Box(
         modifier =
@@ -492,7 +469,7 @@ private fun ActionButton(
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.93f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
+        animationSpec = snap(),
         label = "btnScale",
     )
     Box(
@@ -652,7 +629,7 @@ private fun SettingsDropdownCard(
                 var isPressed by remember { mutableStateOf(false) }
                 val scale by animateFloatAsState(
                     targetValue = if (isPressed) 0.93f else 1f,
-                    animationSpec = spring(stiffness = Spring.StiffnessHigh),
+                    animationSpec = snap(),
                     label = "dropdownScale",
                 )
                 Row(
@@ -702,7 +679,7 @@ private fun SettingsDropdownCard(
                     expanded = expanded,
                     onDismissRequest = { expanded = false },
                     shape = RoundedCornerShape(8.dp),
-                    containerColor = Color(0xFF24243B),
+                    containerColor = Color(0xFF241C15),
                     border = BorderStroke(1.dp, CardBorder),
                     modifier = Modifier.widthIn(max = 220.dp),
                 ) {
@@ -799,7 +776,7 @@ private fun BrowseButton(onClick: () -> Unit) {
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.92f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
+        animationSpec = snap(),
         label = "browseScale",
     )
     Box(

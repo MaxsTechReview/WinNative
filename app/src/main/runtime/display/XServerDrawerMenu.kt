@@ -14,12 +14,10 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -1278,6 +1276,12 @@ fun buildXServerDrawerState(
                 active = fullscreenEnabled,
             ),
             XServerDrawerItem(
+                itemId = R.id.main_menu_rotate_screen,
+                title = context.getString(R.string.session_drawer_rotate_screen),
+                subtitle = context.getString(R.string.session_drawer_rotate_screen_subtitle),
+                icon = Icons.Outlined.ScreenRotation,
+            ),
+            XServerDrawerItem(
                 itemId = R.id.main_menu_screen_effects,
                 title = context.getString(R.string.session_drawer_screen_effects),
                 subtitle = context.getString(R.string.session_drawer_screen_effects_subtitle),
@@ -1608,12 +1612,12 @@ internal fun XServerDrawerContent(
                     val railVisible = openPane != DrawerPane.TASK_MANAGER && openPane != DrawerPane.LOGS
                     val chromeEnter =
                         expandVertically(
-                            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-                        ) + fadeIn(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing))
+                            animationSpec = snap(),
+                        ) + fadeIn(animationSpec = snap())
                     val chromeExit =
                         shrinkVertically(
-                            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-                        ) + fadeOut(animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing))
+                            animationSpec = snap(),
+                        ) + fadeOut(animationSpec = snap())
 
                     AnimatedVisibility(
                         visible = railVisible,
@@ -1656,15 +1660,15 @@ internal fun XServerDrawerContent(
                                     (
                                         slideInVertically(
                                             initialOffsetY = { it / 3 },
-                                            animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
-                                        ) + fadeIn(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing))
-                                    ) togetherWith fadeOut(animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)) using
+                                            animationSpec = snap(),
+                                        ) + fadeIn(animationSpec = snap())
+                                    ) togetherWith fadeOut(animationSpec = snap()) using
                                         SizeTransform(clip = false)
                                 } else if (returningToMenu) {
                                     EnterTransition.None togetherWith ExitTransition.None
                                 } else {
-                                    fadeIn(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)) togetherWith
-                                        fadeOut(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing))
+                                    fadeIn(animationSpec = snap()) togetherWith
+                                        fadeOut(animationSpec = snap())
                                 }
                             },
                             label = "drawerBody",
@@ -1781,7 +1785,7 @@ private fun TopRail(
         }
     val selectedBounds = tileBounds[selectedKey]
 
-    val indicatorAnimSpec = tween<Dp>(durationMillis = 240, easing = FastOutSlowInEasing)
+    val indicatorAnimSpec = snap<Dp>()
     val indicatorX by animateDpAsState(
         targetValue = selectedBounds?.let { with(density) { it.offsetX.toDp() } } ?: 0.dp,
         animationSpec = indicatorAnimSpec,
@@ -1799,7 +1803,7 @@ private fun TopRail(
     )
     val indicatorAlpha by animateFloatAsState(
         targetValue = if (selectedBounds != null) 1f else 0f,
-        animationSpec = tween(durationMillis = 160),
+        animationSpec = snap(),
         label = "topRailIndicatorAlpha",
     )
 
@@ -1891,10 +1895,7 @@ private fun TopRailTile(
     val scale by animateFloatAsState(
         targetValue = if (pressed) 0.94f else 1f,
         animationSpec =
-            spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessMedium,
-            ),
+            snap(),
         label = "topRailScale_$tileKey",
     )
     val bgColor by animateColorAsState(
@@ -1904,7 +1905,7 @@ private fun TopRailTile(
                 pressed && !selected -> PaneSurfacePressed
                 else -> Color.Transparent
             },
-        animationSpec = tween(120),
+        animationSpec = snap(),
         label = "topRailBg_$tileKey",
     )
     val tint by animateColorAsState(
@@ -1914,7 +1915,7 @@ private fun TopRailTile(
                 active -> DrawerActiveAccent
                 else -> DrawerTextPrimary
             },
-        animationSpec = tween(120),
+        animationSpec = snap(),
         label = "topRailTint_$tileKey",
     )
 
@@ -2106,31 +2107,20 @@ private fun ActionCard(
     val revealAlpha by animateFloatAsState(
         targetValue = if (revealed) 1f else 0f,
         animationSpec =
-            tween(
-                durationMillis = ActionCardRevealDurationMs,
-                delayMillis = staggerDelay,
-                easing = FastOutSlowInEasing,
-            ),
+            snap(),
         label = "actionCardReveal_${item.itemId}",
     )
     val revealOffsetY by animateDpAsState(
         targetValue = if (revealed) 0.dp else 8.dp,
         animationSpec =
-            tween(
-                durationMillis = ActionCardRevealDurationMs,
-                delayMillis = staggerDelay,
-                easing = FastOutSlowInEasing,
-            ),
+            snap(),
         label = "actionCardRevealOffset_${item.itemId}",
     )
 
     val scale by animateFloatAsState(
         targetValue = if (pressed && enabled) 0.96f else 1f,
         animationSpec =
-            spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessMedium,
-            ),
+            snap(),
         label = "actionCardScale_${item.itemId}",
     )
     val bgColor by animateColorAsState(
@@ -2141,7 +2131,7 @@ private fun ActionCard(
                 pressed -> PaneInnerPressed
                 else -> PaneInnerResting
             },
-        animationSpec = tween(120),
+        animationSpec = snap(),
         label = "actionCardBg_${item.itemId}",
     )
     val borderColor by animateColorAsState(
@@ -2151,7 +2141,7 @@ private fun ActionCard(
                 item.active -> ActiveCardBorder
                 else -> RestingCardBorder
             },
-        animationSpec = tween(120),
+        animationSpec = snap(),
         label = "actionCardBorder_${item.itemId}",
     )
     val tint by animateColorAsState(
@@ -2161,7 +2151,7 @@ private fun ActionCard(
                 item.active -> DrawerActiveAccent
                 else -> DrawerTextPrimary
             },
-        animationSpec = tween(120),
+        animationSpec = snap(),
         label = "actionCardTint_${item.itemId}",
     )
 
@@ -2312,7 +2302,7 @@ private fun BottomActionButton(
                 pressed -> PaneSurfacePressed
                 else -> PaneInnerResting
             },
-        animationSpec = tween(120),
+        animationSpec = snap(),
         label = "bottomActionBg_${item.itemId}",
     )
     val borderColor =
@@ -2417,6 +2407,7 @@ private fun railLabelResFor(itemId: Int): Int? =
         R.id.main_menu_relative_mouse_movement -> R.string.session_drawer_rail_label_relative_mouse
         R.id.main_menu_disable_mouse -> R.string.session_drawer_rail_label_mouse
         R.id.main_menu_toggle_fullscreen -> R.string.session_drawer_rail_label_fullscreen
+        R.id.main_menu_rotate_screen -> R.string.session_drawer_rail_label_rotate_screen
         R.id.main_menu_pip_mode -> R.string.session_drawer_rail_label_pip
         R.id.main_menu_magnifier -> R.string.session_drawer_rail_label_magnifier
         R.id.main_menu_task_manager -> R.string.session_drawer_rail_label_task_manager
@@ -2484,12 +2475,12 @@ private fun DrawerMetricChip(
     val pressed = interactionSource.collectIsPressedAsState().value
     val scale by animateFloatAsState(
         targetValue = if (pressed) 0.985f else 1f,
-        animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
+        animationSpec = snap(),
         label = "drawerMetricScale_$label",
     )
     val bgColor by animateColorAsState(
         targetValue = if (pressed) PaneInnerPressed else PaneInnerResting,
-        animationSpec = tween(140),
+        animationSpec = snap(),
         label = "drawerMetricBg",
     )
 
@@ -2741,12 +2732,12 @@ internal fun DrawerBooleanRow(
                 pressed -> PaneInnerPressed
                 else -> PaneInnerResting
             },
-        animationSpec = tween(140),
+        animationSpec = snap(),
         label = "drawerBooleanRowBg",
     )
     val borderColor by animateColorAsState(
         targetValue = if (checked) ActiveCardBorder else RestingCardBorder,
-        animationSpec = tween(140),
+        animationSpec = snap(),
         label = "drawerBooleanRowBorder",
     )
     val cornerRadius = (14f * paneScale).dp

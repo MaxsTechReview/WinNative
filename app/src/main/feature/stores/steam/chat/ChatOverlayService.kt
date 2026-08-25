@@ -18,6 +18,7 @@ import android.widget.FrameLayout
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.background
@@ -157,9 +158,9 @@ private val WsBg = Color(0xFF12121B)
 private val BgDark = Color(0xFF171722)
 private val SurfaceDark = Color(0xFF1B1B27)
 private val CardBorder = Color(0xFF2A2A3A)
-private val Accent = Color(0xFF1A9FFF)
-private val TextPrimary = Color(0xFFF0F4FF)
-private val TextSecondary = Color(0xFF93A6BC)
+private val Accent = Color(0xFFFF7A00)
+private val TextPrimary = Color(0xFFF5F0EA)
+private val TextSecondary = Color(0xFFC7A88F)
 private val Danger = Color(0xFFFF5A5A)
 
 /** Floating chat heads rendered as a system overlay so they work over games. */
@@ -290,7 +291,11 @@ class ChatOverlayService : Service() {
                     val friends by svc?.friendsList?.collectAsState() ?: remember { mutableStateOf(emptyList<SteamFriendEntry>()) }
                     val unread by svc?.unreadCounts?.collectAsState() ?: remember { mutableStateOf(emptyMap<Long, Int>()) }
                     val head = friends.firstOrNull { it.steamId == headFriendId.longValue }
-                    val alpha by animateFloatAsState(if (bubbleDimmed.value) 0.2f else 1f, label = "bubbleAlpha")
+                    val alpha by animateFloatAsState(
+                        if (bubbleDimmed.value) 0.2f else 1f,
+                        animationSpec = snap(),
+                        label = "bubbleAlpha",
+                    )
                     Box(Modifier.alpha(alpha)) {
                         BubbleContent(head, unread.values.sum())
                     }
@@ -687,7 +692,7 @@ class ChatOverlayService : Service() {
                                 Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.steam_common_back), tint = TextSecondary)
                             }
                         }
-                        Crossfade(targetState = convId, label = "panelBody", modifier = Modifier.weight(1f)) { id ->
+                        Crossfade(targetState = convId, label = "panelBody", animationSpec = snap(), modifier = Modifier.weight(1f)) { id ->
                             val conv = friends.firstOrNull { it.steamId == id }
                             if (id != 0L && conv != null) {
                                 ConversationView(conv, Modifier.fillMaxSize())
@@ -824,7 +829,7 @@ class ChatOverlayService : Service() {
                 val optIdx = if (m.fromSelf) messages.indexOfFirst { it.fromSelf && it.timestamp == 0 && it.text == m.text } else -1
                 if (optIdx >= 0) messages[optIdx] = m else {
                     messages.add(m)
-                    listState.animateScrollToItem(messages.size - 1)
+                    listState.scrollToItem(messages.size - 1)
                 }
             }
         }
@@ -837,7 +842,7 @@ class ChatOverlayService : Service() {
             val optimistic = SteamChatMessage(fromSelf = true, text = text, timestamp = 0, ordinal = 0)
             messages.add(optimistic)
             scope.launch {
-                listState.animateScrollToItem(messages.size - 1)
+                listState.scrollToItem(messages.size - 1)
                 val ok = SteamService.instance?.sendChatMessage(friend.steamId, text) ?: false
                 if (!ok) {
                     val idx = messages.indexOf(optimistic)

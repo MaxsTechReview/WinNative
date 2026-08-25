@@ -14,7 +14,7 @@ import android.view.WindowManager
 import android.widget.Toast
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -156,7 +156,7 @@ object DirectoryPickerDialog {
     private val CardBorder = WinNativeOutline
     private val IconBoxBg = Color(0xFF242434)
     private val Accent = WinNativeAccent
-    private val NavHighlight = Color(0xFF4FC3F7)
+    private val NavHighlight = Color(0xFFFFB74D)
     private val TextPrimary = WinNativeTextPrimary
     private val TextSecondary = WinNativeTextSecondary
 
@@ -330,17 +330,6 @@ object DirectoryPickerDialog {
                 }
                 setContent {
                     val defaultDensity = LocalDensity.current
-                    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-                    androidx.compose.runtime.LaunchedEffect(
-                        configuration.orientation,
-                        configuration.screenWidthDp,
-                        configuration.screenHeightDp,
-                    ) {
-                        applyDialogWindowSizing(activity, dialog.window, preserveBackdropBlur)
-                        dialog.window?.decorView?.post {
-                            applyDialogWindowSizing(activity, dialog.window, preserveBackdropBlur)
-                        }
-                    }
                     CompositionLocalProvider(
                         LocalDensity provides Density(defaultDensity.density, fontScale = 1f),
                     ) {
@@ -688,19 +677,13 @@ object DirectoryPickerDialog {
         val contentAlpha by animateFloatAsState(
             targetValue = if (contentVisible) 1f else 0f,
             animationSpec =
-                tween(
-                    durationMillis = ContentEnterMillis,
-                    easing = ContentEnterEasing,
-                ),
+                snap(),
             label = "directoryPickerContentFade",
         )
         val contentScale by animateFloatAsState(
             targetValue = if (contentVisible) 1f else 0.972f,
             animationSpec =
-                tween(
-                    durationMillis = ContentEnterMillis,
-                    easing = ContentEnterEasing,
-                ),
+                snap(),
             label = "directoryPickerContentScale",
         )
         val density = LocalDensity.current
@@ -708,10 +691,7 @@ object DirectoryPickerDialog {
         val contentTranslationY by animateFloatAsState(
             targetValue = if (contentVisible) 0f else hiddenTranslationY,
             animationSpec =
-                tween(
-                    durationMillis = ContentEnterMillis,
-                    easing = ContentEnterEasing,
-                ),
+                snap(),
             label = "directoryPickerContentOffset",
         )
         LaunchedEffect(Unit) {
@@ -1334,7 +1314,7 @@ object DirectoryPickerDialog {
     ) {
         val chevronRotation by animateFloatAsState(
             targetValue = if (expanded) 180f else 0f,
-            animationSpec = tween(durationMillis = 180),
+            animationSpec = snap(),
             label = "storageRootChevronRotation",
         )
 
@@ -1353,7 +1333,7 @@ object DirectoryPickerDialog {
                 onDismissRequest = { onExpandedChange(false) },
                 offset = DpOffset(x = 0.dp, y = (-8).dp),
                 shape = RoundedCornerShape(10.dp),
-                containerColor = Color(0xFF24243B),
+                containerColor = Color(0xFF241C15),
                 border = BorderStroke(1.dp, CardBorder),
                 properties = PopupProperties(focusable = false),
                 modifier = Modifier.widthIn(min = 220.dp, max = 420.dp),
@@ -1533,7 +1513,7 @@ object DirectoryPickerDialog {
                 expanded = menuExpanded,
                 onDismissRequest = onMenuDismiss,
                 shape = RoundedCornerShape(10.dp),
-                containerColor = Color(0xFF24243B),
+                containerColor = Color(0xFF241C15),
                 border = BorderStroke(1.dp, CardBorder),
                 properties = PopupProperties(focusable = false),
                 modifier = Modifier.widthIn(min = 180.dp, max = 240.dp),
@@ -1897,7 +1877,7 @@ object DirectoryPickerDialog {
     ) {
         val chevronRotation by animateFloatAsState(
             targetValue = if (expanded) 180f else 0f,
-            animationSpec = tween(durationMillis = 180),
+            animationSpec = snap(),
             label = "manageRootChevronRotation",
         )
         Box(modifier = modifier) {
@@ -1914,7 +1894,7 @@ object DirectoryPickerDialog {
                 onDismissRequest = { onExpandedChange(false) },
                 offset = DpOffset(x = 0.dp, y = (-8).dp),
                 shape = RoundedCornerShape(10.dp),
-                containerColor = Color(0xFF24243B),
+                containerColor = Color(0xFF241C15),
                 border = BorderStroke(1.dp, CardBorder),
                 properties = PopupProperties(focusable = false),
                 modifier = Modifier.widthIn(min = 200.dp, max = 420.dp),

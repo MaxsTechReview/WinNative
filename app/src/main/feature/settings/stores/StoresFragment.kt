@@ -109,9 +109,9 @@ class StoresFragment : Fragment() {
                 WinNativeTheme(
                     colorScheme =
                         darkColorScheme(
-                            primary = Color(0xFF1A9FFF),
+                            primary = Color(0xFFFF7A00),
                             background = Color(0xFF141B24),
-                            surface = Color(0xFF1E252E),
+                            surface = Color(0xFF241C15),
                         ),
                 ) {
                     StoresScreen(

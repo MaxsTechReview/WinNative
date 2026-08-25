@@ -14,12 +14,10 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -300,7 +298,7 @@ internal fun InputControlsPaneContent(
                 )
 
                 LaunchedEffect(gcmEnabled) {
-                    if (gcmEnabled) scrollState.animateScrollTo(Int.MAX_VALUE)
+                    if (gcmEnabled) scrollState.scrollTo(Int.MAX_VALUE)
                 }
 
                 NavBooleanRow(
@@ -388,7 +386,7 @@ internal fun InputControlsSimpleDropdown(
     val pressed = interactionSource.collectIsPressedAsState().value
     val bgColor by animateColorAsState(
         targetValue = if (pressed) PaneInnerPressed else PaneInnerResting,
-        animationSpec = tween(140),
+        animationSpec = snap(),
         label = "inputControlsSimpleBg",
     )
 
@@ -475,7 +473,7 @@ internal fun InputControlsProfileSelector(
     val pressed = interactionSource.collectIsPressedAsState().value
     val bgColor by animateColorAsState(
         targetValue = if (pressed) PaneInnerPressed else PaneInnerResting,
-        animationSpec = tween(140),
+        animationSpec = snap(),
         label = "inputControlsProfileBg",
     )
 
@@ -609,7 +607,7 @@ internal fun InputControlsOptionItem(
     val pressed = interactionSource.collectIsPressedAsState().value
     val bgColor by animateColorAsState(
         targetValue = if (pressed) DrawerAccent.copy(alpha = 0.16f) else PaneInnerResting,
-        animationSpec = tween(120),
+        animationSpec = snap(),
         label = "inputControlsOptionItem",
     )
     val shape = RoundedCornerShape((8f * paneScale).dp)
@@ -656,7 +654,7 @@ internal fun ExpandableSection(
     val paneScale = LocalPaneScale.current
     val rotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
-        animationSpec = tween(180, easing = FastOutSlowInEasing),
+        animationSpec = snap(),
         label = "expandableRotation",
     )
     val headerInteractionSource = remember { MutableInteractionSource() }
@@ -667,12 +665,12 @@ internal fun ExpandableSection(
                 headerPressed -> PaneInnerPressed
                 else -> PaneInnerResting
             },
-        animationSpec = tween(140),
+        animationSpec = snap(),
         label = "expandableHeaderBg",
     )
     val headerBorder by animateColorAsState(
         targetValue = if (expanded) DrawerAccent else RestingCardBorder,
-        animationSpec = tween(140),
+        animationSpec = snap(),
         label = "expandableHeaderBorder",
     )
     val headerShape = RoundedCornerShape((12f * paneScale).dp)
@@ -711,7 +709,7 @@ internal fun ExpandableSection(
                         .graphicsLayer { rotationZ = rotation },
             )
         }
-        AnimatedVisibility(visible = expanded) {
+        AnimatedVisibility(visible = expanded, enter = EnterTransition.None, exit = ExitTransition.None) {
             Column(verticalArrangement = Arrangement.spacedBy((12f * paneScale).dp)) {
                 content()
             }

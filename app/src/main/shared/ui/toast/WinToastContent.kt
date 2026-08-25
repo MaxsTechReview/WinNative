@@ -2,7 +2,7 @@ package com.winlator.cmod.shared.ui.toast
 
 import android.graphics.Bitmap
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -38,8 +38,8 @@ internal fun WinToastContent(
     WinNativeTheme {
         AnimatedVisibility(
             visible = visible,
-            enter = fadeIn(tween(180)) + slideInVertically(tween(220)) { it / 4 },
-            exit = fadeOut(tween(160)) + slideOutVertically(tween(180)) { it / 4 },
+            enter = fadeIn(snap()) + slideInVertically(snap()) { it / 4 },
+            exit = fadeOut(snap()) + slideOutVertically(snap()) { it / 4 },
         ) {
             Row(
                 modifier = Modifier

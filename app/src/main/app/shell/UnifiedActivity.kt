@@ -24,17 +24,11 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -247,14 +241,14 @@ import javax.inject.Inject
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-internal val BgDark = Color(0xFF18181D)
-internal val SurfaceDark = Color(0xFF1E252E)
+internal val BgDark = Color(0xFF141414)
+internal val SurfaceDark = Color(0xFF241C15)
 internal val CardDark = Color(0xFF12121B)
 internal val CardBorder = Color(0xFF2A2A3A)
-internal val Accent = Color(0xFF1A9FFF)
-internal val AccentGlow = Color(0xFF58A6FF)
-internal val TextPrimary = Color(0xFFF0F4FF)
-internal val TextSecondary = Color(0xFF7A8FA8)
+internal val Accent = Color(0xFFFF7A00)
+internal val AccentGlow = Color(0xFFFFB74D)
+internal val TextPrimary = Color(0xFFF5F0EA)
+internal val TextSecondary = Color(0xFFAD9782)
 internal val DangerRed = Color(0xFFFF6B6B)
 internal val StatusOnline = Color(0xFF3FB950)
 internal val StatusAway = Color(0xFFF0C040)
@@ -262,9 +256,9 @@ private val StatusOffline = Color(0xFF6E7681)
 internal val DownloadCardBlack = Color.Black.copy(alpha = 0.46f)
 internal val DownloadCardSelectedBlack = Color.Black.copy(alpha = 0.58f)
 internal val DownloadButtonBlack = Color.Black.copy(alpha = 0.38f)
-private val DownloadChaseBlue = Color(0xFF2196F3)
-private val DownloadChaseSky = Color(0xFF29B6F6)
-private val DownloadChaseCyan = Color(0xFF00E5FF)
+private val DownloadChaseBlue = Color(0xFFFF7A00)
+private val DownloadChaseSky = Color(0xFFFFA940)
+private val DownloadChaseCyan = Color(0xFFFFD180)
 internal val DownloadChaseGradientStops =
     arrayOf(
         0.00f to DownloadChaseBlue,
@@ -421,9 +415,7 @@ class UnifiedActivity :
 
     val storeFocusIndex = kotlinx.coroutines.flow.MutableStateFlow(0)
     var storeItemCount: Int = 0
-
-    internal val storeColumns: Int
-        get() = com.winlator.cmod.shared.ui.gridColumnsForWidth(resources.configuration.screenWidthDp)
+    internal var storeColumns: Int = 4
 
     var storeGridState: androidx.compose.foundation.lazy.grid.LazyGridState? = null
 
@@ -1108,7 +1100,7 @@ class UnifiedActivity :
                                     (fromRoute?.startsWith("settings") == true && toRoute == "hub")
                             )
                         ) {
-                            fadeIn(tween(220, easing = FastOutSlowInEasing))
+                            fadeIn(snap())
                         } else {
                             EnterTransition.None
                         }
@@ -1122,7 +1114,7 @@ class UnifiedActivity :
                                     (fromRoute?.startsWith("settings") == true && toRoute == "hub")
                             )
                         ) {
-                            fadeOut(tween(220, easing = FastOutSlowInEasing))
+                            fadeOut(snap())
                         } else {
                             ExitTransition.None
                         }
@@ -1136,7 +1128,7 @@ class UnifiedActivity :
                                     (fromRoute?.startsWith("settings") == true && toRoute == "hub")
                             )
                         ) {
-                            fadeIn(tween(220, easing = FastOutSlowInEasing))
+                            fadeIn(snap())
                         } else {
                             EnterTransition.None
                         }
@@ -1150,7 +1142,7 @@ class UnifiedActivity :
                                     (fromRoute?.startsWith("settings") == true && toRoute == "hub")
                             )
                         ) {
-                            fadeOut(tween(220, easing = FastOutSlowInEasing))
+                            fadeOut(snap())
                         } else {
                             ExitTransition.None
                         }

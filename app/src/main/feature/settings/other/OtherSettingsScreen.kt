@@ -70,7 +70,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.winlator.cmod.shared.ui.layout.isPortraitLayout
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
@@ -87,11 +86,11 @@ private val BgDark = Color(0xFF11111C)
 private val CardDark = Color(0xFF1C1C2A)
 private val CardBorder = Color(0xFF2A2A3A)
 private val IconBoxBg = Color(0xFF242434)
-private val SurfaceDark = Color(0xFF21212A)
-private val Accent = Color(0xFF1A9FFF)
-private val NavHighlight = Color(0xFF4FC3F7)
-private val TextPrimary = Color(0xFFF0F4FF)
-private val TextSecondary = Color(0xFF7A8FA8)
+private val SurfaceDark = Color(0xFF1E1712)
+private val Accent = Color(0xFFFF7A00)
+private val NavHighlight = Color(0xFFFFB74D)
+private val TextPrimary = Color(0xFFF5F0EA)
+private val TextSecondary = Color(0xFFAD9782)
 private val SettingsSliderHeight = 24.dp
 private const val SettingsSliderTrackScaleY = 0.72f
 
@@ -565,7 +564,7 @@ private fun SettingsDropdownCard(
                     expanded = expanded,
                     onDismissRequest = { expanded = false },
                     shape = RoundedCornerShape(8.dp),
-                    containerColor = Color(0xFF24243B),
+                    containerColor = Color(0xFF241C15),
                     border = BorderStroke(1.dp, CardBorder),
                     modifier = Modifier.widthIn(max = 260.dp),
                 ) {
@@ -703,7 +702,7 @@ private fun SoundFontCard(
                         expanded = expanded,
                         onDismissRequest = { expanded = false },
                         shape = RoundedCornerShape(8.dp),
-                        containerColor = Color(0xFF24243B),
+                        containerColor = Color(0xFF241C15),
                         border = BorderStroke(1.dp, CardBorder),
                         modifier = Modifier.widthIn(max = 320.dp),
                     ) {
@@ -764,9 +763,13 @@ private fun FolderPathCard(
                 .background(CardDark)
                 .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
     ) {
-        val stackActions = isPortraitLayout() && secondaryLabel != null && onSecondary != null
-
-        val leading: @Composable () -> Unit = {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Box(
                 modifier =
                     Modifier
@@ -782,10 +785,8 @@ private fun FolderPathCard(
                     modifier = Modifier.size(17.dp),
                 )
             }
-        }
-
-        val labels: @Composable (Modifier) -> Unit = { labelModifier ->
-            Column(modifier = labelModifier) {
+            Spacer(Modifier.width(13.dp))
+            Column(modifier = Modifier.weight(1f)) {
                 Text(label, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                 Text(
                     text = path.ifEmpty { stringResource(R.string.common_ui_not_configured) },
@@ -795,9 +796,7 @@ private fun FolderPathCard(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-        }
-
-        val actions: @Composable () -> Unit = {
+            Spacer(Modifier.width(10.dp))
             if (secondaryLabel != null && onSecondary != null) {
                 SmallActionButton(
                     label = secondaryLabel,
@@ -811,43 +810,6 @@ private fun FolderPathCard(
                 textColor = Accent,
                 onClick = onBrowse,
             )
-        }
-
-        if (stackActions) {
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 11.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    leading()
-                    Spacer(Modifier.width(13.dp))
-                    labels(Modifier.weight(1f))
-                }
-                Spacer(Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    actions()
-                }
-            }
-        } else {
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 11.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                leading()
-                Spacer(Modifier.width(13.dp))
-                labels(Modifier.weight(1f))
-                Spacer(Modifier.width(10.dp))
-                actions()
-            }
         }
     }
 }

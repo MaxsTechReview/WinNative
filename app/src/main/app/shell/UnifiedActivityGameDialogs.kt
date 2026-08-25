@@ -31,17 +31,11 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -102,7 +96,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -305,9 +298,9 @@ internal fun UnifiedActivity.LibraryDetailPopupFrame(
                         ),
                 shape = RoundedCornerShape(16.dp),
                 color = CardDark,
+                // Flat: border is the only depth cue, no drop shadow / tonal
+                // elevation, matching the rest of the app's flat design tokens.
                 border = BorderStroke(1.dp, CardBorder),
-                tonalElevation = 8.dp,
-                shadowElevation = 12.dp,
             ) {
                 Column {
                     Row(
@@ -483,7 +476,7 @@ internal fun UnifiedActivity.GameSettingsActionCard(
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.96f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        animationSpec = snap(),
         label = "actionCardScale",
     )
     Row(
@@ -3147,9 +3140,9 @@ internal fun UnifiedActivity.LibraryGameDetailDialog(
                                 .align(Alignment.TopEnd)
                                 .padding(16.dp)
                                 .size(42.dp)
-                                .shadow(8.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.35f))
                                 .clip(CircleShape)
-                                .background(BgDark.copy(alpha = 0.7f)),
+                                .background(BgDark.copy(alpha = 0.7f))
+                                .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape),
                     ) {
                         Icon(Icons.Outlined.Close, contentDescription = "Close", tint = TextPrimary)
                     }

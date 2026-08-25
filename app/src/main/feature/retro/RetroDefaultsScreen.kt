@@ -53,8 +53,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private val PageBg = Color(0xFF101018)
-private val PageText = Color(0xFFF0F4FF)
-private val PageSub = Color(0xFF93A6BC)
+private val PageText = Color(0xFFF5F0EA)
+private val PageSub = Color(0xFFC7A88F)
 
 private val SHADER_KEYS = listOf("default", "crt", "lcd", "sharp")
 private val UPSCALE_KEYS = listOf("2x", "4x", "native")
@@ -183,7 +183,7 @@ fun RetroDefaultsScreen(bridge: SettingsNavBridge? = null) {
                                     RetroAchievementsManager.logout(context)
                                     refresh++
                                 },
-                                highlightColor = Color(0xFF4FC3F7),
+                                highlightColor = Color(0xFFFFB74D),
                                 tapToSelect = true,
                             ),
                 ) {
@@ -219,7 +219,7 @@ fun RetroDefaultsScreen(bridge: SettingsNavBridge? = null) {
                                 .paneNavItem(
                                     cornerRadius = 8.dp,
                                     onActivate = { runCatching { biosPicker.launch(arrayOf("*/*")) } },
-                                    highlightColor = Color(0xFF4FC3F7),
+                                    highlightColor = Color(0xFFFFB74D),
                                     tapToSelect = true,
                                 ),
                     ) {
@@ -259,7 +259,7 @@ fun RetroDefaultsScreen(bridge: SettingsNavBridge? = null) {
                                             ).show()
                                             refresh++
                                         },
-                                        highlightColor = Color(0xFF4FC3F7),
+                                        highlightColor = Color(0xFFFFB74D),
                                         tapToSelect = true,
                                     ),
                         ) {
@@ -289,7 +289,7 @@ fun RetroDefaultsScreen(bridge: SettingsNavBridge? = null) {
                                 .paneNavItem(
                                     cornerRadius = 8.dp,
                                     onActivate = { runCatching { ps2BiosPicker.launch(arrayOf("*/*")) } },
-                                    highlightColor = Color(0xFF4FC3F7),
+                                    highlightColor = Color(0xFFFFB74D),
                                     tapToSelect = true,
                                 ),
                     ) {
@@ -329,7 +329,7 @@ fun RetroDefaultsScreen(bridge: SettingsNavBridge? = null) {
                                             ).show()
                                             refresh++
                                         },
-                                        highlightColor = Color(0xFF4FC3F7),
+                                        highlightColor = Color(0xFFFFB74D),
                                         tapToSelect = true,
                                     ),
                         ) {
@@ -394,7 +394,7 @@ fun RetroDefaultsScreen(bridge: SettingsNavBridge? = null) {
                         .paneNavItem(
                             cornerRadius = 8.dp,
                             onActivate = { pickRomsFolder() },
-                            highlightColor = Color(0xFF4FC3F7),
+                            highlightColor = Color(0xFFFFB74D),
                             tapToSelect = true,
                         ),
             ) {
@@ -420,7 +420,7 @@ fun RetroDefaultsScreen(bridge: SettingsNavBridge? = null) {
                             .paneNavItem(
                                 cornerRadius = 8.dp,
                                 onActivate = { scanNow() },
-                                highlightColor = Color(0xFF4FC3F7),
+                                highlightColor = Color(0xFFFFB74D),
                                 tapToSelect = true,
                             ),
                 ) {
@@ -460,7 +460,7 @@ fun RetroDefaultsScreen(bridge: SettingsNavBridge? = null) {
                             .paneNavItem(
                                 cornerRadius = 8.dp,
                                 onActivate = { expandedConsole = if (expanded) null else sys },
-                                highlightColor = Color(0xFF4FC3F7),
+                                highlightColor = Color(0xFFFFB74D),
                                 tapToSelect = true,
                             )
                             .padding(vertical = 4.dp),
@@ -866,7 +866,7 @@ fun RetroHardcoreConfirmDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val accent = Color(0xFF1A9FFF)
+    val accent = Color(0xFFFF7A00)
     com.winlator.cmod.shared.ui.dialog.WinNativeDialogShell(
         onDismiss = onDismiss,
         title = stringResource(R.string.retro_scr_enable_hardcore_title),

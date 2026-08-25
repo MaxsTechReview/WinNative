@@ -25,17 +25,10 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -107,7 +100,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -119,7 +111,6 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -619,35 +610,6 @@ internal fun UnifiedActivity.DownloadsQueueButton(
 }
 
 @Composable
-internal fun UnifiedActivity.AnimatedDownloadProgressFill(
-    modifier: Modifier,
-    widthPx: Float,
-) {
-    val infiniteTransition = rememberInfiniteTransition(label = "downloadProgressGradient")
-    val gradientOffset by infiniteTransition.animateFloat(
-        initialValue = -widthPx,
-        targetValue = 0f,
-            animationSpec =
-                infiniteRepeatable(
-                animation = tween(durationMillis = 5000, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart,
-            ),
-        label = "downloadProgressGradientOffset",
-    )
-
-    Box(
-        modifier.background(
-            Brush.horizontalGradient(
-                colorStops = DownloadChaseGradientStops,
-                startX = gradientOffset,
-                endX = gradientOffset + (widthPx * 2f),
-                tileMode = TileMode.Repeated,
-            ),
-        ),
-    )
-}
-
-@Composable
 internal fun UnifiedActivity.DownloadChasingProgressBar(
     progress: Float,
     status: DownloadPhase,
@@ -655,20 +617,10 @@ internal fun UnifiedActivity.DownloadChasingProgressBar(
     modifier: Modifier = Modifier,
 ) {
     val clampedProgress = progress.coerceIn(0f, 1f)
-    val shouldUseActiveGradient =
-        when (status) {
-            DownloadPhase.DOWNLOADING,
-            DownloadPhase.QUEUED,
-            DownloadPhase.PREPARING,
-            DownloadPhase.VERIFYING,
-            DownloadPhase.PATCHING,
-            DownloadPhase.APPLYING_DATA,
-            DownloadPhase.FINALIZING,
-            DownloadPhase.UNPACKING,
-            -> true
-            else -> false
-        }
-    val shouldAnimate = shouldUseActiveGradient && animationsActive
+    // Flat fill color per status - no animated "chasing" gradient. A download
+    // can stay active for a long time, so an infinitely-animating gradient
+    // there was continuous, unbounded redraw work for no functional gain
+    // over a plain fill.
     val fillColor =
         when (status) {
             DownloadPhase.FAILED,
@@ -685,9 +637,6 @@ internal fun UnifiedActivity.DownloadChasingProgressBar(
                 .clip(CircleShape)
                 .background(Color.Black.copy(alpha = 0.34f)),
     ) {
-        val density = LocalDensity.current
-        val widthPx = with(density) { maxWidth.toPx().coerceAtLeast(1f) }
-
         if (clampedProgress > 0f) {
             val fillModifier =
                 Modifier
@@ -695,23 +644,7 @@ internal fun UnifiedActivity.DownloadChasingProgressBar(
                     .fillMaxWidth(clampedProgress)
                     .clip(RectangleShape)
 
-            if (shouldUseActiveGradient) {
-                if (shouldAnimate) {
-                    AnimatedDownloadProgressFill(fillModifier, widthPx)
-                } else {
-                    Box(
-                        fillModifier.background(
-                            Brush.horizontalGradient(
-                                colorStops = DownloadChaseGradientStops,
-                                endX = widthPx * 2f,
-                                tileMode = TileMode.Repeated,
-                            ),
-                        ),
-                    )
-                }
-            } else {
-                Box(fillModifier.background(fillColor))
-            }
+            Box(fillModifier.background(fillColor))
         }
     }
 }
@@ -737,7 +670,7 @@ internal fun UnifiedActivity.SteamTaskProgressBody(info: DownloadInfo) {
     val fraction = progress.coerceIn(0f, 1f)
     val animatedFraction by animateFloatAsState(
         targetValue = fraction,
-        animationSpec = tween(durationMillis = 400),
+        animationSpec = snap(),
         label = "steamTaskProgress",
     )
     val (doneBytes, totalBytes) =
@@ -1038,7 +971,7 @@ internal fun UnifiedActivity.DownloadItemDeck(
     val clickInteractionSource = remember { MutableInteractionSource() }
     val animatedProgress by animateFloatAsState(
         targetValue = if (status == DownloadPhase.COMPLETE) 1f else progress.coerceIn(0f, 1f),
-        animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing),
+        animationSpec = snap(),
         label = "downloadItemProgress",
     )
 
@@ -1280,7 +1213,7 @@ internal fun UnifiedActivity.DownloadItemDeck(
 
                 AnimatedVisibility(
                     visible = status != DownloadPhase.COMPLETE || showCompletedProgressBar,
-                    exit = fadeOut(tween(180)) + shrinkVertically(tween(180)),
+                    exit = fadeOut(snap()) + shrinkVertically(snap()),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                         DownloadChasingProgressBar(

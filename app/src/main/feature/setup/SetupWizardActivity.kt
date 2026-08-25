@@ -21,14 +21,9 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.EaseInOut
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -90,7 +85,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
@@ -136,28 +130,17 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import java.io.File
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
-
-private data class Particle(
-    val x: Float,
-    val speed: Float,
-    val size: Float,
-    val phaseOffset: Float,
-)
-
 private val SetupDownloadChaseGradientStops =
     arrayOf(
-        0.00f to Color(0xFF2196F3),
-        0.125f to Color(0xFF29B6F6),
-        0.25f to Color(0xFF00E5FF),
-        0.375f to Color(0xFF29B6F6),
-        0.50f to Color(0xFF2196F3),
-        0.625f to Color(0xFF29B6F6),
-        0.75f to Color(0xFF00E5FF),
-        0.875f to Color(0xFF29B6F6),
-        1.00f to Color(0xFF2196F3),
+        0.00f to Color(0xFFFF7A00),
+        0.125f to Color(0xFFFFA940),
+        0.25f to Color(0xFFFFD180),
+        0.375f to Color(0xFFFFA940),
+        0.50f to Color(0xFFFF7A00),
+        0.625f to Color(0xFFFFA940),
+        0.75f to Color(0xFFFFD180),
+        0.875f to Color(0xFFFFA940),
+        1.00f to Color(0xFFFF7A00),
     )
 
 private const val SetupGlassSurfaceAlpha = 0.03f
@@ -175,7 +158,7 @@ private data class TabInfo(
     val highlight: Boolean = false,
 )
 
-private val NavHighlightAccent = Color(0xFF57CBDE)
+private val NavHighlightAccent = Color(0xFFFF7A00)
 
 private fun Modifier.navHighlight(highlighted: Boolean, cornerRadius: Dp): Modifier =
     drawBehind {
@@ -206,7 +189,7 @@ private suspend fun LazyListState.scrollToSelected(index: Int) {
         visible != null &&
             visible.offset >= info.viewportStartOffset &&
             visible.offset + visible.size <= info.viewportEndOffset
-    if (!fullyVisible) runCatching { animateScrollToItem(index) }
+    if (!fullyVisible) runCatching { scrollToItem(index) }
 }
 
 class SetupWizardActivity : FixedFontScaleFragmentActivity() {
@@ -898,10 +881,10 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             WinNativeTheme(
                 colorScheme =
                     darkColorScheme(
-                        primary = Color(0xFF57CBDE),
-                        secondary = Color(0xFF3B82F6),
+                        primary = Color(0xFFFF7A00),
+                        secondary = Color(0xFFFFA940),
                         background = Color(0xFF141B24),
-                        surface = Color(0xFF1E252E),
+                        surface = Color(0xFF241C15),
                     ),
             ) {
                 androidx.compose.runtime.CompositionLocalProvider(
@@ -1576,193 +1559,13 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             }
         }
 
-        // Particle seeds — stable across recomposition
-        val particles =
-            remember {
-                List(20) { i ->
-                    val hash = ((i * 7919 + 104729) % 10000) / 10000f
-                    Particle(
-                        x = ((i * 3571 + 7321) % 10000) / 10000f,
-                        speed = 0.6f + hash * 0.4f,
-                        size = 1f + hash * 1.5f,
-                        phaseOffset = hash * 6.2832f,
-                    )
-                }
-            }
-
-        // Page-reactive orb anchors — orbs smoothly migrate when page changes
-        val orb1TargetX =
-            when (page) {
-                0 -> 0.25f
-                1 -> 0.50f
-                else -> 0.75f
-            }
-        val orb1TargetY =
-            when (page) {
-                0 -> 0.30f
-                1 -> 0.20f
-                else -> 0.25f
-            }
-        val orb2TargetX =
-            when (page) {
-                0 -> 0.70f
-                1 -> 0.30f
-                else -> 0.20f
-            }
-        val orb2TargetY =
-            when (page) {
-                0 -> 0.70f
-                1 -> 0.55f
-                else -> 0.75f
-            }
-        val orb3TargetX =
-            when (page) {
-                0 -> 0.50f
-                1 -> 0.75f
-                else -> 0.50f
-            }
-        val orb3TargetY =
-            when (page) {
-                0 -> 0.50f
-                1 -> 0.80f
-                else -> 0.50f
-            }
-
-        val orbAnim = tween<Float>(2000, easing = EaseInOut)
-        val o1x by animateFloatAsState(orb1TargetX, orbAnim, label = "o1x")
-        val o1y by animateFloatAsState(orb1TargetY, orbAnim, label = "o1y")
-        val o2x by animateFloatAsState(orb2TargetX, orbAnim, label = "o2x")
-        val o2y by animateFloatAsState(orb2TargetY, orbAnim, label = "o2y")
-        val o3x by animateFloatAsState(orb3TargetX, orbAnim, label = "o3x")
-        val o3y by animateFloatAsState(orb3TargetY, orbAnim, label = "o3y")
-
-        val infiniteTransition = rememberInfiniteTransition(label = "bgGlow")
-        val phase1 =
-            infiniteTransition.animateFloat(
-                initialValue = 0f,
-                targetValue = 6.2832f,
-                animationSpec = infiniteRepeatable(tween(30000, easing = LinearEasing), RepeatMode.Restart),
-                label = "phase1",
-            )
-        val phase2 =
-            infiniteTransition.animateFloat(
-                initialValue = 6.2832f,
-                targetValue = 0f,
-                animationSpec = infiniteRepeatable(tween(38000, easing = LinearEasing), RepeatMode.Restart),
-                label = "phase2",
-            )
-        val pulse =
-            infiniteTransition.animateFloat(
-                initialValue = 0.85f,
-                targetValue = 1f,
-                animationSpec = infiniteRepeatable(tween(8000, easing = EaseInOut), RepeatMode.Reverse),
-                label = "pulse",
-            )
-        val particlePhase =
-            infiniteTransition.animateFloat(
-                initialValue = 0f,
-                targetValue = 1f,
-                animationSpec = infiniteRepeatable(tween(20000, easing = LinearEasing), RepeatMode.Restart),
-                label = "particlePhase",
-            )
-
+        // Flat, static background — no continuous canvas redraws or
+        // per-frame animation (previously an infinite orb/particle glow).
         Box(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(Color(0xFF111822))
-                    .drawBehind {
-                        val w = size.width
-                        val h = size.height
-                        val p1 = phase1.value
-                        val p2 = phase2.value
-                        val p = pulse.value
-
-                        // Orb 1 — cyan, page-reactive + gentle drift
-                        val c1 =
-                            Offset(
-                                w * (o1x + 0.04f * cos(p1)),
-                                h * (o1y + 0.03f * sin(p1)),
-                            )
-                        drawCircle(
-                            brush =
-                                Brush.radialGradient(
-                                    colors =
-                                        listOf(
-                                            Color(0xFF57CBDE).copy(alpha = 0.04f * p),
-                                            Color(0xFF57CBDE).copy(alpha = 0.015f * p),
-                                            Color.Transparent,
-                                        ),
-                                    center = c1,
-                                    radius = w * 0.6f,
-                                ),
-                            radius = w * 0.6f,
-                            center = c1,
-                        )
-
-                        // Orb 2 — blue, page-reactive + gentle drift
-                        val c2 =
-                            Offset(
-                                w * (o2x + 0.04f * cos(p2)),
-                                h * (o2y + 0.03f * sin(p2)),
-                            )
-                        drawCircle(
-                            brush =
-                                Brush.radialGradient(
-                                    colors =
-                                        listOf(
-                                            Color(0xFF3B82F6).copy(alpha = 0.035f * p),
-                                            Color(0xFF3B82F6).copy(alpha = 0.01f * p),
-                                            Color.Transparent,
-                                        ),
-                                    center = c2,
-                                    radius = w * 0.55f,
-                                ),
-                            radius = w * 0.55f,
-                            center = c2,
-                        )
-
-                        // Orb 3 — teal accent, page-reactive + gentle drift
-                        val c3 =
-                            Offset(
-                                w * (o3x + 0.03f * sin(p1 * 0.7f)),
-                                h * (o3y + 0.03f * cos(p2 * 0.6f)),
-                            )
-                        drawCircle(
-                            brush =
-                                Brush.radialGradient(
-                                    colors =
-                                        listOf(
-                                            Color(0xFF2DD4BF).copy(alpha = 0.02f * p),
-                                            Color.Transparent,
-                                        ),
-                                    center = c3,
-                                    radius = w * 0.45f,
-                                ),
-                            radius = w * 0.45f,
-                            center = c3,
-                        )
-
-                        // Floating particles
-                        val pp = particlePhase.value
-                        particles.forEach { pt ->
-                            val t = (pp * pt.speed + pt.phaseOffset) % 1f
-                            val py = h * (1f - t)
-                            val px = w * pt.x + w * 0.02f * sin((t * 2f * PI).toFloat() + pt.phaseOffset)
-                            // Fade in at bottom, fade out at top
-                            val alpha =
-                                when {
-                                    t < 0.15f -> t / 0.15f
-                                    t > 0.85f -> (1f - t) / 0.15f
-                                    else -> 1f
-                                } * 0.12f
-                            drawCircle(
-                                color = Color(0xFF57CBDE).copy(alpha = alpha),
-                                radius = pt.size.dp.toPx(),
-                                center = Offset(px, py),
-                            )
-                        }
-                    },
+                    .background(Color(0xFF120E0A)),
         ) {
             Column(
                 modifier =
@@ -1788,7 +1591,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = stringResource(R.string.setup_wizard_title).uppercase(),
-                                color = Color(0xFF57CBDE),
+                                color = Color(0xFFFF7A00),
                                 fontFamily = InterFont,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 9.sp,
@@ -1799,7 +1602,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                                 modifier =
                                     Modifier
                                         .size(3.dp)
-                                        .background(Color(0xFF4A5260), RoundedCornerShape(2.dp)),
+                                        .background(Color(0xFF4A3F30), RoundedCornerShape(2.dp)),
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(
@@ -1841,14 +1644,14 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                             val forward = targetState > initialState
                             val enter =
                                 slideInHorizontally(
-                                    animationSpec = tween(220),
+                                    animationSpec = snap(),
                                 ) { if (forward) it / 4 else -it / 4 } +
-                                    fadeIn(tween(160, delayMillis = 40))
+                                    fadeIn(snap())
                             val exit =
                                 slideOutHorizontally(
-                                    animationSpec = tween(220),
+                                    animationSpec = snap(),
                                 ) { if (forward) -it / 4 else it / 4 } +
-                                    fadeOut(tween(140))
+                                    fadeOut(snap())
                             (enter togetherWith exit).using(
                                 SizeTransform(clip = false),
                             )
@@ -1944,18 +1747,18 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             } else {
                 progressAnim.animateTo(
                     targetValue = targetProgress,
-                    animationSpec = tween(durationMillis = 240, easing = LinearEasing),
+                    animationSpec = snap(),
                 )
             }
         }
         val animatedProgress = progressAnim.value
-        val turquoise = Color(0xFF57CBDE)
+        val turquoise = Color(0xFFFF7A00)
         val glassShape = RoundedCornerShape(12.dp)
         Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFF111822).copy(alpha = SetupGlassTransferAlpha), glassShape)
+                    .background(Color(0xFF120E0A).copy(alpha = SetupGlassTransferAlpha), glassShape)
                     .border(1.dp, turquoise.copy(alpha = 0.55f), glassShape)
                     .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -2033,40 +1836,14 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
     }
 
     @Composable
-    private fun SetupAnimatedProgressFill(
-        modifier: Modifier,
-        widthPx: Float,
-    ) {
-        val infiniteTransition = rememberInfiniteTransition(label = "setupTransferProgressGradient")
-        val gradientOffset by infiniteTransition.animateFloat(
-            initialValue = -widthPx,
-            targetValue = 0f,
-            animationSpec =
-                infiniteRepeatable(
-                    animation = tween(durationMillis = 5000, easing = LinearEasing),
-                    repeatMode = RepeatMode.Restart,
-                ),
-            label = "setupTransferProgressGradientOffset",
-        )
-
-        Box(
-            modifier.background(
-                Brush.horizontalGradient(
-                    colorStops = SetupDownloadChaseGradientStops,
-                    startX = gradientOffset,
-                    endX = gradientOffset + (widthPx * 2f),
-                    tileMode = TileMode.Repeated,
-                ),
-            ),
-        )
-    }
-
-    @Composable
     private fun SetupChasingProgressBar(
         progress: Float,
         animate: Boolean,
         modifier: Modifier = Modifier,
     ) {
+        // "animate" param kept for call-site compatibility; the fill is
+        // always static now (no continuous marquee redraw while a
+        // transfer is in progress).
         BoxWithConstraints(
             modifier =
                 modifier
@@ -2084,19 +1861,15 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                         .fillMaxWidth(clampedProgress.coerceAtLeast(0.015f))
                         .clip(RectangleShape)
 
-                if (animate) {
-                    SetupAnimatedProgressFill(fillModifier, widthPx)
-                } else {
-                    Box(
-                        fillModifier.background(
-                            Brush.horizontalGradient(
-                                colorStops = SetupDownloadChaseGradientStops,
-                                endX = widthPx * 2f,
-                                tileMode = TileMode.Repeated,
-                            ),
+                Box(
+                    fillModifier.background(
+                        Brush.horizontalGradient(
+                            colorStops = SetupDownloadChaseGradientStops,
+                            endX = widthPx * 2f,
+                            tileMode = TileMode.Repeated,
                         ),
-                    )
-                }
+                    ),
+                )
             }
         }
     }
@@ -2111,9 +1884,9 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 val active = i == current
                 val completed = i < current
                 val reached = active || completed
-                val bg = if (reached) Color(0xFF57CBDE) else Color(0xFF111822)
-                val borderC = if (reached) Color(0xFF57CBDE) else Color(0xFF323C4A)
-                val textC = if (reached) Color(0xFF111822) else Color(0xFF8B949E)
+                val bg = if (reached) Color(0xFFFF7A00) else Color(0xFF120E0A)
+                val borderC = if (reached) Color(0xFFFF7A00) else Color(0xFF323C4A)
+                val textC = if (reached) Color(0xFF120E0A) else Color(0xFF8B949E)
                 Box(
                     modifier =
                         Modifier
@@ -2136,7 +1909,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                             Modifier
                                 .width(18.dp)
                                 .height(2.dp)
-                                .background(if (i < current) Color(0xFF57CBDE) else Color(0xFF323C4A)),
+                                .background(if (i < current) Color(0xFFFF7A00) else Color(0xFF323C4A)),
                     )
                 }
             }
@@ -2174,8 +1947,8 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         onClick: () -> Unit,
     ) {
         val borderColor by animateColorAsState(
-            targetValue = if (enabled) Color(0xFF57CBDE) else Color(0xFF222D3D),
-            animationSpec = tween(300),
+            targetValue = if (enabled) Color(0xFFFF7A00) else Color(0xFF222D3D),
+            animationSpec = snap(),
             label = "accentBorder",
         )
         OutlinedButton(
@@ -2186,8 +1959,8 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             border = BorderStroke(1.5.dp, borderColor),
             colors =
                 ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color(0xFF57CBDE),
-                    disabledContentColor = Color(0xFF4A5260),
+                    contentColor = Color(0xFFFF7A00),
+                    disabledContentColor = Color(0xFF4A3F30),
                 ),
         ) {
             Text(label, fontFamily = InterFont, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
@@ -2313,13 +2086,13 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         val recommendedLabel = stringResource(R.string.setup_wizard_recommended_label)
         val driversLabel = stringResource(R.string.settings_drivers_title)
         var selectedTab by remember { mutableStateOf("recommended") }
-        val turquoise = Color(0xFF57CBDE)
+        val turquoise = Color(0xFFFF7A00)
         val completedTurquoise = Color(0xFF3FAFBE)
         val glassShape = RoundedCornerShape(12.dp)
         val glassSurface = Color.White.copy(alpha = SetupGlassSurfaceAlpha)
         val glassSurfaceActive = turquoise.copy(alpha = SetupGlassActiveSurfaceAlpha)
         val glassBorder = Color.White.copy(alpha = SetupGlassBorderAlpha)
-        val mutedDot = Color(0xFF4A5568)
+        val mutedDot = Color(0xFF5A4E40)
 
         val tabs =
             buildList {
@@ -2562,11 +2335,11 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                                                         fontSize = 11.sp,
                                                         color =
                                                             if (highlightInstallAll) {
-                                                                Color(0xFFF0F4FF)
+                                                                Color(0xFFF5F0EA)
                                                             } else if (allRecommendedInstalled) {
                                                                 completedTurquoise
                                                             } else if (!installAllEnabled) {
-                                                                Color(0xFF4A5260)
+                                                                Color(0xFF4A3F30)
                                                             } else {
                                                                 turquoise
                                                             },
@@ -2717,7 +2490,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         highlighted: Boolean = false,
         sizeBytes: Long? = null,
     ) {
-        val turquoise = Color(0xFF57CBDE)
+        val turquoise = Color(0xFFFF7A00)
         val completedTurquoise = Color(0xFF3FAFBE)
         val cardShape = RoundedCornerShape(12.dp)
         val bgColor =
@@ -2903,7 +2676,16 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.TopCenter,
             ) {
-                val gridColumns = 3
+                val isPortrait = maxHeight > maxWidth
+                // Portrait/phone: stack cards in a narrow single (or double) column so
+                // each card gets full width instead of being squeezed 3-across.
+                val gridColumns =
+                    when {
+                        isPortrait && maxWidth < 480.dp -> 1
+                        isPortrait -> 2
+                        maxWidth < 720.dp -> 2
+                        else -> 3
+                    }
                 val compactGrid = maxWidth < 720.dp || maxHeight < 280.dp
                 val region by navRegion
                 val navIdx by navIndex
@@ -2917,11 +2699,11 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     columns = GridCells.Fixed(gridColumns),
                     modifier =
                         Modifier
-                            .widthIn(max = 960.dp)
+                            .widthIn(max = if (isPortrait) 560.dp else 960.dp)
                             .fillMaxWidth()
                             .fillMaxHeight(),
                     horizontalArrangement = Arrangement.spacedBy(if (compactGrid) 8.dp else 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(if (compactGrid) 6.dp else 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (compactGrid) 8.dp else 10.dp),
                     contentPadding = PaddingValues(bottom = if (compactGrid) 4.dp else 12.dp),
                 ) {
                     gridItemsIndexed(installedRuntimes) { i, profile ->
@@ -2960,11 +2742,11 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         val creating = creatingContainer.value
 
         val hasContainer = existingContainer != null
-        val turquoise = Color(0xFF57CBDE)
+        val turquoise = Color(0xFFFF7A00)
         val completedTurquoise = Color(0xFF3FAFBE)
         val cardShape = RoundedCornerShape(12.dp)
         val bgColor = Color.White.copy(alpha = SetupGlassSurfaceAlpha)
-        val activeColor = if (hasContainer) completedTurquoise else Color(0xFF4A5260)
+        val activeColor = if (hasContainer) completedTurquoise else Color(0xFF4A3F30)
         val outlineColor =
             if (hasContainer) {
                 completedTurquoise.copy(alpha = SetupGlassCompletedSoftBorderAlpha)
@@ -3074,7 +2856,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                             contentColor = turquoise,
                             disabledContainerColor =
                                 if (creating) turquoise.copy(alpha = 0.16f) else Color.White.copy(alpha = 0.08f),
-                            disabledContentColor = if (creating) turquoise else Color(0xFF4A5260),
+                            disabledContentColor = if (creating) turquoise else Color(0xFF4A3F30),
                         ),
                 ) {
                     if (creating) {
@@ -3130,7 +2912,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         progress: Float? = null,
         highlighted: Boolean = false,
     ) {
-        val turquoise = Color(0xFF57CBDE)
+        val turquoise = Color(0xFFFF7A00)
         val completedTurquoise = Color(0xFF3FAFBE)
         val glassShape = RoundedCornerShape(12.dp)
         val glassSurface =
@@ -3169,7 +2951,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                                 when {
                                     completed -> completedTurquoise
                                     progress != null -> turquoise
-                                    else -> Color(0xFF4A5260)
+                                    else -> Color(0xFF4A3F30)
                                 },
                                 RoundedCornerShape(3.dp),
                             ),
@@ -3198,7 +2980,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             if (progress != null) {
                 val animatedProgress by animateFloatAsState(
                     targetValue = progress,
-                    animationSpec = tween(durationMillis = 400, easing = LinearEasing),
+                    animationSpec = snap(),
                     label = "cardProgress",
                 )
                 Spacer(Modifier.height(8.dp))
@@ -3245,7 +3027,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                             when {
                                 completed -> completedTurquoise
                                 buttonFocused -> Color(0xFFE6EDF3)
-                                else -> Color(0xFF111822)
+                                else -> Color(0xFF120E0A)
                             },
                         disabledContainerColor =
                             when {
@@ -3257,7 +3039,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                             when {
                                 completed -> completedTurquoise
                                 progress != null -> Color(0xFFE6EDF3)
-                                else -> Color(0xFF4A5260)
+                                else -> Color(0xFF4A3F30)
                             },
                     ),
             ) {

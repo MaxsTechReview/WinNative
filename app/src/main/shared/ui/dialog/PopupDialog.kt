@@ -1,8 +1,7 @@
 package com.winlator.cmod.shared.ui.dialog
 
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -44,8 +43,8 @@ import com.winlator.cmod.shared.ui.nav.paneNavItem
 private val DefaultAccent = Color(0xFFFF6B6B)
 private val DefaultCard = Color(0xFF12121B)
 private val DefaultTrack = Color(0xFF1F2230)
-private val DefaultTextPrimary = Color(0xFFF0F4FF)
-private val DefaultTextSecondary = Color(0xFF93A6BC)
+private val DefaultTextPrimary = Color(0xFFF5F0EA)
+private val DefaultTextSecondary = Color(0xFFC7A88F)
 private val DefaultBorder = Color.White.copy(alpha = 0.14f)
 
 /**
@@ -179,7 +178,7 @@ private fun ProgressBarFooter(
     } else {
         val smoothed by animateFloatAsState(
             targetValue = progress.coerceIn(0f, 1f),
-            animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+            animationSpec = snap(),
             label = "popupProgress",
         )
         LinearProgressIndicator(

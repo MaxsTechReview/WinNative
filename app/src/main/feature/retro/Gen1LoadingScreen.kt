@@ -1,7 +1,7 @@
 package com.winlator.cmod.feature.retro
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -21,7 +21,7 @@ fun Gen1LoadingScreen(
     AnimatedVisibility(
         visible = visible,
         enter = androidx.compose.animation.EnterTransition.None,
-        exit = fadeOut(tween(320)),
+        exit = fadeOut(snap()),
     ) {
         val context = LocalContext.current
         val preloader = remember { PreloaderDialogState() }

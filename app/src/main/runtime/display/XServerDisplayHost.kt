@@ -2,8 +2,7 @@ package com.winlator.cmod.runtime.display
 
 import android.widget.FrameLayout
 import androidx.compose.animation.core.animate
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
@@ -65,16 +64,16 @@ const val XSERVER_DRAWER_OPEN_TRIGGER_DP = 32
 const val XSERVER_DRAWER_OPEN_HORIZONTAL_RATIO = 2f
 
 private val DrawerWidth = 300.dp
+// Portrait sizing: drawer takes this fraction of screen width, clamped between these bounds.
+private const val DrawerPortraitWidthFraction = 0.82f
+private val DrawerPortraitMinWidth = 240.dp
 private val DrawerStartPadding = 6.dp
 private val DrawerVerticalPadding = 6.dp
 private const val DrawerSettleAnimationMs = 200
 private const val DrawerOpenSettleThreshold = 0.4f
 private const val DrawerCloseSettleThreshold = 0.65f
 private val DrawerSettleAnimationSpec =
-    tween<Float>(
-        durationMillis = DrawerSettleAnimationMs,
-        easing = LinearEasing,
-    )
+    snap<Float>()
 
 interface XServerDisplayHostCallbacks {
     fun onDrawerSlide()
@@ -296,7 +295,17 @@ private fun XServerDisplayHost(
                 } else {
                     1f
                 }
-            val scaledDrawerWidth = DrawerWidth * evenScale
+            // Portrait: a fixed 300dp drawer eats too much of a narrow screen, so scale it
+            // to a fraction of the available width instead (clamped to a sane min/max).
+            val isPortraitScreen =
+                LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT
+            val baseDrawerWidth =
+                if (isPortraitScreen && maxWidth > 0.dp) {
+                    (maxWidth * DrawerPortraitWidthFraction).coerceIn(DrawerPortraitMinWidth, DrawerWidth)
+                } else {
+                    DrawerWidth
+                }
+            val scaledDrawerWidth = baseDrawerWidth * evenScale
             // Derived, not measured, so the sheet need not exist while closed.
             val scaledDrawerWidthPx = with(density) { scaledDrawerWidth.toPx() }
             LaunchedEffect(scaledDrawerWidthPx) {

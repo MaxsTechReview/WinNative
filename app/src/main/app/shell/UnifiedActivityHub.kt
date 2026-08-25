@@ -25,17 +25,11 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -94,18 +88,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusTarget
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -213,8 +205,6 @@ import com.winlator.cmod.shared.android.RefreshRateUtils
 import com.winlator.cmod.shared.io.StorageUtils
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.ui.CarouselView
-import com.winlator.cmod.shared.ui.layout.isPortraitLayout
-import com.winlator.cmod.shared.ui.layout.screenWidthDp
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.dialog.PopupTextAction
 import androidx.compose.foundation.focusGroup
@@ -306,7 +296,6 @@ internal fun UnifiedActivity.UnifiedHub() {
     }
     var immersiveMode by remember { mutableStateOf(PrefManager.libraryImmersiveMode) }
     var immersiveBlur by remember { mutableStateOf(PrefManager.libraryImmersiveBlur) }
-    var forceLandscape by remember { mutableStateOf(PrefManager.libraryForceLandscape) }
     val tabs = remember(storeVisible.toMap()) { buildTabs(storeVisible) }
     var selectedIdx by rememberSaveable { mutableIntStateOf(0) }
     var selectedDownloadId by remember { mutableStateOf<String?>(null) }
@@ -683,7 +672,6 @@ internal fun UnifiedActivity.UnifiedHub() {
                 libraryLayoutMode = libraryLayoutMode,
                 immersiveMode = immersiveMode,
                 immersiveBlur = immersiveBlur,
-                forceLandscape = forceLandscape,
                 onLibraryLayoutSelected = {
                     libraryLayoutMode = it
                     PrefManager.libraryLayoutMode = it.name
@@ -703,10 +691,6 @@ internal fun UnifiedActivity.UnifiedHub() {
                 onImmersiveBlurChanged = {
                     immersiveBlur = it
                     PrefManager.libraryImmersiveBlur = it
-                },
-                onForceLandscapeChanged = {
-                    forceLandscape = it
-                    com.winlator.cmod.shared.android.OrientationLock.forceLandscape = it
                 },
                 onExportAll = {
                     scope.launch {
@@ -767,8 +751,8 @@ internal fun UnifiedActivity.UnifiedHub() {
                     }
                 AnimatedVisibility(
                     visible = immersiveModel != null,
-                    enter = fadeIn(tween(400)),
-                    exit = fadeOut(tween(400)),
+                    enter = fadeIn(snap()),
+                    exit = fadeOut(snap()),
                     modifier = Modifier.matchParentSize(),
                 ) {
                     Box(Modifier.matchParentSize()) {
@@ -910,7 +894,7 @@ internal fun UnifiedActivity.UnifiedHub() {
                         AnimatedContent(
                             targetState = key,
                             transitionSpec = {
-                                fadeIn(tween(200)) togetherWith fadeOut(tween(150))
+                                fadeIn(snap()) togetherWith fadeOut(snap())
                             },
                             label = "tabContent",
                         ) { animatedKey ->
@@ -991,17 +975,8 @@ internal fun UnifiedActivity.UnifiedHub() {
                                 modifier =
                                     Modifier
                                         .size(addGameFabSize)
-                                    .drawBehind {
-                                        drawCircle(
-                                            brush =
-                                                Brush.radialGradient(
-                                                    colors = listOf(Accent.copy(alpha = 0.22f), Color.Transparent),
-                                                    center = center,
-                                                    radius = size.minDimension * 0.64f,
-                                                ),
-                                            radius = size.minDimension * 0.64f,
-                                        )
-                                    }
+                                    // Flat outline circle, no glow halo behind it - a plain
+                                    // accent border reads clearly without an extra gradient draw.
                                     .clip(CircleShape)
                                     .background(Color.Transparent, CircleShape)
                                     .border(1.5.dp, Accent.copy(alpha = 0.55f), CircleShape)
@@ -1032,17 +1007,7 @@ internal fun UnifiedActivity.UnifiedHub() {
                                     )
                                     .padding(start = fabStartInset, bottom = addGameFabMargin)
                                     .size(addGameFabSize)
-                                    .drawBehind {
-                                        drawCircle(
-                                            brush =
-                                                Brush.radialGradient(
-                                                    colors = listOf(Accent.copy(alpha = 0.22f), Color.Transparent),
-                                                    center = center,
-                                                    radius = size.minDimension * 0.64f,
-                                                ),
-                                            radius = size.minDimension * 0.64f,
-                                        )
-                                    }
+                                    // Flat outline circle, no glow halo behind it.
                                     .clip(CircleShape)
                                     .background(Color.Transparent, CircleShape)
                                     .border(1.5.dp, Accent.copy(alpha = 0.55f), CircleShape)
@@ -1395,44 +1360,45 @@ internal fun UnifiedActivity.TopBar(
         }
     }
 
-    val portraitTopBar = isPortraitLayout()
-    val topBarWidth = screenWidthDp()
-    val topBarView = androidx.compose.ui.platform.LocalView.current
-    val topBarDensity = androidx.compose.ui.platform.LocalDensity.current
-    val topBarOrientation = androidx.compose.ui.platform.LocalConfiguration.current.orientation
-    val navRightInset =
-        remember(topBarOrientation, topBarView) {
-            val px =
-                androidx.core.view.ViewCompat.getRootWindowInsets(topBarView)
-                    ?.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars())?.right ?: 0
-            with(topBarDensity) { px.toDp() }
-        }
+    // Left icon cluster is a fixed ~52.dp (44.dp button + gutter). Right cluster varies with
+    // how many optional icons are showing (glasses / controller badge / friends), so budget
+    // generously for it when deciding whether the centered tab pill still fits without
+    // overlapping — this only affects narrow (phone-portrait) widths; landscape/tablet keeps
+    // the original 3-tabs-visible layout untouched.
+    val topBarMaxWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
+    val isNarrowTopBar = topBarMaxWidth < 480.dp
 
-    val tabsContent: @Composable (Modifier) -> Unit = { tabsModifier ->
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start = UnifiedTopBarHorizontalPadding,
+                        end = UnifiedTopBarHorizontalPadding,
+                        top = UnifiedTopBarTopPadding,
+                    )
+                    .height(UnifiedTopBarHeight),
+        ) {
+            // Center Block: Tabs (absolutely centered, unaffected by left/right content)
             Row(
-                modifier = tabsModifier,
+                modifier = Modifier.align(Alignment.Center).zIndex(1f),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 @Suppress("DEPRECATION")
                 CompositionLocalProvider(
                     androidx.compose.material3.LocalRippleConfiguration provides null,
                 ) {
-                    val tabSideGutter = 12.dp
+                    val tabWidth = if (isNarrowTopBar) 78.dp else 100.dp
+                    val tabSideGutter = if (isNarrowTopBar) 8.dp else 12.dp
                     val tabBarShape = RoundedCornerShape(18.dp)
-                    val visibleCount = minOf(3, tabs.size)
-                    val tabWidth =
-                        if (portraitTopBar) {
-                            ((topBarWidth - UnifiedTopBarHorizontalPadding * 2 - tabSideGutter * 2) / visibleCount)
-                                .coerceAtLeast(84.dp)
-                        } else {
-                            100.dp
-                        }
+                    val visibleCount = minOf(if (isNarrowTopBar) 2 else 3, tabs.size)
                     val tabListState = rememberLazyListState()
                     val snapFlingBehavior = rememberSnapFlingBehavior(lazyListState = tabListState)
 
                     LaunchedEffect(selectedIdx) {
                         val scrollTo = maxOf(0, selectedIdx - 1)
-                        tabListState.animateScrollToItem(scrollTo)
+                        tabListState.scrollToItem(scrollTo)
                     }
 
                     Box(
@@ -1440,7 +1406,6 @@ internal fun UnifiedActivity.TopBar(
                             Modifier
                                 .width(tabWidth * visibleCount + tabSideGutter * 2)
                                 .height(44.dp)
-                                .shadow(8.dp, tabBarShape, spotColor = Color.Black.copy(alpha = 0.5f))
                                 .clip(tabBarShape)
                                 .background(CardDark)
                                 .border(1.dp, CardBorder, tabBarShape),
@@ -1462,12 +1427,12 @@ internal fun UnifiedActivity.TopBar(
                                 val isPressed by interactionSource.collectIsPressedAsState()
                                 val tabScale by animateFloatAsState(
                                     targetValue = if (isPressed) 0.92f else 1f,
-                                    animationSpec = spring(stiffness = Spring.StiffnessHigh),
+                                    animationSpec = snap(),
                                     label = "tabScale",
                                 )
                                 val textColor by animateColorAsState(
                                     targetValue = if (selected) Accent else TextSecondary,
-                                    animationSpec = tween(280),
+                                    animationSpec = snap(),
                                     label = "tabTextColor",
                                 )
 
@@ -1512,11 +1477,9 @@ internal fun UnifiedActivity.TopBar(
                     }
                 }
             }
-    }
 
-    val leftContent: @Composable (Modifier) -> Unit = { leftModifier ->
             Row(
-                modifier = leftModifier,
+                modifier = Modifier.align(Alignment.CenterStart).fillMaxHeight(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
@@ -1551,10 +1514,7 @@ internal fun UnifiedActivity.TopBar(
                 val searchIconRotation by animateFloatAsState(
                     targetValue = if (isSearchExpanded) 90f else 0f,
                     animationSpec =
-                        spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessLow,
-                        ),
+                        snap(),
                     label = "searchIconRotation",
                 )
 
@@ -1617,11 +1577,17 @@ internal fun UnifiedActivity.TopBar(
                     ControllerBadge("L3")
                 }
             }
-    }
 
-    val rightContent: @Composable (Modifier) -> Unit = { rightModifier ->
+            val topBarView = androidx.compose.ui.platform.LocalView.current
+            val topBarDensity = androidx.compose.ui.platform.LocalDensity.current
+            val topBarOrientation = androidx.compose.ui.platform.LocalConfiguration.current.orientation
+            val navRightInset = remember(topBarOrientation, topBarView) {
+                val px = androidx.core.view.ViewCompat.getRootWindowInsets(topBarView)
+                    ?.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars())?.right ?: 0
+                with(topBarDensity) { px.toDp() }
+            }
             Row(
-                modifier = rightModifier,
+                modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight().zIndex(2f),
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -1697,63 +1663,26 @@ internal fun UnifiedActivity.TopBar(
                     }
                 }
             }
-    }
 
-    val guideOverflowContent: @Composable (Modifier) -> Unit = { guideModifier ->
-        if (isControllerConnected && navRightInset > 0.dp) {
-            Box(
-                modifier =
-                    guideModifier
-                        .offset(x = 38.dp)
-                        .zIndex(2f)
-                        .background(Color(0xFF394048), RoundedCornerShape(15.dp))
-                        .border(1.dp, Color(0xFF8B949E).copy(alpha = 0.5f), RoundedCornerShape(15.dp))
-                        .padding(horizontal = 7.dp, vertical = 3.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Outlined.SportsEsports,
-                    contentDescription = "Guide",
-                    tint = Color(0xFFE6EDF3),
-                    modifier = Modifier.size(16.dp),
-                )
-            }
-        }
-    }
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        start = UnifiedTopBarHorizontalPadding,
-                        end = UnifiedTopBarHorizontalPadding,
-                        top = UnifiedTopBarTopPadding,
+            if (isControllerConnected && navRightInset > 0.dp) {
+                Box(
+                    modifier =
+                        Modifier
+                            .align(Alignment.CenterEnd)
+                            .offset(x = 38.dp)
+                            .zIndex(2f)
+                            .background(Color(0xFF394048), RoundedCornerShape(15.dp))
+                            .border(1.dp, Color(0xFF8B949E).copy(alpha = 0.5f), RoundedCornerShape(15.dp))
+                            .padding(horizontal = 7.dp, vertical = 3.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Outlined.SportsEsports,
+                        contentDescription = "Guide",
+                        tint = Color(0xFFE6EDF3),
+                        modifier = Modifier.size(16.dp),
                     )
-                    .height(UnifiedTopBarHeight),
-        ) {
-            if (!portraitTopBar) {
-                tabsContent(Modifier.align(Alignment.Center).zIndex(1f))
-            }
-            leftContent(Modifier.align(Alignment.CenterStart).fillMaxHeight())
-            rightContent(Modifier.align(Alignment.CenterEnd).fillMaxHeight().zIndex(2f))
-            guideOverflowContent(Modifier.align(Alignment.CenterEnd))
-        }
-
-        if (portraitTopBar) {
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            start = UnifiedTopBarHorizontalPadding,
-                            end = UnifiedTopBarHorizontalPadding,
-                            top = 8.dp,
-                        ),
-                contentAlignment = Alignment.Center,
-            ) {
-                tabsContent(Modifier)
+                }
             }
         }
 
@@ -1764,21 +1693,15 @@ internal fun UnifiedActivity.TopBar(
             enter =
                 expandVertically(
                     animationSpec =
-                        spring(
-                            dampingRatio = Spring.DampingRatioNoBouncy,
-                            stiffness = Spring.StiffnessMedium,
-                        ),
+                        snap(),
                     expandFrom = Alignment.Top,
-                ) + fadeIn(animationSpec = tween(200)),
+                ) + fadeIn(animationSpec = snap()),
             exit =
                 shrinkVertically(
                     animationSpec =
-                        spring(
-                            dampingRatio = Spring.DampingRatioNoBouncy,
-                            stiffness = Spring.StiffnessMedium,
-                        ),
+                        snap(),
                     shrinkTowards = Alignment.Top,
-                ) + fadeOut(animationSpec = tween(120)),
+                ) + fadeOut(animationSpec = snap()),
         ) {
             Box(
                 modifier =
@@ -1791,11 +1714,11 @@ internal fun UnifiedActivity.TopBar(
                     modifier =
                         Modifier
                             .widthIn(max = 600.dp)
-                            .fillMaxWidth(if (portraitTopBar) 1f else 0.7f)
+                            .fillMaxWidth(0.7f)
                             .height(44.dp)
-                            .shadow(8.dp, RoundedCornerShape(24.dp), spotColor = Color.Black.copy(alpha = 0.4f))
                             .clip(RoundedCornerShape(24.dp))
-                            .background(SurfaceDark),
+                            .background(SurfaceDark)
+                            .border(1.dp, CardBorder, RoundedCornerShape(24.dp)),
                     contentAlignment = Alignment.CenterStart,
                 ) {
                     Row(
@@ -1823,7 +1746,7 @@ internal fun UnifiedActivity.TopBar(
                                 ),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                             keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
-                            cursorBrush = Brush.verticalGradient(listOf(Accent, AccentGlow)),
+                            cursorBrush = SolidColor(Accent),
                             modifier =
                                 Modifier
                                     .weight(1f)
@@ -1919,13 +1842,11 @@ internal fun UnifiedActivity.LibraryCarousel(
                                         .ifBlank { shortcut.name }
 
                                 val uuid = shortcut.getExtra("uuid")
-                                val identity =
-                                    if (uuid.isNotEmpty()) {
-                                        uuid
-                                    } else {
-                                        shortcut.file?.absolutePath ?: displayName
-                                    }
-                                val customId = -(identity.hashCode().and(0x7FFFFFFF) + 1)
+                                val customId = if (uuid.isNotEmpty()) {
+                                    -(uuid.hashCode().and(0x7FFFFFFF) + 1)
+                                } else {
+                                    -(displayName.hashCode().and(0x7FFFFFFF) + 1)
+                                }
 
                                 com.winlator.cmod.feature.retro.RetroSystems
                                     .fromId(
@@ -2018,7 +1939,7 @@ internal fun UnifiedActivity.LibraryCarousel(
                         gameDir = gog.installPath,
                     )
                 }
-            val merged = (steamInstalled + customApps + mappedEpic + mappedGog).distinctBy { it.id }
+            val merged = steamInstalled + customApps + mappedEpic + mappedGog
             val sorted =
                 merged.sortedByDescending { app ->
                     val searchKey =
@@ -2304,7 +2225,7 @@ internal fun UnifiedActivity.LibraryCarousel(
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             val spinAlpha by animateFloatAsState(
                 targetValue = 1f,
-                animationSpec = tween(durationMillis = 600),
+                animationSpec = snap(),
                 label = "loaderFade",
             )
             CircularProgressIndicator(
@@ -2393,7 +2314,7 @@ internal fun UnifiedActivity.LibraryCarousel(
             focusRequesters.isNotEmpty() &&
             focusIndex in focusRequesters.indices
         ) {
-            gridState.animateScrollToItem(focusIndex)
+            gridState.scrollToItem(focusIndex)
             try {
                 focusRequesters[focusIndex].requestFocus()
             } catch (_: Exception) {
