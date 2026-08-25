@@ -531,10 +531,15 @@ class ShortcutSettingsComposeDialog private constructor(
                 ?.coerceAtLeast(0)
                 ?: 0
         state.frameGenFlowScale.intValue =
-            getShortcutSetting("frameGenFlowScale", container.getExtra("frameGenFlowScale", "100"))
+            getShortcutSetting("frameGenFlowScale", container.getExtra("frameGenFlowScale", "70"))
                 .toIntOrNull()
                 ?.coerceIn(25, 100)
-                ?: 100
+                ?: 70
+        state.frameGenFlowScaleAuto.value =
+            getShortcutSetting(
+                "frameGenFlowScaleAuto",
+                container.getExtra("frameGenFlowScaleAuto", "1"),
+            ) != "0"
 
         // shortcut override else container value; legacy single reshadeEffect/flat params migrated in parse
         val reshadeEffects = com.winlator.cmod.runtime.reshade.ReshadeManager.scanEffects(context)
@@ -1320,11 +1325,13 @@ class ShortcutSettingsComposeDialog private constructor(
                 shortcut.putExtra("frameGenMultiplier", state.frameGenMultiplier.intValue.coerceIn(2, 4).toString())
                 shortcut.putExtra("frameGenTargetRate", state.frameGenTargetRate.intValue.coerceAtLeast(0).toString())
                 shortcut.putExtra("frameGenFlowScale", state.frameGenFlowScale.intValue.coerceIn(25, 100).toString())
+                shortcut.putExtra("frameGenFlowScaleAuto", if (state.frameGenFlowScaleAuto.value) "1" else "0")
             } else {
                 shortcut.putExtra("frameGen", null)
                 shortcut.putExtra("frameGenMultiplier", null)
                 shortcut.putExtra("frameGenTargetRate", null)
                 shortcut.putExtra("frameGenFlowScale", null)
+                shortcut.putExtra("frameGenFlowScaleAuto", null)
             }
 
             // saveOverride not putExtra: putExtra leaves hasContainerOverride false, so a reshade-only shortcut gets use_container_defaults=1 and reads back the container's extras

@@ -287,7 +287,8 @@ public class VulkanRenderer
                     nativeSetFrameGenerationShaders(nativeHandle, frameGenerationShaderCache);
                 }
                 nativeSetFrameGenerationMode(nativeHandle, frameGenerationMultiplier,
-                        frameGenerationTargetRate, frameGenerationFlowScale);
+                        frameGenerationTargetRate, frameGenerationFlowScale,
+                        frameGenerationFlowScaleAuto);
                 nativeSetFrameGenerationRefreshRate(nativeHandle, frameGenerationRefreshRate);
                 if (frameGenerationRequested) {
                     nativeSetFrameGenerationEnabled(nativeHandle, true);
@@ -971,7 +972,8 @@ public class VulkanRenderer
     private String frameGenerationShaderCache = null;
     private int frameGenerationMultiplier = 2;
     private int frameGenerationTargetRate = 0;
-    private int frameGenerationFlowScale = 100;
+    private int frameGenerationFlowScale = 70;
+    private boolean frameGenerationFlowScaleAuto = true;
     private float frameGenerationRefreshRate = 0f;
 
     public void setFrameGenerationEnabled(boolean enabled) {
@@ -985,21 +987,25 @@ public class VulkanRenderer
         if (nativeHandle != 0) nativeSetFrameGenerationShaders(nativeHandle, cachePath);
     }
 
-    public void setFrameGenerationMode(int multiplier, int targetRate, int flowScalePercent) {
+    public void setFrameGenerationMode(int multiplier, int targetRate, int flowScalePercent,
+                                       boolean flowScaleAuto) {
         int wantMultiplier = Math.max(2, multiplier);
         int wantTargetRate = Math.max(0, targetRate);
-        int wantFlowScale = flowScalePercent <= 0 ? 100 : flowScalePercent;
+        int wantFlowScale = flowScalePercent <= 0 ? 70 : flowScalePercent;
         if (wantMultiplier == frameGenerationMultiplier
                 && wantTargetRate == frameGenerationTargetRate
-                && wantFlowScale == frameGenerationFlowScale) {
+                && wantFlowScale == frameGenerationFlowScale
+                && flowScaleAuto == frameGenerationFlowScaleAuto) {
             return;
         }
         frameGenerationMultiplier = wantMultiplier;
         frameGenerationTargetRate = wantTargetRate;
         frameGenerationFlowScale = wantFlowScale;
+        frameGenerationFlowScaleAuto = flowScaleAuto;
         if (nativeHandle != 0) {
             nativeSetFrameGenerationMode(nativeHandle, frameGenerationMultiplier,
-                    frameGenerationTargetRate, frameGenerationFlowScale);
+                    frameGenerationTargetRate, frameGenerationFlowScale,
+                    frameGenerationFlowScaleAuto);
         }
     }
 
@@ -1085,7 +1091,8 @@ public class VulkanRenderer
     private static native void nativeSetSourceFrameCount(long handle, long count);
     private static native void nativeSetFrameGenerationRefreshRate(long handle, float hz);
     private static native void nativeSetFrameGenerationMode(long handle, int multiplier,
-                                                            int targetRate, int flowScalePercent);
+                                                            int targetRate, int flowScalePercent,
+                                                            boolean flowScaleAuto);
     private static native long nativeGetGeneratedFrameCount(long handle);
     private static native long nativeGetPresentedFrameCount(long handle);
 }

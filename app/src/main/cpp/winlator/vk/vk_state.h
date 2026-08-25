@@ -423,6 +423,7 @@ typedef struct VkRenderer {
     uint32_t          framegen_multiplier;
     uint32_t          framegen_target_rate;
     float             framegen_flow_scale;
+    bool              framegen_flow_scale_auto;
     float             framegen_refresh_rate;
     int32_t           framegen_refresh_mhz;
     uint64_t          framegen_source_frames;

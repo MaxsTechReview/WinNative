@@ -426,7 +426,8 @@ class GameSettingsStateHolder {
     val frameGenEnabled = mutableStateOf(false)
     val frameGenMultiplier = mutableIntStateOf(2)
     val frameGenTargetRate = mutableIntStateOf(0)
-    val frameGenFlowScale = mutableIntStateOf(100)
+    val frameGenFlowScale = mutableIntStateOf(70)
+    val frameGenFlowScaleAuto = mutableStateOf(true)
     val frameGenShaderState = mutableIntStateOf(FRAMEGEN_SHADERS_CHECKING)
     val frameGenSourceName = mutableStateOf("")
 
@@ -1803,6 +1804,7 @@ private fun FrameGenerationCard(state: GameSettingsStateHolder) {
             onCheckedChange = { state.frameGenEnabled.value = it },
         )
 
+
         Text(
             text =
                 when (shaders) {
@@ -1883,13 +1885,28 @@ private fun FrameGenerationCard(state: GameSettingsStateHolder) {
 
             Spacer(Modifier.height(SettingItemGap))
 
-            SettingSlider(
-                label = stringResource(R.string.session_drawer_frame_generation_flow_scale),
-                value = state.frameGenFlowScale.intValue,
-                range = 25..100,
-                steps = 14,
-                onValueChange = { state.frameGenFlowScale.intValue = it },
+            SettingSwitch(
+                label = stringResource(R.string.session_drawer_frame_generation_flow_scale_auto),
+                checked = state.frameGenFlowScaleAuto.value,
+                onCheckedChange = { state.frameGenFlowScaleAuto.value = it },
             )
+
+            Text(
+                text = stringResource(R.string.session_drawer_frame_generation_flow_scale_auto_note),
+                color = TextSecondary,
+                fontSize = SettingLabelSize,
+                lineHeight = SettingLabelSize * 1.4f,
+            )
+
+            if (!state.frameGenFlowScaleAuto.value) {
+                SettingSlider(
+                    label = stringResource(R.string.session_drawer_frame_generation_flow_scale),
+                    value = state.frameGenFlowScale.intValue,
+                    range = 25..100,
+                    steps = 14,
+                    onValueChange = { state.frameGenFlowScale.intValue = it },
+                )
+            }
 
             Text(
                 text = stringResource(R.string.session_drawer_frame_generation_note),

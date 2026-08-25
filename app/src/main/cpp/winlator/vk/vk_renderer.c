@@ -1870,8 +1870,8 @@ static void create_lsfg(VkRenderer* r) {
     }
     vkr_lsfg_configure(r->lsfg, r->framegen_multiplier ? r->framegen_multiplier : 2u,
                        r->framegen_target_rate,
-                       r->framegen_flow_scale > 0.0f ? r->framegen_flow_scale : 1.0f,
-                       r->framegen_refresh_rate);
+                       r->framegen_flow_scale > 0.0f ? r->framegen_flow_scale : 0.7f,
+                       r->framegen_flow_scale_auto, r->framegen_refresh_rate);
 }
 
 static uint32_t framegen_extra_images(const VkRenderer* r) {
@@ -2457,6 +2457,11 @@ static bool record_and_submit_frame(VkRenderer* r) {
 
     bool via_composite = r->framegen_requested && r->framegen_supported
                       && r->swapchain_transfer_dst;
+
+    if (via_composite && r->lsfg) {
+        VkExtent2D guest = compute_sgsr1_source_extent(r, &snap);
+        vkr_lsfg_set_guest_extent(r->lsfg, guest.width, guest.height);
+    }
 
     uint32_t framegen_capacity = 0;
     if (via_composite && r->lsfg && r->swapchain_image_count > 2) {
@@ -3622,7 +3627,8 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenerationRefreshRate)(JNIEnv* env, 
 
 JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenerationMode)(JNIEnv* env, jclass clazz,
                                                             jlong handle, jint multiplier,
-                                                            jint targetRate, jint flowScalePct) {
+                                                            jint targetRate, jint flowScalePct,
+                                                            jboolean flowScaleAuto) {
     (void)env; (void)clazz;
     VkRenderer* r = (VkRenderer*)(intptr_t)handle;
     if (!r) return;
@@ -3631,10 +3637,12 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenerationMode)(JNIEnv* env, jclass 
     const uint32_t previous_images = framegen_extra_images(r);
     r->framegen_multiplier = multiplier < 2 ? 2u : (uint32_t)multiplier;
     r->framegen_target_rate = targetRate < 0 ? 0u : (uint32_t)targetRate;
-    r->framegen_flow_scale = flowScalePct <= 0 ? 1.0f : (float)flowScalePct / 100.0f;
+    r->framegen_flow_scale = flowScalePct <= 0 ? 0.7f : (float)flowScalePct / 100.0f;
+    r->framegen_flow_scale_auto = flowScaleAuto == JNI_TRUE;
     if (r->lsfg) {
         vkr_lsfg_configure(r->lsfg, r->framegen_multiplier, r->framegen_target_rate,
-                           r->framegen_flow_scale, r->framegen_refresh_rate);
+                           r->framegen_flow_scale, r->framegen_flow_scale_auto,
+                           r->framegen_refresh_rate);
     }
     if (framegen_extra_images(r) != previous_images) {
         wait_inflight_frames(r);

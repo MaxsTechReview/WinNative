@@ -450,7 +450,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
     private boolean frameGenEnabled = false;
     private int frameGenMultiplier = 2;
     private int frameGenTargetRate = 0;
-    private int frameGenFlowScale = 100;
+    private int frameGenFlowScale = 70;
+    private boolean frameGenFlowScaleAuto = true;
     private String frameGenCachePath = null;
     private boolean sgsrEnabled = false;
     private boolean sgsrRuntimeEnabled = false;
@@ -748,7 +749,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         String containerValue = container != null ? container.getExtra("frameGen", "0") : "0";
         String containerMultiplier = container != null ? container.getExtra("frameGenMultiplier", "2") : "2";
         String containerTargetRate = container != null ? container.getExtra("frameGenTargetRate", "0") : "0";
-        String containerFlowScale = container != null ? container.getExtra("frameGenFlowScale", "100") : "100";
+        String containerFlowScale = container != null ? container.getExtra("frameGenFlowScale", "70") : "70";
+        String containerFlowScaleAuto = container != null ? container.getExtra("frameGenFlowScaleAuto", "1") : "1";
 
         frameGenEnabled = "1".equals(getFrameGenSetting("frameGen", containerValue));
         frameGenMultiplier = clampFrameGenMultiplier(
@@ -756,7 +758,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         frameGenTargetRate = Math.max(0,
                 parseSettingInt(getFrameGenSetting("frameGenTargetRate", containerTargetRate), 0));
         frameGenFlowScale = clampFrameGenFlowScale(
-                parseSettingInt(getFrameGenSetting("frameGenFlowScale", containerFlowScale), 100));
+                parseSettingInt(getFrameGenSetting("frameGenFlowScale", containerFlowScale), 70));
+        frameGenFlowScaleAuto = !"0".equals(
+                getFrameGenSetting("frameGenFlowScaleAuto", containerFlowScaleAuto));
 
         if (frameGenEnabled) {
             int result = com.winlator.cmod.feature.library.LosslessAutoImport.INSTANCE.sync(this).getResult();
@@ -789,12 +793,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
 
         renderer.setFrameGenerationShaders(frameGenCachePath);
         float refreshRate = applyFrameGenerationDisplayMode();
-        renderer.setFrameGenerationMode(frameGenMultiplier, frameGenTargetRate, frameGenFlowScale);
+        renderer.setFrameGenerationMode(frameGenMultiplier, frameGenTargetRate, frameGenFlowScale,
+                frameGenFlowScaleAuto);
         renderer.setFrameGenerationRefreshRate(refreshRate);
         renderer.setFrameGenerationEnabled(true);
         syncFrameGenerationHud();
         Log.i("XServerDisplayActivity", "Frame generation on: multiplier=" + frameGenMultiplier
                 + " targetRate=" + frameGenTargetRate + " flowScale=" + frameGenFlowScale
+                + " flowScaleAuto=" + frameGenFlowScaleAuto
                 + " refreshRate=" + refreshRate);
     }
 
@@ -905,11 +911,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 shortcut.putExtra("frameGenMultiplier", String.valueOf(frameGenMultiplier));
                 shortcut.putExtra("frameGenTargetRate", String.valueOf(frameGenTargetRate));
                 shortcut.putExtra("frameGenFlowScale", String.valueOf(frameGenFlowScale));
+                shortcut.putExtra("frameGenFlowScaleAuto", frameGenFlowScaleAuto ? "1" : "0");
             } else {
                 shortcut.putExtra("frameGen", null);
                 shortcut.putExtra("frameGenMultiplier", null);
                 shortcut.putExtra("frameGenTargetRate", null);
                 shortcut.putExtra("frameGenFlowScale", null);
+                shortcut.putExtra("frameGenFlowScaleAuto", null);
             }
             shortcut.saveData();
         } else if (container != null) {
@@ -917,6 +925,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
             container.putExtra("frameGenMultiplier", String.valueOf(frameGenMultiplier));
             container.putExtra("frameGenTargetRate", String.valueOf(frameGenTargetRate));
             container.putExtra("frameGenFlowScale", String.valueOf(frameGenFlowScale));
+            container.putExtra("frameGenFlowScaleAuto", frameGenFlowScaleAuto ? "1" : "0");
             container.saveData();
         }
     }
@@ -4497,6 +4506,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 frameGenMultiplier,
                 frameGenTargetRate,
                 frameGenFlowScale,
+                frameGenFlowScaleAuto,
                 getString(R.string.session_drawer_frame_generation));
 
         // Always-present "Output" tab (live controls while swapped, otherwise a Cast entry point).
@@ -4892,6 +4902,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                     @Override
                     public void onFrameGenFlowScaleChanged(int percent) {
                         frameGenFlowScale = clampFrameGenFlowScale(percent);
+                        applyFrameGenerationLive();
+                    }
+
+                    @Override
+                    public void onFrameGenFlowScaleAutoChanged(boolean auto) {
+                        frameGenFlowScaleAuto = auto;
                         applyFrameGenerationLive();
                     }
 

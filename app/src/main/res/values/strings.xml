@@ -773,6 +773,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_frame_generation_target_off">Fixed</string>
     <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
     <string name="session_drawer_frame_generation_flow_scale">Flow Scale</string>
+    <string name="session_drawer_frame_generation_flow_scale_auto">Match Motion To Game</string>
+    <string name="session_drawer_frame_generation_flow_scale_auto_note">Estimates motion at the resolution the game actually renders instead of the upscaled output. Costs nothing in accuracy, since upscaling adds no motion detail.</string>
     <string name="session_drawer_frame_generation_note">Interpolates between rendered frames with Lossless Scaling. Smoother motion, but one extra frame of input latency.</string>
     <string name="session_drawer_frame_generation_target_note">Climbs toward the target only while it measurably helps, instead of holding a fixed multiplier.</string>
     <string name="session_drawer_frame_generation_missing">Install Lossless Scaling in container settings to use frame generation.</string>

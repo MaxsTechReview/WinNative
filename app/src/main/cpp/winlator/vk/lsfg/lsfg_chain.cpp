@@ -15,7 +15,9 @@ namespace {
 
 constexpr uint32_t FIXED_DESCRIPTOR_SETS = 64;
 constexpr uint32_t DESCRIPTOR_SETS_PER_SLOT = 112;
-constexpr size_t FIRST_DELTA_LEVEL = 4;
+[[nodiscard]] constexpr bool HasDelta(size_t i) {
+    return i >= LSFG_FIRST_DELTA_LEVEL && i <= LSFG_LAST_DELTA_LEVEL;
+}
 
 }
 
@@ -53,16 +55,17 @@ LsfgChain::LsfgChain(const Device& device, const LsfgShaders& shaders, VkExtent2
                              i == 0 ? nullptr : &gamma[i - 1].Output());
         if (!gamma[i].Valid()) return;
 
-        if (i < FIRST_DELTA_LEVEL) {
+        if (!HasDelta(i)) {
             continue;
         }
 
-        const size_t index = i - FIRST_DELTA_LEVEL;
+        const size_t index = i - LSFG_FIRST_DELTA_LEVEL;
+        const bool first = i == LSFG_FIRST_DELTA_LEVEL;
         delta[index] = LsfgDelta(device, shaders, resources, descriptor_pool,
                                  alpha[level].Outputs(), beta.Output(level),
-                                 i == FIRST_DELTA_LEVEL ? nullptr : &gamma[i - 1].Output(),
-                                 i == FIRST_DELTA_LEVEL ? nullptr : &delta[index - 1].Output1(),
-                                 i == FIRST_DELTA_LEVEL ? nullptr : &delta[index - 1].Output2());
+                                 first ? nullptr : &gamma[i - 1].Output(),
+                                 first ? nullptr : &delta[index - 1].Output1(),
+                                 first ? nullptr : &delta[index - 1].Output2());
         if (!delta[index].Valid()) return;
     }
 
@@ -109,8 +112,8 @@ void LsfgChain::DispatchGeneration(VkCommandBuffer cmdbuf, uint64_t frame_count,
     const size_t slot = LsfgGenerationSlot(generation_count, generation);
     for (size_t i = 0; i < LSFG_MIP_LEVELS; ++i) {
         gamma[i].Dispatch(cmdbuf, frame_count, slot);
-        if (i >= FIRST_DELTA_LEVEL) {
-            delta[i - FIRST_DELTA_LEVEL].Dispatch(cmdbuf, frame_count, slot);
+        if (HasDelta(i)) {
+            delta[i - LSFG_FIRST_DELTA_LEVEL].Dispatch(cmdbuf, frame_count, slot);
         }
     }
     generate.Dispatch(cmdbuf, frame_count, slot, target, image, extent);

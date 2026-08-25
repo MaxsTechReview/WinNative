@@ -5,6 +5,7 @@
 #include "lsfg_shaders.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <memory>
 #include <string>
 
@@ -18,6 +19,10 @@ namespace {
 constexpr uint64_t LSFG_REQUIRED_FRAMES = 2;
 constexpr uint32_t LSFG_RECURRENCE_FRAMES = 2;
 constexpr uint64_t LSFG_TELEMETRY_INTERVAL = 120;
+
+constexpr float LSFG_FLOW_SCALE_MIN = 0.25f;
+constexpr float LSFG_FLOW_SCALE_MAX = 1.0f;
+constexpr float LSFG_FLOW_SCALE_STEPS = 20.0f;
 
 VkImageMemoryBarrier MakeTransitionBarrier(VkImage image, VkAccessFlags src_access,
                                            VkAccessFlags dst_access, VkImageLayout old_layout,
@@ -88,9 +93,11 @@ struct VkrLsfg {
     lsfg::LsfgPlan plan{};
 
     VkExtent2D built_extent{};
+    VkExtent2D peak_guest_extent{};
     VkFormat built_format{VK_FORMAT_UNDEFINED};
     float built_flow_scale{};
     float flow_scale{1.0f};
+    bool flow_scale_auto{true};
 
     uint64_t frame_count{};
     uint64_t last_count{};
@@ -101,6 +108,16 @@ struct VkrLsfg {
     bool generated{};
     bool unavailable{};
 };
+
+static float lsfg_effective_flow_scale(const VkrLsfg* lsfg, uint32_t width) {
+    if (!lsfg->flow_scale_auto) return lsfg->flow_scale;
+    if (width == 0 || lsfg->peak_guest_extent.width == 0) return LSFG_FLOW_SCALE_MAX;
+
+    const float ratio =
+        static_cast<float>(lsfg->peak_guest_extent.width) / static_cast<float>(width);
+    const float stepped = std::ceil(ratio * LSFG_FLOW_SCALE_STEPS) / LSFG_FLOW_SCALE_STEPS;
+    return std::clamp(stepped, LSFG_FLOW_SCALE_MIN, LSFG_FLOW_SCALE_MAX);
+}
 
 VkrLsfg* vkr_lsfg_create(VkDevice device, VkPhysicalDevice physical_device,
                          const char* cache_path) {
@@ -128,16 +145,22 @@ void vkr_lsfg_destroy(VkrLsfg* lsfg) {
 }
 
 void vkr_lsfg_configure(VkrLsfg* lsfg, uint32_t multiplier, uint32_t target_rate,
-                        float flow_scale, float refresh_rate) {
+                        float flow_scale, bool flow_scale_auto, float refresh_rate) {
     if (!lsfg) return;
 
-    const lsfg::LsfgPacerConfig previous = lsfg->pacer.Config();
-    lsfg::LsfgPacerConfig config = previous;
+    lsfg::LsfgPacerConfig config = lsfg->pacer.Config();
     config.multiplier = multiplier;
     config.target_rate = target_rate;
     config.refresh_rate = refresh_rate;
     lsfg->pacer.SetConfig(config);
-    lsfg->flow_scale = std::clamp(flow_scale, 0.25f, 1.0f);
+    lsfg->flow_scale = std::clamp(flow_scale, LSFG_FLOW_SCALE_MIN, LSFG_FLOW_SCALE_MAX);
+    lsfg->flow_scale_auto = flow_scale_auto;
+}
+
+void vkr_lsfg_set_guest_extent(VkrLsfg* lsfg, uint32_t width, uint32_t height) {
+    if (!lsfg || width == 0 || height == 0) return;
+    lsfg->peak_guest_extent.width = std::max(lsfg->peak_guest_extent.width, width);
+    lsfg->peak_guest_extent.height = std::max(lsfg->peak_guest_extent.height, height);
 }
 
 void vkr_lsfg_set_refresh_rate(VkrLsfg* lsfg, float refresh_rate) {
@@ -154,7 +177,7 @@ bool vkr_lsfg_needs_rebuild(const VkrLsfg* lsfg, uint32_t width, uint32_t height
     if (!lsfg || lsfg->unavailable) return false;
     return !lsfg->chain || lsfg->built_extent.width != width
         || lsfg->built_extent.height != height || lsfg->built_format != format
-        || lsfg->built_flow_scale != lsfg->flow_scale;
+        || lsfg->built_flow_scale != lsfg_effective_flow_scale(lsfg, width);
 }
 
 bool vkr_lsfg_prepare(VkrLsfg* lsfg, uint32_t width, uint32_t height, VkFormat format) {
@@ -165,9 +188,11 @@ bool vkr_lsfg_prepare(VkrLsfg* lsfg, uint32_t width, uint32_t height, VkFormat f
         return lsfg->chain && lsfg->chain->Valid();
     }
 
+    const float scale = lsfg_effective_flow_scale(lsfg, width);
+
     lsfg->chain.reset();
     lsfg->chain = std::make_unique<lsfg::LsfgChain>(
-        lsfg->device, *lsfg->shaders, VkExtent2D{width, height}, format, lsfg->flow_scale);
+        lsfg->device, *lsfg->shaders, VkExtent2D{width, height}, format, scale);
     if (!lsfg->chain->Valid()) {
         LSFG_LOGW("chain build failed at %ux%u; frame generation unavailable", width, height);
         lsfg->chain.reset();
@@ -177,15 +202,18 @@ bool vkr_lsfg_prepare(VkrLsfg* lsfg, uint32_t width, uint32_t height, VkFormat f
 
     lsfg->built_extent = VkExtent2D{width, height};
     lsfg->built_format = format;
-    lsfg->built_flow_scale = lsfg->flow_scale;
+    lsfg->built_flow_scale = scale;
     lsfg->frame_count = 0;
     lsfg->plan_calls = 0;
     lsfg->warm_streak = 0;
     lsfg->warm = false;
     lsfg->generated = false;
     lsfg->pacer.Reset();
-    LSFG_LOGI("chain built at %ux%u, flow scale %.2f", width, height,
-              (double)lsfg->built_flow_scale);
+    LSFG_LOGI("chain built at %ux%u, flow %ux%u scale %.2f (%s, guest %ux%u)", width, height,
+              (unsigned)(width * lsfg->built_flow_scale),
+              (unsigned)(height * lsfg->built_flow_scale), (double)lsfg->built_flow_scale,
+              lsfg->flow_scale_auto ? "auto" : "manual", lsfg->peak_guest_extent.width,
+              lsfg->peak_guest_extent.height);
     return true;
 }
 
@@ -203,11 +231,13 @@ uint32_t vkr_lsfg_plan(VkrLsfg* lsfg, uint32_t capacity, uint64_t source_frames)
     if ((lsfg->plan_calls++ % LSFG_TELEMETRY_INTERVAL) == 0) {
         const lsfg::LsfgPacerStats stats = lsfg->pacer.Stats();
         LSFG_LOGI("pace gen=%zu max=%zu cap=%u guest=%.1f loop=%.1f refresh=%.1f target=%.0f "
-                  "slots=%.2f drawn=%llu%s",
+                  "slots=%.2f drawn=%llu cost=%zu fails=%u%s%s%s%s",
                   lsfg->plan.generations, lsfg->pacer.MaxGenerations(), capacity,
                   (double)stats.source_rate, (double)stats.loop_rate,
                   (double)stats.refresh_rate, (double)stats.target_rate, (double)stats.slots,
-                  (unsigned long long)stats.last_drawn,
+                  (unsigned long long)stats.last_drawn, stats.cost_ceiling, stats.cost_failures,
+                  stats.probing ? " probing" : "", stats.settling ? " settling" : "",
+                  stats.backing_off ? " backoff" : "",
                   stats.rates_settled ? (lsfg->warm ? "" : " cold") : " sampling");
     }
 
@@ -248,6 +278,7 @@ void vkr_lsfg_forget_targets(VkrLsfg* lsfg) {
 void vkr_lsfg_reset(VkrLsfg* lsfg) {
     if (!lsfg) return;
     lsfg->pacer.Reset();
+    lsfg->peak_guest_extent = VkExtent2D{};
     lsfg->warm_streak = 0;
     lsfg->warm = false;
     lsfg->generated = false;

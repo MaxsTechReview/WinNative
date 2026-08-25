@@ -18,9 +18,11 @@ VkrLsfg* vkr_lsfg_create(VkDevice device, VkPhysicalDevice physical_device,
 void vkr_lsfg_destroy(VkrLsfg* lsfg);
 
 void vkr_lsfg_configure(VkrLsfg* lsfg, uint32_t multiplier, uint32_t target_rate,
-                        float flow_scale, float refresh_rate);
+                        float flow_scale, bool flow_scale_auto, float refresh_rate);
 
 void vkr_lsfg_set_refresh_rate(VkrLsfg* lsfg, float refresh_rate);
+
+void vkr_lsfg_set_guest_extent(VkrLsfg* lsfg, uint32_t width, uint32_t height);
 
 bool vkr_lsfg_needs_rebuild(const VkrLsfg* lsfg, uint32_t width, uint32_t height,
                             VkFormat format);

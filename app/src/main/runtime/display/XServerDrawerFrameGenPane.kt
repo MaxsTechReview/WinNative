@@ -200,18 +200,31 @@ private fun FrameGenerationSection(
                         )
                     }
 
-                    NavSliderRow(
-                        label = stringResource(R.string.session_drawer_frame_generation_flow_scale),
-                        valueText = "${state.frameGenFlowScale}%",
-                        value = state.frameGenFlowScale.toFloat(),
-                        valueRange = FrameGenFlowScaleMin.toFloat()..FrameGenFlowScaleMax.toFloat(),
-                        steps = (FrameGenFlowScaleMax - FrameGenFlowScaleMin) / 5 - 1,
-                        onValueChange = {
-                            listener.onFrameGenFlowScaleChanged(
-                                it.roundToInt().coerceIn(FrameGenFlowScaleMin, FrameGenFlowScaleMax),
-                            )
-                        },
+                    NavBooleanRow(
+                        title = stringResource(R.string.session_drawer_frame_generation_flow_scale_auto),
+                        checked = state.frameGenFlowScaleAuto,
+                        onCheckedChange = listener::onFrameGenFlowScaleAutoChanged,
                     )
+
+                    FrameGenNote(
+                        stringResource(R.string.session_drawer_frame_generation_flow_scale_auto_note),
+                        paneScale,
+                    )
+
+                    if (!state.frameGenFlowScaleAuto) {
+                        NavSliderRow(
+                            label = stringResource(R.string.session_drawer_frame_generation_flow_scale),
+                            valueText = "${state.frameGenFlowScale}%",
+                            value = state.frameGenFlowScale.toFloat(),
+                            valueRange = FrameGenFlowScaleMin.toFloat()..FrameGenFlowScaleMax.toFloat(),
+                            steps = (FrameGenFlowScaleMax - FrameGenFlowScaleMin) / 5 - 1,
+                            onValueChange = {
+                                listener.onFrameGenFlowScaleChanged(
+                                    it.roundToInt().coerceIn(FrameGenFlowScaleMin, FrameGenFlowScaleMax),
+                                )
+                            },
+                        )
+                    }
                 }
             }
         }
