@@ -223,7 +223,277 @@ import javax.inject.Inject
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-// Main hub scaffold + top bar + glasses sheet + library carousel, split out of UnifiedActivity.kt (behavior-identical).
+// Main hub scaffold + top bar + glasses sheet + library carousel, split out of UnifiedActivity.kt.
+
+@Composable
+private fun UnifiedActivity.LibraryArtwork(
+    app: SteamApp,
+    gogGame: GOGGame?,
+    epicGame: EpicGame?,
+    artworkPath: String?,
+    iconPath: String?,
+    useLibraryCapsule: Boolean,
+    listMode: Boolean,
+    iconRefreshKey: Int,
+    artworkCacheRefreshKey: Int,
+    modifier: Modifier,
+) {
+    val context = LocalContext.current
+    val customFile = artworkPath?.let(::java.io.File)?.takeIf { it.isFile }
+    when {
+        customFile != null -> {
+            val key = "orientation_art:${customFile.absolutePath}:${customFile.lastModified()}:$iconRefreshKey"
+            AsyncImage(
+                model = ImageRequest.Builder(context).data(customFile).memoryCacheKey(key).diskCacheKey(key).crossfade(false).build(),
+                contentDescription = app.name,
+                modifier = modifier,
+                contentScale = ContentScale.Crop,
+            )
+        }
+        app.id < 0 && iconPath != null -> {
+            AsyncImage(
+                model = ImageRequest.Builder(context).data(java.io.File(iconPath)).crossfade(false).build(),
+                contentDescription = app.name,
+                modifier = modifier,
+                contentScale = ContentScale.Crop,
+            )
+        }
+        app.id < 0 -> {
+            Box(modifier = modifier.background(SurfaceDark), contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.SportsEsports, contentDescription = app.name, tint = Accent.copy(alpha = 0.7f), modifier = Modifier.size(48.dp))
+            }
+        }
+        else -> {
+            val imageModel = remember(app.id, gogGame, epicGame, useLibraryCapsule, listMode, artworkCacheRefreshKey) {
+                StoreArtworkCache.imageModel(
+                    context,
+                    StoreArtworkCache.primaryRef(app, gogGame, epicGame, useLibraryCapsule, listMode),
+                )
+            }
+            AsyncImage(
+                model = ImageRequest.Builder(context).data(imageModel).crossfade(false).build(),
+                contentDescription = app.name,
+                modifier = modifier,
+                contentScale = ContentScale.Crop,
+            )
+        }
+    }
+}
+
+@Composable
+private fun UnifiedActivity.NintendoLandscapeLibrary(
+    displayedApps: List<SteamApp>,
+    focusIndex: Int,
+    visibleGogByPseudoId: Map<Int, GOGGame>,
+    visibleEpicByPseudoId: Map<Int, EpicGame>,
+    iconRefreshKey: Int,
+    artworkCacheRefreshKey: Int,
+    visibleCustomIconArtworkPathByAppId: Map<Int, String>,
+    visibleCustomArtworkPathByAppId: Map<Int, String>,
+    visibleCustomIconPathByAppId: Map<Int, String>,
+    visibleCustomListPathByAppId: Map<Int, String>,
+    visibleCustomCarouselPathByAppId: Map<Int, String>,
+    visibleCustomHeroPathByAppId: Map<Int, String>,
+    isControllerConnected: Boolean,
+    onFocusChanged: (Int) -> Unit,
+    onClick: (Int, SteamApp) -> Unit,
+    onLongClick: (Int, SteamApp) -> Unit,
+    onSearch: () -> Unit,
+    onAddGame: () -> Unit,
+    onSettings: () -> Unit,
+    onFilter: () -> Unit,
+    onExit: () -> Unit,
+) {
+    val carouselState = rememberLazyListState()
+    val selected = displayedApps.getOrNull(focusIndex)
+    val title = selected?.name ?: "LIBRARY"
+
+    Column(Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("LIBRARY", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                Text(title, color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (isControllerConnected) ControllerBadge("A  START", compact = true)
+        }
+
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            CarouselView(
+                items = displayedApps,
+                modifier = Modifier.fillMaxSize(),
+                listState = carouselState,
+                selectedIndex = focusIndex,
+                onCenteredIndexChanged = onFocusChanged,
+            ) { app, index, isSelected, cardWidth, cardHeight ->
+                val gog = visibleGogByPseudoId[app.id]
+                val epic = visibleEpicByPseudoId[app.id]
+                val artwork = visibleCustomIconArtworkPathByAppId[app.id] ?: visibleCustomArtworkPathByAppId[app.id]
+                Column(
+                    modifier = Modifier
+                        .width(cardWidth)
+                        .graphicsLayer { alpha = if (isSelected) 1f else 0.72f }
+                        .combinedClickable(
+                            onClick = { onClick(index, app) },
+                            onLongClick = { onLongClick(index, app) },
+                        ),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Box(
+                        Modifier
+                            .size(cardWidth, cardHeight)
+                            .clip(RoundedCornerShape(4.dp))
+                            .border(if (isSelected) 3.dp else 1.dp, if (isSelected) Accent else CardBorder, RoundedCornerShape(4.dp))
+                            .chasingBorder(isFocused = isSelected && isControllerConnected, paused = true, cornerRadius = 4.dp),
+                    ) {
+                        LibraryArtwork(
+                            app = app,
+                            gogGame = gog,
+                            epicGame = epic,
+                            artworkPath = artwork ?: visibleCustomCarouselPathByAppId[app.id],
+                            iconPath = visibleCustomIconPathByAppId[app.id],
+                            useLibraryCapsule = true,
+                            listMode = false,
+                            iconRefreshKey = iconRefreshKey,
+                            artworkCacheRefreshKey = artworkCacheRefreshKey,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        app.name,
+                        color = if (isSelected) TextPrimary else TextSecondary,
+                        fontSize = if (isSelected) 15.sp else 13.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            NintendoActionButton(Icons.Outlined.Tune, "FILTER", onFilter)
+            NintendoActionButton(Icons.Outlined.Search, "SEARCH", onSearch)
+            NintendoActionButton(Icons.Outlined.Add, "ADD", onAddGame)
+            NintendoActionButton(Icons.Outlined.Settings, "SETTINGS", onSettings)
+            NintendoActionButton(Icons.Outlined.PowerSettingsNew, "EXIT", onExit)
+        }
+    }
+}
+
+@Composable
+private fun NintendoActionButton(icon: ImageVector, label: String, onClick: () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 8.dp)) {
+        Box(
+            Modifier
+                .size(52.dp)
+                .clip(CircleShape)
+                .background(SurfaceDark)
+                .border(1.dp, CardBorder, CircleShape)
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = label, tint = Accent, modifier = Modifier.size(24.dp))
+        }
+        Spacer(Modifier.height(3.dp))
+        Text(label, color = TextSecondary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun UnifiedActivity.WindowsPhonePortraitLibrary(
+    displayedApps: List<SteamApp>,
+    focusIndex: Int,
+    visibleGogByPseudoId: Map<Int, GOGGame>,
+    visibleEpicByPseudoId: Map<Int, EpicGame>,
+    iconRefreshKey: Int,
+    artworkCacheRefreshKey: Int,
+    visibleCustomIconArtworkPathByAppId: Map<Int, String>,
+    visibleCustomArtworkPathByAppId: Map<Int, String>,
+    visibleCustomIconPathByAppId: Map<Int, String>,
+    visibleCustomListPathByAppId: Map<Int, String>,
+    visibleCustomHeroPathByAppId: Map<Int, String>,
+    isControllerConnected: Boolean,
+    focusRequesters: List<FocusRequester>,
+    onFocusChanged: (Int) -> Unit,
+    onClick: (Int, SteamApp) -> Unit,
+    onLongClick: (Int, SteamApp) -> Unit,
+) {
+    Column(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 8.dp), verticalAlignment = Alignment.Bottom) {
+            Column(Modifier.weight(1f)) {
+                Text("GAMES", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
+                Text(
+                    "library",
+                    color = TextPrimary,
+                    fontSize = 30.sp,
+                    fontWeight = FontWeight.Light,
+                )
+            }
+            Text("${displayedApps.size} GAMES", color = Accent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        }
+
+        val state = rememberLazyGridState()
+        LaunchedEffect(focusIndex, displayedApps.size) {
+            if (focusIndex in displayedApps.indices) state.scrollToItem(focusIndex)
+        }
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            state = state,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 6.dp, end = 6.dp, top = 4.dp, bottom = 18.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            itemsIndexed(displayedApps, key = { _, app -> app.id }) { index, app ->
+                val gog = visibleGogByPseudoId[app.id]
+                val epic = visibleEpicByPseudoId[app.id]
+                val selected = index == focusIndex
+                val artwork = visibleCustomIconArtworkPathByAppId[app.id] ?: visibleCustomArtworkPathByAppId[app.id]
+                Box(
+                    Modifier
+                        .aspectRatio(1.28f)
+                        .clip(RoundedCornerShape(2.dp))
+                        .border(if (selected) 3.dp else 1.dp, if (selected) Accent else CardBorder, RoundedCornerShape(2.dp))
+                        .then(if (index in focusRequesters.indices) Modifier.focusRequester(focusRequesters[index]) else Modifier)
+                        .focusable()
+                        .combinedClickable(
+                            onClick = { onClick(index, app) },
+                            onLongClick = { onLongClick(index, app) },
+                        )
+                        .background(SurfaceDark),
+                ) {
+                    LibraryArtwork(
+                        app = app,
+                        gogGame = gog,
+                        epicGame = epic,
+                        artworkPath = artwork ?: visibleCustomListPathByAppId[app.id],
+                        iconPath = visibleCustomIconPathByAppId[app.id],
+                        useLibraryCapsule = false,
+                        listMode = true,
+                        iconRefreshKey = iconRefreshKey,
+                        artworkCacheRefreshKey = artworkCacheRefreshKey,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    Box(
+                        Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Color.Black.copy(alpha = 0.68f)).padding(horizontal = 8.dp, vertical = 6.dp),
+                    ) {
+                        Text(app.name, color = Color.White, fontSize = 13.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    Box(Modifier.align(Alignment.TopStart).width(4.dp).fillMaxHeight().background(if (selected) Accent else Color.Transparent))
+                }
+            }
+        }
+    }
+}
 
 @Composable
 internal fun UnifiedActivity.UnifiedHub() {
@@ -865,6 +1135,11 @@ internal fun UnifiedActivity.UnifiedHub() {
                             iconRefreshKey = iconRefreshKey,
                             searchQuery = searchQuery,
                             isControllerConnected = isControllerConnected,
+                            onSearch = { activity?.openSearchSignal?.tryEmit(Unit) },
+                            onAddGame = { showAddCustomGame = true },
+                            onSettings = { navigateToSettings(SettingsNavItem.STORES) },
+                            onFilter = { scope.launch { drawerState.open() } },
+                            onExit = { showExitDialog = true },
                         )
                     }
 
@@ -1743,6 +2018,11 @@ internal fun UnifiedActivity.LibraryCarousel(
     iconRefreshKey: Int = 0,
     searchQuery: String = "",
     isControllerConnected: Boolean = false,
+    onSearch: () -> Unit = {},
+    onAddGame: () -> Unit = {},
+    onSettings: () -> Unit = {},
+    onFilter: () -> Unit = {},
+    onExit: () -> Unit = {},
 ) {
     val context = LocalContext.current
 
@@ -2236,11 +2516,16 @@ internal fun UnifiedActivity.LibraryCarousel(
             List(displayedApps.size) { FocusRequester() }
         }
 
-    // Observe focus index changes from the activity and request focus on the target item
+    val orientation = LocalConfiguration.current.orientation
+    val useNintendoLandscape = orientation == Configuration.ORIENTATION_LANDSCAPE
+    val useWindowsPhonePortrait = orientation == Configuration.ORIENTATION_PORTRAIT
+
+    // Observe focus index changes from the activity and request focus on the target item.
+    // Portrait Metro tiles use the same controller focus index as the old grid.
     val focusIndex by (activity?.libraryFocusIndex ?: kotlinx.coroutines.flow.MutableStateFlow(0)).collectAsState()
-    LaunchedEffect(focusIndex, focusRequesters.size, layoutMode) {
+    LaunchedEffect(focusIndex, focusRequesters.size, layoutMode, useWindowsPhonePortrait) {
         if (searchQuery.isEmpty() &&
-            layoutMode == LibraryLayoutMode.GRID_4 &&
+            (layoutMode == LibraryLayoutMode.GRID_4 || useWindowsPhonePortrait) &&
             focusRequesters.isNotEmpty() &&
             focusIndex in focusRequesters.indices
         ) {
@@ -2367,7 +2652,65 @@ internal fun UnifiedActivity.LibraryCarousel(
         },
         modifier = Modifier.fillMaxSize(),
     ) {
-        when (layoutMode) {
+        // Orientation is intentionally a visual mode, not a preference: landscape gets the
+        // wide console-style carousel, while portrait becomes a dense Windows Phone / Metro
+        // tile wall. This keeps the same library data, focus index, artwork and launch logic.
+        when {
+            useNintendoLandscape -> {
+                NintendoLandscapeLibrary(
+                    displayedApps = displayedApps,
+                    focusIndex = focusIndex,
+                    visibleGogByPseudoId = visibleGogByPseudoId,
+                    visibleEpicByPseudoId = visibleEpicByPseudoId,
+                    iconRefreshKey = iconRefreshKey,
+                    artworkCacheRefreshKey = artworkCacheRefreshKey,
+                    visibleCustomIconArtworkPathByAppId = visibleCustomIconArtworkPathByAppId,
+                    visibleCustomArtworkPathByAppId = visibleCustomArtworkPathByAppId,
+                    visibleCustomIconPathByAppId = visibleCustomIconPathByAppId,
+                    visibleCustomListPathByAppId = visibleCustomListPathByAppId,
+                    visibleCustomCarouselPathByAppId = visibleCustomCarouselPathByAppId,
+                    visibleCustomHeroPathByAppId = visibleCustomHeroPathByAppId,
+                    isControllerConnected = isControllerConnected,
+                    onFocusChanged = { activity?.libraryFocusIndex?.value = it },
+                    onClick = { index, app ->
+                        activity?.libraryFocusIndex?.value = index
+                        detailGogGame = visibleGogByPseudoId[app.id]
+                        detailApp = app
+                    },
+                    onLongClick = openSettingsForApp,
+                    onSearch = onSearch,
+                    onAddGame = onAddGame,
+                    onSettings = onSettings,
+                    onFilter = onFilter,
+                    onExit = onExit,
+                )
+            }
+
+            useWindowsPhonePortrait -> {
+                WindowsPhonePortraitLibrary(
+                    displayedApps = displayedApps,
+                    focusIndex = focusIndex,
+                    visibleGogByPseudoId = visibleGogByPseudoId,
+                    visibleEpicByPseudoId = visibleEpicByPseudoId,
+                    iconRefreshKey = iconRefreshKey,
+                    artworkCacheRefreshKey = artworkCacheRefreshKey,
+                    visibleCustomIconArtworkPathByAppId = visibleCustomIconArtworkPathByAppId,
+                    visibleCustomArtworkPathByAppId = visibleCustomArtworkPathByAppId,
+                    visibleCustomListPathByAppId = visibleCustomListPathByAppId,
+                    visibleCustomHeroPathByAppId = visibleCustomHeroPathByAppId,
+                    isControllerConnected = isControllerConnected,
+                    focusRequesters = focusRequesters,
+                    onFocusChanged = { activity?.libraryFocusIndex?.value = it },
+                    onClick = { index, app ->
+                        activity?.libraryFocusIndex?.value = index
+                        detailGogGame = visibleGogByPseudoId[app.id]
+                        detailApp = app
+                    },
+                    onLongClick = openSettingsForApp,
+                )
+            }
+
+            else -> when (layoutMode) {
             LibraryLayoutMode.GRID_4 -> {
                 FourByTwoGridView(
                     items = displayedApps,
@@ -2517,6 +2860,7 @@ internal fun UnifiedActivity.LibraryCarousel(
                     quadratic = true,
                 )
             }
+        }
         }
     }
 
