@@ -239,7 +239,7 @@ private fun UnifiedActivity.LibraryArtwork(
     modifier: Modifier,
 ) {
     val context = LocalContext.current
-    val customFile = artworkPath?.let(::java.io.File)?.takeIf { it.isFile }
+    val customFile = artworkPath?.let { java.io.File(it) }?.takeIf { it.isFile }
     when {
         customFile != null -> {
             val key = "orientation_art:${customFile.absolutePath}:${customFile.lastModified()}:$iconRefreshKey"
