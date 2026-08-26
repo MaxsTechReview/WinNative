@@ -177,7 +177,6 @@ import com.winlator.cmod.shared.ui.nav.LocalPaneNav as SharedLocalPaneNav
 import com.winlator.cmod.shared.ui.nav.PaneNavRegistry as SharedPaneNavRegistry
 import com.winlator.cmod.shared.ui.nav.paneNavItem as sharedPaneNavItem
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
-import com.winlator.cmod.shared.ui.widget.chasingBorder
 import kotlin.math.roundToInt
 
 private const val DrawerGradientLift = SessionDrawerStyle.GradientLift
@@ -560,8 +559,8 @@ private const val ActionCardColumns = 3
 private val ActionCardMinHeight = 72.dp
 private val ActionCardSpacing = 8.dp
 
-private const val ActionCardRevealStaggerMs = 28
-private const val ActionCardRevealDurationMs = 220
+private const val ActionCardRevealStaggerMs = 0
+private const val ActionCardRevealDurationMs = 0
 
 data class XServerDrawerItem(
     val itemId: Int,
@@ -1278,6 +1277,12 @@ fun buildXServerDrawerState(
                 active = fullscreenEnabled,
             ),
             XServerDrawerItem(
+                itemId = R.id.main_menu_rotate_screen,
+                title = context.getString(R.string.session_drawer_rotate_screen),
+                subtitle = context.getString(R.string.session_drawer_rotate_screen_subtitle),
+                icon = Icons.Outlined.ScreenRotation,
+            ),
+            XServerDrawerItem(
                 itemId = R.id.main_menu_screen_effects,
                 title = context.getString(R.string.session_drawer_screen_effects),
                 subtitle = context.getString(R.string.session_drawer_screen_effects_subtitle),
@@ -1608,12 +1613,12 @@ internal fun XServerDrawerContent(
                     val railVisible = openPane != DrawerPane.TASK_MANAGER && openPane != DrawerPane.LOGS
                     val chromeEnter =
                         expandVertically(
-                            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-                        ) + fadeIn(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing))
+                            animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing),
+                        ) + fadeIn(animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing))
                     val chromeExit =
                         shrinkVertically(
-                            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-                        ) + fadeOut(animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing))
+                            animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing),
+                        ) + fadeOut(animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing))
 
                     AnimatedVisibility(
                         visible = railVisible,
@@ -1656,15 +1661,15 @@ internal fun XServerDrawerContent(
                                     (
                                         slideInVertically(
                                             initialOffsetY = { it / 3 },
-                                            animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
-                                        ) + fadeIn(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing))
-                                    ) togetherWith fadeOut(animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)) using
+                                            animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing),
+                                        ) + fadeIn(animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing))
+                                    ) togetherWith fadeOut(animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing)) using
                                         SizeTransform(clip = false)
                                 } else if (returningToMenu) {
                                     EnterTransition.None togetherWith ExitTransition.None
                                 } else {
-                                    fadeIn(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)) togetherWith
-                                        fadeOut(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing))
+                                    fadeIn(animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing)) togetherWith
+                                        fadeOut(animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing))
                                 }
                             },
                             label = "drawerBody",
@@ -1781,7 +1786,7 @@ private fun TopRail(
         }
     val selectedBounds = tileBounds[selectedKey]
 
-    val indicatorAnimSpec = tween<Dp>(durationMillis = 240, easing = FastOutSlowInEasing)
+    val indicatorAnimSpec = tween<Dp>(durationMillis = 0, easing = FastOutSlowInEasing)
     val indicatorX by animateDpAsState(
         targetValue = selectedBounds?.let { with(density) { it.offsetX.toDp() } } ?: 0.dp,
         animationSpec = indicatorAnimSpec,
@@ -1799,7 +1804,7 @@ private fun TopRail(
     )
     val indicatorAlpha by animateFloatAsState(
         targetValue = if (selectedBounds != null) 1f else 0f,
-        animationSpec = tween(durationMillis = 160),
+        animationSpec = tween(durationMillis = 0),
         label = "topRailIndicatorAlpha",
     )
 
@@ -1891,10 +1896,7 @@ private fun TopRailTile(
     val scale by animateFloatAsState(
         targetValue = if (pressed) 0.94f else 1f,
         animationSpec =
-            spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessMedium,
-            ),
+            tween(0),
         label = "topRailScale_$tileKey",
     )
     val bgColor by animateColorAsState(
@@ -1904,7 +1906,7 @@ private fun TopRailTile(
                 pressed && !selected -> PaneSurfacePressed
                 else -> Color.Transparent
             },
-        animationSpec = tween(120),
+        animationSpec = tween(0),
         label = "topRailBg_$tileKey",
     )
     val tint by animateColorAsState(
@@ -1914,7 +1916,7 @@ private fun TopRailTile(
                 active -> DrawerActiveAccent
                 else -> DrawerTextPrimary
             },
-        animationSpec = tween(120),
+        animationSpec = tween(0),
         label = "topRailTint_$tileKey",
     )
 
@@ -1944,17 +1946,6 @@ private fun TopRailTile(
                 }
                 .clip(shape)
                 .background(bgColor)
-                .then(
-                    if (highlighted) {
-                        Modifier.chasingBorder(
-                            cornerRadius = cornerRadius,
-                            borderWidth = 1.5.dp,
-                            animationDurationMs = 8200,
-                        )
-                    } else {
-                        Modifier
-                    },
-                )
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
@@ -2127,10 +2118,7 @@ private fun ActionCard(
     val scale by animateFloatAsState(
         targetValue = if (pressed && enabled) 0.96f else 1f,
         animationSpec =
-            spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessMedium,
-            ),
+            tween(0),
         label = "actionCardScale_${item.itemId}",
     )
     val bgColor by animateColorAsState(
@@ -2141,7 +2129,7 @@ private fun ActionCard(
                 pressed -> PaneInnerPressed
                 else -> PaneInnerResting
             },
-        animationSpec = tween(120),
+        animationSpec = tween(0),
         label = "actionCardBg_${item.itemId}",
     )
     val borderColor by animateColorAsState(
@@ -2151,7 +2139,7 @@ private fun ActionCard(
                 item.active -> ActiveCardBorder
                 else -> RestingCardBorder
             },
-        animationSpec = tween(120),
+        animationSpec = tween(0),
         label = "actionCardBorder_${item.itemId}",
     )
     val tint by animateColorAsState(
@@ -2161,7 +2149,7 @@ private fun ActionCard(
                 item.active -> DrawerActiveAccent
                 else -> DrawerTextPrimary
             },
-        animationSpec = tween(120),
+        animationSpec = tween(0),
         label = "actionCardTint_${item.itemId}",
     )
 
@@ -2187,17 +2175,6 @@ private fun ActionCard(
                 .clip(shape)
                 .background(cardBrush)
                 .border(1.dp, borderColor, shape)
-                .then(
-                    if (highlighted) {
-                        Modifier.chasingBorder(
-                            cornerRadius = cornerRadius,
-                            borderWidth = 1.5.dp,
-                            animationDurationMs = 8200,
-                        )
-                    } else {
-                        Modifier
-                    },
-                )
                 .clickable(
                     enabled = enabled,
                     interactionSource = interactionSource,
@@ -2312,7 +2289,7 @@ private fun BottomActionButton(
                 pressed -> PaneSurfacePressed
                 else -> PaneInnerResting
             },
-        animationSpec = tween(120),
+        animationSpec = tween(0),
         label = "bottomActionBg_${item.itemId}",
     )
     val borderColor =
@@ -2336,17 +2313,6 @@ private fun BottomActionButton(
                 .clip(shape)
                 .background(bgColor)
                 .border(1.dp, borderColor, shape)
-                .then(
-                    if (highlighted) {
-                        Modifier.chasingBorder(
-                            cornerRadius = cornerRadius,
-                            borderWidth = 1.5.dp,
-                            animationDurationMs = 8200,
-                        )
-                    } else {
-                        Modifier
-                    },
-                )
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
@@ -2417,6 +2383,7 @@ private fun railLabelResFor(itemId: Int): Int? =
         R.id.main_menu_relative_mouse_movement -> R.string.session_drawer_rail_label_relative_mouse
         R.id.main_menu_disable_mouse -> R.string.session_drawer_rail_label_mouse
         R.id.main_menu_toggle_fullscreen -> R.string.session_drawer_rail_label_fullscreen
+        R.id.main_menu_rotate_screen -> R.string.session_drawer_rail_label_rotate_screen
         R.id.main_menu_pip_mode -> R.string.session_drawer_rail_label_pip
         R.id.main_menu_magnifier -> R.string.session_drawer_rail_label_magnifier
         R.id.main_menu_task_manager -> R.string.session_drawer_rail_label_task_manager
@@ -2484,12 +2451,12 @@ private fun DrawerMetricChip(
     val pressed = interactionSource.collectIsPressedAsState().value
     val scale by animateFloatAsState(
         targetValue = if (pressed) 0.985f else 1f,
-        animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing),
         label = "drawerMetricScale_$label",
     )
     val bgColor by animateColorAsState(
         targetValue = if (pressed) PaneInnerPressed else PaneInnerResting,
-        animationSpec = tween(140),
+        animationSpec = tween(0),
         label = "drawerMetricBg",
     )
 
@@ -2741,12 +2708,12 @@ internal fun DrawerBooleanRow(
                 pressed -> PaneInnerPressed
                 else -> PaneInnerResting
             },
-        animationSpec = tween(140),
+        animationSpec = tween(0),
         label = "drawerBooleanRowBg",
     )
     val borderColor by animateColorAsState(
         targetValue = if (checked) ActiveCardBorder else RestingCardBorder,
-        animationSpec = tween(140),
+        animationSpec = tween(0),
         label = "drawerBooleanRowBorder",
     )
     val cornerRadius = (14f * paneScale).dp

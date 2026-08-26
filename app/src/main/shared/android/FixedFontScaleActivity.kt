@@ -2,7 +2,6 @@ package com.winlator.cmod.shared.android
 
 import android.content.Context
 import android.content.res.Configuration
-import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.FragmentActivity
@@ -37,19 +36,6 @@ private fun lockFontScale(base: Context?): Context? {
 }
 
 open class FixedFontScaleAppCompatActivity : AppCompatActivity() {
-    private val orientationLockListener = { applyOrientationLock() }
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        applyOrientationLock()
-        super.onCreate(savedInstanceState)
-        OrientationLock.addListener(orientationLockListener)
-    }
-
-    override fun onDestroy() {
-        OrientationLock.removeListener(orientationLockListener)
-        super.onDestroy()
-    }
-
     override fun attachBaseContext(newBase: Context?) {
         super.attachBaseContext(lockFontScale(newBase))
     }
@@ -60,19 +46,6 @@ open class FixedFontScaleAppCompatActivity : AppCompatActivity() {
 }
 
 open class FixedFontScaleComponentActivity : ComponentActivity() {
-    private val orientationLockListener = { applyOrientationLock() }
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        applyOrientationLock()
-        super.onCreate(savedInstanceState)
-        OrientationLock.addListener(orientationLockListener)
-    }
-
-    override fun onDestroy() {
-        OrientationLock.removeListener(orientationLockListener)
-        super.onDestroy()
-    }
-
     override fun attachBaseContext(newBase: Context?) {
         super.attachBaseContext(lockFontScale(newBase))
     }
@@ -83,19 +56,6 @@ open class FixedFontScaleComponentActivity : ComponentActivity() {
 }
 
 open class FixedFontScaleFragmentActivity : FragmentActivity() {
-    private val orientationLockListener = { applyOrientationLock() }
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        applyOrientationLock()
-        super.onCreate(savedInstanceState)
-        OrientationLock.addListener(orientationLockListener)
-    }
-
-    override fun onDestroy() {
-        OrientationLock.removeListener(orientationLockListener)
-        super.onDestroy()
-    }
-
     override fun attachBaseContext(newBase: Context?) {
         super.attachBaseContext(lockFontScale(newBase))
     }

@@ -381,15 +381,15 @@ internal fun TaskManagerHeader(
     AnimatedVisibility(
         visible = cpuExpanded && cpuCorePercents.isNotEmpty(),
         enter =
-            fadeIn(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)) +
+            fadeIn(animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing)) +
                 expandVertically(
-                    animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                    animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing),
                     expandFrom = Alignment.Top,
                 ),
         exit =
-            fadeOut(animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing)) +
+            fadeOut(animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing)) +
                 shrinkVertically(
-                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                    animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing),
                     shrinkTowards = Alignment.Top,
                 ),
     ) {
@@ -406,7 +406,7 @@ internal fun TaskManagerCloseButton(onClick: () -> Unit) {
     val pressed = interactionSource.collectIsPressedAsState().value
     val bgColor by animateColorAsState(
         targetValue = if (pressed) PaneInnerPressed else PaneInnerResting,
-        animationSpec = tween(120),
+        animationSpec = tween(0),
         label = "taskManagerCloseBg",
     )
     val size = (38f * paneScale).dp
@@ -453,12 +453,12 @@ internal fun TaskManagerStatTile(
                 pressed -> PaneInnerPressed
                 else -> PaneInnerResting
             },
-        animationSpec = tween(120),
+        animationSpec = tween(0),
         label = "taskManagerStatTileBg",
     )
     val borderColor by animateColorAsState(
         targetValue = if (selected) DrawerAccent else RestingCardBorder,
-        animationSpec = tween(120),
+        animationSpec = tween(0),
         label = "taskManagerStatTileBorder",
     )
     val clickModifier =
@@ -573,7 +573,7 @@ internal fun TaskManagerNewTaskButton(onClick: () -> Unit) {
     val pressed = interactionSource.collectIsPressedAsState().value
     val bgColor by animateColorAsState(
         targetValue = if (pressed) PaneInnerPressed else PaneInnerResting,
-        animationSpec = tween(120),
+        animationSpec = tween(0),
         label = "taskManagerNewTaskBg",
     )
     val tint = if (pressed) DrawerAccent.copy(alpha = 0.76f) else DrawerAccent
@@ -787,7 +787,7 @@ internal fun TaskManagerActionPopupItem(
     val pressed = interactionSource.collectIsPressedAsState().value
     val bgColor by animateColorAsState(
         targetValue = if (pressed) DrawerAccent.copy(alpha = 0.16f) else PaneInnerResting,
-        animationSpec = tween(120),
+        animationSpec = tween(0),
         label = "taskManagerPopupItem",
     )
     val shape = RoundedCornerShape((8f * paneScale).dp)
@@ -1221,12 +1221,12 @@ internal fun TaskManagerProcessCard(
     var menuExpanded by remember { mutableStateOf(false) }
     val bgColor by animateColorAsState(
         targetValue = if (pressed) PaneInnerPressed else PaneInnerResting,
-        animationSpec = tween(120),
+        animationSpec = tween(0),
         label = "taskManagerProcessRowBg",
     )
     val borderColor by animateColorAsState(
         targetValue = if (expanded) DrawerAccent.copy(alpha = 0.62f) else RestingCardBorder,
-        animationSpec = tween(160),
+        animationSpec = tween(0),
         label = "taskManagerProcessCardBorder",
     )
 
@@ -1306,15 +1306,15 @@ internal fun TaskManagerProcessCard(
         AnimatedVisibility(
             visible = expanded,
             enter =
-                fadeIn(animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)) +
+                fadeIn(animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing)) +
                     expandVertically(
-                        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                        animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing),
                         expandFrom = Alignment.Top,
                     ),
             exit =
-                fadeOut(animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)) +
+                fadeOut(animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing)) +
                     shrinkVertically(
-                        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                        animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing),
                         shrinkTowards = Alignment.Top,
                     ),
         ) {
@@ -1334,7 +1334,7 @@ internal fun TaskManagerEndButton(onClick: () -> Unit) {
     val pressed = interactionSource.collectIsPressedAsState().value
     val bgColor by animateColorAsState(
         targetValue = if (pressed) TileExitPressed else TileExitResting,
-        animationSpec = tween(120),
+        animationSpec = tween(0),
         label = "taskManagerEndBtn",
     )
     val size = (32f * paneScale).dp

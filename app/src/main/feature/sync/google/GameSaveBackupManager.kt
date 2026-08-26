@@ -744,32 +744,9 @@ object GameSaveBackupManager {
     }
 
     fun retroSaveDir(context: Context, shortcut: Shortcut?, gameId: String? = null): File? {
-        val system = shortcut
-            ?.getExtra(com.winlator.cmod.feature.retro.RetroShortcuts.KEY_SYSTEM)
-            ?.takeIf { it.isNotBlank() } ?: return null
-        val gameName = shortcut.getExtra("custom_name", shortcut.name)
-        val engine =
-            if (gameId != null) {
-                isEngineGameId(gameId)
-            } else {
-                com.winlator.cmod.feature.retro.Gen1CloudSync.isEngineShortcut(shortcut)
-            }
-        return when {
-            engine ->
-                com.winlator.cmod.feature.retro.Gen1CloudSync.stagingDir(
-                    context,
-                    gameId ?: com.winlator.cmod.feature.retro.Gen1CloudSync.cloudId(shortcut),
-                )
-            system == com.winlator.cmod.feature.retro.RetroSystems.PS2.id ->
-                File(com.armsx2.runtime.MainActivityRuntime.assetCopyRoot(context), "memcards")
-            com.winlator.cmod.feature.retro.RetroCoreManager
-                .usesDolphinCore(com.winlator.cmod.feature.retro.RetroSystems.fromId(system)) ->
-                com.winlator.cmod.feature.retro.DolphinCloudSync.stagingDir(
-                    context,
-                    com.winlator.cmod.feature.retro.RetroSaveStates.cloudGameId(system, gameName),
-                )
-            else -> com.winlator.cmod.feature.retro.RetroSaveStates.gameDir(context, gameName)
-        }
+        // Retro/console emulator support (Dolphin, PS2, Gen1) has been removed.
+        // This app now focuses solely on PC/Windows game compatibility.
+        return null
     }
 
     fun customGameId(containerId: Int, shortcutFileName: String): String = "$containerId:$shortcutFileName"
@@ -791,20 +768,6 @@ object GameSaveBackupManager {
         val retroShortcut =
             parseCustomGameId(gameId)?.let { (cid, f) -> findCustomShortcutByContainerAndFile(context, cid, f) }
                 ?: findCustomShortcutByGameId(context, gameId)
-        if (!forRestore && retroShortcut != null) {
-            val sys = retroShortcut.getExtra(com.winlator.cmod.feature.retro.RetroShortcuts.KEY_SYSTEM)
-            if (sys.isNotBlank()) {
-                com.winlator.cmod.feature.retro.DolphinCloudSync.refreshForBackup(
-                    context,
-                    sys,
-                    retroShortcut.getExtra("custom_name", retroShortcut.name),
-                )
-            }
-            // Same reason as Dolphin's: what gets uploaded is a staged copy,
-            // so it has to be taken from the live save directory now rather
-            // than whenever the game last happened to stage one.
-            com.winlator.cmod.feature.retro.Gen1CloudSync.refreshForBackup(context, retroShortcut)
-        }
         val dir = retroSaveDir(context, retroShortcut, gameId)
         if (dir != null) {
             return if (forRestore || (dir.exists() && !dir.listFiles().isNullOrEmpty())) {

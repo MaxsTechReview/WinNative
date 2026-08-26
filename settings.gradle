@@ -18,5 +18,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "Winlator"
 include ':app'
-include ':armsx2'
-include ':dolphin'

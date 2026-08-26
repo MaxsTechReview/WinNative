@@ -1,6 +1,8 @@
 package com.winlator.cmod.shared.theme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -8,17 +10,38 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import com.winlator.cmod.R
 
-val WinNativeBackground = Color(0xFF18181D)
-val WinNativeSurface = Color(0xFF1C1C2A)
-val WinNativeSurfaceAlt = Color(0xFF21212A)
-val WinNativePanel = Color(0xFF161622)
-val WinNativeOutline = Color(0xFF2A2A3A)
-val WinNativeAccent = Color(0xFF1A9FFF)
-val WinNativeTextPrimary = Color(0xFFF0F4FF)
-val WinNativeTextSecondary = Color(0xFF7A8FA8)
+// Orange-black palette: this file is the single source of truth for the app's
+// Compose color tokens. True/solid black surfaces (no warm brown tint) with one
+// saturated orange accent; corner radius + border width carry depth instead of
+// elevation/shadow, so the surface steps below only need to be a few percent
+// apart to read as "layered" against a solid black background.
+val WinNativeBackground = Color(0xFF000000)
+val WinNativeSurface = Color(0xFF0D0D0D)
+val WinNativeSurfaceAlt = Color(0xFF161616)
+val WinNativePanel = Color(0xFF000000)
+val WinNativeOutline = Color(0xFF262626)
+val WinNativeAccent = Color(0xFFFF7A00) // primary orange
+val WinNativeAccentAlt = Color(0xFFFFA940) // secondary accent for status/links
+val WinNativeTextPrimary = Color(0xFFF5F0EA)
+val WinNativeTextSecondary = Color(0xFFAD9782)
 val WinNativeDanger = Color(0xFFFF7A88)
+
+// Flat design tokens: no elevation/shadow, corner radius and border width
+// are the only depth cues. Cheaper to draw than shadow() (no extra
+// rasterization/blur pass) and matches the flat Switch home-menu look.
+val WinNativeCardShape = RoundedCornerShape(16.dp)
+val WinNativeChipShape = RoundedCornerShape(12.dp)
+val WinNativeBorderWidth = 1.dp
+
+private val WinNativeShapes =
+    Shapes(
+        small = RoundedCornerShape(12.dp),
+        medium = RoundedCornerShape(16.dp),
+        large = RoundedCornerShape(20.dp),
+    )
 
 private val WinNativeColorScheme =
     darkColorScheme(
@@ -66,6 +89,7 @@ fun WinNativeTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = WinNativeTypography,
+        shapes = WinNativeShapes,
         content = content,
     )
 }

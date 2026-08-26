@@ -122,6 +122,7 @@ jobs:
             -storepass dummypass -keypass dummypass \
             -dname "CN=CI, OU=CI, O=CI, L=CI, ST=CI, C=US"
         fi
+        chmod +x ./gradlew
         ./gradlew :app:${{ matrix.flavor.gradleTask }} --build-cache --parallel -x lint
 
     - name: Compute artifact label

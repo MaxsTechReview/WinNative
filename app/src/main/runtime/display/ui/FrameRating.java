@@ -325,7 +325,10 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.isStatsRunning = true;
     this.prevCpuSample = null;
     this.cpuWarmedUp = false;
-    this.statsThread = new HandlerThread("HardwareStatsThread");
+    // Runs below the default/UI priority band so HUD stat polling never competes with the
+    // render/game thread for CPU time while a game is running.
+    this.statsThread =
+        new HandlerThread("HardwareStatsThread", android.os.Process.THREAD_PRIORITY_BACKGROUND);
     this.statsThread.start();
     this.statsHandler = new Handler(this.statsThread.getLooper());
     this.statsHandler.post(this.statsRunnable);

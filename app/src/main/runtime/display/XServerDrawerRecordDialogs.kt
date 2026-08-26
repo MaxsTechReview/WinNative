@@ -374,7 +374,7 @@ internal fun FPSLimiterCard(
 
     val borderColor by animateColorAsState(
         targetValue = if (enabled) ActiveCardBorder else RestingCardBorder,
-        animationSpec = tween(140),
+        animationSpec = tween(0),
         label = "fpsLimiterCardBorder",
     )
     val shape = RoundedCornerShape((14f * paneScale).dp)
@@ -430,14 +430,14 @@ internal fun FPSLimiterCard(
             visible = enabled,
             enter =
                 expandVertically(
-                    animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                    animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing),
                     expandFrom = Alignment.Top,
-                ) + fadeIn(animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing)),
+                ) + fadeIn(animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing)),
             exit =
                 shrinkVertically(
-                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                    animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing),
                     shrinkTowards = Alignment.Top,
-                ) + fadeOut(animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)),
+                ) + fadeOut(animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing)),
         ) {
             Column {
                 Spacer(Modifier.height((6f * paneScale).dp))

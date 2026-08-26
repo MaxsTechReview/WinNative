@@ -165,6 +165,7 @@ jobs:
           set -euo pipefail
           export KEYSTORE_FILE="${{ github.workspace }}/release.jks"
           printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_FILE"
+          chmod +x ./gradlew
           ./gradlew :app:${{ matrix.flavor.gradleTask }} --build-cache --parallel -x lint
 
       - name: Verify signature and version

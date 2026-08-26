@@ -11,7 +11,6 @@
     <item type="id" name="main_menu_advanced" />
     <item type="id" name="main_menu_credits" />
     <item type="id" name="main_menu_other" />
-    <item type="id" name="main_menu_retro" />
 
     <item type="id" name="main_menu_gyroscope" />
     <item type="id" name="main_menu_gyroscope_reset" />
@@ -22,6 +21,7 @@
     <item type="id" name="main_menu_disable_mouse" />
     <item type="id" name="main_menu_touch" />
     <item type="id" name="main_menu_toggle_fullscreen" />
+    <item type="id" name="main_menu_rotate_screen" />
     <item type="id" name="main_menu_screen_effects" />
     <item type="id" name="main_menu_reshade" />
     <item type="id" name="main_menu_output" />

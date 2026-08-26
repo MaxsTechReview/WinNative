@@ -1964,9 +1964,106 @@ static void set_viewport_scissor(VkCommandBuffer cmd, VkRenderer* r, const VkSce
     vkCmdSetScissor(cmd, 0, 1, &sc);
 }
 
+// Pre-rotated, target-scaled rect covering the *entire* render target. Mirrors the
+// "!s->viewport_set" fallback inside set_viewport_scissor so both paths agree on what
+// "full extent" means for the current device rotation / multi-pass target size.
+static VkPreRotatedRect full_target_rect(const VkRenderer* r, uint32_t target_w, uint32_t target_h) {
+    VkPreRotatedRect full = transform_rect_for_pretransform(
+        0, 0, (int)r->surface_extent.width, (int)r->surface_extent.height,
+        r->swapchain_extent.width, r->swapchain_extent.height, r->swapchain_transform);
+    full = scale_rect_from_swapchain(r, full, target_w, target_h);
+    // Same defensive clamp set_viewport_scissor applies to its scissor rect - rounding in the
+    // scale step above could otherwise push a pixel past the target's edge.
+    return clamp_rect_to_extent(full, target_w, target_h);
+}
+
+// Letterbox/pillarbox fill: before the crisp FIT/ZOOM quad, draw window 0's texture again
+// stretched over the *entire* target using the same uniform guest-to-physical scale, with its
+// UV rect extended past [0,1] in proportion. The shared sampler already uses
+// VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, so those out-of-range samples just repeat the
+// outermost row/column of guest pixels instead of showing nothing - i.e. the bars pick up
+// whatever color is at the edge of the game image instead of staying flat black. The crisp
+// quad drawn right after this completely overdraws it wherever real content belongs, so this
+// is only ever visible in the bars.
+static void draw_letterbox_bleed(VkRenderer* r, VkCommandBuffer cmd, const VkScene* s,
+                                 bool offscreen, uint32_t target_w, uint32_t target_h) {
+    if (!s->scissor_enabled || !s->viewport_set || s->window_count == 0) return;
+    if (s->screen_width == 0 || s->screen_height == 0) return;
+    if ((uint32_t)s->viewport_w >= r->surface_extent.width
+        && (uint32_t)s->viewport_h >= r->surface_extent.height) {
+        return; // FIT/ZOOM rect already covers the whole surface - no bars to fill.
+    }
+
+    const VkRenderableWindow* w = &s->windows[0];
+    if (!w->texture || !w->texture->ready || w->width == 0 || w->height == 0) return;
+
+    // FIT/ZOOM scale guest pixels to physical pixels uniformly, so either axis of the
+    // already-computed viewport recovers the same factor; average the two for rounding safety.
+    float aspect = 0.5f * ((float)s->viewport_w / (float)s->screen_width
+                         + (float)s->viewport_h / (float)s->screen_height);
+    if (!(aspect > 0.0f)) return;
+
+    VkPreRotatedRect full = full_target_rect(r, target_w, target_h);
+    if (full.w <= 0 || full.h <= 0) return;
+
+    float extendedW = (float)r->surface_extent.width / aspect;
+    float extendedH = (float)r->surface_extent.height / aspect;
+    float extX = (float)w->x - (extendedW - (float)w->width) * 0.5f;
+    float extY = (float)w->y - (extendedH - (float)w->height) * 0.5f;
+
+    float scaleU = (w->u1 - w->u0) / (float)w->width;
+    float scaleV = (w->v1 - w->v0) / (float)w->height;
+    float extU0 = w->u0 + (extX - (float)w->x) * scaleU;
+    float extU1 = w->u0 + (extX + extendedW - (float)w->x) * scaleU;
+    float extV0 = w->v0 + (extY - (float)w->y) * scaleV;
+    float extV1 = w->v0 + (extY + extendedH - (float)w->y) * scaleV;
+
+    float xf[6];
+    compose_xform_for_window(xf, s->xform,
+                             (int)(extX + (extX >= 0.0f ? 0.5f : -0.5f)),
+                             (int)(extY + (extY >= 0.0f ? 0.5f : -0.5f)),
+                             (int)(extendedW + 0.5f), (int)(extendedH + 0.5f));
+    float pre_xf[6];
+    uint32_t view_w = s->screen_width;
+    uint32_t view_h = s->screen_height;
+    transform_xform_for_pretransform(pre_xf, xf, view_w, view_h, r->swapchain_transform);
+    transformed_view_size(&view_w, &view_h, r->swapchain_transform);
+
+    VkViewport vp = {0};
+    vp.x = (float)full.x;
+    vp.y = (float)full.y;
+    vp.width = (float)full.w;
+    vp.height = (float)full.h;
+    vp.minDepth = 0.0f;
+    vp.maxDepth = 1.0f;
+    vkCmdSetViewport(cmd, 0, 1, &vp);
+
+    VkRect2D sc = {0};
+    sc.offset.x = full.x;
+    sc.offset.y = full.y;
+    sc.extent.width = (uint32_t)full.w;
+    sc.extent.height = (uint32_t)full.h;
+    vkCmdSetScissor(cmd, 0, 1, &sc);
+
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                      offscreen ? r->pipelines.offscreen_window_pipeline
+                                : r->pipelines.window_pipeline);
+    VkDeviceSize vbo_offset = 0;
+    vkCmdBindVertexBuffers(cmd, 0, 1, &r->quad_vbo, &vbo_offset);
+    push_window_constants(cmd, r->pipelines.window_layout, pre_xf,
+                          (float)view_w, (float)view_h,
+                          extU0, extV0, extU1, extV1, s->swap_rb);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            r->pipelines.window_layout, 0, 1, &w->texture->descriptor_set,
+                            0, NULL);
+    vkCmdDraw(cmd, 4, 1, 0, 0);
+}
+
 static void draw_scene_pass(VkRenderer* r, VkCommandBuffer cmd, const VkScene* s, bool offscreen,
                             uint32_t target_w, uint32_t target_h) {
     if (s->screen_width == 0 || s->screen_height == 0) return;
+
+    draw_letterbox_bleed(r, cmd, s, offscreen, target_w, target_h);
 
     set_viewport_scissor(cmd, r, s, target_w, target_h);
 

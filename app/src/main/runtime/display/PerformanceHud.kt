@@ -69,12 +69,12 @@ object PerformanceHudState {
     }
 }
 
-private val HudAccent = Color(0xFF1A9FFF)
+private val HudAccent = Color(0xFFFF7A00)
 private val HudGood = Color(0xFF35D0BA)
 private val HudWarn = Color(0xFFFFB020)
 private val HudBad = Color(0xFFFF5A5A)
-private val HudText = Color(0xFFF0F4FF)
-private val HudSub = Color(0xFF7A8FA8)
+private val HudText = Color(0xFFF5F0EA)
+private val HudSub = Color(0xFFAD9782)
 private val HudTrack = Color(0x33FFFFFF)
 
 private data class GaugeSpec(

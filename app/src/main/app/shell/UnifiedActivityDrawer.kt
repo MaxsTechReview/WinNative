@@ -22,29 +22,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -220,7 +197,6 @@ import com.winlator.cmod.shared.android.RefreshRateUtils
 import com.winlator.cmod.shared.io.StorageUtils
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.ui.CarouselView
-import com.winlator.cmod.shared.ui.layout.screenWidthDp
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.dialog.PopupTextAction
 import androidx.compose.foundation.focusGroup
@@ -312,11 +288,7 @@ internal fun UnifiedActivity.LoginRequiredScreen(
                         .MutableInteractionSource()
                 }
             val isPressed by interactionSource.collectIsPressedAsState()
-            val btnScale by animateFloatAsState(
-                targetValue = if (isPressed) 0.95f else 1f,
-                animationSpec = tween(100),
-                label = "btnScale",
-            )
+            val btnScale = if (isPressed) 0.95f else 1f
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier =
@@ -349,13 +321,11 @@ internal fun UnifiedActivity.DrawerContent(
     libraryLayoutMode: LibraryLayoutMode,
     immersiveMode: Boolean,
     immersiveBlur: Boolean,
-    forceLandscape: Boolean,
     onLibraryLayoutSelected: (LibraryLayoutMode) -> Unit,
     onStoreVisibleChanged: (String, Boolean) -> Unit,
     onContentFiltersChanged: (String, Boolean) -> Unit,
     onImmersiveModeChanged: (Boolean) -> Unit,
     onImmersiveBlurChanged: (Boolean) -> Unit,
-    onForceLandscapeChanged: (Boolean) -> Unit,
     onExportAll: () -> Unit,
     onExitApp: () -> Unit,
 ) {
@@ -372,7 +342,7 @@ internal fun UnifiedActivity.DrawerContent(
         drawerContainerColor = Color(0xFF12121B),
         drawerContentColor = TextPrimary,
         windowInsets = WindowInsets(0, 0, 0, 0),
-        modifier = Modifier.width(minOf(324.dp, screenWidthDp() - 56.dp)),
+        modifier = Modifier.width(324.dp),
     ) {
         CompositionLocalProvider(LocalPaneNav provides navRegistry) {
         Column(
@@ -382,15 +352,6 @@ internal fun UnifiedActivity.DrawerContent(
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
         ) {
-
-            DrawerSwitchCard(
-                label = stringResource(R.string.library_games_force_landscape),
-                description = stringResource(R.string.library_games_force_landscape_description),
-                checked = forceLandscape,
-                onCheckedChange = onForceLandscapeChanged,
-            )
-
-            Spacer(Modifier.height(16.dp))
 
             // ── Layouts ──
             Text(
@@ -442,7 +403,7 @@ internal fun UnifiedActivity.DrawerContent(
                 onCheckedChange = onImmersiveModeChanged,
             )
 
-            AnimatedVisibility(visible = immersiveMode) {
+            if (immersiveMode) {
                 Column {
                     Spacer(Modifier.height(8.dp))
                     DrawerSwitchCard(
@@ -521,11 +482,7 @@ internal fun UnifiedActivity.DrawerContent(
 internal fun UnifiedActivity.DrawerExitAppCard(onClick: () -> Unit) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = tween(100),
-        label = "exitAppCardScale",
-    )
+    val scale = if (isPressed) 0.97f else 1f
 
     Row(
         modifier =
@@ -582,11 +539,7 @@ internal fun UnifiedActivity.DrawerActionCard(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = tween(100),
-        label = "drawerActionCardScale",
-    )
+    val scale = if (isPressed) 0.97f else 1f
 
     Row(
         modifier =
@@ -646,26 +599,10 @@ internal fun UnifiedActivity.DrawerFilterButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    val bgColor by animateColorAsState(
-        targetValue = if (checked) Accent.copy(alpha = 0.2f) else CardDark,
-        animationSpec = tween(200),
-        label = "filterBg",
-    )
-    val borderColor by animateColorAsState(
-        targetValue = if (checked) Accent else CardBorder,
-        animationSpec = tween(200),
-        label = "filterBorder",
-    )
-    val textColor by animateColorAsState(
-        targetValue = if (checked) Accent else TextSecondary,
-        animationSpec = tween(200),
-        label = "filterText",
-    )
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.92f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh),
-        label = "filterScale",
-    )
+    val bgColor = if (checked) Accent.copy(alpha = 0.2f) else CardDark
+    val borderColor = if (checked) Accent else CardBorder
+    val textColor = if (checked) Accent else TextSecondary
+    val scale = if (isPressed) 0.92f else 1f
 
     Box(
         modifier =
@@ -706,26 +643,10 @@ internal fun UnifiedActivity.DrawerSwitchCard(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    val bgColor by animateColorAsState(
-        targetValue = if (checked) Accent.copy(alpha = 0.18f) else CardDark,
-        animationSpec = tween(200),
-        label = "switchCardBg",
-    )
-    val borderColor by animateColorAsState(
-        targetValue = if (checked) Accent else CardBorder,
-        animationSpec = tween(200),
-        label = "switchCardBorder",
-    )
-    val labelColor by animateColorAsState(
-        targetValue = if (checked) Accent else TextPrimary,
-        animationSpec = tween(200),
-        label = "switchCardLabel",
-    )
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = tween(120),
-        label = "switchCardScale",
-    )
+    val bgColor = if (checked) Accent.copy(alpha = 0.18f) else CardDark
+    val borderColor = if (checked) Accent else CardBorder
+    val labelColor = if (checked) Accent else TextPrimary
+    val scale = if (isPressed) 0.97f else 1f
 
     Row(
         modifier =
@@ -788,7 +709,6 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
     var selectedExePath by remember { mutableStateOf<String?>(null) }
     var gameName by remember { mutableStateOf("") }
     var gameFolder by remember { mutableStateOf<String?>(null) }
-    var retroSystem by remember { mutableStateOf<com.winlator.cmod.feature.retro.RetroSystem?>(null) }
     var isAdding by remember { mutableStateOf(false) }
     var nameEditing by remember { mutableStateOf(false) }
     val nameFocus = remember { FocusRequester() }
@@ -801,20 +721,14 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
     }
     val registry = remember { PaneNavRegistry() }
     val addEnabled =
-        selectedExePath != null && gameName.isNotBlank() && !isAdding &&
-            (retroSystem != null || gameFolder != null)
+        selectedExePath != null && gameName.isNotBlank() && !isAdding && gameFolder != null
     val doAdd: () -> Unit = {
         isAdding = true
-        val chosenRetro = retroSystem
         scope.launch(Dispatchers.IO) {
-            val added =
-                if (chosenRetro != null) {
-                    com.winlator.cmod.feature.retro.RetroShortcuts
-                        .create(context, gameName.trim(), selectedExePath!!, chosenRetro)
-                } else {
-                    addCustomGame(context, gameName.trim(), selectedExePath!!, gameFolder!!)
-                    true
-                }
+            val added = run {
+                addCustomGame(context, gameName.trim(), selectedExePath!!, gameFolder!!)
+                true
+            }
             withContext(Dispatchers.Main) {
                 isAdding = false
                 if (added) {
@@ -836,10 +750,9 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
     }
 
     fun selectExecutable(path: String) {
-        val detectedRetro = com.winlator.cmod.feature.retro.RetroSystems.detectForFile(path)
         val file = java.io.File(path)
         val launchable = file.extension.lowercase() in DirectoryPickerDialog.ExecutableExtensions
-        if (!file.isFile || (!launchable && detectedRetro == null)) {
+        if (!file.isFile || !launchable) {
             com.winlator.cmod.shared.ui.toast.WinToast.show(
                 context,
                 R.string.common_ui_select_valid_exe_file,
@@ -849,24 +762,15 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
         }
 
         selectedExePath = path
-        retroSystem = detectedRetro
-        gameFolder =
-            if (detectedRetro != null) {
-                java.io.File(path).parent
-            } else {
-                LibraryShortcutUtils.detectCustomGameFolder(path)
-            }
+        gameFolder = LibraryShortcutUtils.detectCustomGameFolder(path)
+        // Auto-generate a game name from the EXE name (without extension)
         if (gameName.isBlank()) {
             gameName =
-                if (detectedRetro != null) {
-                    java.io
-                        .File(path)
-                        .nameWithoutExtension
-                        .replace("_", " ")
-                        .replace("-", " ")
-                } else {
-                    LibraryShortcutUtils.suggestCustomGameName(path)
-                }
+                java.io
+                    .File(path)
+                    .nameWithoutExtension
+                    .replace("_", " ")
+                    .replace("-", " ")
         }
     }
 
@@ -928,8 +832,7 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
                                                                 android.os.Environment.DIRECTORY_DOWNLOADS,
                                                             ).absolutePath,
                                                 title = getString(R.string.common_ui_select_exe),
-                                                allowedExtensions = DirectoryPickerDialog.ExecutableExtensions +
-                                                    com.winlator.cmod.feature.retro.RetroSystems.allExtensions,
+                                                allowedExtensions = DirectoryPickerDialog.ExecutableExtensions,
                                                 dimAmount = 0.5f,
                                                 preserveBackdropBlur = true,
                                                 extraRoots = driveRoots(includeInternal = true),
@@ -942,7 +845,7 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
                             Icon(Icons.Outlined.FolderOpen, contentDescription = null, tint = Accent, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                selectedExePath ?: "Select Executable or Console ROM",
+                                selectedExePath ?: "Select Executable",
                                 color = if (selectedExePath == null) TextSecondary else TextPrimary,
                                 maxLines = if (selectedExePath == null) 1 else Int.MAX_VALUE,
                                 overflow = if (selectedExePath == null) TextOverflow.Ellipsis else TextOverflow.Visible,
@@ -990,72 +893,6 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
 
                             Spacer(Modifier.height(8.dp))
 
-                            if (retroSystem != null) {
-                                val activeRetroSystem = retroSystem
-                                var consoleMenuOpen by remember { mutableStateOf(false) }
-                                Box {
-                                    Row(
-                                        modifier =
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .clip(RoundedCornerShape(10.dp))
-                                                .background(Color.White.copy(alpha = 0.05f))
-                                                .paneNavItem(
-                                                    cornerRadius = 10.dp,
-                                                    tapToSelect = true,
-                                                    onActivate = { consoleMenuOpen = true },
-                                                ).clickable { consoleMenuOpen = true }
-                                                .padding(horizontal = 10.dp, vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        Icon(
-                                            Icons.Outlined.SportsEsports,
-                                            contentDescription = null,
-                                            tint = StatusOnline.copy(alpha = 0.7f),
-                                            modifier = Modifier.size(14.dp),
-                                        )
-                                        Spacer(Modifier.width(6.dp))
-                                        Column(Modifier.weight(1f)) {
-                                            Text("Console", color = TextSecondary, fontSize = 9.sp)
-                                            Text(
-                                                activeRetroSystem?.displayName ?: "",
-                                                color = TextPrimary,
-                                                fontSize = 10.sp,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                            )
-                                        }
-                                        Icon(
-                                            Icons.Outlined.Edit,
-                                            contentDescription = stringResource(R.string.common_ui_change),
-                                            tint = Accent,
-                                            modifier = Modifier.size(14.dp),
-                                        )
-                                    }
-                                    DropdownMenu(
-                                        expanded = consoleMenuOpen,
-                                        onDismissRequest = { consoleMenuOpen = false },
-                                        containerColor = Color(0xFF1C232E),
-                                    ) {
-                                        com.winlator.cmod.feature.retro.RetroSystems.ALL.forEach { candidate ->
-                                            DropdownMenuItem(
-                                                text = {
-                                                    Text(
-                                                        candidate.displayName,
-                                                        color =
-                                                            if (candidate.id == activeRetroSystem?.id) Accent else TextPrimary,
-                                                        fontSize = 12.sp,
-                                                    )
-                                                },
-                                                onClick = {
-                                                    retroSystem = candidate
-                                                    consoleMenuOpen = false
-                                                },
-                                            )
-                                        }
-                                    }
-                                }
-                            } else {
                             // Game folder — single compact row
                             Row(
                                 modifier =
@@ -1114,7 +951,6 @@ internal fun UnifiedActivity.AddCustomGameDialog(onDismiss: () -> Unit) {
                                         modifier = Modifier.size(14.dp),
                                     )
                                 }
-                            }
                             }
                         }
                     }

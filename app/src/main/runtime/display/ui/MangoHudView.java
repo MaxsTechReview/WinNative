@@ -453,7 +453,8 @@ public class MangoHudView extends View {
 
   private void startStats() {
     if (statsThread != null) return;
-    statsThread = new HandlerThread("MangoHudStats");
+    // Background priority so HUD polling never competes with the render/game thread.
+    statsThread = new HandlerThread("MangoHudStats", android.os.Process.THREAD_PRIORITY_BACKGROUND);
     statsThread.start();
     statsHandler = new Handler(statsThread.getLooper());
     statsHandler.post(tickRunnable);

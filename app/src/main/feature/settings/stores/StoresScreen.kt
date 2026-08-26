@@ -1,18 +1,4 @@
 package com.winlator.cmod.feature.settings
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -88,11 +74,11 @@ private val BgDark = Color(0xFF11111C)
 private val CardDark = Color(0xFF1C1C2A)
 private val CardBorder = Color(0xFF2A2A3A)
 private val IconBoxBg = Color(0xFF242434)
-private val SurfaceDark = Color(0xFF21212A)
-private val Accent = Color(0xFF1A9FFF)
-private val NavHighlight = Color(0xFF4FC3F7)
-private val TextPrimary = Color(0xFFF0F4FF)
-private val TextSecondary = Color(0xFF7A8FA8)
+private val SurfaceDark = Color(0xFF0D0D0D)
+private val Accent = Color(0xFFFF7A00)
+private val NavHighlight = Color(0xFFFFB74D)
+private val TextPrimary = Color(0xFFF5F0EA)
+private val TextSecondary = Color(0xFFAD9782)
 private val Divider = Color(0xFF343434)
 private val DangerRed = Color(0xFFFF7A88)
 private val StatusGreen = Color(0xFF3FB950)
@@ -199,14 +185,8 @@ fun StoresScreen(
                 onCheckedChange = onSharedFolderChanged,
             )
 
-            AnimatedContent(
-                targetState = state.sharedFolder,
-                transitionSpec = {
-                    fadeIn(tween(220)) togetherWith fadeOut(tween(160)) using
-                        SizeTransform(clip = true, sizeAnimationSpec = { _, _ -> tween(240) })
-                },
-                label = "folderPaths",
-            ) { shared ->
+            run {
+                val shared = state.sharedFolder
                 if (shared) {
                     FolderPathCard(
                         label = stringResource(R.string.stores_accounts_default_downloads_folder),
@@ -368,28 +348,6 @@ private fun StoreCard(
         )
     }
 
-    val pulse = rememberInfiniteTransition(label = "pulse_$name")
-    val pulseScale by pulse.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.7f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(1000, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse,
-            ),
-        label = "scale_$name",
-    )
-    val pulseAlpha by pulse.animateFloat(
-        initialValue = 0.5f,
-        targetValue = 0f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(1000, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse,
-            ),
-        label = "alpha_$name",
-    )
-
     Box(
         modifier =
             Modifier
@@ -434,16 +392,6 @@ private fun StoreCard(
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(contentAlignment = Alignment.Center) {
-                        if (isLoggedIn) {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .size(10.dp)
-                                        .scale(pulseScale)
-                                        .clip(CircleShape)
-                                        .background(StatusGreen.copy(alpha = pulseAlpha)),
-                            )
-                        }
                         Box(
                             modifier =
                                 Modifier
@@ -490,11 +438,7 @@ private fun ActionButton(
     onClick: () -> Unit,
 ) {
     var isPressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.93f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
-        label = "btnScale",
-    )
+    val scale = if (isPressed) 0.93f else 1f
     Box(
         modifier =
             Modifier
@@ -650,11 +594,7 @@ private fun SettingsDropdownCard(
             Spacer(Modifier.width(8.dp))
             Box {
                 var isPressed by remember { mutableStateOf(false) }
-                val scale by animateFloatAsState(
-                    targetValue = if (isPressed) 0.93f else 1f,
-                    animationSpec = spring(stiffness = Spring.StiffnessHigh),
-                    label = "dropdownScale",
-                )
+                val scale = if (isPressed) 0.93f else 1f
                 Row(
                     modifier =
                         Modifier
@@ -702,7 +642,7 @@ private fun SettingsDropdownCard(
                     expanded = expanded,
                     onDismissRequest = { expanded = false },
                     shape = RoundedCornerShape(8.dp),
-                    containerColor = Color(0xFF24243B),
+                    containerColor = Color(0xFF161616),
                     border = BorderStroke(1.dp, CardBorder),
                     modifier = Modifier.widthIn(max = 220.dp),
                 ) {
@@ -797,11 +737,7 @@ private fun FolderPathCard(
 @Composable
 private fun BrowseButton(onClick: () -> Unit) {
     var isPressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.92f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
-        label = "browseScale",
-    )
+    val scale = if (isPressed) 0.92f else 1f
     Box(
         modifier =
             Modifier

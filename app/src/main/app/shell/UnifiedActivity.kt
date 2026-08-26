@@ -19,29 +19,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -247,14 +226,14 @@ import javax.inject.Inject
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-internal val BgDark = Color(0xFF18181D)
-internal val SurfaceDark = Color(0xFF1E252E)
+internal val BgDark = Color(0xFF000000)
+internal val SurfaceDark = Color(0xFF161616)
 internal val CardDark = Color(0xFF12121B)
 internal val CardBorder = Color(0xFF2A2A3A)
-internal val Accent = Color(0xFF1A9FFF)
-internal val AccentGlow = Color(0xFF58A6FF)
-internal val TextPrimary = Color(0xFFF0F4FF)
-internal val TextSecondary = Color(0xFF7A8FA8)
+internal val Accent = Color(0xFFFF7A00)
+internal val AccentGlow = Color(0xFFFFB74D)
+internal val TextPrimary = Color(0xFFF5F0EA)
+internal val TextSecondary = Color(0xFFAD9782)
 internal val DangerRed = Color(0xFFFF6B6B)
 internal val StatusOnline = Color(0xFF3FB950)
 internal val StatusAway = Color(0xFFF0C040)
@@ -262,9 +241,9 @@ private val StatusOffline = Color(0xFF6E7681)
 internal val DownloadCardBlack = Color.Black.copy(alpha = 0.46f)
 internal val DownloadCardSelectedBlack = Color.Black.copy(alpha = 0.58f)
 internal val DownloadButtonBlack = Color.Black.copy(alpha = 0.38f)
-private val DownloadChaseBlue = Color(0xFF2196F3)
-private val DownloadChaseSky = Color(0xFF29B6F6)
-private val DownloadChaseCyan = Color(0xFF00E5FF)
+private val DownloadChaseBlue = Color(0xFFFF7A00)
+private val DownloadChaseSky = Color(0xFFFFA940)
+private val DownloadChaseCyan = Color(0xFFFFD180)
 internal val DownloadChaseGradientStops =
     arrayOf(
         0.00f to DownloadChaseBlue,
@@ -421,9 +400,7 @@ class UnifiedActivity :
 
     val storeFocusIndex = kotlinx.coroutines.flow.MutableStateFlow(0)
     var storeItemCount: Int = 0
-
-    internal val storeColumns: Int
-        get() = com.winlator.cmod.shared.ui.gridColumnsForWidth(resources.configuration.screenWidthDp)
+    internal var storeColumns: Int = 4
 
     var storeGridState: androidx.compose.foundation.lazy.grid.LazyGridState? = null
 
@@ -432,7 +409,6 @@ class UnifiedActivity :
 
     private var dpadHeld = false
     private var joystickActive = false
-    @Volatile private var retroCloudUploadBusy = false
 
     internal val settingsNavBridge = SettingsNavBridge()
     internal val downloadsNavBridge = DownloadsNavBridge()
@@ -631,7 +607,6 @@ class UnifiedActivity :
         }
 
         UpdateChecker.startBackgroundLoop(this)
-        processPendingRetroCloudBackup()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -915,73 +890,9 @@ class UnifiedActivity :
         handleSettingsIntent(intent)
     }
 
-    internal fun retryPendingRetroCloudBackup() = processPendingRetroCloudBackup()
-
-    private fun processPendingRetroCloudBackup() {
-        val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
-        val hasLegacy = prefs.getString("retro_pending_backup_id", null) != null
-        val hasDolphin = com.winlator.cmod.feature.retro.DolphinCloudSync.peekPending(this) != null
-        if (!hasLegacy && !hasDolphin) return
-        if (!com.winlator.cmod.feature.sync.google.GameSaveBackupManager.isDriveConnected(this)) return
-        runCatching {
-            com.winlator.cmod.feature.sync.google.PlayGamesBootstrap.ensureInitialized(this)
-            com.google.android.gms.games.PlayGames
-                .getGamesSignInClient(this)
-                .signIn()
-                .addOnCompleteListener { runPendingRetroUploads() }
-        }.onFailure { runPendingRetroUploads() }
-    }
-
-    private fun runPendingRetroUploads() {
-        if (retroCloudUploadBusy) return
-        val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
-        val pendingId = prefs.getString("retro_pending_backup_id", null)
-        val pendingName = prefs.getString("retro_pending_backup_name", null)
-        val dolphinPending = com.winlator.cmod.feature.retro.DolphinCloudSync.peekPending(this)
-        if ((pendingId == null || pendingName == null) && dolphinPending == null) return
-        retroCloudUploadBusy = true
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                dolphinPending?.let { p ->
-                    if (uploadRetroCloudBackup(p.cloudId, p.gameName)) {
-                        com.winlator.cmod.feature.retro.DolphinCloudSync.clearPending(this@UnifiedActivity)
-                        if (p.fingerprint.isNotEmpty()) {
-                            prefs.edit().putString("retro_cloud_fp_${p.cloudId}", p.fingerprint).apply()
-                        }
-                    }
-                }
-                if (pendingId != null && pendingName != null &&
-                    uploadRetroCloudBackup(pendingId, pendingName)
-                ) {
-                    prefs.edit().remove("retro_pending_backup_id").remove("retro_pending_backup_name").apply()
-                }
-            } finally {
-                retroCloudUploadBusy = false
-            }
-        }
-    }
-
-    private suspend fun uploadRetroCloudBackup(cloudId: String, gameName: String): Boolean {
-        val result =
-            runCatching {
-                GameSaveBackupManager.backupSaveToGoogle(
-                    this@UnifiedActivity,
-                    GameSaveBackupManager.GameSource.CUSTOM,
-                    cloudId,
-                    gameName,
-                    GameSaveBackupManager.BackupOrigin.AUTO,
-                    com.winlator.cmod.feature.sync.google.GoogleAuthMode.RESUME,
-                    customSaveDir = com.winlator.cmod.feature.retro.RetroSaveStates.gameDir(this, gameName),
-                )
-            }.getOrNull()
-        android.util.Log.i("WnDolphin", "upload id=$cloudId success=${result?.success} msg=${result?.message}")
-        if (result?.success == true) {
-            androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
-                .edit().putLong("retro_cloud_mark_$cloudId", System.currentTimeMillis()).apply()
-            return true
-        }
-        return false
-    }
+    // Console/retro emulator cloud-save backup (Dolphin/PS2/Gen1) removed;
+    // this app now focuses solely on PC/Windows game compatibility.
+    internal fun retryPendingRetroCloudBackup() {}
 
     override fun onCreate(savedInstanceState: Bundle?) {
         instance = this
@@ -1003,7 +914,6 @@ class UnifiedActivity :
         com.winlator.cmod.runtime.display.GlassesManager.init(this)
         bootstrapStartupState()
         maybeAutoSignInGoogleOnLaunch()
-        processPendingRetroCloudBackup()
 
         // Surface store-session events as toasts.
         lifecycleScope.launch {
@@ -1099,62 +1009,10 @@ class UnifiedActivity :
                             buildSettingsRoute(it.item, it.profileId, it.editContainerId, it.returnToGameOnBack)
                         } ?: "hub",
                     modifier = Modifier.fillMaxSize(),
-                    enterTransition = {
-                        val fromRoute = initialState.destination.route
-                        val toRoute = targetState.destination.route
-                        if (
-                            (
-                                (fromRoute == "hub" && toRoute?.startsWith("settings") == true) ||
-                                    (fromRoute?.startsWith("settings") == true && toRoute == "hub")
-                            )
-                        ) {
-                            fadeIn(tween(220, easing = FastOutSlowInEasing))
-                        } else {
-                            EnterTransition.None
-                        }
-                    },
-                    exitTransition = {
-                        val fromRoute = initialState.destination.route
-                        val toRoute = targetState.destination.route
-                        if (
-                            (
-                                (fromRoute == "hub" && toRoute?.startsWith("settings") == true) ||
-                                    (fromRoute?.startsWith("settings") == true && toRoute == "hub")
-                            )
-                        ) {
-                            fadeOut(tween(220, easing = FastOutSlowInEasing))
-                        } else {
-                            ExitTransition.None
-                        }
-                    },
-                    popEnterTransition = {
-                        val fromRoute = initialState.destination.route
-                        val toRoute = targetState.destination.route
-                        if (
-                            (
-                                (fromRoute == "hub" && toRoute?.startsWith("settings") == true) ||
-                                    (fromRoute?.startsWith("settings") == true && toRoute == "hub")
-                            )
-                        ) {
-                            fadeIn(tween(220, easing = FastOutSlowInEasing))
-                        } else {
-                            EnterTransition.None
-                        }
-                    },
-                    popExitTransition = {
-                        val fromRoute = initialState.destination.route
-                        val toRoute = targetState.destination.route
-                        if (
-                            (
-                                (fromRoute == "hub" && toRoute?.startsWith("settings") == true) ||
-                                    (fromRoute?.startsWith("settings") == true && toRoute == "hub")
-                            )
-                        ) {
-                            fadeOut(tween(220, easing = FastOutSlowInEasing))
-                        } else {
-                            ExitTransition.None
-                        }
-                    },
+                    enterTransition = { EnterTransition.None },
+                    exitTransition = { ExitTransition.None },
+                    popEnterTransition = { EnterTransition.None },
+                    popExitTransition = { ExitTransition.None },
                 ) {
                     composable("hub") {
                         LaunchedEffect(Unit) { isPoppingSettings = false }

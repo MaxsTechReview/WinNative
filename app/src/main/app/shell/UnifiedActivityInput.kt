@@ -19,29 +19,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -283,11 +260,10 @@ internal fun UnifiedActivity.moveLibraryFocus(
     var newIdx = idx
     when (currentLibraryLayoutMode) {
         LibraryLayoutMode.GRID_4 -> {
-            val cols = storeColumns
             if (left) newIdx = (idx - 1).coerceAtLeast(0)
             if (right) newIdx = (idx + 1).coerceAtMost(count - 1)
-            if (up) newIdx = (idx - cols).coerceAtLeast(0)
-            if (down) newIdx = (idx + cols).coerceAtMost(count - 1)
+            if (up) newIdx = (idx - 4).coerceAtLeast(0)
+            if (down) newIdx = (idx + 4).coerceAtMost(count - 1)
         }
 
         LibraryLayoutMode.CAROUSEL -> {
@@ -374,15 +350,8 @@ internal fun UnifiedActivity.hideImeIfVisible(): Boolean {
 
 internal fun UnifiedActivity.applySettingsSidebarNav(keyCode: Int) {
     when (keyCode) {
-        android.view.KeyEvent.KEYCODE_DPAD_UP -> {
-            settingsNavBridge.revealSidebar()
-            moveSettingsItem(-1)
-        }
-        android.view.KeyEvent.KEYCODE_DPAD_DOWN -> {
-            settingsNavBridge.revealSidebar()
-            moveSettingsItem(1)
-        }
-        android.view.KeyEvent.KEYCODE_DPAD_LEFT -> settingsNavBridge.revealSidebar()
+        android.view.KeyEvent.KEYCODE_DPAD_UP -> moveSettingsItem(-1)
+        android.view.KeyEvent.KEYCODE_DPAD_DOWN -> moveSettingsItem(1)
         android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> enterSettingsContent()
     }
 }

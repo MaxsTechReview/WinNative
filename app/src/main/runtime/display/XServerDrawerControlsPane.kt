@@ -388,7 +388,7 @@ internal fun InputControlsSimpleDropdown(
     val pressed = interactionSource.collectIsPressedAsState().value
     val bgColor by animateColorAsState(
         targetValue = if (pressed) PaneInnerPressed else PaneInnerResting,
-        animationSpec = tween(140),
+        animationSpec = tween(0),
         label = "inputControlsSimpleBg",
     )
 
@@ -475,7 +475,7 @@ internal fun InputControlsProfileSelector(
     val pressed = interactionSource.collectIsPressedAsState().value
     val bgColor by animateColorAsState(
         targetValue = if (pressed) PaneInnerPressed else PaneInnerResting,
-        animationSpec = tween(140),
+        animationSpec = tween(0),
         label = "inputControlsProfileBg",
     )
 
@@ -609,7 +609,7 @@ internal fun InputControlsOptionItem(
     val pressed = interactionSource.collectIsPressedAsState().value
     val bgColor by animateColorAsState(
         targetValue = if (pressed) DrawerAccent.copy(alpha = 0.16f) else PaneInnerResting,
-        animationSpec = tween(120),
+        animationSpec = tween(0),
         label = "inputControlsOptionItem",
     )
     val shape = RoundedCornerShape((8f * paneScale).dp)
@@ -656,7 +656,7 @@ internal fun ExpandableSection(
     val paneScale = LocalPaneScale.current
     val rotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
-        animationSpec = tween(180, easing = FastOutSlowInEasing),
+        animationSpec = tween(0, easing = FastOutSlowInEasing),
         label = "expandableRotation",
     )
     val headerInteractionSource = remember { MutableInteractionSource() }
@@ -667,12 +667,12 @@ internal fun ExpandableSection(
                 headerPressed -> PaneInnerPressed
                 else -> PaneInnerResting
             },
-        animationSpec = tween(140),
+        animationSpec = tween(0),
         label = "expandableHeaderBg",
     )
     val headerBorder by animateColorAsState(
         targetValue = if (expanded) DrawerAccent else RestingCardBorder,
-        animationSpec = tween(140),
+        animationSpec = tween(0),
         label = "expandableHeaderBorder",
     )
     val headerShape = RoundedCornerShape((12f * paneScale).dp)

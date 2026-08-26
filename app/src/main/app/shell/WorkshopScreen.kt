@@ -51,8 +51,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -97,10 +97,10 @@ internal enum class WorkshopLoadState { LOADING, READY, ERROR }
 private val WsBg = Color(0xFF12121B)
 private val WsBorder = Color(0xFF2A2A3A)
 private val WsInputBg = Color(0xFF171722)
-private val WsAccent = Color(0xFF1A9FFF)
-private val WsAccentGlow = Color(0xFF58A6FF)
-private val WsTextPrimary = Color(0xFFF0F4FF)
-private val WsTextSecondary = Color(0xFF93A6BC)
+private val WsAccent = Color(0xFFFF7A00)
+private val WsAccentGlow = Color(0xFFFFB74D)
+private val WsTextPrimary = Color(0xFFF5F0EA)
+private val WsTextSecondary = Color(0xFFC7A88F)
 private val WsTextDim = Color(0xFF6E7681)
 private val WsInstalledTitle = Color(0xFFB7F8CE)
 private val WsDanger = Color(0xFFFF6B6B)
@@ -326,7 +326,7 @@ private fun WorkshopSearchBar(
                 enabled = enabled,
                 singleLine = true,
                 textStyle = TextStyle(color = WsTextPrimary, fontSize = 13.sp),
-                cursorBrush = Brush.verticalGradient(listOf(WsAccent, WsAccentGlow)),
+                cursorBrush = SolidColor(WsAccent),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
                 modifier = Modifier.fillMaxWidth().focusRequester(fieldFocus),
@@ -408,7 +408,7 @@ private fun WorkshopItemRow(
                     ImageRequest
                         .Builder(context)
                         .data(item.previewImageUrl)
-                        .crossfade(120)
+                        .crossfade(false)
                         .memoryCachePolicy(CachePolicy.ENABLED)
                         .diskCachePolicy(CachePolicy.ENABLED)
                         .build()

@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
@@ -76,13 +76,13 @@ private const val INDEX_URL = "$DATASET_BASE/index.json"
 // One install at a time across the app (the boot session + result bridge are single-instance).
 private val installMutex = Mutex()
 
-private val SheetRoot = Color(0xFF18181D)
+private val SheetRoot = Color(0xFF141414)
 private val SheetCard = Color(0xFF1C1C2A)
 private val SheetSubcard = Color(0xFF161622)
 private val SheetOutline = Color(0xFF2A2A3A)
-private val SheetAccent = Color(0xFF1A9FFF)
-private val SheetTextPrimary = Color(0xFFF0F4FF)
-private val SheetTextSecondary = Color(0xFF7A8FA8)
+private val SheetAccent = Color(0xFFFF7A00)
+private val SheetTextPrimary = Color(0xFFF5F0EA)
+private val SheetTextSecondary = Color(0xFFAD9782)
 private val SheetDanger = Color(0xFFFF7A88)
 private val SheetGood = Color(0xFF6BD08A)
 
@@ -370,7 +370,7 @@ private fun ComponentList(
                 bounds.first - margin < vpTop -> bounds.first - margin - vpTop
                 else -> 0f
             }
-            if (delta != 0f) runCatching { scrollState.animateScrollBy(delta) }
+            if (delta != 0f) runCatching { scrollState.scrollBy(delta) }
         }
     }
     Box(

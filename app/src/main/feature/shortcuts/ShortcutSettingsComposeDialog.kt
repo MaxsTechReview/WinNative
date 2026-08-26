@@ -10,6 +10,7 @@ import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
 import android.util.Log
+import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowInsets
@@ -114,6 +115,13 @@ class ShortcutSettingsComposeDialog private constructor(
     private val nav = GameSettingsNav()
     private var restorePaneNav: (() -> Unit)? = null
 
+    // Re-runs applyDialogLayout() whenever the host activity's decor view changes size
+    // (rotation, fold/unfold, multi-window resize). Without this, the dialog window keeps
+    // whatever size was computed at show()-time, so rotating while it's open can leave it
+    // mis-sized (e.g. still landscape-width/height math applied to a portrait screen) and
+    // effectively unusable/unreachable until the dialog is closed and reopened.
+    private var hostLayoutListener: View.OnLayoutChangeListener? = null
+
     // Java interop references
     private var inputControlsManager: InputControlsManager = InputControlsManager(context)
     private var gestureProfileManager: GestureProfileManager = GestureProfileManager(context)
@@ -170,6 +178,7 @@ class ShortcutSettingsComposeDialog private constructor(
             setOnDismissListener {
                 restorePaneNav?.invoke()
                 restorePaneNav = null
+                detachHostLayoutListener()
             }
         }
 
@@ -186,16 +195,6 @@ class ShortcutSettingsComposeDialog private constructor(
             setContent {
                 WinNativeTheme {
                     val defaultDensity = LocalDensity.current
-                    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-                    androidx.compose.runtime.LaunchedEffect(
-                        configuration.orientation,
-                        configuration.screenWidthDp,
-                        configuration.screenHeightDp,
-                    ) {
-                        val w = dialog.window
-                        w?.applyDialogLayout()
-                        w?.decorView?.post { w.applyDialogLayout() }
-                    }
                     CompositionLocalProvider(
                         LocalDensity provides Density(defaultDensity.density, fontScale = 1f)
                     ) {
@@ -2407,12 +2406,6 @@ class ShortcutSettingsComposeDialog private constructor(
     // Show / Dismiss
 
     fun show() {
-        if (com.winlator.cmod.feature.retro.RetroShortcuts.isRetroShortcut(shortcut)) {
-            com.winlator.cmod.feature.retro
-                .RetroSettingsDialog(activity, shortcut)
-                .show()
-            return
-        }
         dialog.show()
         restorePaneNav?.invoke()
         restorePaneNav = dialog.window?.bindPaneNav(
@@ -2436,6 +2429,30 @@ class ShortcutSettingsComposeDialog private constructor(
                 attributes = params
             }
         }
+        attachHostLayoutListener()
+    }
+
+    // Watches the host activity's decor view for size changes (rotation, fold, multi-window
+    // resize) and recomputes the dialog's window size to match. Registered on show(), removed
+    // on dismiss()/dismiss-listener so it never leaks past this dialog's lifetime.
+    private fun attachHostLayoutListener() {
+        if (hostLayoutListener != null) return
+        val hostView = activity.window?.decorView ?: return
+        val listener = View.OnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+            val widthChanged = (right - left) != (oldRight - oldLeft)
+            val heightChanged = (bottom - top) != (oldBottom - oldTop)
+            if ((widthChanged || heightChanged) && dialog.isShowing) {
+                dialog.window?.applyDialogLayout()
+            }
+        }
+        hostView.addOnLayoutChangeListener(listener)
+        hostLayoutListener = listener
+    }
+
+    private fun detachHostLayoutListener() {
+        val listener = hostLayoutListener ?: return
+        activity.window?.decorView?.removeOnLayoutChangeListener(listener)
+        hostLayoutListener = null
     }
 
     private fun Window.applyDialogLayout() {

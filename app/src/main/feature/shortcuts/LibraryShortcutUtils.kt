@@ -43,46 +43,6 @@ object LibraryShortcutUtils {
     fun detectCustomGameFolder(exePath: String): String =
         detectCustomGameFolder(File(exePath)).absolutePath
 
-    private val GENERIC_FOLDER_NAMES =
-        setOf(
-            "drive_c",
-            "program files",
-            "program files (x86)",
-            "programdata",
-            "games",
-            "game",
-            "users",
-            "xuser",
-            "home",
-            "documents",
-            "downloads",
-            "desktop",
-            "emulated",
-            "storage",
-            "0",
-            "",
-        )
-
-    private fun prettifyName(raw: String): String =
-        raw
-            .replace('_', ' ')
-            .replace('-', ' ')
-            .replace(Regex("\\s+"), " ")
-            .trim()
-
-    @JvmStatic
-    fun suggestCustomGameName(exePath: String): String {
-        val exeFile = File(exePath)
-        val fromExe = prettifyName(exeFile.nameWithoutExtension)
-        val folder = runCatching { detectCustomGameFolder(exeFile) }.getOrNull() ?: return fromExe
-        val rawName = folder.name.lowercase(Locale.US)
-        val folderName = prettifyName(folder.name)
-        if (rawName in GENERIC_FOLDER_NAMES || folderName.lowercase(Locale.US) in GENERIC_FOLDER_NAMES) {
-            return fromExe
-        }
-        return folderName.ifBlank { fromExe }
-    }
-
     @JvmStatic
     fun buildPinnedHomeShortcutId(shortcut: Shortcut): String? {
         val shortcutId = shortcut.getExtra("uuid")

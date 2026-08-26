@@ -141,7 +141,6 @@ import com.winlator.cmod.runtime.display.ui.MagnifierView;
 import com.winlator.cmod.runtime.display.ui.MangoHudView;
 import com.winlator.cmod.runtime.display.ui.XServerSurfaceView;
 import com.winlator.cmod.shared.android.FixedFontScaleAppCompatActivity;
-import com.winlator.cmod.shared.android.SelfManagedOrientationActivity;
 import com.winlator.cmod.runtime.input.ui.InputControlsView;
 import com.winlator.cmod.runtime.input.ui.TouchpadView;
 import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags;
@@ -198,8 +197,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import cn.sherlock.com.sun.media.sound.SF2Soundbank;
 import static com.winlator.cmod.runtime.display.XServerDisplayUtils.*;
 
-public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
-        implements SelfManagedOrientationActivity {
+public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private static final long STEAM_TERMINATION_GRACE_MS = 10000L;
     private static final long STEAM_TERMINATION_POLL_MS = 1000L;
     private static final long STEAM_PROCESS_RESPONSE_TIMEOUT_MS = 2000L;
@@ -548,6 +546,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
     private static final long SAVE_INTERVAL_MS = 1000;
     private static final int EXIT_CLOUD_UPLOAD_MAX_ATTEMPTS = 3;
     private static final long EXIT_CLOUD_UPLOAD_RETRY_DELAY_MS = 1000L;
+    // Hard cap on how long exit() waits for cloud-save sync before starting teardown anyway.
+    // Without this, a slow/unreachable network could stretch exit out by many seconds across
+    // up to EXIT_CLOUD_UPLOAD_MAX_ATTEMPTS retries; a stuck exit screen is worse than a save
+    // that finishes uploading in the background after the user is already back at the launcher.
+    private static final long EXIT_CLOUD_SYNC_TIMEOUT_MS = 8000L;
 
     private Handler  timeoutHandler = new Handler(Looper.getMainLooper());
     private static final long POINTER_ACTIVITY_REARM_MS = 1000L;
@@ -562,6 +565,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
     private final AtomicBoolean steamStateSanitizedForClose = new AtomicBoolean(false);
     private final AtomicBoolean sessionCleanupStarted = new AtomicBoolean(false);
     private final AtomicBoolean switchLaunchInProgress = new AtomicBoolean(false);
+    private final AtomicBoolean rotateScreenInProgress = new AtomicBoolean(false);
     private final AtomicBoolean winHandlerStopped = new AtomicBoolean(false);
 
     private SessionRecordingController perfController;
@@ -1136,6 +1140,74 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         }, "XServerSwitchCleanup").start();
     }
 
+    // Swaps the configured screen width/height (e.g. 1280x720 <-> 720x1280) and restarts the
+    // guest session with the rotated resolution. The X server / Wine desktop are sized once at
+    // session start (see targetPortrait handling above), so a genuine live in-place resize of the
+    // running desktop isn't supported -- rotating goes through the same forced-cleanup + recreate
+    // path used when switching launch targets, which is the proven-safe way this app already
+    // tears down and reboots a session.
+    private void rotateScreenOrientation() {
+        if (!rotateScreenInProgress.compareAndSet(false, true)) {
+            Log.d("XServerDisplayActivity", "Screen rotate already in progress; ignoring duplicate request");
+            return;
+        }
+
+        String baseScreenSize = (sgsrBaseScreenSize != null && !sgsrBaseScreenSize.isEmpty())
+                ? sgsrBaseScreenSize
+                : (xServer != null ? xServer.screenInfo.toString() : Container.DEFAULT_SCREEN_SIZE);
+
+        String[] parts = baseScreenSize != null ? baseScreenSize.split("x") : null;
+        if (parts == null || parts.length != 2) {
+            Log.w("XServerDisplayActivity", "Cannot rotate screen: invalid screenSize '" + baseScreenSize + "'");
+            rotateScreenInProgress.set(false);
+            return;
+        }
+
+        String rotatedScreenSize;
+        try {
+            int w = Integer.parseInt(parts[0].trim());
+            int h = Integer.parseInt(parts[1].trim());
+            rotatedScreenSize = h + "x" + w;
+        } catch (NumberFormatException e) {
+            Log.w("XServerDisplayActivity", "Cannot rotate screen: failed to parse '" + baseScreenSize + "'", e);
+            rotateScreenInProgress.set(false);
+            return;
+        }
+
+        Log.i("XServerDisplayActivity", "Rotating screen: '" + baseScreenSize + "' -> '" + rotatedScreenSize + "'");
+
+        if (shortcut != null) {
+            shortcut.putExtra("screenSize", rotatedScreenSize);
+            shortcut.saveData();
+        } else if (container != null) {
+            container.setScreenSize(rotatedScreenSize);
+            container.saveData();
+        }
+
+        closeDrawerMenu();
+        exitRequested.set(true);
+        if (preloaderDialog != null) {
+            preloaderDialog.showOnUiThread(getString(R.string.preloader_initializing));
+        }
+
+        Intent relaunchIntent = new Intent(getIntent());
+        relaunchIntent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
+
+        new Thread(() -> {
+            performForcedSessionCleanup("rotate screen");
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    Log.w("XServerDisplayActivity", "Rotate-screen cleanup finished after activity was destroyed");
+                    rotateScreenInProgress.set(false);
+                    return;
+                }
+                setIntent(relaunchIntent);
+                recreate();
+                rotateScreenInProgress.set(false);
+            });
+        }, "XServerRotateScreenCleanup").start();
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         if (savedInstanceState != null) isPaused = savedInstanceState.getBoolean("isPaused", false);
@@ -1451,13 +1523,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
 
         if (shortcutPath != null && !shortcutPath.isEmpty()) {
             shortcut = new Shortcut(container, new File(shortcutPath));
-        }
-
-        if (shortcut != null
-                && com.winlator.cmod.feature.retro.RetroShortcuts.isRetroShortcut(shortcut)) {
-            com.winlator.cmod.feature.retro.RetroShortcuts.launch(this, shortcut);
-            finish();
-            return;
         }
 
         loadScreenEffectsSettings();
@@ -3265,45 +3330,67 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                     getString(R.string.preloader_closing, getString(R.string.preloader_default_name)));
         }
         
-        syncStoreCloudOnExit(() -> {
-            handler.postDelayed(() -> {
-                if (!beginSessionCleanup("exit")) {
-                    return;
+        // proceeded guards against running teardown twice: once from the normal
+        // syncStoreCloudOnExit completion, and once from the EXIT_CLOUD_SYNC_TIMEOUT_MS
+        // safety-net fallback below, whichever fires first.
+        final AtomicBoolean proceeded = new AtomicBoolean(false);
+        final Handler activeHandler = handler != null ? handler : new Handler(Looper.getMainLooper());
+
+        Runnable proceedToTeardown = () -> {
+            if (!proceeded.compareAndSet(false, true)) {
+                return;
+            }
+            if (!beginSessionCleanup("exit")) {
+                return;
+            }
+            savePlaytimeData(true);
+            cleanupActivityCallbacks("exit");
+            // Teardown blocks for seconds (clean-shutdown wait); run off the UI thread or the closing splash freezes. UI-touching calls are marshalled back.
+            new Thread(() -> {
+                sanitizeSteamStateForNextSession("exit", true);
+                if (midiHandler != null) midiHandler.stop();
+                stopWinHandler("exit");
+                if (wineRequestHandler != null) wineRequestHandler.stop();
+                ArrayList<String> remaining = ProcessHelper.terminateSessionProcessesAndWait(sessionTerminateGraceMs(), true);
+                ProcessHelper.drainDeadChildren("activity exit cleanup");
+                ProcessHelper.scheduleDeadChildReapSweep("activity exit cleanup", 4000, 200);
+                if (!remaining.isEmpty()) {
+                    Log.e("XServerDisplayActivity", "Exit cleanup still has remaining session processes: " + remaining);
                 }
-                savePlaytimeData(true);
-                cleanupActivityCallbacks("exit");
-                // Teardown blocks for seconds (cloud upload + clean-shutdown wait); run off the UI thread or the closing splash freezes. UI-touching calls are marshalled back.
-                new Thread(() -> {
-                    sanitizeSteamStateForNextSession("exit", true);
-                    if (midiHandler != null) midiHandler.stop();
-                    stopWinHandler("exit");
-                    if (wineRequestHandler != null) wineRequestHandler.stop();
-                    ArrayList<String> remaining = ProcessHelper.terminateSessionProcessesAndWait(sessionTerminateGraceMs(), true);
-                    ProcessHelper.drainDeadChildren("activity exit cleanup");
-                    ProcessHelper.scheduleDeadChildReapSweep("activity exit cleanup", 4000, 200);
-                    if (!remaining.isEmpty()) {
-                        Log.e("XServerDisplayActivity", "Exit cleanup still has remaining session processes: " + remaining);
-                    }
-                    if (environment != null) {
-                        environment.stopEnvironmentComponents();
-                        environment = null;
-                    }
-                    Log.d("XServerDisplayActivity", "Process snapshot after environment stop: "
-                            + ProcessHelper.listRunningWineProcessDetails());
-                    stopXServer("exit");
-                    wineRequestHandler = null;
-                    midiHandler = null;
-                    xServer = null;
-                    xServerView = null;
-                    SessionKeepAliveService.stopSession(XServerDisplayActivity.this);
-                    runOnUiThread(() -> {
-                        if (preloaderDialog != null && preloaderDialog.isShowing()) preloaderDialog.closeOnUiThread();
-                        cleanupDebugDialog("exit");
-                        closeAfterSessionExit();
-                    });
-                }, "XServerExitCleanup").start();
-            }, 1000);
-        });
+                if (environment != null) {
+                    environment.stopEnvironmentComponents();
+                    environment = null;
+                }
+                Log.d("XServerDisplayActivity", "Process snapshot after environment stop: "
+                        + ProcessHelper.listRunningWineProcessDetails());
+                stopXServer("exit");
+                wineRequestHandler = null;
+                midiHandler = null;
+                xServer = null;
+                xServerView = null;
+                SessionKeepAliveService.stopSession(XServerDisplayActivity.this);
+                runOnUiThread(() -> {
+                    if (preloaderDialog != null && preloaderDialog.isShowing()) preloaderDialog.closeOnUiThread();
+                    cleanupDebugDialog("exit");
+                    closeAfterSessionExit();
+                });
+            }, "XServerExitCleanup").start();
+        };
+
+        // Safety net: if cloud sync (with its own internal retries) hasn't completed
+        // within EXIT_CLOUD_SYNC_TIMEOUT_MS, stop waiting and tear down anyway. Any
+        // upload still in flight keeps running in the background; it just no longer
+        // blocks the user from getting back to the launcher.
+        activeHandler.postDelayed(() -> {
+            if (!proceeded.get()) {
+                Log.w("XServerDisplayActivity",
+                        "Cloud sync on exit did not finish within " + EXIT_CLOUD_SYNC_TIMEOUT_MS
+                                + "ms; continuing exit without waiting further");
+            }
+            proceedToTeardown.run();
+        }, EXIT_CLOUD_SYNC_TIMEOUT_MS);
+
+        syncStoreCloudOnExit(() -> activeHandler.post(proceedToTeardown));
     }
 
     private void closeAfterSessionExit() {
@@ -5736,6 +5823,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 touchpadView.toggleFullscreen();
                 renderDrawerMenu();
                 break;
+            case R.id.main_menu_rotate_screen:
+                rotateScreenOrientation();
+                break;
             case R.id.main_menu_refactor_size:
                 isRefactorSizeEnabled = !isRefactorSizeEnabled;
                 applyRefactorSize(isRefactorSizeEnabled);
@@ -6088,6 +6178,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
             case R.id.main_menu_disable_mouse:
             case R.id.main_menu_toggle_fullscreen:
             case R.id.main_menu_magnifier:
+            case R.id.main_menu_rotate_screen:
                 return true;
             default:
                 return false;

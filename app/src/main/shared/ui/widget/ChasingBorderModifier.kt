@@ -1,27 +1,35 @@
 package com.winlator.cmod.shared.ui.widget
 
-import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.RectF
-import android.graphics.SweepGradient
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.winlator.cmod.shared.theme.WinNativeAccent
 
 /**
- * Compose modifier that draws an animated chasing border using a rotating SweepGradient.
- * Uses Compose's [rememberInfiniteTransition] for smooth, frame-accurate animation.
+ * Compose modifier that draws a flat, single-color focus border.
+ *
+ * Previously this animated a rotating multi-color SweepGradient on an
+ * infinite transition, which meant every focused item on every screen
+ * (drawers, settings nav, setup wizard, retro menus, the main hub, etc.)
+ * kept invalidating and redrawing on every frame for as long as it stayed
+ * focused. That's wasted GPU/CPU work in an app that is already
+ * GPU/CPU-bound (Wine, GPU-accelerated emulation), and a busy animated
+ * rainbow border doesn't fit a minimal look anyway.
+ *
+ * This version draws one flat accent-colored stroke. drawWithCache only
+ * re-runs when the drawn size actually changes, so a focused item now
+ * costs a single draw call instead of a perpetual animation loop.
+ *
+ * Signature kept identical to the previous implementation (including the
+ * now-unused `paused` / `animationDurationMs` params) so every existing
+ * call site keeps compiling unchanged.
  */
 fun Modifier.chasingBorder(
     isFocused: Boolean = true,
@@ -36,31 +44,7 @@ fun Modifier.chasingBorder(
         val density = LocalDensity.current.density
         val cornerRadiusPx = cornerRadius.value * density
         val borderWidthPx = borderWidth.value * density
-
-        val infiniteTransition = rememberInfiniteTransition(label = "chasingBorder")
-        val animatedRotation =
-            infiniteTransition.animateFloat(
-                initialValue = 0f,
-                targetValue = 360f,
-                animationSpec =
-                    infiniteRepeatable(
-                        animation = tween(durationMillis = animationDurationMs, easing = LinearEasing),
-                        repeatMode = RepeatMode.Restart,
-                    ),
-                label = "borderRotation",
-            )
-
-        val gradientColors =
-            remember {
-                intArrayOf(
-                    0xFF2196F3.toInt(), // blue
-                    0xFF29B6F6.toInt(), // sky blue
-                    0xFF00E5FF.toInt(), // electric cyan
-                    0xFF29B6F6.toInt(), // sky blue
-                    0xFF2196F3.toInt(), // blue (seamless)
-                )
-            }
-        val gradientStops = remember { floatArrayOf(0f, 0.25f, 0.50f, 0.75f, 1f) }
+        val borderColorArgb = WinNativeAccent.toArgb()
 
         drawWithCache {
             val w = size.width
@@ -69,40 +53,24 @@ fun Modifier.chasingBorder(
             if (w <= 0f || h <= 0f) {
                 onDrawWithContent { drawContent() }
             } else {
-                // Draw with the native round-rect primitive instead of a filled ring or path.
-                // That keeps the corner curve in Skia's optimized AA pipeline and avoids path
-                // flattening artifacts at small radii.
+                // Native round-rect primitive keeps the corner curve in Skia's
+                // optimized AA pipeline, same as before - just no shader/matrix
+                // and nothing animated, so this only redraws when size changes.
                 val inset = borderWidthPx / 2f
                 val rect = RectF(inset, inset, w - inset, h - inset)
                 val strokeCornerRadius = (cornerRadiusPx - inset).coerceAtLeast(0f)
-                val shader =
-                    SweepGradient(
-                        w / 2f,
-                        h / 2f,
-                        gradientColors,
-                        gradientStops,
-                    )
-                val matrix = Matrix()
                 val paint =
-                    Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
+                    Paint(Paint.ANTI_ALIAS_FLAG).apply {
                         isAntiAlias = true
-                        isDither = true
                         style = Paint.Style.STROKE
                         strokeWidth = borderWidthPx
                         strokeCap = Paint.Cap.ROUND
                         strokeJoin = Paint.Join.ROUND
-                        this.shader = shader
+                        color = borderColorArgb
                     }
 
                 onDrawWithContent {
                     drawContent()
-
-                    // Read the animated value in draw so 120 Hz devices only redraw the border
-                    // instead of forcing a full recomposition every frame.
-                    val rotationDegrees = if (paused) 0f else animatedRotation.value
-                    matrix.setRotate(rotationDegrees, w / 2f, h / 2f)
-                    shader.setLocalMatrix(matrix)
-
                     drawContext.canvas.nativeCanvas.drawRoundRect(
                         rect,
                         strokeCornerRadius,

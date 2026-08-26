@@ -24,31 +24,30 @@ import java.io.File
 class PluviaApp : Application() {
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
-    private fun isPs2Process(): Boolean {
-        val name =
-            if (android.os.Build.VERSION.SDK_INT >= 28) {
-                Application.getProcessName()
-            } else {
-                runCatching {
-                    val pid = android.os.Process.myPid()
-                    val am = getSystemService(ACTIVITY_SERVICE) as android.app.ActivityManager
-                    am.runningAppProcesses?.firstOrNull { it.pid == pid }?.processName
-                }.getOrNull()
-            }
-        return name?.endsWith(":ps2") == true || name?.endsWith(":gc") == true
-    }
-
     override fun onCreate() {
         super.onCreate()
         instance = this
 
+        // Capture whatever handler was installed before ours (Android/ART's own, plus
+        // anything a crash-reporting SDK may add later) so we can still hand off to it.
+        val previousUncaughtExceptionHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             Log.e("PluviaApp", "CRASH in thread ${thread.name}", throwable)
+            // Logging and returning here — without delegating onward — used to leave the
+            // process alive in a corrupted state after any background-thread crash
+            // (a wine/session/native callback thread, a coroutine, etc.), since Android
+            // only tears down and restarts the app if the crash actually propagates.
+            // That surfaced as the app randomly freezing or misbehaving instead of a
+            // clean crash, especially during long wine/game sessions. Always finish the
+            // job: hand off to the previous handler, or kill the process ourselves if
+            // there wasn't one.
+            if (previousUncaughtExceptionHandler != null) {
+                previousUncaughtExceptionHandler.uncaughtException(thread, throwable)
+            } else {
+                android.os.Process.killProcess(android.os.Process.myPid())
+                kotlin.system.exitProcess(10)
+            }
         }
-
-        com.winlator.cmod.feature.retro.Ps2GameOverlay.install()
-        com.winlator.cmod.feature.retro.DolphinGameOverlay.install()
-        if (isPs2Process()) return
 
         // Cached probe for devices whose native stack still needs system libjpeg preloaded.
         preloadSystemLibraries()

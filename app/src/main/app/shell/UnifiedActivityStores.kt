@@ -19,29 +19,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -262,16 +239,8 @@ internal fun UnifiedActivity.CompactActionButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.93f else 1f,
-        animationSpec = spring(dampingRatio = 0.6f, stiffness = 800f),
-        label = "btnScale",
-    )
-    val glowAlpha by animateFloatAsState(
-        targetValue = if (isPressed) 0.18f else 0f,
-        animationSpec = tween(durationMillis = 120),
-        label = "btnGlow",
-    )
+    val scale = if (isPressed) 0.93f else 1f
+    val glowAlpha = if (isPressed) 0.18f else 0f
     Surface(
         modifier =
             modifier
@@ -358,11 +327,7 @@ internal fun UnifiedActivity.GameCapsule(
     val clickInteraction = remember { MutableInteractionSource() }
     val isPressed by clickInteraction.collectIsPressedAsState()
     val isFocused = isControllerActive && isFocusedOverride
-    val glowAlpha by animateFloatAsState(
-        targetValue = if (isPressed) 0.7f else 0f,
-        animationSpec = if (isPressed) tween(100) else tween(400),
-        label = "capsuleGlow",
-    )
+    val glowAlpha = if (isPressed) 0.7f else 0f
     val clickModifier =
         Modifier
             .then(
@@ -401,7 +366,7 @@ internal fun UnifiedActivity.GameCapsule(
                         .data(customArtworkFile)
                         .memoryCacheKey(customArtworkCacheKey)
                         .diskCacheKey(customArtworkCacheKey)
-                        .crossfade(300)
+                        .crossfade(false)
                         .build(),
                 contentDescription = app.name,
                 modifier = artModifier,
@@ -415,7 +380,7 @@ internal fun UnifiedActivity.GameCapsule(
                         ImageRequest
                             .Builder(context)
                             .data(iconFile)
-                            .crossfade(300)
+                            .crossfade(false)
                             .build(),
                     contentDescription = app.name,
                     modifier = artModifier,
@@ -447,7 +412,7 @@ internal fun UnifiedActivity.GameCapsule(
                     ImageRequest
                         .Builder(context)
                         .data(imageModel)
-                        .crossfade(300)
+                        .crossfade(false)
                         .build(),
                 contentDescription = app.name,
                 modifier = artModifier,
@@ -477,7 +442,7 @@ internal fun UnifiedActivity.GameCapsule(
                         },
                     ).chasingBorder(
                         isFocused = isFocused,
-                        paused = chasingBordersPaused.value || !libraryTabActive.value,
+                        paused = true,
                         cornerRadius = 14.dp,
                     ).background(CardDark, RoundedCornerShape(14.dp))
                     .focusable()
@@ -490,7 +455,7 @@ internal fun UnifiedActivity.GameCapsule(
                         ImageRequest
                             .Builder(context)
                             .data(heroModel)
-                            .crossfade(300)
+                            .crossfade(false)
                             .build(),
                     contentDescription = null,
                     modifier =
@@ -508,7 +473,7 @@ internal fun UnifiedActivity.GameCapsule(
                                 ImageRequest
                                     .Builder(context)
                                     .data(heroFile)
-                                    .crossfade(300)
+                                    .crossfade(false)
                                     .build(),
                             contentDescription = null,
                             modifier =
@@ -538,9 +503,6 @@ internal fun UnifiedActivity.GameCapsule(
                             .clip(RoundedCornerShape(8.dp)),
                 ) {
                     ArtContent(Modifier.fillMaxSize())
-                    libraryBadgeLabel(app.id, isCustom)?.let { badge ->
-                        RetroConsoleRibbon(badge, Modifier.align(Alignment.CenterStart))
-                    }
                 }
 
                 Spacer(Modifier.width(14.dp))
@@ -574,7 +536,7 @@ internal fun UnifiedActivity.GameCapsule(
                         },
                     ).chasingBorder(
                         isFocused = isFocused,
-                        paused = chasingBordersPaused.value || !libraryTabActive.value,
+                        paused = true,
                         cornerRadius = 12.dp,
                     ).background(CardDark, RoundedCornerShape(12.dp))
                     .focusable()
@@ -588,9 +550,6 @@ internal fun UnifiedActivity.GameCapsule(
                         .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
             ) {
                 ArtContent(Modifier.fillMaxSize())
-                libraryBadgeLabel(app.id, isCustom)?.let { badge ->
-                    RetroConsoleRibbon(badge, Modifier.align(Alignment.CenterStart))
-                }
             }
 
             Text(
@@ -697,7 +656,7 @@ internal fun UnifiedActivity.EpicStoreTab(
             }
         LaunchedEffect(focusIndex, focusRequesters.size) {
             if (searchQuery.isEmpty() && focusRequesters.isNotEmpty() && focusIndex in focusRequesters.indices) {
-                gridState.animateScrollToItem(focusIndex)
+                gridState.scrollToItem(focusIndex)
                 try {
                     focusRequesters[focusIndex].requestFocus()
                 } catch (_: Exception) {
@@ -790,11 +749,7 @@ internal fun UnifiedActivity.EpicStoreCapsule(
     var isFocused by remember { mutableStateOf(false) }
     val clickInteraction = remember { MutableInteractionSource() }
     val isPressed by clickInteraction.collectIsPressedAsState()
-    val glowAlpha by animateFloatAsState(
-        targetValue = if (isPressed) 0.7f else 0f,
-        animationSpec = if (isPressed) tween(100) else tween(400),
-        label = "epicCapsuleGlow",
-    )
+    val glowAlpha = if (isPressed) 0.7f else 0f
     val effectiveFocus = isControllerActive && (isFocusedOverride || isFocused)
     val imageUrl = app.primaryImageUrl ?: app.iconUrl
 
@@ -808,7 +763,7 @@ internal fun UnifiedActivity.EpicStoreCapsule(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
                     .border(1.dp, borderColor, RoundedCornerShape(14.dp))
-                    .chasingBorder(isFocused = effectiveFocus, paused = chasingBordersPaused.value, cornerRadius = 14.dp)
+                    .chasingBorder(isFocused = effectiveFocus, paused = true, cornerRadius = 14.dp)
                     .background(CardDark, RoundedCornerShape(14.dp))
                     .onFocusChanged { isFocused = it.isFocused }
                     .focusable()
@@ -836,7 +791,7 @@ internal fun UnifiedActivity.EpicStoreCapsule(
                         ImageRequest
                             .Builder(context)
                             .data(imageUrl)
-                            .crossfade(300)
+                            .crossfade(false)
                             .build(),
                     contentDescription = app.title,
                     modifier = Modifier.fillMaxSize(),
@@ -870,7 +825,7 @@ internal fun UnifiedActivity.EpicStoreCapsule(
                 Modifier
                     .fillMaxSize()
                     .border(1.dp, borderColor, RoundedCornerShape(16.dp))
-                    .chasingBorder(isFocused = effectiveFocus, paused = chasingBordersPaused.value, cornerRadius = 16.dp)
+                    .chasingBorder(isFocused = effectiveFocus, paused = true, cornerRadius = 16.dp)
                     .background(CardDark, RoundedCornerShape(16.dp))
                     .onFocusChanged { isFocused = it.isFocused }
                     .focusable()
@@ -896,7 +851,7 @@ internal fun UnifiedActivity.EpicStoreCapsule(
                         ImageRequest
                             .Builder(context)
                             .data(imageUrl)
-                            .crossfade(300)
+                            .crossfade(false)
                             .build(),
                     contentDescription = app.title,
                     modifier = Modifier.fillMaxSize(),
@@ -1395,7 +1350,7 @@ internal fun UnifiedActivity.GOGStoreTab(
                             ImageRequest
                                 .Builder(LocalContext.current)
                                 .data(app.imageUrl.ifEmpty { app.iconUrl })
-                                .crossfade(300)
+                                .crossfade(false)
                                 .build(),
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
@@ -1428,7 +1383,7 @@ internal fun UnifiedActivity.GOGStoreTab(
             }
         LaunchedEffect(focusIndex, focusRequesters.size) {
             if (searchQuery.isEmpty() && focusRequesters.isNotEmpty() && focusIndex in focusRequesters.indices) {
-                gridState.animateScrollToItem(focusIndex)
+                gridState.scrollToItem(focusIndex)
                 try {
                     focusRequesters[focusIndex].requestFocus()
                 } catch (_: Exception) {
@@ -1456,7 +1411,7 @@ internal fun UnifiedActivity.GOGStoreTab(
                                 Modifier
                             },
                         ).border(1.dp, gogBorderColor, RoundedCornerShape(16.dp))
-                        .chasingBorder(isFocused = isItemFocused, paused = chasingBordersPaused.value, cornerRadius = 16.dp)
+                        .chasingBorder(isFocused = isItemFocused, paused = true, cornerRadius = 16.dp)
                         .background(CardDark, RoundedCornerShape(16.dp))
                         .clickable { selectedGameId.value = app.id },
             ) {
@@ -1471,7 +1426,7 @@ internal fun UnifiedActivity.GOGStoreTab(
                             ImageRequest
                                 .Builder(LocalContext.current)
                                 .data(app.imageUrl.ifEmpty { app.iconUrl })
-                                .crossfade(300)
+                                .crossfade(false)
                                 .build(),
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
@@ -2001,7 +1956,7 @@ internal fun UnifiedActivity.SteamStoreTab(
             }
         LaunchedEffect(focusIndex, focusRequesters.size) {
             if (searchQuery.isEmpty() && focusRequesters.isNotEmpty() && focusIndex in focusRequesters.indices) {
-                gridState.animateScrollToItem(focusIndex)
+                gridState.scrollToItem(focusIndex)
                 try {
                     focusRequesters[focusIndex].requestFocus()
                 } catch (_: Exception) {
@@ -2064,11 +2019,7 @@ internal fun UnifiedActivity.SteamStoreCapsule(
     var isFocused by remember { mutableStateOf(false) }
     val clickInteraction = remember { MutableInteractionSource() }
     val isPressed by clickInteraction.collectIsPressedAsState()
-    val glowAlpha by animateFloatAsState(
-        targetValue = if (isPressed) 0.7f else 0f,
-        animationSpec = if (isPressed) tween(100) else tween(400),
-        label = "steamCapsuleGlow",
-    )
+    val glowAlpha = if (isPressed) 0.7f else 0f
     val effectiveFocus = isControllerActive && (isFocusedOverride || isFocused)
     val borderColor = if (isControllerActive) CardBorder else Color.Transparent
 
@@ -2079,7 +2030,7 @@ internal fun UnifiedActivity.SteamStoreCapsule(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
                     .border(1.dp, borderColor, RoundedCornerShape(14.dp))
-                    .chasingBorder(isFocused = effectiveFocus, paused = chasingBordersPaused.value, cornerRadius = 14.dp)
+                    .chasingBorder(isFocused = effectiveFocus, paused = true, cornerRadius = 14.dp)
                     .background(CardDark, RoundedCornerShape(14.dp))
                     .onFocusChanged { isFocused = it.isFocused }
                     .focusable()
@@ -2100,7 +2051,7 @@ internal fun UnifiedActivity.SteamStoreCapsule(
                     ImageRequest
                         .Builder(context)
                         .data(app.getHeroUrl())
-                        .crossfade(300)
+                        .crossfade(false)
                         .build(),
                 contentDescription = null,
                 modifier =
@@ -2129,7 +2080,7 @@ internal fun UnifiedActivity.SteamStoreCapsule(
                             ImageRequest
                                 .Builder(context)
                                 .data(app.getSmallCapsuleUrl())
-                                .crossfade(300)
+                                .crossfade(false)
                                 .build(),
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
@@ -2164,7 +2115,7 @@ internal fun UnifiedActivity.SteamStoreCapsule(
                 Modifier
                     .fillMaxSize()
                     .border(1.dp, borderColor, RoundedCornerShape(16.dp))
-                    .chasingBorder(isFocused = effectiveFocus, paused = chasingBordersPaused.value, cornerRadius = 16.dp)
+                    .chasingBorder(isFocused = effectiveFocus, paused = true, cornerRadius = 16.dp)
                     .background(CardDark, RoundedCornerShape(16.dp))
                     .onFocusChanged { isFocused = it.isFocused }
                     .focusable()
@@ -2192,7 +2143,7 @@ internal fun UnifiedActivity.SteamStoreCapsule(
                         ImageRequest
                             .Builder(context)
                             .data(imageUrl)
-                            .crossfade(300)
+                            .crossfade(false)
                             .build(),
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),

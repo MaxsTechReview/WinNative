@@ -3,8 +3,6 @@ package com.winlator.cmod.shared.ui.focus
 import android.os.SystemClock
 import android.view.InputDevice
 import android.view.MotionEvent
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.focusable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -26,7 +24,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-private val AccentBorder = Color(0xFF00D7F5)
+private val AccentBorder = Color(0xFFFF7A00)
 
 fun Modifier.controllerFocusBorder(
     cornerRadius: Dp = 10.dp,
@@ -59,26 +57,24 @@ fun Modifier.controllerFocusGlow(
 ): Modifier =
     composed {
         var focused by remember { mutableStateOf(false) }
-        val intensity by animateFloatAsState(
-            targetValue = if (focused) 1f else 0f,
-            animationSpec = tween(160),
-            label = "controllerFocusGlow",
-        )
+        val intensity = if (focused) 1f else 0f
         this
             .onFocusChanged { focused = it.isFocused }
             .drawWithContent {
-                val cr = cornerRadius.toPx()
-                if (intensity > 0f) {
-                    drawRoundRect(
-                        color = color.copy(alpha = 0.28f * intensity),
-                        cornerRadius = CornerRadius(cr, cr),
-                    )
-                }
                 drawContent()
+                // Flat single-stroke focus border instead of a filled glow
+                // halo drawn behind and in front of the content - same focus
+                // affordance, one draw instead of two, and it reads as a
+                // plain highlight rather than a soft glow.
                 if (intensity > 0f) {
+                    val bw = 2.dp.toPx()
+                    val cr = cornerRadius.toPx()
                     drawRoundRect(
-                        color = color.copy(alpha = 0.12f * intensity),
+                        color = color.copy(alpha = 0.9f * intensity),
+                        topLeft = Offset(bw / 2, bw / 2),
+                        size = Size(size.width - bw, size.height - bw),
                         cornerRadius = CornerRadius(cr, cr),
+                        style = Stroke(width = bw),
                     )
                 }
             }
@@ -91,11 +87,7 @@ fun Modifier.controllerFocusItem(
 ): Modifier =
     composed {
         var focused by remember { mutableStateOf(false) }
-        val intensity by animateFloatAsState(
-            targetValue = if (focused) 1f else 0f,
-            animationSpec = tween(160),
-            label = "controllerFocusItem",
-        )
+        val intensity = if (focused) 1f else 0f
         this
             .onFocusChanged { focused = it.isFocused }
             .then(
@@ -123,18 +115,18 @@ fun Modifier.controllerFocusItem(
                 },
             ).focusable()
             .drawWithContent {
-                val cr = cornerRadius.toPx()
-                if (intensity > 0f) {
-                    drawRoundRect(
-                        color = color.copy(alpha = 0.28f * intensity),
-                        cornerRadius = CornerRadius(cr, cr),
-                    )
-                }
                 drawContent()
+                // Flat single-stroke focus border, same rationale as
+                // controllerFocusGlow above.
                 if (intensity > 0f) {
+                    val bw = 2.dp.toPx()
+                    val cr = cornerRadius.toPx()
                     drawRoundRect(
-                        color = color.copy(alpha = 0.12f * intensity),
+                        color = color.copy(alpha = 0.9f * intensity),
+                        topLeft = Offset(bw / 2, bw / 2),
+                        size = Size(size.width - bw, size.height - bw),
                         cornerRadius = CornerRadius(cr, cr),
+                        style = Stroke(width = bw),
                     )
                 }
             }

@@ -2,18 +2,6 @@ package com.winlator.cmod.app.shell
 
 import android.os.Build
 import android.view.WindowManager
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -82,7 +70,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -121,10 +108,10 @@ internal data class StoreDlcItem(
 
 private val StoreBlack = Color.Black
 private val StoreCard = Color(0xFF12121B)
-private val StoreAccent = Color(0xFF1A9FFF)
-private val StoreAccentGlow = Color(0xFF58A6FF)
-private val StoreTextPrimary = Color(0xFFF0F4FF)
-private val StoreTextSecondary = Color(0xFF93A6BC)
+private val StoreAccent = Color(0xFFFF7A00)
+private val StoreAccentGlow = Color(0xFFFFB74D)
+private val StoreTextPrimary = Color(0xFFF5F0EA)
+private val StoreTextSecondary = Color(0xFFC7A88F)
 private val StoreDanger = Color(0xFFFF6B6B)
 
 @Composable
@@ -190,11 +177,21 @@ internal fun StoreGameDetailScreen(
         Box(Modifier.fillMaxSize()) {
         val edgePadding = 22.dp
         val bottomPadding = 8.dp
-        val actionIconSize = 48.dp
+        // The stat-chip row and the action-button column share one horizontal Row; on a
+        // narrow phone-portrait width the fixed landscape sizing below would starve the
+        // FlowRow of stat chips down to almost nothing, so scale both down together.
+        val detailScreenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
+        val isNarrowDetail = detailScreenWidth < 480.dp
+        val actionIconSize = if (isNarrowDetail) 40.dp else 48.dp
         val actionIconSpacing = 8.dp
-        val actionWidth = actionIconSize * 5 + actionIconSpacing * 4
-        val ctaHeight = 56.dp
-        val contentGap = 18.dp
+        val actionWidth =
+            if (isNarrowDetail) {
+                (detailScreenWidth * 0.42f).coerceAtMost(actionIconSize * 5 + actionIconSpacing * 4)
+            } else {
+                actionIconSize * 5 + actionIconSpacing * 4
+            }
+        val ctaHeight = if (isNarrowDetail) 48.dp else 56.dp
+        val contentGap = if (isNarrowDetail) 10.dp else 18.dp
         val horizontalNavInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
         val hasSelectedInstallableDlc = dlcs.any { !it.isInstalled && it.id in selectedDlcIds }
         val showDownloadCta = !isInstalled || hasSelectedInstallableDlc
@@ -214,7 +211,7 @@ internal fun StoreGameDetailScreen(
                     ImageRequest
                         .Builder(context)
                         .data(heroImageUrl)
-                        .crossfade(150)
+                        .crossfade(false)
                         .memoryCachePolicy(CachePolicy.ENABLED)
                         .diskCachePolicy(CachePolicy.ENABLED)
                         .build()
@@ -656,11 +653,7 @@ private fun StoreDlcCard(
                 )
             }
 
-            AnimatedVisibility(
-                visible = expanded,
-                enter = expandVertically(),
-                exit = shrinkVertically(),
-            ) {
+            if (expanded) {
                 Column {
                     StoreDlcDivider()
                     if (selectableDlcs.isNotEmpty()) {
@@ -926,9 +919,7 @@ private fun StoreSourceActionPopup(
     offset: IntOffset,
     content: @Composable () -> Unit,
 ) {
-    val transitionState = remember { MutableTransitionState(false) }
-    transitionState.targetState = expanded
-    if (!transitionState.currentState && !transitionState.targetState) return
+    if (!expanded) return
 
     Popup(
         alignment = Alignment.TopEnd,
@@ -936,36 +927,14 @@ private fun StoreSourceActionPopup(
         onDismissRequest = onDismissRequest,
         properties = PopupProperties(focusable = false),
     ) {
-        AnimatedVisibility(
-            visibleState = transitionState,
-            enter =
-                fadeIn(animationSpec = tween(durationMillis = 90)) +
-                    scaleIn(
-                        animationSpec =
-                            spring(
-                                dampingRatio = 0.78f,
-                                stiffness = Spring.StiffnessMediumLow,
-                            ),
-                        initialScale = 0.88f,
-                        transformOrigin = TransformOrigin(1f, 0f),
-                    ),
-            exit =
-                fadeOut(animationSpec = tween(durationMillis = 80)) +
-                    scaleOut(
-                        animationSpec = tween(durationMillis = 110),
-                        targetScale = 0.92f,
-                        transformOrigin = TransformOrigin(1f, 0f),
-                    ),
+        Surface(
+            color = StoreBlack.copy(alpha = 0.78f),
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f)),
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
         ) {
-            Surface(
-                color = StoreBlack.copy(alpha = 0.78f),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f)),
-                tonalElevation = 0.dp,
-                shadowElevation = 16.dp,
-            ) {
-                Column { content() }
-            }
+            Column { content() }
         }
     }
 }
@@ -1096,62 +1065,13 @@ private fun StoreCtaButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed && enabled) 0.96f else 1f,
-        animationSpec = spring(dampingRatio = 0.5f, stiffness = 600f),
-        label = "storeCtaScale",
-    )
-    val flare by animateFloatAsState(
-        targetValue = if (isPressed && enabled) 1f else 0f,
-        animationSpec = spring(dampingRatio = 0.6f, stiffness = 500f),
-        label = "storeCtaFlare",
-    )
+    val scale = if (isPressed && enabled) 0.96f else 1f
     val shape = remember { RoundedCornerShape(14.dp) }
-    val activeBrush =
-        Brush.horizontalGradient(
-            colors =
-                listOf(
-                    Color(0xFF00B4D8).copy(alpha = 0.38f),
-                    StoreAccent.copy(alpha = 0.38f),
-                    Color(0xFF7B2FF7).copy(alpha = 0.38f),
-                ),
-        )
-    val disabledBrush =
-        Brush.horizontalGradient(
-            colors =
-                listOf(
-                    Color(0xFF3A3A4A).copy(alpha = 0.35f),
-                    Color(0xFF2A2A36).copy(alpha = 0.35f),
-                ),
-        )
-    val glassSheenBrush =
-        if (enabled) {
-            Brush.verticalGradient(
-                0.00f to Color.White.copy(alpha = 0.28f),
-                0.35f to Color.White.copy(alpha = 0.06f),
-                0.55f to Color.Transparent,
-                1.00f to Color.Black.copy(alpha = 0.12f),
-            )
-        } else {
-            Brush.verticalGradient(
-                0.0f to Color.White.copy(alpha = 0.10f),
-                0.6f to Color.Transparent,
-                1.0f to Color.Black.copy(alpha = 0.08f),
-            )
-        }
-    val glassRimBrush =
-        if (enabled) {
-            Brush.verticalGradient(
-                0.0f to Color.White.copy(alpha = 0.55f + 0.35f * flare),
-                0.5f to Color.White.copy(alpha = 0.08f + 0.18f * flare),
-                1.0f to Color.White.copy(alpha = 0.22f + 0.22f * flare),
-            )
-        } else {
-            Brush.verticalGradient(
-                0.0f to Color.White.copy(alpha = 0.16f),
-                1.0f to Color.White.copy(alpha = 0.04f),
-            )
-        }
+    // Flat single-color fill and border instead of the previous layered
+    // background/sheen/rim gradients - same enabled/disabled distinction,
+    // no glass-sheen look, no press-driven gradient recompute.
+    val backgroundColor = if (enabled) StoreAccent else Color(0xFF2E2E38).copy(alpha = 0.9f)
+    val borderColor = if (enabled) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f)
     Box(
         modifier =
             Modifier
@@ -1168,9 +1088,8 @@ private fun StoreCtaButton(
                     navRow = navRow,
                     navCol = navCol,
                 )
-                .background(if (enabled) activeBrush else disabledBrush)
-                .background(glassSheenBrush)
-                .border(1.dp, glassRimBrush, shape)
+                .background(backgroundColor)
+                .border(1.dp, borderColor, shape)
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,

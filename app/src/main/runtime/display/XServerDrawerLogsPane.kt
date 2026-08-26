@@ -300,7 +300,7 @@ internal fun LogsPaneActionTile(
     val pressed = interactionSource.collectIsPressedAsState().value
     val tint by animateColorAsState(
         targetValue = if (pressed) DrawerAccent else DrawerTextPrimary,
-        animationSpec = tween(120),
+        animationSpec = tween(0),
         label = "logsActionTileTint",
     )
     Box(

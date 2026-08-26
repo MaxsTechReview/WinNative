@@ -71,6 +71,10 @@ public class SessionKeepAliveService extends Service {
                 Log.d(TAG, "Running periodic OOM protection for wine processes");
                 new Thread(() -> {
                     try {
+                        android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND);
+                    } catch (Throwable ignored) {
+                    }
+                    try {
                         ProcessHelper.protectAllWineProcesses();
                     } catch (Exception e) {
                         Log.e(TAG, "Failed to run OOM protection", e);

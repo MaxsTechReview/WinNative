@@ -37,7 +37,7 @@ internal const val PANE_DIR_ACTIVATE = 5
 internal const val PANE_DIR_SECONDARY = 6
 internal const val PANE_ROW_Y_THRESHOLD = 24f
 
-private val PaneDefaultHighlight = Color(0xFF2196F3)
+private val PaneDefaultHighlight = Color(0xFFFF7A00)
 
 private class PaneNavEntry(
     var x: Float,

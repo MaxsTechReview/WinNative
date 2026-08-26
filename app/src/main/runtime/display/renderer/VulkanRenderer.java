@@ -299,6 +299,7 @@ public class VulkanRenderer
     public void onSurfaceChanged(int width, int height) {
         surfaceWidth = width;
         surfaceHeight = height;
+        viewTransformation.forceStretch = fullscreen;
         viewTransformation.update(width, height,
                 xServer.screenInfo.width, xServer.screenInfo.height);
         viewportNeedsUpdate = true;
@@ -325,6 +326,7 @@ public class VulkanRenderer
             if (actualW > 0 && actualH > 0 && (actualW != surfaceWidth || actualH != surfaceHeight)) {
                 surfaceWidth = actualW;
                 surfaceHeight = actualH;
+                viewTransformation.forceStretch = fullscreen;
                 viewTransformation.update(actualW, actualH,
                         xServer.screenInfo.width, xServer.screenInfo.height);
                 viewportNeedsUpdate = true;
@@ -355,18 +357,13 @@ public class VulkanRenderer
 
         final ByteBuffer buf = sceneBuf;
 
-        int viewX, viewY, viewW, viewH;
-        if (fullscreen) {
-            viewX = 0;
-            viewY = 0;
-            viewW = surfaceWidth;
-            viewH = surfaceHeight;
-        } else {
-            viewX = viewTransformation.viewOffsetX;
-            viewY = viewTransformation.viewOffsetY;
-            viewW = viewTransformation.viewWidth;
-            viewH = viewTransformation.viewHeight;
-        }
+        // viewTransformation.forceStretch mirrors 'fullscreen' (set on every update() call
+        // above), so when fullscreen is on this is already (0,0,surfaceWidth,surfaceHeight) -
+        // no need for a second, separately-written copy of that formula here.
+        int viewX = viewTransformation.viewOffsetX;
+        int viewY = viewTransformation.viewOffsetY;
+        int viewW = viewTransformation.viewWidth;
+        int viewH = viewTransformation.viewHeight;
         buf.putInt(OFF_VIEWPORT,      viewX);
         buf.putInt(OFF_VIEWPORT + 4,  viewY);
         buf.putInt(OFF_VIEWPORT + 8,  viewW);
@@ -683,6 +680,7 @@ public class VulkanRenderer
         int oldViewOffsetX = viewTransformation.viewOffsetX;
         int oldViewOffsetY = viewTransformation.viewOffsetY;
         if (surfaceWidth > 0 && surfaceHeight > 0) {
+            viewTransformation.forceStretch = fullscreen;
             viewTransformation.update(surfaceWidth, surfaceHeight,
                     xServer.screenInfo.width, xServer.screenInfo.height);
         }
@@ -702,6 +700,11 @@ public class VulkanRenderer
 
     public void toggleFullscreen() {
         fullscreen = !fullscreen;
+        if (surfaceWidth > 0 && surfaceHeight > 0) {
+            viewTransformation.forceStretch = fullscreen;
+            viewTransformation.update(surfaceWidth, surfaceHeight,
+                    xServer.screenInfo.width, xServer.screenInfo.height);
+        }
         viewportNeedsUpdate = true;
         requestRenderCoalesced();
     }
@@ -809,6 +812,7 @@ public class VulkanRenderer
         if (viewTransformation.mode == mode) return;
         viewTransformation.mode = mode;
         if (surfaceWidth > 0 && surfaceHeight > 0) {
+            viewTransformation.forceStretch = fullscreen;
             viewTransformation.update(surfaceWidth, surfaceHeight,
                     xServer.screenInfo.width, xServer.screenInfo.height);
         }
@@ -838,6 +842,7 @@ public class VulkanRenderer
         if (w <= 0 || h <= 0) return;
         surfaceWidth = w;
         surfaceHeight = h;
+        viewTransformation.forceStretch = fullscreen;
         viewTransformation.update(w, h, xServer.screenInfo.width, xServer.screenInfo.height);
         viewportNeedsUpdate = true;
         if (xServerView != null) xServerView.requestRender();

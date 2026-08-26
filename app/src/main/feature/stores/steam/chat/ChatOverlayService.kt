@@ -17,9 +17,9 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.scaleIn
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -76,7 +76,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -157,9 +156,9 @@ private val WsBg = Color(0xFF12121B)
 private val BgDark = Color(0xFF171722)
 private val SurfaceDark = Color(0xFF1B1B27)
 private val CardBorder = Color(0xFF2A2A3A)
-private val Accent = Color(0xFF1A9FFF)
-private val TextPrimary = Color(0xFFF0F4FF)
-private val TextSecondary = Color(0xFF93A6BC)
+private val Accent = Color(0xFFFF7A00)
+private val TextPrimary = Color(0xFFF5F0EA)
+private val TextSecondary = Color(0xFFC7A88F)
 private val Danger = Color(0xFFFF5A5A)
 
 /** Floating chat heads rendered as a system overlay so they work over games. */
@@ -622,8 +621,6 @@ class ChatOverlayService : Service() {
             (bubbleX.intValue + bubbleSizePx + gapPx).coerceAtMost((screenW - panelWpx - marginPx).coerceAtLeast(marginPx))
         }
         val panelYpx = bubbleY.intValue.coerceIn(marginPx, (screenH - panelHpx - marginPx).coerceAtLeast(marginPx))
-        val originY = if (panelHpx > 0) ((bubbleY.intValue - panelYpx).toFloat() / panelHpx).coerceIn(0f, 1f) else 0f
-        val origin = TransformOrigin(if (rightSide) 1f else 0f, originY)
 
         LaunchedEffect(convId) { panelNav.reset() }
         CompositionLocalProvider(LocalPaneNav provides panelNav) {
@@ -636,7 +633,7 @@ class ChatOverlayService : Service() {
             )
             AnimatedVisibility(
                 visible = visible,
-                enter = scaleIn(transformOrigin = origin) + fadeIn(),
+                enter = EnterTransition.None,
                 modifier = Modifier.offset { IntOffset(panelXpx, panelYpx) },
             ) {
                 Surface(
@@ -687,7 +684,12 @@ class ChatOverlayService : Service() {
                                 Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.steam_common_back), tint = TextSecondary)
                             }
                         }
-                        Crossfade(targetState = convId, label = "panelBody", modifier = Modifier.weight(1f)) { id ->
+                        Crossfade(
+                            targetState = convId,
+                            label = "panelBody",
+                            modifier = Modifier.weight(1f),
+                            animationSpec = tween(0),
+                        ) { id ->
                             val conv = friends.firstOrNull { it.steamId == id }
                             if (id != 0L && conv != null) {
                                 ConversationView(conv, Modifier.fillMaxSize())

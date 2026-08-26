@@ -167,16 +167,6 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             setContent {
                 WinNativeTheme {
                     val defaultDensity = LocalDensity.current
-                    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-                    androidx.compose.runtime.LaunchedEffect(
-                        configuration.orientation,
-                        configuration.screenWidthDp,
-                        configuration.screenHeightDp,
-                    ) {
-                        val w = dialog.window
-                        w?.applyDialogLayout()
-                        w?.decorView?.post { w.applyDialogLayout() }
-                    }
                     CompositionLocalProvider(
                         LocalDensity provides Density(defaultDensity.density, fontScale = 1f)
                     ) {

@@ -487,7 +487,7 @@ internal fun GyroscopeActivatorDropdown(
     val pressed = interactionSource.collectIsPressedAsState().value
     val bgColor by animateColorAsState(
         targetValue = if (pressed) PaneInnerPressed else PaneInnerResting,
-        animationSpec = tween(140),
+        animationSpec = tween(0),
         label = "gyroActivatorDropdownBg",
     )
 

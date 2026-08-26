@@ -8,12 +8,6 @@ import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
 import androidx.annotation.StringRes
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -78,18 +72,12 @@ class ContainerProgressPopup(
                         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        AnimatedVisibility(
-                            visible = visible.value,
-                            enter = fadeIn(tween(180)) +
-                                scaleIn(tween(180), initialScale = 0.9f),
-                            exit = fadeOut(tween(120)) +
-                                scaleOut(tween(120), targetScale = 0.9f),
-                        ) {
+                        if (visible.value) {
                             PopupDialog(
                                 title = stringResource(titleRes),
                                 icon = Icons.Outlined.Info,
                                 progress = progress.value,
-                                accentColor = Color(0xFF1A9FFF),
+                                accentColor = Color(0xFFFF7A00),
                                 modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
                             )
                         }

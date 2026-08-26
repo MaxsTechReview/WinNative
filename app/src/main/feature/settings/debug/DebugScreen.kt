@@ -1,14 +1,4 @@
 package com.winlator.cmod.feature.settings
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -122,7 +112,6 @@ import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
 import com.winlator.cmod.shared.ui.nav.paneNavHandlers
 import com.winlator.cmod.shared.ui.nav.paneNavItem
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.SideEffect
@@ -137,13 +126,13 @@ private val BgDark = Color(0xFF11111C)
 private val CardDark = Color(0xFF1C1C2A)
 private val CardBorder = Color(0xFF2A2A3A)
 private val IconBoxBg = Color(0xFF242434)
-private val SurfaceDark = Color(0xFF21212A)
-private val Accent = Color(0xFF1A9FFF)
-private val NavHighlight = Color(0xFF4FC3F7)
+private val SurfaceDark = Color(0xFF0D0D0D)
+private val Accent = Color(0xFFFF7A00)
+private val NavHighlight = Color(0xFFFFB74D)
 private val Warning = Color(0xFFFF4444)
 private val Success = Color(0xFF7CC142)
-private val TextPrimary = Color(0xFFF0F4FF)
-private val TextSecondary = Color(0xFF7A8FA8)
+private val TextPrimary = Color(0xFFF5F0EA)
+private val TextSecondary = Color(0xFFAD9782)
 
 // State
 data class DebugState(
@@ -724,11 +713,7 @@ private fun SmallActionButton(
     onClick: () -> Unit,
 ) {
     var isPressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.93f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
-        label = "debugBtnScale",
-    )
+    val scale = if (isPressed) 0.93f else 1f
     Box(
         modifier =
             Modifier
@@ -789,7 +774,7 @@ private fun WineChannelsDialog(
             bounds.first - margin < viewportTop -> bounds.first - margin - viewportTop
             else -> 0f
         }
-        if (delta != 0f) runCatching { gridState.animateScrollBy(delta) }
+        if (delta != 0f) runCatching { gridState.scrollBy(delta) }
     }
     val toFooter: () -> Unit = {
         footerZone = true
@@ -802,7 +787,7 @@ private fun WineChannelsDialog(
             if (gridState.canScrollForward) {
                 val b = contentRegistry.activeItemBounds()
                 val step = if (b != null) (b.second - b.first) + with(density) { 8.dp.toPx() } else viewportHeight * 0.3f
-                scope.launch { runCatching { gridState.animateScrollBy(step) } }
+                scope.launch { runCatching { gridState.scrollBy(step) } }
             } else {
                 toFooter()
             }
@@ -1001,11 +986,7 @@ private fun RowScope.LogActionButton(
     sublabel: String? = null,
 ) {
     var isPressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.96f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
-        label = "logActionScale",
-    )
+    val scale = if (isPressed) 0.96f else 1f
     Row(
         modifier =
             Modifier
@@ -1132,24 +1113,8 @@ private fun LogsBrowserDialog(
                         .padding(horizontal = 16.dp, vertical = 14.dp),
             ) {
                 Column(modifier = Modifier.fillMaxHeight()) {
-                    AnimatedContent(
-                        targetState = selected,
-                        transitionSpec = {
-                            val forward = targetState != null
-                            val direction =
-                                if (forward) {
-                                    AnimatedContentTransitionScope.SlideDirection.Left
-                                } else {
-                                    AnimatedContentTransitionScope.SlideDirection.Right
-                                }
-                            (slideIntoContainer(direction, tween(280)) + fadeIn(tween(280)))
-                                .togetherWith(
-                                    slideOutOfContainer(direction, tween(280)) + fadeOut(tween(280)),
-                                )
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                        label = "logsBrowserNav",
-                    ) { target ->
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        val target = selected
                         if (target == null) {
                             LogFileListView(
                                 files = files,
@@ -1210,11 +1175,7 @@ private fun LogsBrowserDialog(
 @Composable
 private fun LogsHeaderShareAll(onClick: () -> Unit) {
     var isPressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.93f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
-        label = "shareAllScale",
-    )
+    val scale = if (isPressed) 0.93f else 1f
     Row(
         modifier =
             Modifier
@@ -1255,11 +1216,7 @@ private fun LogsHeaderShareAll(onClick: () -> Unit) {
 @Composable
 private fun LogsHeaderDownloadAll(onClick: () -> Unit) {
     var isPressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.93f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
-        label = "downloadAllScale",
-    )
+    val scale = if (isPressed) 0.93f else 1f
     Row(
         modifier =
             Modifier
@@ -1300,11 +1257,7 @@ private fun LogsHeaderDownloadAll(onClick: () -> Unit) {
 @Composable
 private fun LogsHeaderDeleteAll(onClick: () -> Unit) {
     var isPressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.93f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
-        label = "deleteAllScale",
-    )
+    val scale = if (isPressed) 0.93f else 1f
     Row(
         modifier =
             Modifier
@@ -1406,7 +1359,7 @@ private fun ColumnScope.LogFileList(
                 bounds.first - margin < viewportTop -> bounds.first - margin - viewportTop
                 else -> 0f
             }
-            if (delta != 0f) runCatching { listState.animateScrollBy(delta) }
+            if (delta != 0f) runCatching { listState.scrollBy(delta) }
         }
         SideEffect {
             val rowStep: () -> Float = {
@@ -1414,10 +1367,10 @@ private fun ColumnScope.LogFileList(
                 if (b != null) (b.second - b.first) + with(density) { 8.dp.toPx() } else viewportHeight * 0.3f
             }
             nav.onEdgeDown = {
-                if (listState.canScrollForward) scope.launch { runCatching { listState.animateScrollBy(rowStep()) } }
+                if (listState.canScrollForward) scope.launch { runCatching { listState.scrollBy(rowStep()) } }
             }
             nav.onEdgeUp = {
-                if (listState.canScrollBackward) scope.launch { runCatching { listState.animateScrollBy(-rowStep()) } }
+                if (listState.canScrollBackward) scope.launch { runCatching { listState.scrollBy(-rowStep()) } }
             }
         }
     }
@@ -1613,11 +1566,7 @@ private fun LogDetailView(
     LaunchedEffect(entry.absolutePath) {
         content = withContext(Dispatchers.IO) { onReadLogFile(entry) }
     }
-    val titleAlpha by animateFloatAsState(
-        targetValue = if (content != null) 1f else 0f,
-        animationSpec = tween(durationMillis = 320),
-        label = "logTitleFade",
-    )
+    val titleAlpha = if (content != null) 1f else 0f
     Column(modifier = Modifier.fillMaxSize()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             LogsHeaderIcon(
@@ -1668,24 +1617,14 @@ private fun LogContentBody(
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier) {
-        AnimatedVisibility(
-            visible = content == null,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier.align(Alignment.Center),
-        ) {
+        if (content == null) {
             CircularProgressIndicator(
                 color = Accent,
                 strokeWidth = 3.dp,
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(40.dp).align(Alignment.Center),
             )
         }
-        AnimatedVisibility(
-            visible = content != null,
-            enter = fadeIn(animationSpec = tween(durationMillis = 320)),
-            exit = fadeOut(),
-            modifier = Modifier.fillMaxSize(),
-        ) {
+        if (content != null) {
             Column(modifier = Modifier.fillMaxSize()) {
                 Text(
                     text = "${entry.sizeText} · ${entry.dateText}",
@@ -1701,15 +1640,7 @@ private fun LogContentBody(
                         withFrameNanos { }
                     }
                 }
-                val scrollbarAlpha by animateFloatAsState(
-                    targetValue = if (logScrollState.isScrollInProgress) 1f else 0f,
-                    animationSpec =
-                        tween(
-                            durationMillis = if (logScrollState.isScrollInProgress) 150 else 500,
-                            delayMillis = if (logScrollState.isScrollInProgress) 0 else 300,
-                        ),
-                    label = "scrollbarAlpha",
-                )
+                val scrollbarAlpha = if (logScrollState.isScrollInProgress) 1f else 0f
                 Box(
                     modifier =
                         Modifier

@@ -1,14 +1,6 @@
 @file:OptIn(ExperimentalMaterial3Api::class)
 
 package com.winlator.cmod.feature.settings
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,7 +29,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -130,10 +122,10 @@ private val InputSubcard = Color(0xFF161622)
 private val InputField = Color(0xFF14141E)
 private val InputOutline = Color(0xFF2A2A3A)
 private val InputIconBox = Color(0xFF242434)
-private val InputAccent = Color(0xFF1A9FFF)
-private val InputNavHighlight = Color(0xFF4FC3F7)
-private val InputTextPrimary = Color(0xFFF0F4FF)
-private val InputTextSecondary = Color(0xFF7A8FA8)
+private val InputAccent = Color(0xFFFF7A00)
+private val InputNavHighlight = Color(0xFFFFB74D)
+private val InputTextPrimary = Color(0xFFF5F0EA)
+private val InputTextSecondary = Color(0xFFAD9782)
 private val InputDanger = Color(0xFFFF7A88)
 private val InputTickHidden = Color.Transparent
 
@@ -864,7 +856,7 @@ private fun InputFixedFooterDialogShell(
                                     bounds.first - margin < viewportTop -> bounds.first - margin - viewportTop
                                     else -> 0f
                                 }
-                            if (delta != 0f) runCatching { scrollState.animateScrollBy(delta) }
+                            if (delta != 0f) runCatching { scrollState.scrollBy(delta) }
                         }
                         Column(
                             modifier =
@@ -1374,11 +1366,7 @@ private fun ProfileCard(
 ) {
     val selectionInteraction = remember { MutableInteractionSource() }
     val selectorPressed by selectionInteraction.collectIsPressedAsState()
-    val selectorTint by animateFloatAsState(
-        targetValue = if (selectorPressed) 1f else 0f,
-        animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing),
-        label = "profileSelectorPressed",
-    )
+    val selectorTint = if (selectorPressed) 1f else 0f
 
     CardShell(
         horizontalPadding = 10.dp,
@@ -1784,11 +1772,7 @@ private fun Subcard(
     onToggleExpanded: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    val chevronRotation by animateFloatAsState(
-        targetValue = if (expanded) 180f else 0f,
-        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-        label = "subcardChevronRotation",
-    )
+    val chevronRotation = if (expanded) 180f else 0f
     val borderColor = if (expanded) InputAccent.copy(alpha = 0.45f) else InputOutline
 
     Column(
@@ -1830,21 +1814,7 @@ private fun Subcard(
             )
         }
 
-        AnimatedVisibility(
-            visible = expanded,
-            enter =
-                fadeIn(tween(110)) +
-                    expandVertically(
-                        animationSpec = tween(durationMillis = 170, easing = FastOutSlowInEasing),
-                        expandFrom = Alignment.Top,
-                    ),
-            exit =
-                fadeOut(tween(90)) +
-                    shrinkVertically(
-                        animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
-                        shrinkTowards = Alignment.Top,
-                    ),
-        ) {
+        if (expanded) {
             Column(
                 modifier =
                     Modifier
@@ -2122,11 +2092,7 @@ private fun GestureProfileCard(
 ) {
     val selectionInteraction = remember { MutableInteractionSource() }
     val selectorPressed by selectionInteraction.collectIsPressedAsState()
-    val selectorTint by animateFloatAsState(
-        targetValue = if (selectorPressed) 1f else 0f,
-        animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing),
-        label = "gestureSelectorPressed",
-    )
+    val selectorTint = if (selectorPressed) 1f else 0f
 
     CardShell(
         horizontalPadding = 10.dp,

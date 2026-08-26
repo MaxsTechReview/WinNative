@@ -1,11 +1,10 @@
 package com.winlator.cmod.feature.library
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,6 +17,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -40,12 +40,6 @@ import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.layout.FlowRowScope
-import androidx.compose.foundation.layout.PaddingValues
-import com.winlator.cmod.shared.ui.layout.isPortraitLayout
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -201,6 +195,7 @@ class GameSettingsNav {
     var sidebarIndex by mutableStateOf(0)
     var sidebarCount by mutableStateOf(0)
     var actionCol by mutableStateOf(0)
+    var horizontalSidebar by mutableStateOf(false)
     var contentSignal by mutableStateOf(0)
         private set
     var contentDir by mutableStateOf(0)
@@ -229,12 +224,29 @@ class GameSettingsNav {
             return
         }
         when (dir) {
-            PANE_DIR_UP -> moveSidebar(-1)
-            PANE_DIR_DOWN -> moveSidebar(1)
-            PANE_DIR_LEFT -> if (onActionRow && actionCol == 1) actionCol = 0
+            PANE_DIR_UP ->
+                if (horizontalSidebar) {
+                    enterContent()
+                } else {
+                    moveSidebar(-1)
+                }
+            PANE_DIR_DOWN ->
+                if (horizontalSidebar) {
+                    enterContent()
+                } else {
+                    moveSidebar(1)
+                }
+            PANE_DIR_LEFT ->
+                if (onActionRow && actionCol == 1) {
+                    actionCol = 0
+                } else if (horizontalSidebar) {
+                    moveSidebar(-1)
+                }
             PANE_DIR_RIGHT ->
                 if (onActionRow) {
                     if (actionCol == 0) actionCol = 1
+                } else if (horizontalSidebar) {
+                    moveSidebar(1)
                 } else {
                     enterContent()
                 }
@@ -296,15 +308,15 @@ private val SettingControlIconSize = 16.dp
 private val SettingSliderHeight = 24.dp
 
 private fun graphicsCardExpandEnter() =
-    fadeIn(tween(200)) +
+    fadeIn(tween(0)) +
         expandVertically(
-            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
+            animationSpec = tween(durationMillis = 0)
         )
 
 private fun graphicsCardExpandExit() =
-    fadeOut(tween(140)) +
+    fadeOut(tween(0)) +
         shrinkVertically(
-            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
+            animationSpec = tween(durationMillis = 0)
         )
 private val SettingSliderThumbSize = 18.dp
 private const val SettingSliderTrackScaleY = 0.5f
@@ -681,6 +693,7 @@ private fun buildSections(isSteam: Boolean, isContainer: Boolean): List<Pair<Int
     return list
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GameSettingsContent(
     state: GameSettingsStateHolder,
@@ -703,50 +716,68 @@ fun GameSettingsContent(
         }
     }
 
-    val portrait = isPortraitLayout()
+    // Below this width, a fixed 220dp sidebar next to the content pane leaves almost no
+    // room for the content on a phone in portrait (the dialog itself is already capped
+    // to ~96% of screen width there) — labels and paths wrap character-by-character.
+    // Instead, the section list stays docked at the top at its natural (wrap) height,
+    // and the selected section's content fills the remaining space directly below it —
+    // no modal sheet, no overlay.
 
-    val contentPane: @Composable (Modifier) -> Unit = { contentModifier ->
-        Box(
-            modifier = contentModifier
-                .background(ContentBg)
-                .then(
-                    if (nav != null) {
-                        Modifier.pointerInput(Unit) {
-                            awaitPointerEventScope {
-                                while (true) {
-                                    val ev = awaitPointerEvent(PointerEventPass.Initial)
-                                    if (ev.type == PointerEventType.Press) nav.tapContent()
-                                }
-                            }
-                        }
-                    } else {
-                        Modifier
-                    }
-                )
-        ) {
-            SectionContent(currentSectionId, state, callbacks, nav)
-        }
-    }
-
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(16.dp))
             .background(BgDeep)
     ) {
-        if (portrait) {
+        val isNarrow = maxWidth < 480.dp
+        SideEffect {
+            nav?.horizontalSidebar = isNarrow
+        }
+
+        if (isNarrow) {
             Column(modifier = Modifier.fillMaxSize()) {
-                PortraitSettingsHeader(
+                SidebarList(
                     title = state.name.value,
                     sections = sections.map { it.second },
                     currentIndex = selectedIdx,
                     onSectionSelected = { state.currentSection.intValue = it },
+                    nav = nav,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(DividerColor)
+                )
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .background(ContentBg)
+                ) {
+                    SectionContent(currentSectionId, state, callbacks, nav)
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(DividerColor)
+                )
+
+                SidebarFooterButtons(
                     saveEnabled = saveEnabled,
                     onSave = { callbacks.onConfirm() },
                     onCancel = { callbacks.onDismiss() },
                     nav = nav,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(SidebarBg)
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
                 )
-                contentPane(Modifier.weight(1f).fillMaxWidth())
             }
         } else {
             Row(modifier = Modifier.fillMaxSize()) {
@@ -771,151 +802,30 @@ fun GameSettingsContent(
                         .background(DividerColor)
                 )
 
-                contentPane(Modifier.weight(1f).fillMaxHeight())
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun SettingPairRow(
-    modifier: Modifier = Modifier,
-    content: @Composable FlowRowScope.() -> Unit,
-) {
-    FlowRow(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(SettingItemGap),
-        verticalArrangement = Arrangement.spacedBy(SettingItemGap),
-        maxItemsInEachRow = if (isPortraitLayout()) 1 else Int.MAX_VALUE,
-        content = content,
-    )
-}
-
-@Composable
-private fun PortraitSettingsHeader(
-    title: String,
-    sections: List<SidebarSection>,
-    currentIndex: Int,
-    onSectionSelected: (Int) -> Unit,
-    saveEnabled: Boolean,
-    onSave: () -> Unit,
-    onCancel: () -> Unit,
-    nav: GameSettingsNav? = null,
-) {
-    val cancelHighlighted = nav != null && nav.active && !nav.inContent && nav.onActionRow && nav.actionCol == 0
-    val saveHighlighted = nav != null && nav.active && !nav.inContent && nav.onActionRow && nav.actionCol == 1
-    val chipListState = rememberLazyListState()
-
-    LaunchedEffect(currentIndex) {
-        runCatching { chipListState.animateScrollToItem(currentIndex) }
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(SidebarBg)
-            .padding(top = 12.dp, bottom = 8.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = title,
-                color = TextPrimary,
-                fontSize = SettingLabelSize,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.2.sp,
-                lineHeight = 15.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-            Box(
-                modifier = Modifier
-                    .height(32.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
-                    .background(CardSurface)
-                    .paneHighlight(cancelHighlighted, cornerRadius = 8.dp, highlightColor = NavHighlight)
-                    .clickable { nav?.tapAction(0); onCancel() }
-                    .padding(horizontal = 14.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    stringResource(R.string.common_ui_cancel),
-                    color = TextSecondary,
-                    fontSize = SettingLabelSize,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-            SaveButton(
-                enabled = saveEnabled,
-                onClick = { nav?.tapAction(1); onSave() },
-                height = 32.dp,
-                corner = 8.dp,
-                fontSize = SettingLabelSize,
-                navHighlighted = saveHighlighted,
-            )
-        }
-
-        Spacer(Modifier.height(10.dp))
-
-        LazyRow(
-            state = chipListState,
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            itemsIndexed(sections) { index, section ->
-                val isSelected = currentIndex == index
-                val chipHighlighted =
-                    nav != null && nav.active && !nav.inContent && !nav.onActionRow && nav.sidebarIndex == index
-                Row(
+                Box(
                     modifier = Modifier
-                        .height(34.dp)
-                        .clip(RoundedCornerShape(17.dp))
-                        .background(if (isSelected) AccentBlue.copy(alpha = 0.16f) else CardSurface)
-                        .border(
-                            1.dp,
-                            if (isSelected) AccentBlue.copy(alpha = 0.6f) else CardBorder,
-                            RoundedCornerShape(17.dp)
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .background(ContentBg)
+                        .then(
+                            if (nav != null) {
+                                Modifier.pointerInput(Unit) {
+                                    awaitPointerEventScope {
+                                        while (true) {
+                                            val ev = awaitPointerEvent(PointerEventPass.Initial)
+                                            if (ev.type == PointerEventType.Press) nav.tapContent()
+                                        }
+                                    }
+                                }
+                            } else {
+                                Modifier
+                            }
                         )
-                        .paneHighlight(chipHighlighted, cornerRadius = 17.dp, highlightColor = NavHighlight)
-                        .clickable { if (nav != null) nav.tapSection(index) else onSectionSelected(index) }
-                        .padding(horizontal = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = section.icon,
-                        contentDescription = null,
-                        tint = if (isSelected) AccentBlue else TextSecondary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = stringResource(section.labelResId),
-                        color = if (isSelected) TextPrimary else TextSecondary,
-                        fontSize = SettingLabelSize,
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                        maxLines = 1,
-                        modifier = Modifier.padding(start = 7.dp)
-                    )
+                    SectionContent(currentSectionId, state, callbacks, nav)
                 }
             }
         }
-
-        Spacer(Modifier.height(8.dp))
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(DividerColor)
-        )
     }
 }
 
@@ -929,15 +839,7 @@ private fun SectionContent(
     AnimatedContent(
         targetState = sectionId,
         transitionSpec = {
-            val direction = if (targetState > initialState) 1 else -1
-            (slideInHorizontally(
-                animationSpec = tween(220)
-            ) { direction * it / 6 } + fadeIn(tween(200)))
-                .togetherWith(
-                    slideOutHorizontally(
-                        animationSpec = tween(180)
-                    ) { -direction * it / 6 } + fadeOut(tween(120))
-                )
+            EnterTransition.None togetherWith ExitTransition.None
         },
         label = "SectionTransition"
     ) { id ->
@@ -1024,6 +926,175 @@ private fun SectionContent(
         } else {
             sectionBody()
         }
+    }
+}
+
+// Sidebar title + scrollable section list only — no footer buttons. Used standalone in
+// the narrow/portrait layout, where the list docks at the top at its natural height and
+// the selected section's content fills the remaining space below it (see
+// GameSettingsContent). The wide layout instead uses `Sidebar`, which pairs this with
+// `SidebarFooterButtons` in a single fillMaxHeight column.
+@Composable
+private fun SidebarList(
+    title: String,
+    sections: List<SidebarSection>,
+    currentIndex: Int,
+    onSectionSelected: (Int) -> Unit,
+    nav: GameSettingsNav? = null,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .background(SidebarBg)
+            .padding(top = 10.dp, bottom = 8.dp)
+    ) {
+        if (title.isNotBlank()) {
+            Text(
+                text = title,
+                color = TextPrimary,
+                fontSize = SettingLabelSize,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.2.sp,
+                lineHeight = 15.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 8.dp)
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 12.dp)
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(DividerColor)
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            sections.forEachIndexed { index, section ->
+                SidebarTabItem(
+                    icon = section.icon,
+                    label = stringResource(section.labelResId),
+                    isSelected = currentIndex == index,
+                    navHighlighted = nav != null &&
+                        nav.active &&
+                        !nav.inContent &&
+                        !nav.onActionRow &&
+                        nav.sidebarIndex == index,
+                    onClick = {
+                        if (nav != null) nav.tapSection(index) else onSectionSelected(index)
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SidebarTabItem(
+    icon: ImageVector,
+    label: String,
+    isSelected: Boolean,
+    navHighlighted: Boolean = false,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .width(96.dp)
+            .height(72.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .border(
+                width = if (isSelected || navHighlighted) 1.5.dp else 1.dp,
+                color = if (isSelected) AccentBlue else CardBorder,
+                shape = RoundedCornerShape(10.dp)
+            )
+            .background(
+                if (isSelected) AccentBlue.copy(alpha = 0.08f) else CardSurface
+            )
+            .paneHighlight(
+                navHighlighted,
+                cornerRadius = 10.dp,
+                highlightColor = NavHighlight
+            )
+            .clickable { onClick() }
+            .padding(horizontal = 6.dp, vertical = 7.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (isSelected) AccentBlue else TextDim,
+                modifier = Modifier.size(20.dp)
+            )
+            Text(
+                text = label,
+                color = if (isSelected) TextPrimary else TextSecondary,
+                fontSize = 12.sp,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                lineHeight = 14.sp
+            )
+        }
+    }
+}
+
+// Cancel/Save row shared by the wide sidebar footer and the narrow layout's bottom bar.
+@Composable
+private fun SidebarFooterButtons(
+    saveEnabled: Boolean,
+    onSave: () -> Unit,
+    onCancel: () -> Unit,
+    nav: GameSettingsNav? = null,
+    modifier: Modifier = Modifier
+) {
+    val cancelHighlighted = nav != null && nav.active && !nav.inContent && nav.onActionRow && nav.actionCol == 0
+    val saveHighlighted = nav != null && nav.active && !nav.inContent && nav.onActionRow && nav.actionCol == 1
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(30.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
+                .background(CardSurface)
+                .paneHighlight(cancelHighlighted, cornerRadius = 8.dp, highlightColor = NavHighlight)
+                .clickable { nav?.tapAction(0); onCancel() },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                stringResource(R.string.common_ui_cancel),
+                color = TextSecondary,
+                fontSize = SettingLabelSize,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        SaveButton(
+            enabled = saveEnabled,
+            onClick = { nav?.tapAction(1); onSave() },
+            height = 30.dp,
+            corner = 8.dp,
+            fontSize = SettingLabelSize,
+            navHighlighted = saveHighlighted,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
@@ -1418,9 +1489,11 @@ private fun GeneralSection(
         Spacer(Modifier.height(SettingSectionGap))
 
         SettingGroup {
-            val artworkPortrait = isPortraitLayout()
-
-            val artworkLabel: @Composable () -> Unit = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 Text(
                     text = stringResource(R.string.shortcuts_library_artwork_title),
                     color = TextSecondary,
@@ -1428,9 +1501,6 @@ private fun GeneralSection(
                     fontWeight = FontWeight.SemiBold,
                     letterSpacing = 0.8.sp
                 )
-            }
-
-            val scrapeButton: @Composable () -> Unit = {
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
@@ -1445,14 +1515,11 @@ private fun GeneralSection(
                             text = stringResource(R.string.library_games_scrape_artwork),
                             color = AccentBlue,
                             fontSize = SettingValueSize,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
-            }
 
-            val openSourceButton: @Composable () -> Unit = {
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
@@ -1474,37 +1541,15 @@ private fun GeneralSection(
                             text = stringResource(R.string.shortcuts_library_artwork_open_source),
                             color = AccentBlue,
                             fontSize = SettingValueSize,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
             }
 
-            if (artworkPortrait) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    artworkLabel()
-                    Spacer(Modifier.height(8.dp))
-                    SettingPairRow(modifier = Modifier.fillMaxWidth()) {
-                        Box(Modifier.weight(1f)) { scrapeButton() }
-                        Box(Modifier.weight(1f)) { openSourceButton() }
-                    }
-                }
-            } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    artworkLabel()
-                    scrapeButton()
-                    openSourceButton()
-                }
-            }
-
             Spacer(Modifier.height(SettingItemGap))
 
-            SettingPairRow {
+            Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                 Box(Modifier.weight(1f)) {
                     ArtworkPickerRow(
                         title = stringResource(R.string.shortcuts_library_artwork_icon_title),
@@ -1530,7 +1575,7 @@ private fun GeneralSection(
     Spacer(Modifier.height(SettingSectionGap))
 
     SettingGroup {
-        SettingPairRow {
+        Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
             Box(Modifier.weight(1f)) {
                 SettingDropdown(
                     label = stringResource(R.string.container_config_screen_size),
@@ -1579,7 +1624,7 @@ private fun GeneralSection(
     Spacer(Modifier.height(SettingSectionGap))
 
     SettingGroup {
-        SettingPairRow {
+        Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
             Box(Modifier.weight(1f)) {
                 SettingDropdown(
                     label = stringResource(R.string.container_config_audio_driver),
@@ -1653,7 +1698,7 @@ private fun DisplaySection(
 ) {
 
     SettingGroup {
-        SettingPairRow {
+        Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
             Box(Modifier.weight(1f)) {
                 SettingDropdown(
                     label = stringResource(R.string.container_graphics_driver),
@@ -1674,7 +1719,7 @@ private fun DisplaySection(
 
         Spacer(Modifier.height(SettingSectionGap))
 
-        SettingPairRow {
+        Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
             Box(Modifier.weight(1f)) {
                 SettingDropdown(
                     label = stringResource(R.string.container_wine_dxwrapper),
@@ -1800,7 +1845,7 @@ private fun GraphicsDriverConfigCard(
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
                 Spacer(Modifier.height(SettingItemGap))
 
-                SettingPairRow {
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                     Box(Modifier.weight(1f)) {
                         SettingDropdown(
                             label = stringResource(R.string.container_graphics_vulkan_version),
@@ -1824,7 +1869,7 @@ private fun GraphicsDriverConfigCard(
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                SettingPairRow {
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                     Box(Modifier.weight(1f)) {
                         ExtensionsMultiSelect(state)
                     }
@@ -1840,7 +1885,7 @@ private fun GraphicsDriverConfigCard(
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                SettingPairRow {
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                     Box(Modifier.weight(1f)) {
                         SettingDropdown(
                             label = stringResource(R.string.container_graphics_max_device_memory),
@@ -1861,7 +1906,7 @@ private fun GraphicsDriverConfigCard(
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                SettingPairRow {
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                     Box(Modifier.weight(1f)) {
                         SettingDropdown(
                             label = stringResource(R.string.container_graphics_resource_type),
@@ -1886,7 +1931,7 @@ private fun GraphicsDriverConfigCard(
                 if (bcnEmulationActive) {
                     Spacer(Modifier.height(SettingItemGap))
 
-                    SettingPairRow {
+                    Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                         Box(Modifier.weight(1f)) {
                             SettingDropdown(
                                 label = stringResource(R.string.container_graphics_bcn_emulation_type),
@@ -1912,7 +1957,7 @@ private fun GraphicsDriverConfigCard(
                 if (gamenativeWrapperActive) {
                     Spacer(Modifier.height(SettingItemGap))
 
-                    SettingPairRow {
+                    Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                         Box(Modifier.weight(1f)) {
                             SettingDropdown(
                                 label = stringResource(R.string.container_graphics_transcoder),
@@ -1934,7 +1979,7 @@ private fun GraphicsDriverConfigCard(
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                SettingPairRow {
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                     Box(Modifier.weight(1f)) {
                         SettingCheckbox(
                             label = stringResource(R.string.container_graphics_sync_frame),
@@ -2208,7 +2253,7 @@ private fun DXVKConfigCard(
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
                 Spacer(Modifier.height(SettingItemGap))
 
-                SettingPairRow {
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                     Box(Modifier.weight(1f)) {
                         SettingDropdown(
                             label = stringResource(R.string.container_wine_vkd3d_version),
@@ -2232,7 +2277,7 @@ private fun DXVKConfigCard(
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                SettingPairRow {
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                     Box(Modifier.weight(1f)) {
                         SettingDropdown(
                             label = stringResource(R.string.container_wine_dxvk_version),
@@ -2256,7 +2301,7 @@ private fun DXVKConfigCard(
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                SettingPairRow {
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                     Box(Modifier.weight(1f).alpha(if (asyncEnabled) 1f else 0.35f)) {
                         SettingCheckbox(
                             label = stringResource(R.string.container_wine_enabled_async),
@@ -2336,7 +2381,7 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
                 Spacer(Modifier.height(SettingItemGap))
 
-                SettingPairRow {
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                     Box(Modifier.weight(1f)) {
                         SettingDropdown(
                             label = stringResource(R.string.container_wine_csmt),
@@ -2357,7 +2402,7 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                SettingPairRow {
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                     Box(Modifier.weight(1f)) {
                         SettingDropdown(
                             label = stringResource(R.string.container_wine_video_memory_size),
@@ -2378,7 +2423,7 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                SettingPairRow {
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                     Box(Modifier.weight(1f)) {
                         SettingDropdown(
                             label = stringResource(R.string.container_wine_offscreen_rendering_mode),
@@ -3672,7 +3717,7 @@ private fun ComponentsSection(
             val items = state.directXComponents.value
             items.chunked(2).forEachIndexed { rowIndex, pair ->
                 if (rowIndex > 0) Spacer(Modifier.height(SettingItemGap))
-                SettingPairRow {
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                     pair.forEachIndexed { colIndex, component ->
                         val index = rowIndex * 2 + colIndex
                         Box(Modifier.weight(1f)) {
@@ -3703,7 +3748,7 @@ private fun ComponentsSection(
             val rowCount = (totalCells + 1) / 2
             for (rowIndex in 0 until rowCount) {
                 if (rowIndex > 0) Spacer(Modifier.height(SettingItemGap))
-                SettingPairRow {
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                     for (colIndex in 0..1) {
                         val cell = rowIndex * 2 + colIndex
                         Box(Modifier.weight(1f)) {
@@ -4599,7 +4644,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
     Spacer(Modifier.height(8.dp))
     SettingGroup {
         if (!isContainer) {
-            SettingPairRow {
+            Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                 Box(Modifier.weight(1f)) {
                     SettingDropdown(
                         label = stringResource(R.string.common_ui_profile),
@@ -4623,7 +4668,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
 
         val exclusiveChecked = if (isContainer) state.containerExclusiveInput.value
         else state.shortcutExclusiveXInput.value
-        SettingPairRow {
+        Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
             Box(Modifier.weight(1f)) {
                 SettingCheckbox(
                     label = stringResource(R.string.shortcuts_properties_exclusive_input),
@@ -4872,7 +4917,7 @@ private fun AdvancedSection(
     SubsectionLabel(stringResource(R.string.container_config_emulator_section))
     Spacer(Modifier.height(8.dp))
     SettingGroup {
-        SettingPairRow {
+        Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
             Box(Modifier.weight(1f)) {
                 SettingDropdown(
                     label = stringResource(R.string.container_config_emulator_64bit),
@@ -4915,7 +4960,7 @@ private fun AdvancedSection(
         EmulatorSectionHeader(stringResource(R.string.container_fexcore_config), fexcoreUsage)
         Spacer(Modifier.height(8.dp))
         SettingGroup {
-            SettingPairRow {
+            Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                 Box(Modifier.weight(1f)) {
                     SettingDropdown(
                         label = stringResource(R.string.container_fexcore_version),
@@ -4963,7 +5008,7 @@ private fun AdvancedSection(
         EmulatorSectionHeader(box64Title, box64Usage)
         Spacer(Modifier.height(8.dp))
         SettingGroup {
-            SettingPairRow {
+            Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                 Box(Modifier.weight(1f)) {
                     SettingDropdown(
                         label = stringResource(R.string.container_box64_version),

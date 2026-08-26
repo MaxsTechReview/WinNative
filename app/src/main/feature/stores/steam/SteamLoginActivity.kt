@@ -43,7 +43,6 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.winlator.cmod.R
-import com.winlator.cmod.shared.ui.layout.isPortraitLayout
 import com.winlator.cmod.feature.stores.steam.enums.LoginResult
 import com.winlator.cmod.feature.stores.steam.enums.LoginScreen
 import com.winlator.cmod.feature.stores.steam.ui.SteamLoginViewModel
@@ -55,13 +54,13 @@ import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import timber.log.Timber
 
 // Palette (matches Settings > Stores)
-private val BgDark = Color(0xFF18181D)
+private val BgDark = Color(0xFF141414)
 private val CardDark = Color(0xFF1C1C2A)
 private val CardBorder = Color(0xFF2A2A3A)
 private val IconBoxBg = Color(0xFF242434)
-private val Accent = Color(0xFF1A9FFF)
-private val TextPrimary = Color(0xFFF0F4FF)
-private val TextSecondary = Color(0xFF7A8FA8)
+private val Accent = Color(0xFFFF7A00)
+private val TextPrimary = Color(0xFFF5F0EA)
+private val TextSecondary = Color(0xFFAD9782)
 private val DangerRed = Color(0xFFFF7A88)
 
 class SteamLoginActivity : FixedFontScaleComponentActivity() {
@@ -110,13 +109,9 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
             if (state.loginScreen == LoginScreen.CREDENTIAL) viewModel.onStartQrLogin()
         }
 
-        // Entrance: fade + slide up
-        var entered by remember { mutableStateOf(false) }
-        LaunchedEffect(Unit) { entered = true }
-
         val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
 
-        Box(
+        BoxWithConstraints(
             modifier =
                 Modifier
                     .fillMaxSize()
@@ -124,28 +119,22 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .pointerInput(Unit) { detectTapGestures { focusManager.clearFocus() } },
         ) {
-            AnimatedVisibility(
-                visible = entered,
-                enter =
-                    fadeIn(tween(360)) +
-                        slideInVertically(
-                            initialOffsetY = { it / 11 },
-                            animationSpec = tween(380, easing = FastOutSlowInEasing),
-                        ),
-            ) {
-                AnimatedContent(
-                    targetState = state.loginScreen,
-                    transitionSpec = { fadeIn(tween(240)) togetherWith fadeOut(tween(160)) },
-                    label = "screenSwitch",
-                ) { screen ->
-                    when (screen) {
-                        LoginScreen.TWO_FACTOR -> {
-                            TwoFactorLogin(state, viewModel)
-                        }
+            // Based on the actual available space (matches the isPortrait pattern used
+            // elsewhere in the app, e.g. SetupWizardActivity/CarouselView) rather than a
+            // raw sensor reading, so this also behaves correctly on tablets/foldables.
+            val isPortrait = maxHeight > maxWidth
 
-                        else -> {
-                            LandscapeLogin(state, viewModel, passwordVisible) { passwordVisible = !passwordVisible }
-                        }
+            // Screen appears instantly, no entrance/transition animation
+            when (state.loginScreen) {
+                LoginScreen.TWO_FACTOR -> {
+                    TwoFactorLogin(state, viewModel)
+                }
+
+                else -> {
+                    if (isPortrait) {
+                        PortraitLogin(state, viewModel, passwordVisible) { passwordVisible = !passwordVisible }
+                    } else {
+                        LandscapeLogin(state, viewModel, passwordVisible) { passwordVisible = !passwordVisible }
                     }
                 }
             }
@@ -160,13 +149,17 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
         passwordVisible: Boolean,
         onTogglePassword: () -> Unit,
     ) {
-        val portraitLogin = isPortraitLayout()
-
-        val backButton: @Composable (Modifier) -> Unit = { backModifier ->
+        Row(
+            modifier = Modifier.fillMaxSize().imePadding().padding(start = 8.dp, end = 20.dp, top = 12.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Back arrow — top-left, matching homescreen settings icon position
             IconButton(
                 onClick = ::finish,
                 modifier =
-                    backModifier
+                    Modifier
+                        .align(Alignment.Top)
                         .statusBarsPadding()
                         .size(44.dp)
                         .clip(CircleShape)
@@ -179,11 +172,10 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
                     modifier = Modifier.size(24.dp),
                 )
             }
-        }
 
-        val credentialsPane: @Composable (Modifier) -> Unit = { credModifier ->
+            // Left: credentials
             Column(
-                modifier = credModifier,
+                modifier = Modifier.weight(1.3f).fillMaxHeight().verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -221,52 +213,115 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
                 }
                 CredentialForm(state, viewModel, passwordVisible, onTogglePassword, compact = true)
             }
-        }
 
-        val qrPane: @Composable (Modifier) -> Unit = { qrModifier ->
+            // Thin divider
             Box(
-                modifier = qrModifier,
-                contentAlignment = Alignment.Center,
-            ) {
-                QrCard(state, viewModel, isLandscape = !portraitLogin)
-            }
-        }
-
-        if (portraitLogin) {
-            Column(
                 modifier =
                     Modifier
-                        .fillMaxSize()
-                        .imePadding()
-                        .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp)
-                        .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(18.dp),
-            ) {
-                backButton(Modifier.align(Alignment.Start))
-                credentialsPane(Modifier.fillMaxWidth())
-                qrPane(Modifier.fillMaxWidth())
-            }
-        } else {
-            Row(
-                modifier = Modifier.fillMaxSize().imePadding().padding(start = 8.dp, end = 20.dp, top = 12.dp, bottom = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                backButton(Modifier.align(Alignment.Top))
-                credentialsPane(Modifier.weight(1.3f).fillMaxHeight().verticalScroll(rememberScrollState()))
+                        .width(1.dp)
+                        .fillMaxHeight()
+                        .padding(vertical = 24.dp)
+                        .background(CardBorder),
+            )
 
+            // Right: QR
+            Box(
+                modifier = Modifier.weight(0.9f).fillMaxHeight(),
+                contentAlignment = Alignment.Center,
+            ) {
+                QrCard(state, viewModel, isLandscape = true)
+            }
+        }
+    }
+
+    // Portrait — stacked layout: credentials on top, QR below
+    @Composable
+    private fun PortraitLogin(
+        state: UserLoginState,
+        viewModel: SteamLoginViewModel,
+        passwordVisible: Boolean,
+        onTogglePassword: () -> Unit,
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            // Back arrow — top-left, matching homescreen settings icon position
+            Row(modifier = Modifier.fillMaxWidth()) {
+                IconButton(
+                    onClick = ::finish,
+                    modifier =
+                        Modifier
+                            .statusBarsPadding()
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(CardDark.copy(alpha = 0.72f)),
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = "Back",
+                        tint = TextPrimary,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // Header
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.padding(bottom = 20.dp),
+            ) {
                 Box(
                     modifier =
                         Modifier
-                            .width(1.dp)
-                            .fillMaxHeight()
-                            .padding(vertical = 24.dp)
-                            .background(CardBorder),
-                )
-
-                qrPane(Modifier.weight(0.9f).fillMaxHeight())
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Accent.copy(alpha = 0.12f))
+                            .border(1.dp, Accent.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Outlined.Gamepad, null, tint = Accent, modifier = Modifier.size(24.dp))
+                }
+                Column {
+                    Text(
+                        stringResource(R.string.stores_accounts_steam_integration_title),
+                        color = TextPrimary,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(stringResource(R.string.steam_login_sign_in_to_your_account), color = TextSecondary, fontSize = 12.sp)
+                        if (state.isLoggingIn) {
+                            CircularProgressIndicator(modifier = Modifier.size(10.dp), color = Accent, strokeWidth = 1.5.dp)
+                        }
+                    }
+                }
             }
+
+            CredentialForm(state, viewModel, passwordVisible, onTogglePassword, compact = false)
+
+            // Divider between credentials and QR — same treatment as the landscape divider,
+            // just rotated to fit a stacked layout.
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp)
+                        .height(1.dp)
+                        .background(CardBorder),
+            )
+
+            QrCard(state, viewModel, isLandscape = false)
+
+            Spacer(Modifier.height(24.dp))
         }
     }
 
@@ -339,13 +394,13 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
                         }),
                 )
                 // Error overlaid at bottom of password field — no layout shift
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = showLoginError,
-                    enter = fadeIn(tween(200)),
-                    exit = fadeOut(tween(150)),
-                    modifier = Modifier.align(Alignment.BottomStart).offset(y = 8.dp),
-                ) {
-                    Text(stringResource(R.string.steam_login_invalid_username_or_password), color = DangerRed, fontSize = 11.sp)
+                if (showLoginError) {
+                    Text(
+                        stringResource(R.string.steam_login_invalid_username_or_password),
+                        color = DangerRed,
+                        fontSize = 11.sp,
+                        modifier = Modifier.align(Alignment.BottomStart).offset(y = 8.dp),
+                    )
                 }
             }
 
@@ -393,14 +448,8 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
     ) {
         val isLoading = state.qrCode == null && !state.isQrFailed
 
-        // Border pulses while QR loads
-        val pulse = rememberInfiniteTransition(label = "qrPulse")
-        val borderAlpha by pulse.animateFloat(
-            initialValue = 0.14f,
-            targetValue = 0.55f,
-            animationSpec = infiniteRepeatable(tween(1100, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-            label = "qrBorder",
-        )
+        // Static border highlight while QR loads (no continuous animation)
+        val borderAlpha = 0.35f
 
         Box(
             modifier =
@@ -463,10 +512,6 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
         val isSteamGuard = state.lastTwoFactorMethod == "steam_guard"
         val isEmailCode = state.lastTwoFactorMethod == "email_code"
 
-        // Entrance animation for the card
-        var cardVisible by remember { mutableStateOf(false) }
-        LaunchedEffect(Unit) { cardVisible = true }
-
         Box(
             modifier =
                 Modifier
@@ -475,16 +520,8 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
                     .verticalScroll(rememberScrollState()),
             contentAlignment = Alignment.Center,
         ) {
-            AnimatedVisibility(
-                visible = cardVisible,
-                enter =
-                    fadeIn(tween(320)) +
-                        scaleIn(
-                            initialScale = 0.92f,
-                            animationSpec = tween(340, easing = FastOutSlowInEasing),
-                        ),
-            ) {
-                Box(
+            // Card appears instantly, no entrance animation
+            Box(
                     modifier =
                         Modifier
                             .width(280.dp)
@@ -576,54 +613,11 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
                 }
             }
         }
-    }
 
-    // Expanding ripple for Steam Guard wait
+    // Static waiting indicator for Steam Guard wait (no continuous animation)
     @Composable
     private fun WaitingRipple() {
-        val inf = rememberInfiniteTransition(label = "ripple")
-        val scale1 by inf.animateFloat(
-            initialValue = 1f,
-            targetValue = 2.8f,
-            animationSpec = infiniteRepeatable(tween(1600, easing = FastOutSlowInEasing), RepeatMode.Restart),
-            label = "r1s",
-        )
-        val alpha1 by inf.animateFloat(
-            initialValue = 0.40f,
-            targetValue = 0f,
-            animationSpec = infiniteRepeatable(tween(1600, easing = FastOutSlowInEasing), RepeatMode.Restart),
-            label = "r1a",
-        )
-        val scale2 by inf.animateFloat(
-            initialValue = 1f,
-            targetValue = 2.8f,
-            animationSpec = infiniteRepeatable(tween(1600, 620, easing = FastOutSlowInEasing), RepeatMode.Restart),
-            label = "r2s",
-        )
-        val alpha2 by inf.animateFloat(
-            initialValue = 0.40f,
-            targetValue = 0f,
-            animationSpec = infiniteRepeatable(tween(1600, 620, easing = FastOutSlowInEasing), RepeatMode.Restart),
-            label = "r2a",
-        )
-
         Box(modifier = Modifier.size(72.dp), contentAlignment = Alignment.Center) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(52.dp)
-                        .scale(scale1)
-                        .clip(CircleShape)
-                        .background(Accent.copy(alpha = alpha1)),
-            )
-            Box(
-                modifier =
-                    Modifier
-                        .size(52.dp)
-                        .scale(scale2)
-                        .clip(CircleShape)
-                        .background(Accent.copy(alpha = alpha2)),
-            )
             Box(
                 modifier =
                     Modifier
@@ -649,12 +643,12 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
         var pressed by remember { mutableStateOf(false) }
         val scale by animateFloatAsState(
             targetValue = if (pressed) 0.97f else 1f,
-            animationSpec = spring(stiffness = Spring.StiffnessHigh),
+            animationSpec = tween(0),
             label = "loginScale",
         )
         val bgAlpha by animateFloatAsState(
             targetValue = if (enabled) 1f else 0.32f,
-            animationSpec = tween(200),
+            animationSpec = tween(0),
             label = "loginBgAlpha",
         )
 
@@ -707,17 +701,17 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
         var pressed by remember { mutableStateOf(false) }
         val scale by animateFloatAsState(
             targetValue = if (pressed) 0.95f else 1f,
-            animationSpec = spring(stiffness = Spring.StiffnessHigh),
+            animationSpec = tween(0),
             label = "2faSubmitScale",
         )
         val bgAlpha by animateFloatAsState(
             targetValue = if (enabled) 0.18f else 0.08f,
-            animationSpec = tween(200),
+            animationSpec = tween(0),
             label = "2faSubmitBg",
         )
         val borderAlpha by animateFloatAsState(
             targetValue = if (enabled) 0.5f else 0.2f,
-            animationSpec = tween(200),
+            animationSpec = tween(0),
             label = "2faSubmitBorder",
         )
 
@@ -770,7 +764,7 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
         var pressed by remember { mutableStateOf(false) }
         val scale by animateFloatAsState(
             targetValue = if (pressed) 0.93f else 1f,
-            animationSpec = spring(stiffness = Spring.StiffnessHigh),
+            animationSpec = tween(0),
             label = "smallBtnScale",
         )
         Box(
@@ -802,7 +796,7 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
         var pressed by remember { mutableStateOf(false) }
         val scale by animateFloatAsState(
             targetValue = if (pressed) 0.95f else 1f,
-            animationSpec = spring(stiffness = Spring.StiffnessHigh),
+            animationSpec = tween(0),
             label = "cancelScale",
         )
         Box(

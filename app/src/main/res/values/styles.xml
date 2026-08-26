@@ -82,7 +82,7 @@
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowBackground">#000000</item>
         <item name="android:colorBackground">#000000</item>
-        <item name="android:statusBarColor">#141B24</item>
+        <item name="android:statusBarColor">#000000</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowAnimationStyle">@style/AppWindowAnimationNoAnimation</item>
     </style>

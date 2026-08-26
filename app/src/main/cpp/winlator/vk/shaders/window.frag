@@ -12,6 +12,9 @@ layout(push_constant) uniform PC {
 } pc;
 
 void main() {
+    // Vulkan image formats expose logical R/G/B components to the shader.
+    // Do not infer a channel swap from the underlying BGRA/RGBA storage format.
+    // Only perform R/B swapping when the user explicitly enabled swapRB.
     vec3 color = texture(srcTexture, vUV).rgb;
     if (pc.swapRB != 0) {
         color = color.bgr;

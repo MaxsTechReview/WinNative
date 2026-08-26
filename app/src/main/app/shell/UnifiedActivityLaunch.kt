@@ -19,29 +19,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -920,22 +897,6 @@ internal fun UnifiedActivity.launchCustomGame(
                     android.widget.Toast.LENGTH_SHORT,
                 )
             }
-            return@launch
-        }
-
-        if (com.winlator.cmod.feature.retro.RetroShortcuts.isRetroShortcut(shortcut)) {
-            // Asks RetroShortcuts which launcher this shortcut needs rather
-            // than reasoning about it here. Listing the embedded paths in two
-            // places is what sent 3D-enabled games to the libretro core: this
-            // caller knew about PS2 and Dolphin but not about the 3D engine.
-            if (com.winlator.cmod.feature.retro.RetroShortcuts.usesEmbeddedLauncher(context, shortcut)) {
-                withContext(Dispatchers.Main) {
-                    com.winlator.cmod.feature.retro.RetroShortcuts.launch(context, shortcut)
-                }
-                return@launch
-            }
-            val retroIntent = com.winlator.cmod.feature.retro.RetroShortcuts.launchIntent(context, shortcut)
-            withContext(Dispatchers.Main) { launchGame(context, retroIntent) }
             return@launch
         }
 

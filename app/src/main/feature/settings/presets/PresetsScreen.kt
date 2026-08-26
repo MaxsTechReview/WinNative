@@ -1,19 +1,4 @@
 package com.winlator.cmod.feature.settings
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -87,12 +72,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.winlator.cmod.shared.ui.layout.isPortraitLayout
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
@@ -106,11 +89,11 @@ private val BgDark = Color(0xFF11111C)
 private val CardDark = Color(0xFF1C1C2A)
 private val CardDarker = Color(0xFF15151E)
 private val CardBorder = Color(0xFF2A2A3A)
-private val Accent = Color(0xFF1A9FFF)
-private val NavHighlight = Color(0xFF4FC3F7)
+private val Accent = Color(0xFFFF7A00)
+private val NavHighlight = Color(0xFFFFB74D)
 private val DangerRed = Color(0xFFFF7A88)
-private val TextPrimary = Color(0xFFF0F4FF)
-private val TextSecondary = Color(0xFF7A8FA8)
+private val TextPrimary = Color(0xFFF5F0EA)
+private val TextSecondary = Color(0xFFAD9782)
 
 @Composable
 private fun Modifier.noRippleClickable(
@@ -354,51 +337,6 @@ fun PresetsScreen(
     }
 }
 
-/**
- * Shared transition spec for the engine crossfade. Slides the outgoing content
- * out by a small offset and the incoming content in from the opposite side,
- * with a short fade on top. Direction is derived from enum ordinal so Box64 →
- * FEXCore slides left-to-right and FEXCore → Box64 slides right-to-left.
- *
- * Durations are deliberately short (~220ms) so rapid tab taps feel responsive.
- * [AnimatedContent] interrupts in-flight animations when the target state
- * changes, so a spam-tapping user keeps animating from the current progress
- * instead of queueing up and waiting for the previous animation to finish.
- */
-private fun AnimatedContentTransitionScope<PresetEngine>.engineSwapTransition(): ContentTransform {
-    val forward = targetState.ordinal > initialState.ordinal
-    val direction = if (forward) 1 else -1
-    val slideSpec =
-        tween<IntOffset>(
-            durationMillis = 220,
-            easing = FastOutSlowInEasing,
-        )
-    val fadeInSpec =
-        tween<Float>(
-            durationMillis = 200,
-            easing = FastOutSlowInEasing,
-        )
-    val fadeOutSpec =
-        tween<Float>(
-            durationMillis = 140,
-            easing = FastOutSlowInEasing,
-        )
-    return (
-        fadeIn(animationSpec = fadeInSpec) +
-            slideInHorizontally(animationSpec = slideSpec) { fullWidth ->
-                (fullWidth / 12) * direction
-            }
-    ).togetherWith(
-        fadeOut(animationSpec = fadeOutSpec) +
-            slideOutHorizontally(animationSpec = slideSpec) { fullWidth ->
-                -(fullWidth / 12) * direction
-            },
-    ).using(
-        SizeTransform(clip = false) { _, _ ->
-            tween(durationMillis = 240, easing = FastOutSlowInEasing)
-        },
-    )
-}
 
 @Composable
 private fun PresetActionButton(
@@ -602,13 +540,8 @@ private fun PresetSelectorCard(
 
             Spacer(Modifier.height(8.dp))
 
-            AnimatedContent(
-                targetState = engine,
-                transitionSpec = { engineSwapTransition() },
-                contentKey = { it },
-                label = "presetSelectorRow",
-            ) { frameEngine ->
-                val data = state.engines[frameEngine] ?: PresetEngineData()
+            run {
+                val data = state.engines[engine] ?: PresetEngineData()
                 PresetSelectorRowContent(
                     data = data,
                     onPresetSelected = onPresetSelected,
@@ -890,11 +823,7 @@ private fun EnvVarCard(
 ) {
     var expanded by remember(definition.name) { mutableStateOf(false) }
     val borderColor = if (expanded) Accent.copy(alpha = 0.45f) else CardBorder
-    val chevronRotation by animateFloatAsState(
-        targetValue = if (expanded) 180f else 0f,
-        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-        label = "envVarChevron_${definition.name}",
-    )
+    val chevronRotation = if (expanded) 180f else 0f
     val helpText =
         remember(definition.fullDescription, definition.summary) {
             definition.fullDescription
@@ -954,21 +883,7 @@ private fun EnvVarCard(
                 )
             }
 
-            AnimatedVisibility(
-                visible = expanded && helpText.isNotBlank(),
-                enter =
-                    fadeIn(tween(110)) +
-                        expandVertically(
-                            animationSpec = tween(durationMillis = 170, easing = FastOutSlowInEasing),
-                            expandFrom = Alignment.Top,
-                        ),
-                exit =
-                    fadeOut(tween(90)) +
-                        shrinkVertically(
-                            animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
-                            shrinkTowards = Alignment.Top,
-                        ),
-            ) {
+            if (expanded && helpText.isNotBlank()) {
                 Text(
                     text = helpText,
                     color = TextPrimary,
@@ -992,14 +907,10 @@ private fun EnvVarInlineControl(
     editable: Boolean,
     onValueChanged: (String) -> Unit,
 ) {
-    val compactControl = isPortraitLayout()
     Box(
         modifier =
             Modifier
-                .widthIn(
-                    min = if (compactControl) 76.dp else 112.dp,
-                    max = if (compactControl) 108.dp else 172.dp,
-                )
+                .widthIn(min = 112.dp, max = 172.dp)
                 .alpha(if (editable) 1f else 0.55f),
         contentAlignment = Alignment.CenterEnd,
     ) {

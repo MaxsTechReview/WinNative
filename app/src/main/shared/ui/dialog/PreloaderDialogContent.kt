@@ -1,21 +1,5 @@
 package com.winlator.cmod.shared.ui.dialog
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.EaseInOut
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -39,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -52,14 +37,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.PlatformTextStyle
@@ -77,10 +56,7 @@ import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.theme.WinNativeTheme
-import kotlin.math.PI
-import kotlin.math.cos
 import kotlin.math.roundToInt
-import kotlin.math.sin
 
 // State holder - Java-friendly mutable properties.
 class PreloaderDialogState {
@@ -139,21 +115,11 @@ class PreloaderDialogState {
     }
 }
 
-private data class Particle(
-    val x: Float,
-    val y: Float,
-    val speed: Float,
-    val size: Float,
-    val alpha: Float,
-    val phaseOffset: Float,
-)
-
-private val BgTop = Color(0xFF07090F)
-private val BgBottom = Color(0xFF0C1018)
-private val TextPrimary = Color(0xFFF5F8FF)
-private val TextSecondary = Color(0xFFA1B1C8)
-private val TextDim = Color(0xFF65748B)
-private val TrackColor = Color(0xFF202A3A)
+private val BgBottom = Color(0xFF000000)
+private val TextPrimary = Color(0xFFF5F0EA)
+private val TextSecondary = Color(0xFFC7A88F)
+private val TextDim = Color(0xFF8F7862)
+private val TrackColor = Color(0xFF161616)
 
 /**
  * Height reserved at the bottom for the status line and the progress bar, so
@@ -181,7 +147,7 @@ private fun badgeColor(value: String): Color =
         "EPIC" -> Color(0xFFB8BAC4)
         "GOG" -> Color(0xFFC55CFF)
         "CUSTOM" -> Color(0xFF4FE3C1)
-        else -> Color(0xFF57CBDE)
+        else -> Color(0xFFFF7A00)
     }
 
 @Composable
@@ -197,103 +163,22 @@ fun PreloaderDialogContent(state: PreloaderDialogState) {
     val bottomProgressBar by state.bottomProgressBar
 
     val accentColor = badgeColor(badge)
-    val particles =
-        remember {
-            List(8) { i ->
-                val hash = ((i * 7919 + 104729) % 10000) / 10000f
-                Particle(
-                    x = ((i * 3571 + 7321) % 10000) / 10000f,
-                    y = ((i * 5323 + 1931) % 10000) / 10000f,
-                    // Whole-number traversals per cycle so the shared phase wraps seamlessly
-                    // (a fractional speed makes every particle teleport when the tween restarts).
-                    speed = (1 + (i % 2)).toFloat(),
-                    size = 1.1f + hash * 1.6f,
-                    alpha = 0.08f + hash * 0.1f,
-                    phaseOffset = hash * 6.2832f,
-                )
-            }
-        }
-
-    val infiniteTransition = rememberInfiniteTransition(label = "preloaderMotion")
-    val glowPulse =
-        infiniteTransition.animateFloat(
-            initialValue = 0.74f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(tween(5200, easing = EaseInOut), RepeatMode.Reverse),
-            label = "glowPulse",
-        )
-    val particlePhase =
-        infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(tween(26000, easing = LinearEasing), RepeatMode.Restart),
-            label = "particlePhase",
-        )
 
     var entered by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         entered = true
     }
-    val contentAlpha by animateFloatAsState(
-        targetValue = if (entered) 1f else 0f,
-        animationSpec = tween(520, easing = FastOutSlowInEasing),
-        label = "contentAlpha",
-    )
-    val contentRise by animateFloatAsState(
-        targetValue = if (entered) 0f else 18f,
-        animationSpec = tween(520, easing = FastOutSlowInEasing),
-        label = "contentRise",
-    )
+    val contentAlpha = if (entered) 1f else 0f
+    val contentRise = if (entered) 0f else 18f
 
+    // Flat background, no gradient/glow/particle field: a loading screen just
+    // needs to read clearly and get out of the way, and a static color costs
+    // nothing to draw versus a per-frame animated glow + particle field.
     Box(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(Brush.verticalGradient(listOf(BgTop, BgBottom)))
-                .drawBehind {
-                    val w = size.width
-                    val h = size.height
-                    val pulse = glowPulse.value
-                    val glowCenter =
-                        Offset(
-                            x = w * (0.5f + 0.025f * sin(particlePhase.value * 2f * PI).toFloat()),
-                            y = h * 0.42f,
-                        )
-
-                    drawCircle(
-                        brush =
-                            Brush.radialGradient(
-                                colors =
-                                    listOf(
-                                        accentColor.copy(alpha = 0.16f * pulse),
-                                        accentColor.copy(alpha = 0.045f * pulse),
-                                        Color.Transparent,
-                                    ),
-                                center = glowCenter,
-                                radius = w * 0.58f,
-                            ),
-                        radius = w * 0.58f,
-                        center = glowCenter,
-                    )
-
-                    particles.forEach { particle ->
-                        val raw = (particle.y - particlePhase.value * particle.speed) % 1f
-                        val t = if (raw < 0f) raw + 1f else raw
-                        val drift =
-                            sin((particlePhase.value * 2f * PI).toFloat() + particle.phaseOffset) * w * 0.018f
-                        val fade =
-                            when {
-                                t < 0.12f -> t / 0.12f
-                                t > 0.9f -> (1f - t) / 0.1f
-                                else -> 1f
-                            }
-                        drawCircle(
-                            color = accentColor.copy(alpha = particle.alpha * fade),
-                            radius = particle.size.dp.toPx(),
-                            center = Offset(w * particle.x + drift, h * t),
-                        )
-                    }
-                },
+                .background(BgBottom),
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -410,22 +295,8 @@ fun PreloaderDialogContent(state: PreloaderDialogState) {
             Spacer(modifier = Modifier.height(24.dp))
 
             if (!bottomProgressBar) {
-                AnimatedContent(
-                targetState = text,
-                contentAlignment = Alignment.Center,
-                transitionSpec = {
-                    // Cross-fade with a gentle upward drift: the new line rises into place from
-                    // slightly below while the old one fades out drifting up. No 3D flip.
-                    (
-                        fadeIn(tween(260, delayMillis = 60)) +
-                            slideInVertically(tween(320, easing = FastOutSlowInEasing)) { it / 6 }
-                    ) togetherWith (
-                        fadeOut(tween(200)) +
-                            slideOutVertically(tween(320, easing = FastOutSlowInEasing)) { -it / 6 }
-                    )
-                },
-                label = "statusText",
-            ) { value ->
+                run {
+                    val value = text
                 Text(
                     text = value,
                     fontSize = 15.sp,
@@ -470,11 +341,7 @@ fun PreloaderDialogContent(state: PreloaderDialogState) {
                 Spacer(modifier = Modifier.height(14.dp))
                 // Smoothed, because an import reports in steps -- an unsmoothed
                 // bar jumps between them, which reads as having stalled.
-                val animated by animateFloatAsState(
-                    targetValue = (progress.coerceIn(0, 100)) / 100f,
-                    animationSpec = tween(240),
-                    label = "preloaderBottomProgress",
-                )
+                val animated = (progress.coerceIn(0, 100)) / 100f
                 if (isIndeterminate) {
                     LinearProgressIndicator(
                         modifier =
@@ -551,6 +418,12 @@ private fun PlatformBadge(
     }
 }
 
+// Flat, single-color spinner using Compose's own CircularProgressIndicator
+// instead of a hand-drawn sweep-gradient "comet" with a glowing lead dot.
+// Same information (indeterminate vs. determinate progress), far less
+// per-frame work: no custom trig, no gradient-stop recomputation, no extra
+// glow draws - just the platform's own optimized indicator in the flat
+// accent color.
 @Composable
 private fun NeonCometRing(
     isIndeterminate: Boolean,
@@ -558,105 +431,29 @@ private fun NeonCometRing(
     accentColor: Color,
     alpha: Float,
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "ringMotion")
-    val rotation =
-        infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 360f,
-            animationSpec = infiniteRepeatable(tween(1100, easing = LinearEasing), RepeatMode.Restart),
-            label = "ringRotation",
-        )
-    val animatedProgress by animateFloatAsState(
-        targetValue = progress.coerceIn(0, 100) / 100f,
-        animationSpec = tween(durationMillis = 620, easing = FastOutSlowInEasing),
-        label = "ringProgress",
-    )
+    val animatedProgress = progress.coerceIn(0, 100) / 100f
 
     Box(
         modifier = Modifier.size(48.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokeWidth = 4.dp.toPx()
-            // Inset enough to keep the rounded cap and lead dot from clipping the bounds.
-            val inset = strokeWidth / 2f + 2.dp.toPx()
-            val arcSize =
-                Size(
-                    width = size.width - inset * 2f,
-                    height = size.height - inset * 2f,
-                )
-            val topLeft = Offset(inset, inset)
-            val center = Offset(size.width / 2f, size.height / 2f)
-            val radius = arcSize.width / 2f
-            // A long ~280° arc reads as a proper spinner; determinate fills to progress.
-            val sweep = if (isIndeterminate) 280f else 360f * animatedProgress
-            val startAngle = if (isIndeterminate) rotation.value else -90f
-            val endAngle = startAngle + sweep
-            val endRadians = Math.toRadians(endAngle.toDouble())
-            val leadDot =
-                Offset(
-                    x = center.x + radius * cos(endRadians).toFloat(),
-                    y = center.y + radius * sin(endRadians).toFloat(),
-                )
-
-            // Track ring behind the spinner.
-            drawArc(
-                color = TrackColor.copy(alpha = 0.7f * alpha),
-                startAngle = 0f,
-                sweepAngle = 360f,
-                useCenter = false,
-                topLeft = topLeft,
-                size = arcSize,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+        if (isIndeterminate) {
+            CircularProgressIndicator(
+                modifier = Modifier.fillMaxSize(),
+                color = accentColor.copy(alpha = alpha),
+                trackColor = TrackColor.copy(alpha = 0.7f * alpha),
+                strokeWidth = 4.dp,
+                strokeCap = StrokeCap.Round,
             )
-
-            if (sweep > 0.5f) {
-                // Tapered arc: faint tail growing into a solid accent head. A sweep gradient is
-                // anchored to the canvas (0° = +x axis), so rotate the canvas to the arc's start
-                // and place the bright head at the arc's actual end (sweep/360 of the gradient).
-                val head = (sweep / 360f).coerceIn(0.05f, 1f)
-                val cometStops =
-                    if (head >= 0.999f) {
-                        arrayOf(
-                            0f to accentColor.copy(alpha = 0.35f * alpha),
-                            0.7f to accentColor.copy(alpha = 0.8f * alpha),
-                            1f to Color.White.copy(alpha = 0.95f * alpha),
-                        )
-                    } else {
-                        arrayOf(
-                            0f to Color.Transparent,
-                            head * 0.55f to accentColor.copy(alpha = 0.35f * alpha),
-                            head * 0.85f to accentColor.copy(alpha = 0.85f * alpha),
-                            head to accentColor.copy(alpha = 0.95f * alpha),
-                            1f to Color.Transparent,
-                        )
-                    }
-                rotate(degrees = startAngle, pivot = center) {
-                    drawArc(
-                        brush = Brush.sweepGradient(colorStops = cometStops, center = center),
-                        startAngle = 0f,
-                        sweepAngle = sweep,
-                        useCenter = false,
-                        topLeft = topLeft,
-                        size = arcSize,
-                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
-                    )
-                }
-            }
-
-            if (isIndeterminate || animatedProgress > 0f) {
-                // Subtle glow on the leading edge.
-                drawCircle(
-                    color = accentColor.copy(alpha = 0.2f * alpha),
-                    radius = 3.5.dp.toPx(),
-                    center = leadDot,
-                )
-                drawCircle(
-                    color = Color.White.copy(alpha = 0.9f * alpha),
-                    radius = 1.5.dp.toPx(),
-                    center = leadDot,
-                )
-            }
+        } else {
+            CircularProgressIndicator(
+                progress = { animatedProgress },
+                modifier = Modifier.fillMaxSize(),
+                color = accentColor.copy(alpha = alpha),
+                trackColor = TrackColor.copy(alpha = 0.7f * alpha),
+                strokeWidth = 4.dp,
+                strokeCap = StrokeCap.Round,
+            )
         }
     }
 }

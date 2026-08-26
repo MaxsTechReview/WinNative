@@ -1,7 +1,4 @@
 package com.winlator.cmod.shared.ui
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
@@ -63,7 +61,21 @@ fun <T> CarouselView(
     ) {
         val spacing = 14.dp
         val navBottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-        val baseCardWidth = maxWidth * 0.22f
+        // Landscape/tablet: cards sized off width, as before (viewport is short and wide,
+        // so width is the constraining dimension).
+        // Portrait: the viewport here is often much taller than it is wide (this carousel
+        // sits in a box that claims the full remaining screen height), so sizing purely off
+        // width produces tiny cards adrift in a mostly-empty column. Size off height instead
+        // (capped so at least ~1.6 cards' worth of width still shows, preserving the
+        // carousel's peek-of-next-card feel) and center the row in the cross axis so the
+        // card sits in the middle of that height rather than pinned to the top.
+        val isPortrait = maxHeight > maxWidth
+        val baseCardWidth =
+            if (isPortrait) {
+                ((maxHeight * 0.56f) / 1.2f).coerceAtMost(maxWidth * 0.62f)
+            } else {
+                maxWidth * 0.22f
+            }
         val baseCardHeight = baseCardWidth * 1.2f
         val sidePadding = ((maxWidth - baseCardWidth) / 2).coerceAtLeast(0.dp)
         val flingBehavior = rememberSnapFlingBehavior(listState)
@@ -72,7 +84,7 @@ fun <T> CarouselView(
         LaunchedEffect(selectedIndex) {
             if (selectedIndex in items.indices) {
                 lastReportedIndex.intValue = selectedIndex
-                listState.animateScrollToItem(selectedIndex)
+                listState.scrollToItem(selectedIndex)
             }
         }
 
@@ -109,6 +121,10 @@ fun <T> CarouselView(
         LazyRow(
             state = listState,
             horizontalArrangement = Arrangement.spacedBy(spacing),
+            // Center the cards in the available height instead of the LazyRow's default
+            // top alignment, which used to leave the (small, width-driven) cards pinned
+            // near the top with a large dead zone below on tall/portrait viewports.
+            verticalAlignment = Alignment.CenterVertically,
             contentPadding =
                 PaddingValues(
                     start = sidePadding,
@@ -137,33 +153,9 @@ fun <T> CarouselView(
                 }
 
                 // Smooth animated values driven by distance
-                val scale by animateFloatAsState(
-                    targetValue = 1.12f - (0.22f * distanceFraction),
-                    animationSpec =
-                        spring(
-                            dampingRatio = Spring.DampingRatioNoBouncy,
-                            stiffness = Spring.StiffnessMediumLow,
-                        ),
-                    label = "carouselScale",
-                )
-                val rise by animateFloatAsState(
-                    targetValue = 1f - distanceFraction,
-                    animationSpec =
-                        spring(
-                            dampingRatio = Spring.DampingRatioNoBouncy,
-                            stiffness = Spring.StiffnessMediumLow,
-                        ),
-                    label = "carouselRise",
-                )
-                val itemAlpha by animateFloatAsState(
-                    targetValue = 1f - (0.15f * distanceFraction),
-                    animationSpec =
-                        spring(
-                            dampingRatio = Spring.DampingRatioNoBouncy,
-                            stiffness = Spring.StiffnessMedium,
-                        ),
-                    label = "carouselAlpha",
-                )
+                val scale = 1.12f - (0.22f * distanceFraction)
+                val rise = 1f - distanceFraction
+                val itemAlpha = 1f - (0.15f * distanceFraction)
 
                 val risePx = with(density) { (16.dp * rise).toPx() }
                 val isSelected = index == selectedIndex

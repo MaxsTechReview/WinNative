@@ -762,12 +762,12 @@ internal fun HUDToggleChip(
                 pressed -> PaneInnerPressed
                 else -> PaneInnerResting
             },
-        animationSpec = tween(140),
+        animationSpec = tween(0),
         label = "hudChipBg",
     )
     val borderColor by animateColorAsState(
         targetValue = if (checked) DrawerAccent else RestingCardBorder,
-        animationSpec = tween(140),
+        animationSpec = tween(0),
         label = "hudChipBorder",
     )
     val cornerRadius = (12f * paneScale).dp

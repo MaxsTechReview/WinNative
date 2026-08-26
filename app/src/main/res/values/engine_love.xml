@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- love-android's GameActivity reads this to decide where the game comes
-         from. false means it does not look for a game.love in the APK's assets
-         and instead takes the path from the launch Intent's file:// data, which
-         is what lets the engine live in the retro bundle and update on its own
-         schedule rather than being frozen into the APK. -->
-    <bool name="embed">false</bool>
-</resources>

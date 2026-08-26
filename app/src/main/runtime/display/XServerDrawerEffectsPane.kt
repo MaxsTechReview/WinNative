@@ -214,14 +214,14 @@ internal fun ScreenEffectsPaneContent(
                         visible = state.sgsrEnabled,
                         enter =
                             expandVertically(
-                                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                                animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing),
                                 expandFrom = Alignment.Top,
-                            ) + fadeIn(animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing)),
+                            ) + fadeIn(animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing)),
                         exit =
                             shrinkVertically(
-                                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                                animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing),
                                 shrinkTowards = Alignment.Top,
-                            ) + fadeOut(animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)),
+                            ) + fadeOut(animationSpec = tween(durationMillis = 0, easing = FastOutSlowInEasing)),
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                             NavSliderRow(
