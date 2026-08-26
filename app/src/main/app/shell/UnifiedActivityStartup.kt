@@ -475,15 +475,13 @@ internal fun UnifiedActivity.scheduleDeferredStoreBootstrap() {
 }
 
 internal fun UnifiedActivity.buildTabs(storeVisible: Map<String, Boolean>): List<TabDef> {
-    val base =
-        mutableListOf(
-            TabDef(getString(R.string.common_ui_library), "library"),
-            TabDef(getString(R.string.common_ui_downloads), "downloads"),
-        )
-    if (storeVisible["steam"] != false) base.add(TabDef("Steam", "steam"))
-    if (storeVisible["epic"] != false) base.add(TabDef("Epic", "epic"))
-    if (storeVisible["gog"] != false) base.add(TabDef("GOG", "gog"))
-    return base
+    // Steam/Epic/GOG are no longer separate tabs — they render as shelves
+    // underneath the installed-games grid on the Library tab itself
+    // (Steam Deck style), gated by the same storeVisible flags.
+    return listOf(
+        TabDef(getString(R.string.common_ui_library), "library"),
+        TabDef(getString(R.string.common_ui_downloads), "downloads"),
+    )
 }
 
 @Composable

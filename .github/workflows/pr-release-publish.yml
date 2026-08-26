@@ -82,14 +82,8 @@ jobs:
           release_label=$(printf '%s' "$label" | tr '#' '.')
           {
             echo "label=$label"
-            echo "standard=WinNative-Debug-Standard-${label}.apk"
-            echo "ludashi=WinNative-Debug-Ludashi-${label}.apk"
-            echo "pubg=WinNative-Debug-Pubg-${label}.apk"
-            echo "antutu=WinNative-Debug-Antutu-${label}.apk"
-            echo "release_standard=WinNative-Debug-Standard-${release_label}.apk"
-            echo "release_ludashi=WinNative-Debug-Ludashi-${release_label}.apk"
-            echo "release_pubg=WinNative-Debug-Pubg-${release_label}.apk"
-            echo "release_antutu=WinNative-Debug-Antutu-${release_label}.apk"
+            echo "apk=WinNative-Debug-${label}.apk"
+            echo "release_apk=WinNative-Debug-${release_label}.apk"
           } >> "$GITHUB_OUTPUT"
 
       - name: Download PR build artifacts
@@ -98,15 +92,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p artifacts
-          # Download all flavors in parallel; the sequential form left the runner's network idle per transfer.
-          pids=()
-          for flavor in standard ludashi pubg antutu; do
-            gh run download "$RUN_ID" --repo "$SOURCE_REPO" --name "apk-$flavor" --dir "artifacts/$flavor" &
-            pids+=($!)
-          done
-          for pid in "${pids[@]}"; do
-            wait "$pid"
-          done
+          gh run download "$RUN_ID" --repo "$SOURCE_REPO" --name apk-debug --dir artifacts/debug
+          test "$(find artifacts/debug -name '*.apk' | wc -l)" -eq 1
 
       - name: Build release notes from PR metadata
         if: ${{ steps.scope.outputs.allowed == 'true' }}
@@ -148,10 +135,7 @@ jobs:
               printf 'No PR description was provided.\n'
             fi
             printf '\n## Attached Artifacts\n\n'
-            printf -- '%s\n' "- ${{ steps.apk.outputs.release_standard }}"
-            printf -- '%s\n' "- ${{ steps.apk.outputs.release_ludashi }}"
-            printf -- '%s\n' "- ${{ steps.apk.outputs.release_pubg }}"
-            printf -- '%s\n' "- ${{ steps.apk.outputs.release_antutu }}"
+            printf -- '%s\n' "- ${{ steps.apk.outputs.release_apk }}"
             printf '\nBuilt from source commit `%s`.\n' "$short_sha"
           } > release-notes.md
 
@@ -211,23 +195,11 @@ jobs:
             fi
           fi
 
-          standard_path="artifacts/standard/${{ steps.apk.outputs.standard }}"
-          ludashi_path="artifacts/ludashi/${{ steps.apk.outputs.ludashi }}"
-          pubg_path="artifacts/pubg/${{ steps.apk.outputs.pubg }}"
-          antutu_path="artifacts/antutu/${{ steps.apk.outputs.antutu }}"
-          release_standard_path="release-assets/${{ steps.apk.outputs.release_standard }}"
-          release_ludashi_path="release-assets/${{ steps.apk.outputs.release_ludashi }}"
-          release_pubg_path="release-assets/${{ steps.apk.outputs.release_pubg }}"
-          release_antutu_path="release-assets/${{ steps.apk.outputs.release_antutu }}"
-          test -f "$standard_path"
-          test -f "$ludashi_path"
-          test -f "$pubg_path"
-          test -f "$antutu_path"
+          apk_path="artifacts/debug/${{ steps.apk.outputs.apk }}"
+          release_apk_path="release-assets/${{ steps.apk.outputs.release_apk }}"
+          test -f "$apk_path"
           mkdir -p release-assets
-          cp "$standard_path" "$release_standard_path"
-          cp "$ludashi_path" "$release_ludashi_path"
-          cp "$pubg_path" "$release_pubg_path"
-          cp "$antutu_path" "$release_antutu_path"
+          cp "$apk_path" "$release_apk_path"
 
           release_json=$(gh api "repos/$TARGET_REPO/releases/tags/$tag")
           existing_apk_assets=$(
@@ -262,10 +234,7 @@ jobs:
             gh release upload "$tag" "$file_path" --repo "$TARGET_REPO"
           }
 
-          upload_asset "$release_standard_path"
-          upload_asset "$release_ludashi_path"
-          upload_asset "$release_pubg_path"
-          upload_asset "$release_antutu_path"
+          upload_asset "$release_apk_path"
 
           release_url=$(gh release view "$tag" --repo "$TARGET_REPO" --json url --jq '.url')
           {

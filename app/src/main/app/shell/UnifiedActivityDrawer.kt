@@ -318,10 +318,8 @@ internal fun UnifiedActivity.DrawerContent(
     scope: kotlinx.coroutines.CoroutineScope,
     storeVisible: SnapshotStateMap<String, Boolean>,
     contentFilters: SnapshotStateMap<String, Boolean>,
-    libraryLayoutMode: LibraryLayoutMode,
     immersiveMode: Boolean,
     immersiveBlur: Boolean,
-    onLibraryLayoutSelected: (LibraryLayoutMode) -> Unit,
     onStoreVisibleChanged: (String, Boolean) -> Unit,
     onContentFiltersChanged: (String, Boolean) -> Unit,
     onImmersiveModeChanged: (Boolean) -> Unit,
@@ -352,38 +350,6 @@ internal fun UnifiedActivity.DrawerContent(
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
         ) {
-
-            // ── Layouts ──
-            Text(
-                stringResource(R.string.library_games_layouts_header),
-                color = TextSecondary,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.4.sp,
-                modifier = Modifier.padding(bottom = 4.dp),
-            )
-            Spacer(Modifier.height(8.dp))
-
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                DrawerFilterButton(
-                    label = "4-Grid",
-                    checked = libraryLayoutMode == LibraryLayoutMode.GRID_4,
-                    modifier = Modifier.weight(1f),
-                ) { if (it) onLibraryLayoutSelected(LibraryLayoutMode.GRID_4) }
-                DrawerFilterButton(
-                    label = stringResource(R.string.library_games_layout_carousel),
-                    checked = libraryLayoutMode == LibraryLayoutMode.CAROUSEL,
-                    modifier = Modifier.weight(1f),
-                    fontSize = 11.sp,
-                ) { if (it) onLibraryLayoutSelected(LibraryLayoutMode.CAROUSEL) }
-                DrawerFilterButton(
-                    label = stringResource(R.string.library_games_layout_list),
-                    checked = libraryLayoutMode == LibraryLayoutMode.LIST,
-                    modifier = Modifier.weight(1f),
-                ) { if (it) onLibraryLayoutSelected(LibraryLayoutMode.LIST) }
-            }
-
-            Spacer(Modifier.height(16.dp))
 
             // ── View Options ──
             Text(

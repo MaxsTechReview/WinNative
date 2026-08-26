@@ -22,147 +22,124 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-    strategy:
-      fail-fast: false
-      matrix:
-        flavor:
-          - name: Standard
-            artifactName: apk-standard
-            gradleTask: assembleStandardDebug
-            apkPath: app/build/outputs/apk/standard/debug/standard.apk
-          - name: Ludashi
-            artifactName: apk-ludashi
-            gradleTask: assembleLudashiDebug
-            apkPath: app/build/outputs/apk/ludashi/debug/ludashi.apk
-          - name: Pubg
-            artifactName: apk-pubg
-            gradleTask: assemblePubgDebug
-            apkPath: app/build/outputs/apk/pubg/debug/pubg.apk
-          - name: Antutu
-            artifactName: apk-antutu
-            gradleTask: assembleAntutuDebug
-            apkPath: app/build/outputs/apk/antutu/debug/antutu.apk
-
     steps:
-    - name: Clone repository
-      uses: actions/checkout@v6
-      with:
-        submodules: recursive
-        fetch-depth: 1
-        persist-credentials: false
+      - name: Clone repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          fetch-depth: 1
+          persist-credentials: false
 
-    - name: Cache LFS
-      uses: actions/cache@v5
-      with:
-        path: .git/lfs
-        key: lfs-${{ hashFiles('**/*.txz', '**/*.tzst') }}
-        restore-keys: lfs-
+      - name: Cache LFS
+        uses: actions/cache@v5
+        with:
+          path: .git/lfs
+          key: lfs-${{ hashFiles('**/*.txz', '**/*.tzst') }}
+          restore-keys: lfs-
 
-    - name: Pull LFS files
-      run: git lfs pull
+      - name: Pull LFS files
+        run: git lfs pull
 
-    - name: Cache NDK build outputs
-      uses: actions/cache@v5
-      with:
-        path: |
-          app/.cxx
-          app/build/intermediates/cxx
-        key: ndk-${{ hashFiles('app/src/main/cpp/**', 'app/build.gradle', 'app/src/main/cpp/CMakeLists.txt') }}
-        restore-keys: |
-          ndk-
+      - name: Cache NDK build outputs
+        uses: actions/cache@v5
+        with:
+          path: |
+            app/.cxx
+            app/build/intermediates/cxx
+          key: ndk-${{ hashFiles('app/src/main/cpp/**', 'app/build.gradle', 'app/src/main/cpp/CMakeLists.txt') }}
+          restore-keys: ndk-
 
-    # Cargo target dir + registry sit outside the NDK cache paths; a cold Rust build dominates job time.
-    - name: Cache Rust Steam client
-      uses: actions/cache@v5
-      with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          app/src/main/cpp/wn-steam-client/rust/target
-        key: cargo-${{ hashFiles('app/src/main/cpp/wn-steam-client/rust/Cargo.lock') }}
-        restore-keys: cargo-
+      - name: Cache Rust Steam client
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            app/src/main/cpp/wn-steam-client/rust/target
+          key: cargo-${{ hashFiles('app/src/main/cpp/wn-steam-client/rust/Cargo.lock') }}
+          restore-keys: cargo-
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v5
-      with:
-        java-version: '17'
-        distribution: 'temurin'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
-    - name: Install Rust Android target
-      run: rustup target add aarch64-linux-android
+      - name: Install Rust Android target
+        run: rustup target add aarch64-linux-android
 
-    - name: Set up Gradle
-      uses: gradle/actions/setup-gradle@v6
-      with:
-        validate-wrappers: true
-        cache-cleanup: 'on-success'
-        # PRs restore the Gradle cache read-only; only main pushes write it.
-        cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          validate-wrappers: true
+          cache-cleanup: on-success
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
 
-    - name: Decode keystore and build
-      timeout-minutes: 15
-      env:
-        KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        GRADLE_OPTS: -Xmx4g -XX:+UseG1GC
-      run: |
-        export KEYSTORE_FILE="${{ github.workspace }}/release.jks"
-        if [ -n "$KEYSTORE_BASE64" ]; then
-          echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_FILE"
-        else
-          export KEYSTORE_PASSWORD="dummypass"
-          export KEY_ALIAS="winnative"
-          export KEY_PASSWORD="dummypass"
-          keytool -genkey -v \
-            -keystore "$KEYSTORE_FILE" \
-            -alias winnative \
-            -keyalg RSA -keysize 2048 -validity 1 \
-            -storepass dummypass -keypass dummypass \
-            -dname "CN=CI, OU=CI, O=CI, L=CI, ST=CI, C=US"
-        fi
-        chmod +x ./gradlew
-        ./gradlew :app:${{ matrix.flavor.gradleTask }} --build-cache --parallel -x lint
-
-    - name: Compute artifact label
-      id: label
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        if [ "${{ github.event_name }}" = "pull_request" ]; then
-          short_sha=$(printf '%s' "${{ github.event.pull_request.head.sha }}" | cut -c1-5)
-          echo "name=PR#${{ github.event.pull_request.number }}-${short_sha}" >> "$GITHUB_OUTPUT"
-        else
-          short_sha=$(printf '%s' "$GITHUB_SHA" | cut -c1-5)
-          # For merged PR commits on main, preserve the source PR number and PR head SHA.
-          num=$(git log -1 --pretty=%s | grep -oE '\(#[0-9]+\)|#[0-9]+' | tail -1 | tr -cd '0-9')
-          if [ -n "$num" ]; then
-            pr_head_sha=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$num" --jq '.head.sha' 2>/dev/null || true)
-            if [ -n "$pr_head_sha" ] && [ "$pr_head_sha" != "null" ]; then
-              short_sha=$(printf '%s' "$pr_head_sha" | cut -c1-5)
-            fi
-            echo "name=PR#${num}-${short_sha}" >> "$GITHUB_OUTPUT"
+      - name: Prepare signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          export KEYSTORE_FILE="${{ github.workspace }}/release.jks"
+          if [ -n "${KEYSTORE_BASE64:-}" ]; then
+            printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_FILE"
           else
+            export KEYSTORE_PASSWORD=dummypass
+            export KEY_ALIAS=ci
+            export KEY_PASSWORD=dummypass
+            keytool -genkeypair -v \
+              -keystore "$KEYSTORE_FILE" \
+              -alias ci \
+              -keyalg RSA -keysize 2048 -validity 1 \
+              -storepass dummypass -keypass dummypass \
+              -dname "CN=CI, OU=CI, O=CI, L=CI, ST=CI, C=US"
+          fi
+
+      - name: Build single APK
+        env:
+          KEYSTORE_FILE: ${{ github.workspace }}/release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'dummypass' }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'ci' }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'dummypass' }}
+          GRADLE_OPTS: -Xmx4g -XX:+UseG1GC
+        run: |
+          set -euo pipefail
+          chmod +x ./gradlew
+          ./gradlew :app:assembleDebug --build-cache --parallel -x lint
+          test -f app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Compute artifact label
+        id: label
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            short_sha=$(printf '%s' "${{ github.event.pull_request.head.sha }}" | cut -c1-5)
+            echo "name=PR#${{ github.event.pull_request.number }}-${short_sha}" >> "$GITHUB_OUTPUT"
+          else
+            short_sha=$(printf '%s' "$GITHUB_SHA" | cut -c1-5)
             echo "name=main-${short_sha}" >> "$GITHUB_OUTPUT"
           fi
-        fi
 
-    - name: Prepare APK for upload
-      run: |
-        upload_dir="artifacts/${{ matrix.flavor.artifactName }}"
-        mkdir -p "$upload_dir"
-        cp ${{ matrix.flavor.apkPath }} "$upload_dir/WinNative-Debug-${{ matrix.flavor.name }}-${{ steps.label.outputs.name }}.apk"
+      - name: Prepare APK
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          cp app/build/outputs/apk/debug/app-debug.apk \
+            "artifacts/WinNative-Debug-${{ steps.label.outputs.name }}.apk"
 
-    - name: Upload APK
-      uses: actions/upload-artifact@v7
-      with:
-        name: ${{ matrix.flavor.artifactName }}
-        path: artifacts/${{ matrix.flavor.artifactName }}/*.apk
-        retention-days: 7
-        if-no-files-found: error
-        # APK contents are already compressed; deflating ~560MB again wastes CPU.
-        compression-level: 0
+      - name: Upload APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: apk-debug
+          path: artifacts/*.apk
+          retention-days: 7
+          if-no-files-found: error
+          compression-level: 0
 
   cleanup-caches:
     needs: build
@@ -172,18 +149,16 @@ jobs:
       actions: write
       contents: read
     steps:
-    - name: Cleanup duplicate caches
-      continue-on-error: true
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        # Dedupe only main-scope caches so a newer PR-scoped twin can't get main's copy deleted.
-        gh cache list --repo "$GITHUB_REPOSITORY" --ref refs/heads/main --json id,key,createdAt --limit 100 |
-          jq -r '
-            group_by(.key | sub("-[a-f0-9]{20,}$"; ""))
-            | .[]
-            | sort_by(.createdAt) | reverse
-            | .[1:][]
-            | .id
-          ' |
-          xargs -I {} gh cache delete {} --repo "$GITHUB_REPOSITORY" || true
+      - name: Cleanup duplicate caches
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh cache list --repo "$GITHUB_REPOSITORY" --ref refs/heads/main --json id,key,createdAt --limit 100 |
+            jq -r '
+              group_by(.key | sub("-[a-f0-9]{20,}$"; ""))
+              | .[]
+              | sort_by(.createdAt) | reverse
+              | .[1:][].id
+            ' |
+            xargs -r -I {} gh cache delete {} --repo "$GITHUB_REPOSITORY" || true

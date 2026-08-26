@@ -77,27 +77,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    strategy:
-      fail-fast: true
-      matrix:
-        flavor:
-          - name: Standard
-            gradleTask: assembleStandardDebug
-            apkPath: app/build/outputs/apk/standard/debug/standard.apk
-            artifactName: release-apk-standard
-          - name: Ludashi
-            gradleTask: assembleLudashiDebug
-            apkPath: app/build/outputs/apk/ludashi/debug/ludashi.apk
-            artifactName: release-apk-ludashi
-          - name: Pubg
-            gradleTask: assemblePubgDebug
-            apkPath: app/build/outputs/apk/pubg/debug/pubg.apk
-            artifactName: release-apk-pubg
-          - name: Antutu
-            gradleTask: assembleAntutuDebug
-            apkPath: app/build/outputs/apk/antutu/debug/antutu.apk
-            artifactName: release-apk-antutu
-
     steps:
       - name: Clone repository
         uses: actions/checkout@v6
@@ -166,11 +145,12 @@ jobs:
           export KEYSTORE_FILE="${{ github.workspace }}/release.jks"
           printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_FILE"
           chmod +x ./gradlew
-          ./gradlew :app:${{ matrix.flavor.gradleTask }} --build-cache --parallel -x lint
+          ./gradlew :app:assembleDebug --build-cache --parallel -x lint
+          test -f app/build/outputs/apk/debug/app-debug.apk
 
       - name: Verify signature and version
         env:
-          APK_PATH: ${{ matrix.flavor.apkPath }}
+          APK_PATH: app/build/outputs/apk/debug/app-debug.apk
           VERSION: ${{ needs.prepare.outputs.version }}
           EXPECTED_CERT_SHA256: ${{ secrets.RELEASE_CERT_SHA256 || env.DEFAULT_CERT_SHA256 }}
         run: |
@@ -195,8 +175,8 @@ jobs:
 
       - name: Prepare APK for upload
         env:
-          APK_PATH: ${{ matrix.flavor.apkPath }}
-          VARIANT_NAME: ${{ matrix.flavor.name }}
+          APK_PATH: app/build/outputs/apk/debug/app-debug.apk
+          VARIANT_NAME: Debug
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           set -euo pipefail
@@ -206,7 +186,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.flavor.artifactName }}
+          name: release-apk
           path: artifacts/*.apk
           retention-days: 7
           if-no-files-found: error
@@ -231,14 +211,12 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p assets
-          for flavor in standard ludashi pubg antutu; do
-            gh run download "$GITHUB_RUN_ID" \
-              --repo "$GITHUB_REPOSITORY" \
-              --name "release-apk-$flavor" \
-              --dir assets
-          done
+          gh run download "$GITHUB_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name release-apk \
+            --dir assets
           ls -l assets
-          test "$(find assets -name '*.apk' | wc -l)" -eq 4
+          test "$(find assets -name '*.apk' | wc -l)" -eq 1
 
       - name: Assemble release notes
         id: notes

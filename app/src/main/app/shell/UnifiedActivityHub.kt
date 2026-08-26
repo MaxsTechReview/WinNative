@@ -38,9 +38,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.item
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -303,6 +306,21 @@ private fun UnifiedActivity.NintendoLandscapeLibrary(
     onSettings: () -> Unit,
     onFilter: () -> Unit,
     onExit: () -> Unit,
+    steamApps: List<SteamApp> = emptyList(),
+    epicApps: List<EpicGame> = emptyList(),
+    gogApps: List<GOGGame> = emptyList(),
+    isSteamLoggedIn: Boolean = false,
+    isEpicLoggedIn: Boolean = false,
+    isGogLoggedIn: Boolean = false,
+    storeVisible: Map<String, Boolean> = emptyMap(),
+    steamInstallStateById: Map<Int, Boolean> = emptyMap(),
+    epicInstallStateById: Map<Int, Boolean> = emptyMap(),
+    gogInstallStateById: Map<String, Boolean> = emptyMap(),
+    onSteamShelfClick: (SteamApp) -> Unit = {},
+    onEpicShelfClick: (EpicGame) -> Unit = {},
+    onGogShelfClick: (GOGGame) -> Unit = {},
+    onEpicLoginClick: () -> Unit = {},
+    onGogLoginClick: () -> Unit = {},
 ) {
     val carouselState = rememberLazyListState()
     val selected = displayedApps.getOrNull(focusIndex)
@@ -320,59 +338,86 @@ private fun UnifiedActivity.NintendoLandscapeLibrary(
             if (isControllerConnected) ControllerBadge("A  START", compact = true)
         }
 
-        Box(Modifier.weight(1f).fillMaxWidth()) {
-            CarouselView(
-                items = displayedApps,
-                modifier = Modifier.fillMaxSize(),
-                listState = carouselState,
-                selectedIndex = focusIndex,
-                onCenteredIndexChanged = onFocusChanged,
-            ) { app, index, isSelected, cardWidth, cardHeight ->
-                val gog = visibleGogByPseudoId[app.id]
-                val epic = visibleEpicByPseudoId[app.id]
-                val artwork = visibleCustomIconArtworkPathByAppId[app.id] ?: visibleCustomArtworkPathByAppId[app.id]
-                Column(
-                    modifier = Modifier
-                        .width(cardWidth)
-                        .graphicsLayer { alpha = if (isSelected) 1f else 0.72f }
-                        .combinedClickable(
-                            onClick = { onClick(index, app) },
-                            onLongClick = { onLongClick(index, app) },
-                        ),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Box(
-                        Modifier
-                            .size(cardWidth, cardHeight)
-                            .clip(RoundedCornerShape(4.dp))
-                            .border(if (isSelected) 3.dp else 1.dp, if (isSelected) Accent else CardBorder, RoundedCornerShape(4.dp))
-                            .chasingBorder(isFocused = isSelected && isControllerConnected, paused = true, cornerRadius = 4.dp),
+        // Everything below the header scrolls together: the installed-games carousel up
+        // top, then the Steam / Epic / GOG store shelves stacked underneath it, the way
+        // Steam Deck's Library page adds extra collection rows as you scroll down.
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
+            Box(Modifier.fillMaxWidth().height(320.dp)) {
+                CarouselView(
+                    items = displayedApps,
+                    modifier = Modifier.fillMaxSize(),
+                    listState = carouselState,
+                    selectedIndex = focusIndex,
+                    onCenteredIndexChanged = onFocusChanged,
+                ) { app, index, isSelected, cardWidth, cardHeight ->
+                    val gog = visibleGogByPseudoId[app.id]
+                    val epic = visibleEpicByPseudoId[app.id]
+                    val artwork = visibleCustomIconArtworkPathByAppId[app.id] ?: visibleCustomArtworkPathByAppId[app.id]
+                    Column(
+                        modifier = Modifier
+                            .width(cardWidth)
+                            .graphicsLayer { alpha = if (isSelected) 1f else 0.72f }
+                            .combinedClickable(
+                                onClick = { onClick(index, app) },
+                                onLongClick = { onLongClick(index, app) },
+                            ),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        LibraryArtwork(
-                            app = app,
-                            gogGame = gog,
-                            epicGame = epic,
-                            artworkPath = artwork ?: visibleCustomCarouselPathByAppId[app.id],
-                            iconPath = visibleCustomIconPathByAppId[app.id],
-                            useLibraryCapsule = true,
-                            listMode = false,
-                            iconRefreshKey = iconRefreshKey,
-                            artworkCacheRefreshKey = artworkCacheRefreshKey,
-                            modifier = Modifier.fillMaxSize(),
+                        Box(
+                            Modifier
+                                .size(cardWidth, cardHeight)
+                                .clip(RoundedCornerShape(4.dp))
+                                .border(if (isSelected) 3.dp else 1.dp, if (isSelected) Accent else CardBorder, RoundedCornerShape(4.dp))
+                                .chasingBorder(isFocused = isSelected && isControllerConnected, paused = true, cornerRadius = 4.dp),
+                        ) {
+                            LibraryArtwork(
+                                app = app,
+                                gogGame = gog,
+                                epicGame = epic,
+                                artworkPath = artwork ?: visibleCustomCarouselPathByAppId[app.id],
+                                iconPath = visibleCustomIconPathByAppId[app.id],
+                                useLibraryCapsule = true,
+                                listMode = false,
+                                iconRefreshKey = iconRefreshKey,
+                                artworkCacheRefreshKey = artworkCacheRefreshKey,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            app.name,
+                            color = if (isSelected) TextPrimary else TextSecondary,
+                            fontSize = if (isSelected) 15.sp else 13.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center,
                         )
                     }
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        app.name,
-                        color = if (isSelected) TextPrimary else TextSecondary,
-                        fontSize = if (isSelected) 15.sp else 13.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.Center,
-                    )
                 }
             }
+
+            Spacer(Modifier.height(20.dp))
+
+            StoreShelves(
+                steamApps = steamApps,
+                epicApps = epicApps,
+                gogApps = gogApps,
+                isSteamLoggedIn = isSteamLoggedIn,
+                isEpicLoggedIn = isEpicLoggedIn,
+                isGogLoggedIn = isGogLoggedIn,
+                storeVisible = storeVisible,
+                steamInstallStateById = steamInstallStateById,
+                epicInstallStateById = epicInstallStateById,
+                gogInstallStateById = gogInstallStateById,
+                onSteamShelfClick = onSteamShelfClick,
+                onEpicShelfClick = onEpicShelfClick,
+                onGogShelfClick = onGogShelfClick,
+                onEpicLoginClick = onEpicLoginClick,
+                onGogLoginClick = onGogLoginClick,
+            )
+
+            Spacer(Modifier.height(12.dp))
         }
 
         Row(
@@ -408,6 +453,190 @@ private fun NintendoActionButton(icon: ImageVector, label: String, onClick: () -
     }
 }
 
+// ── Steam Deck-style store shelves ──
+// Shown below the installed-games grid/carousel on the Library tab (both
+// orientations) instead of Steam/Epic/GOG being separate top-level tabs.
+// Not wired into the D-pad/controller focus system used by the main
+// installed-games grid — these shelves are touch/pointer scrollable.
+
+@Composable
+private fun UnifiedActivity.StoreShelves(
+    steamApps: List<SteamApp>,
+    epicApps: List<EpicGame>,
+    gogApps: List<GOGGame>,
+    isSteamLoggedIn: Boolean,
+    isEpicLoggedIn: Boolean,
+    isGogLoggedIn: Boolean,
+    storeVisible: Map<String, Boolean>,
+    steamInstallStateById: Map<Int, Boolean>,
+    epicInstallStateById: Map<Int, Boolean>,
+    gogInstallStateById: Map<String, Boolean>,
+    onSteamShelfClick: (SteamApp) -> Unit,
+    onEpicShelfClick: (EpicGame) -> Unit,
+    onGogShelfClick: (GOGGame) -> Unit,
+    onEpicLoginClick: () -> Unit,
+    onGogLoginClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+        if (storeVisible["steam"] != false) {
+            StoreShelfHeader(
+                title = "STEAM",
+                isLoggedIn = isSteamLoggedIn,
+                itemCount = steamApps.size,
+                onLoginClick = { startActivity(Intent(this@StoreShelves, SteamLoginActivity::class.java)) },
+            ) {
+                items(steamApps, key = { "steam_${it.id}" }) { app ->
+                    Box(Modifier.width(120.dp).height(168.dp)) {
+                        SteamStoreCapsule(
+                            app = app,
+                            isInstalled = steamInstallStateById[app.id] == true,
+                            onClick = { onSteamShelfClick(app) },
+                        )
+                    }
+                }
+            }
+        }
+
+        if (storeVisible["epic"] != false) {
+            StoreShelfHeader(
+                title = "EPIC",
+                isLoggedIn = isEpicLoggedIn,
+                itemCount = epicApps.size,
+                onLoginClick = onEpicLoginClick,
+            ) {
+                items(epicApps, key = { "epic_${it.id}" }) { app ->
+                    Box(Modifier.width(120.dp).height(168.dp)) {
+                        EpicStoreCapsule(
+                            app = app,
+                            isInstalled = epicInstallStateById[app.id] == true,
+                            onClick = { onEpicShelfClick(app) },
+                        )
+                    }
+                }
+            }
+        }
+
+        if (storeVisible["gog"] != false) {
+            StoreShelfHeader(
+                title = "GOG",
+                isLoggedIn = isGogLoggedIn,
+                itemCount = gogApps.size,
+                onLoginClick = onGogLoginClick,
+            ) {
+                items(gogApps, key = { "gog_${it.id}" }) { app ->
+                    Box(Modifier.width(120.dp).height(168.dp)) {
+                        GOGShelfCapsule(
+                            app = app,
+                            isInstalled = gogInstallStateById[app.id] == true,
+                            onClick = { onGogShelfClick(app) },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Renders one shelf's title row, plus either a horizontal LazyRow of items
+// (content) or a compact "sign in" prompt when that store isn't connected.
+@Composable
+private fun StoreShelfHeader(
+    title: String,
+    isLoggedIn: Boolean,
+    itemCount: Int,
+    onLoginClick: () -> Unit,
+    content: LazyListScope.() -> Unit,
+) {
+    if (!isLoggedIn) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(SurfaceDark)
+                    .clickable(onClick = onLoginClick)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(title, color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
+                Text("Not connected", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            }
+            Text("CONNECT", color = Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        }
+        return
+    }
+    if (itemCount == 0) return
+
+    Column(Modifier.fillMaxWidth()) {
+        Text(
+            title,
+            color = TextSecondary,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.4.sp,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            content()
+        }
+    }
+}
+
+// GOG doesn't have a standalone reusable card composable like Steam/Epic do
+// (its grid card is inlined in GOGStoreTab) — this mirrors that same look.
+@Composable
+private fun UnifiedActivity.GOGShelfCapsule(
+    app: GOGGame,
+    isInstalled: Boolean,
+    onClick: () -> Unit,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(16.dp))
+                .background(CardDark, RoundedCornerShape(16.dp))
+                .clickable(onClick = onClick),
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)),
+        ) {
+            AsyncImage(
+                model =
+                    ImageRequest
+                        .Builder(LocalContext.current)
+                        .data(app.imageUrl.ifEmpty { app.iconUrl })
+                        .crossfade(false)
+                        .build(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+            if (isInstalled) {
+                StoreInstalledBadge(
+                    modifier = Modifier.align(Alignment.BottomEnd),
+                    attachedCorner = true,
+                )
+            }
+        }
+        Text(
+            text = app.title,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = TextPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
 @Composable
 private fun UnifiedActivity.WindowsPhonePortraitLibrary(
     displayedApps: List<SteamApp>,
@@ -426,6 +655,21 @@ private fun UnifiedActivity.WindowsPhonePortraitLibrary(
     onFocusChanged: (Int) -> Unit,
     onClick: (Int, SteamApp) -> Unit,
     onLongClick: (Int, SteamApp) -> Unit,
+    steamApps: List<SteamApp> = emptyList(),
+    epicApps: List<EpicGame> = emptyList(),
+    gogApps: List<GOGGame> = emptyList(),
+    isSteamLoggedIn: Boolean = false,
+    isEpicLoggedIn: Boolean = false,
+    isGogLoggedIn: Boolean = false,
+    storeVisible: Map<String, Boolean> = emptyMap(),
+    steamInstallStateById: Map<Int, Boolean> = emptyMap(),
+    epicInstallStateById: Map<Int, Boolean> = emptyMap(),
+    gogInstallStateById: Map<String, Boolean> = emptyMap(),
+    onSteamShelfClick: (SteamApp) -> Unit = {},
+    onEpicShelfClick: (EpicGame) -> Unit = {},
+    onGogShelfClick: (GOGGame) -> Unit = {},
+    onEpicLoginClick: () -> Unit = {},
+    onGogLoginClick: () -> Unit = {},
 ) {
     Column(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 8.dp), verticalAlignment = Alignment.Bottom) {
@@ -490,6 +734,31 @@ private fun UnifiedActivity.WindowsPhonePortraitLibrary(
                     }
                     Box(Modifier.align(Alignment.TopStart).width(4.dp).fillMaxHeight().background(if (selected) Accent else Color.Transparent))
                 }
+            }
+
+            // Steam Deck-style shelves: full-width rows added below the installed-games
+            // grid instead of Steam/Epic/GOG being separate tabs.
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Spacer(Modifier.height(8.dp))
+            }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                StoreShelves(
+                    steamApps = steamApps,
+                    epicApps = epicApps,
+                    gogApps = gogApps,
+                    isSteamLoggedIn = isSteamLoggedIn,
+                    isEpicLoggedIn = isEpicLoggedIn,
+                    isGogLoggedIn = isGogLoggedIn,
+                    storeVisible = storeVisible,
+                    steamInstallStateById = steamInstallStateById,
+                    epicInstallStateById = epicInstallStateById,
+                    gogInstallStateById = gogInstallStateById,
+                    onSteamShelfClick = onSteamShelfClick,
+                    onEpicShelfClick = onEpicShelfClick,
+                    onGogShelfClick = onGogShelfClick,
+                    onEpicLoginClick = onEpicLoginClick,
+                    onGogLoginClick = onGogLoginClick,
+                )
             }
         }
     }
@@ -922,13 +1191,8 @@ internal fun UnifiedActivity.UnifiedHub() {
                 scope = scope,
                 storeVisible = storeVisible,
                 contentFilters = contentFilters,
-                libraryLayoutMode = libraryLayoutMode,
                 immersiveMode = immersiveMode,
                 immersiveBlur = immersiveBlur,
-                onLibraryLayoutSelected = {
-                    libraryLayoutMode = it
-                    PrefManager.libraryLayoutMode = it.name
-                },
                 onStoreVisibleChanged = { key, value ->
                     storeVisible[key] = value
                     PrefManager.libraryStoreVisible = storeVisible.entries.filter { it.value }.joinToString(",") { it.key }
@@ -1129,6 +1393,15 @@ internal fun UnifiedActivity.UnifiedHub() {
                             epicApps = epicApps,
                             gogApps = gogApps,
                             layoutMode = libraryLayoutMode,
+                            isEpicLoggedIn = isEpicLoggedIn,
+                            isGogLoggedIn = isGogLoggedIn,
+                            storeVisible = storeVisible,
+                            onEpicLoginClick = {
+                                epicLoginLauncher.launch(Intent(this@UnifiedHub, EpicOAuthActivity::class.java))
+                            },
+                            onGogLoginClick = {
+                                gogLoginLauncher.launch(Intent(this@UnifiedHub, GOGOAuthActivity::class.java))
+                            },
                             libraryRefreshKey = libraryRefreshKey,
                             shortcutRefreshKey = shortcutRefreshKey,
                             playtimeRefreshKey = playtimeRefreshKey,
@@ -1151,22 +1424,6 @@ internal fun UnifiedActivity.UnifiedHub() {
                                     animationsActive = key == "downloads",
                                     onSelectDownload = { selectedDownloadId = it },
                                 )
-                            }
-
-                            "steam" -> {
-                                SteamStoreTab(isLoggedIn, filteredSteamApps, searchQuery, LibraryLayoutMode.GRID_4)
-                            }
-
-                            "epic" -> {
-                                EpicStoreTab(isEpicLoggedIn, epicApps, searchQuery, LibraryLayoutMode.GRID_4) {
-                                    epicLoginLauncher.launch(Intent(this@UnifiedHub, EpicOAuthActivity::class.java))
-                                }
-                            }
-
-                            "gog" -> {
-                                GOGStoreTab(isGogLoggedIn, gogApps, searchQuery, LibraryLayoutMode.GRID_4) {
-                                    gogLoginLauncher.launch(Intent(this@UnifiedHub, GOGOAuthActivity::class.java))
-                                }
                             }
 
                             else -> {}
@@ -2012,6 +2269,11 @@ internal fun UnifiedActivity.LibraryCarousel(
     epicApps: List<EpicGame>,
     gogApps: List<GOGGame>,
     layoutMode: LibraryLayoutMode,
+    isEpicLoggedIn: Boolean = false,
+    isGogLoggedIn: Boolean = false,
+    storeVisible: Map<String, Boolean> = emptyMap(),
+    onEpicLoginClick: () -> Unit = {},
+    onGogLoginClick: () -> Unit = {},
     libraryRefreshKey: Int = 0,
     shortcutRefreshKey: Int = 0,
     playtimeRefreshKey: Int = 0,
@@ -2025,6 +2287,15 @@ internal fun UnifiedActivity.LibraryCarousel(
     onExit: () -> Unit = {},
 ) {
     val context = LocalContext.current
+
+    // Steam Deck-style store shelves rendered below the installed-games
+    // library (see NintendoLandscapeLibrary / WindowsPhonePortraitLibrary).
+    val steamShelfInstallStateById = rememberSteamInstallStateMap(steamApps)
+    val epicShelfInstallStateById = rememberEpicInstallStateMap(context, epicApps)
+    val gogShelfInstallStateById = rememberGogInstallStateMap(gogApps)
+    var shelfSteamApp by remember { mutableStateOf<SteamApp?>(null) }
+    var shelfEpicApp by remember { mutableStateOf<EpicGame?>(null) }
+    var shelfGogApp by remember { mutableStateOf<GOGGame?>(null) }
 
     var cachedShortcuts by remember { mutableStateOf<List<Shortcut>>(emptyList()) }
     var customApps by remember { mutableStateOf<List<SteamApp>>(emptyList()) }
@@ -2683,6 +2954,21 @@ internal fun UnifiedActivity.LibraryCarousel(
                     onSettings = onSettings,
                     onFilter = onFilter,
                     onExit = onExit,
+                    steamApps = steamApps,
+                    epicApps = epicApps,
+                    gogApps = gogApps,
+                    isSteamLoggedIn = isLoggedIn,
+                    isEpicLoggedIn = isEpicLoggedIn,
+                    isGogLoggedIn = isGogLoggedIn,
+                    storeVisible = storeVisible,
+                    steamInstallStateById = steamShelfInstallStateById,
+                    epicInstallStateById = epicShelfInstallStateById,
+                    gogInstallStateById = gogShelfInstallStateById,
+                    onSteamShelfClick = { shelfSteamApp = it },
+                    onEpicShelfClick = { shelfEpicApp = it },
+                    onGogShelfClick = { shelfGogApp = it },
+                    onEpicLoginClick = onEpicLoginClick,
+                    onGogLoginClick = onGogLoginClick,
                 )
             }
 
@@ -2708,6 +2994,21 @@ internal fun UnifiedActivity.LibraryCarousel(
                         detailApp = app
                     },
                     onLongClick = openSettingsForApp,
+                    steamApps = steamApps,
+                    epicApps = epicApps,
+                    gogApps = gogApps,
+                    isSteamLoggedIn = isLoggedIn,
+                    isEpicLoggedIn = isEpicLoggedIn,
+                    isGogLoggedIn = isGogLoggedIn,
+                    storeVisible = storeVisible,
+                    steamInstallStateById = steamShelfInstallStateById,
+                    epicInstallStateById = epicShelfInstallStateById,
+                    gogInstallStateById = gogShelfInstallStateById,
+                    onSteamShelfClick = { shelfSteamApp = it },
+                    onEpicShelfClick = { shelfEpicApp = it },
+                    onGogShelfClick = { shelfGogApp = it },
+                    onEpicLoginClick = onEpicLoginClick,
+                    onGogLoginClick = onGogLoginClick,
                 )
             }
 
@@ -2885,6 +3186,26 @@ internal fun UnifiedActivity.LibraryCarousel(
                 detailApp = null
                 detailGogGame = null
             },
+        )
+    }
+
+    // Dialogs for games tapped from the Steam / Epic / GOG shelves below the library grid.
+    if (shelfSteamApp != null) {
+        GameManagerDialog(
+            app = shelfSteamApp!!,
+            onDismissRequest = { shelfSteamApp = null },
+        )
+    }
+    shelfEpicApp?.let { app ->
+        EpicGameManagerDialog(
+            app = app,
+            onDismissRequest = { shelfEpicApp = null },
+        )
+    }
+    shelfGogApp?.let { app ->
+        GOGGameManagerDialog(
+            app = app,
+            onDismissRequest = { shelfGogApp = null },
         )
     }
 }
