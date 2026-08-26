@@ -1359,6 +1359,11 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
         goto fail;
     }
     r->swapchain_image_count = got;
+    if (r->swapchain_storage && got > VKR_LSFG_MAX_TARGETS) {
+        r->swapchain_storage = false;
+        VK_LOGI("Swapchain has %u images, more than the %u frame generation targets; "
+                "keeping the composite path", got, VKR_LSFG_MAX_TARGETS);
+    }
     r->framegen_supported = transfer_dst_capable && composite_format_supported(r);
     VK_LOGI("Swapchain images requested=%u actual=%u caps.min=%u caps.max=%u framegen_extra=%u",
             image_count, got, caps.minImageCount, caps.maxImageCount, framegen_extra_images(r));
@@ -2732,7 +2737,7 @@ static bool record_and_submit_frame(VkRenderer* r) {
             for (uint32_t g = 0; g < gen_count; g++) {
                 const uint32_t idx = gen_image_index[g];
                 if (r->swapchain_storage) {
-                    vkr_lsfg_generate_into(r->lsfg, f->cmd, g, VK_FRAMES_IN_FLIGHT + g,
+                    vkr_lsfg_generate_into(r->lsfg, f->cmd, g, idx,
                                            r->swapchain_images[idx], r->swapchain_views[idx],
                                            r->swapchain_extent.width,
                                            r->swapchain_extent.height);
@@ -2864,7 +2869,9 @@ static bool record_and_submit_frame(VkRenderer* r) {
 
     for (uint32_t g = 0; g < gen_count; g++) {
         wait_sems[wait_count] = f->image_available_gen[g];
-        wait_stages[wait_count] = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        wait_stages[wait_count] = r->swapchain_storage
+            ? VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+            : VK_PIPELINE_STAGE_TRANSFER_BIT;
         wait_count++;
         signal_sems[signal_count++] = r->swapchain_render_finished[gen_image_index[g]];
     }
@@ -2899,6 +2906,23 @@ static bool record_and_submit_frame(VkRenderer* r) {
             f->in_flight = VK_NULL_HANDLE;
             VK_LOGE("Failed to recreate frame fence after submit failure");
         }
+        vkDeviceWaitIdle(r->device);
+        VkSemaphoreCreateInfo asi = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+        if (f->image_available) {
+            vkDestroySemaphore(r->device, f->image_available, NULL);
+            f->image_available = VK_NULL_HANDLE;
+            vkCreateSemaphore(r->device, &asi, NULL, &f->image_available);
+        }
+        for (uint32_t g = 0; g < VKR_LSFG_MAX_GENERATIONS; g++) {
+            if (!f->image_available_gen[g]) continue;
+            vkDestroySemaphore(r->device, f->image_available_gen[g], NULL);
+            f->image_available_gen[g] = VK_NULL_HANDLE;
+            vkCreateSemaphore(r->device, &asi, NULL, &f->image_available_gen[g]);
+        }
+        r->surface_ready = false;
+        destroy_swapchain_resources(r);
+        r->surface_ready = create_swapchain(r, r->surface_extent.width,
+                                            r->surface_extent.height);
         pthread_mutex_unlock(&r->render_mutex);
         return false;
     }
@@ -2910,6 +2934,7 @@ static bool record_and_submit_frame(VkRenderer* r) {
     pi.pSwapchains = &r->swapchain;
     pi.pImageIndices = &image_index;
 
+    bool gen_present_out_of_date = false;
     pthread_mutex_lock(&r->queue_mutex);
     for (uint32_t g = 0; g < gen_count; g++) {
         VkPresentInfoKHR gpi = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
@@ -2920,7 +2945,11 @@ static bool record_and_submit_frame(VkRenderer* r) {
         gpi.pImageIndices = &gen_image_index[g];
         VkResult gpr = vkQueuePresentKHR(r->graphics_queue, &gpi);
         if (gpr != VK_SUCCESS && gpr != VK_SUBOPTIMAL_KHR) {
-            VK_LOGW("generated frame present failed (%d)", gpr);
+            if (gpr == VK_ERROR_OUT_OF_DATE_KHR) gen_present_out_of_date = true;
+            if (r->framegen_present_failures++ % 120 == 0) {
+                VK_LOGW("generated frame present failed (%d, failures=%llu)", gpr,
+                        (unsigned long long)r->framegen_present_failures);
+            }
         } else {
             __atomic_fetch_add(&r->presented_frames, 1, __ATOMIC_RELAXED);
         }
@@ -2946,7 +2975,8 @@ static bool record_and_submit_frame(VkRenderer* r) {
     pthread_mutex_unlock(&r->queue_mutex);
 
     bool present_suboptimal = (pr == VK_SUBOPTIMAL_KHR) && !r->ignore_suboptimal;
-    if (recreate_after_present || pr == VK_ERROR_OUT_OF_DATE_KHR || present_suboptimal) {
+    if (recreate_after_present || pr == VK_ERROR_OUT_OF_DATE_KHR || present_suboptimal
+        || gen_present_out_of_date) {
         r->surface_ready = false;
         pthread_mutex_lock(&r->queue_mutex);
         vkQueueWaitIdle(r->graphics_queue);

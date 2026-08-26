@@ -10,6 +10,7 @@ extern "C" {
 #endif
 
 #define VKR_LSFG_MAX_GENERATIONS 3u
+#define VKR_LSFG_MAX_TARGETS 7u
 
 typedef struct VkrLsfg VkrLsfg;
 
