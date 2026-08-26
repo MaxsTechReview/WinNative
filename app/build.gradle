@@ -59,71 +59,6 @@ task checkSubmodules {
 
 preBuild.dependsOn(checkSubmodules)
 
-abstract class FetchLibretroDroidTask extends DefaultTask {
-    @Input
-    abstract Property<String> getTag()
-
-    @Input
-    abstract Property<String> getSha256()
-
-    @OutputFile
-    abstract RegularFileProperty getOutputFile()
-
-    static String digestOf(File file) {
-        def digest = java.security.MessageDigest.getInstance("SHA-256")
-        file.withInputStream { input ->
-            byte[] buffer = new byte[1 << 16]
-            int read
-            while ((read = input.read(buffer)) >= 0) digest.update(buffer, 0, read)
-        }
-        digest.digest().collect { String.format("%02x", it) }.join()
-    }
-
-    static void download(File target, String tag, String expected) {
-        if (target.isFile() && digestOf(target) == expected) return
-
-        target.parentFile.mkdirs()
-        def source = "https://github.com/WinNative-Emu/LibretroDroid/releases/download/${tag}/libretrodroid.aar"
-        def staging = new File(target.parentFile, target.name + ".part")
-        new URL(source).withInputStream { input ->
-            staging.withOutputStream { output -> output << input }
-        }
-
-        def actual = digestOf(staging)
-        if (actual != expected) {
-            staging.delete()
-            throw new GradleException("libretrodroid.aar from ${tag} has checksum ${actual}, expected ${expected}")
-        }
-        target.delete()
-        staging.renameTo(target)
-    }
-
-    @TaskAction
-    void fetch() {
-        download(outputFile.get().asFile, tag.get(), sha256.get())
-    }
-}
-
-def libretroDroidPin = rootProject.file("tools/libretrodroid.version").readLines()
-        .collect { it.trim() }
-        .findAll { !it.isEmpty() }
-def libretroDroidAar = layout.buildDirectory.file("libretrodroid/libretrodroid.aar")
-
-def fetchLibretroDroid = tasks.register("fetchLibretroDroid", FetchLibretroDroidTask) {
-    tag.set(libretroDroidPin[0])
-    sha256.set(libretroDroidPin[1])
-    outputFile.set(libretroDroidAar)
-}
-
-def libretroDroidAarFile = libretroDroidAar.get().asFile
-if (!libretroDroidAarFile.isFile()) {
-    try {
-        FetchLibretroDroidTask.download(libretroDroidAarFile, libretroDroidPin[0], libretroDroidPin[1])
-    } catch (Exception failure) {
-        logger.lifecycle("libretrodroid.aar is not available yet (${failure.message}). IDE symbols stay unresolved until the next build, which fetches it.")
-    }
-}
-
 /*
 def installVulkanValidationLayer = tasks.register("installVulkanValidationLayer", InstallVulkanValidationLayerTask) {
     layerVersion.set("1.4.341.0")
@@ -275,12 +210,6 @@ android {
                     'src/main/sharedmemory',
                     'src/main/runtime',
                     'src/main/shared',
-                    // SDL2 and love-android glue, vendored for the 3D engine.
-                    // Their class names are a JNI contract with liblove.so and
-                    // cannot be renamed or repackaged, so they are kept apart
-                    // from WinNative's own sources with their upstream licence
-                    // headers intact. See EMULATOR_CREDITS.md.
-                    'src/main/engine'
             ]
         }
     }
@@ -357,10 +286,7 @@ dependencies {
 
     implementation libs.workRuntimeKtx
 
-    implementation files(libretroDroidAar) { builtBy fetchLibretroDroid }
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.5.1'
-    implementation project(':armsx2')
-    implementation project(':dolphin')
 }
 
 spotless {
