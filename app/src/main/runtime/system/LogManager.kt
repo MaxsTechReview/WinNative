@@ -59,7 +59,7 @@ object LogManager {
             runBlockingLogcatCommand(arrayOf("logcat", "-c"))
             logcatProcess =
                 Runtime.getRuntime().exec(
-                    arrayOf("logcat", "-f", logFile.absolutePath, "*:D"),
+                    arrayOf("logcat", "-f", logFile.absolutePath, "-r", "16384", "-n", "4", "*:D"),
                 )
             closeProcessStdin(logcatProcess)
         } catch (e: Exception) {
@@ -104,7 +104,7 @@ object LogManager {
             val pid = android.os.Process.myPid()
             appLogProcess =
                 Runtime.getRuntime().exec(
-                    arrayOf("logcat", "-f", logFile.absolutePath, "--pid=$pid", "*:W"),
+                    arrayOf("logcat", "-f", logFile.absolutePath, "-r", "8192", "-n", "2", "--pid=$pid", "*:W"),
                 )
             closeProcessStdin(appLogProcess)
             Log.i(TAG, "Application debug logging started (PID=$pid)")
