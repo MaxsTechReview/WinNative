@@ -418,6 +418,7 @@ typedef struct VkRenderer {
     bool              framegen_supported;
     bool              framegen_requested;
     bool              swapchain_transfer_dst;
+    bool              swapchain_storage;
     struct VkrLsfg*   lsfg;
     char*             lsfg_cache_path;
     uint32_t          framegen_multiplier;
@@ -480,6 +481,7 @@ typedef struct VkRenderer {
     // Extensions present
     bool ext_ahb;
     bool ext_ycbcr;
+    bool ext_shader_float16;
 
     // Cached device capabilities populated by query_device_caps().
     VkDeviceCaps caps;

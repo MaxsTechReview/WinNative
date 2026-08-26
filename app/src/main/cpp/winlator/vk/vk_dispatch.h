@@ -30,6 +30,7 @@ typedef struct VkDispatch {
     PFN_vkEnumeratePhysicalDevices EnumeratePhysicalDevices;
     PFN_vkGetPhysicalDeviceProperties GetPhysicalDeviceProperties;
     PFN_vkGetPhysicalDeviceMemoryProperties GetPhysicalDeviceMemoryProperties;
+    PFN_vkGetPhysicalDeviceFeatures2 GetPhysicalDeviceFeatures2;
     PFN_vkGetPhysicalDeviceQueueFamilyProperties GetPhysicalDeviceQueueFamilyProperties;
     PFN_vkGetPhysicalDeviceFormatProperties GetPhysicalDeviceFormatProperties;
     PFN_vkGetPhysicalDeviceImageFormatProperties GetPhysicalDeviceImageFormatProperties;
@@ -174,6 +175,7 @@ void vkd_unload(void);
 #define vkEnumeratePhysicalDevices vkd.EnumeratePhysicalDevices
 #define vkGetPhysicalDeviceProperties vkd.GetPhysicalDeviceProperties
 #define vkGetPhysicalDeviceMemoryProperties vkd.GetPhysicalDeviceMemoryProperties
+#define vkGetPhysicalDeviceFeatures2 vkd.GetPhysicalDeviceFeatures2
 #define vkGetPhysicalDeviceQueueFamilyProperties vkd.GetPhysicalDeviceQueueFamilyProperties
 #define vkGetPhysicalDeviceFormatProperties vkd.GetPhysicalDeviceFormatProperties
 #define vkGetPhysicalDeviceImageFormatProperties vkd.GetPhysicalDeviceImageFormatProperties

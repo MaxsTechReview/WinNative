@@ -373,6 +373,8 @@ static bool create_device(VkRenderer* r) {
     bool has_extmem_caps = has_extension(exts, ext_count, VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
     bool has_queue_fam = has_extension(exts, ext_count, VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME);
     bool has_cubic = has_extension(exts, ext_count, VK_EXT_FILTER_CUBIC_EXTENSION_NAME);
+    bool has_shader_f16 = has_extension(exts, ext_count,
+                                        VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME);
 
     free(exts);
 
@@ -391,6 +393,26 @@ static bool create_device(VkRenderer* r) {
     if (has_ycbcr) enable[enable_n++] = VK_KHR_SAMPLER_YCBCR_CONVERSION_EXTENSION_NAME;
     if (has_cubic) enable[enable_n++] = VK_EXT_FILTER_CUBIC_EXTENSION_NAME;
     (void)has_extmem_caps;
+
+    VkPhysicalDeviceShaderFloat16Int8FeaturesKHR f16_feat = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES_KHR
+    };
+    bool enable_f16 = false;
+    if (has_shader_f16) {
+        VkPhysicalDeviceShaderFloat16Int8FeaturesKHR probe = {
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES_KHR
+        };
+        VkPhysicalDeviceFeatures2 probe2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+        probe2.pNext = &probe;
+        vkGetPhysicalDeviceFeatures2(r->physical_device, &probe2);
+        enable_f16 = probe.shaderFloat16 == VK_TRUE;
+        if (enable_f16) {
+            f16_feat.shaderFloat16 = VK_TRUE;
+            enable[enable_n++] = VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME;
+        }
+    }
+    r->ext_shader_float16 = enable_f16;
+    VK_LOGI("shaderFloat16: extension=%d enabled=%d", has_shader_f16, enable_f16);
 
     r->ext_ahb = ahb_ok;
     r->ext_ycbcr = has_ycbcr;
@@ -412,8 +434,18 @@ static bool create_device(VkRenderer* r) {
     };
     ycbcr_feat.samplerYcbcrConversion = has_ycbcr ? VK_TRUE : VK_FALSE;
 
+    void* feature_chain = NULL;
+    if (has_ycbcr) {
+        ycbcr_feat.pNext = feature_chain;
+        feature_chain = &ycbcr_feat;
+    }
+    if (enable_f16) {
+        f16_feat.pNext = feature_chain;
+        feature_chain = &f16_feat;
+    }
+
     VkDeviceCreateInfo dci = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
-    if (has_ycbcr) dci.pNext = &ycbcr_feat;
+    dci.pNext = feature_chain;
     dci.queueCreateInfoCount = 1;
     dci.pQueueCreateInfos = &qci;
     dci.enabledExtensionCount = enable_n;
@@ -1282,6 +1314,11 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
     bool transfer_dst_capable = (caps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT) != 0;
     r->swapchain_transfer_dst = r->framegen_requested && transfer_dst_capable;
     if (r->swapchain_transfer_dst) sci.imageUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
+    r->swapchain_storage = r->framegen_requested
+        && (caps.supportedUsageFlags & VK_IMAGE_USAGE_STORAGE_BIT) != 0
+        && composite_format_supported(r);
+    if (r->swapchain_storage) sci.imageUsage |= VK_IMAGE_USAGE_STORAGE_BIT;
     sci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     sci.preTransform = pre_transform;
     sci.compositeAlpha = (caps.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
@@ -2693,12 +2730,26 @@ static bool record_and_submit_frame(VkRenderer* r) {
                              r->swapchain_extent.width, r->swapchain_extent.height, gen_count);
 
             for (uint32_t g = 0; g < gen_count; g++) {
-                VkCompositeTarget* gt = &r->composite[VK_FRAMES_IN_FLIGHT + g];
-                vkr_lsfg_generate_into(r->lsfg, f->cmd, g, VK_FRAMES_IN_FLIGHT + g,
-                                       gt->image, gt->view,
-                                       r->swapchain_extent.width, r->swapchain_extent.height);
-                blit_composite_to_swapchain(r, f->cmd, gt,
-                                            r->swapchain_images[gen_image_index[g]]);
+                const uint32_t idx = gen_image_index[g];
+                if (r->swapchain_storage) {
+                    vkr_lsfg_generate_into(r->lsfg, f->cmd, g, VK_FRAMES_IN_FLIGHT + g,
+                                           r->swapchain_images[idx], r->swapchain_views[idx],
+                                           r->swapchain_extent.width,
+                                           r->swapchain_extent.height);
+                    vkr_image_barrier(f->cmd, r->swapchain_images[idx],
+                                      VK_IMAGE_LAYOUT_GENERAL,
+                                      VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                      VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                      VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                                      VK_ACCESS_SHADER_WRITE_BIT, 0);
+                } else {
+                    VkCompositeTarget* gt = &r->composite[VK_FRAMES_IN_FLIGHT + g];
+                    vkr_lsfg_generate_into(r->lsfg, f->cmd, g, VK_FRAMES_IN_FLIGHT + g,
+                                           gt->image, gt->view,
+                                           r->swapchain_extent.width,
+                                           r->swapchain_extent.height);
+                    blit_composite_to_swapchain(r, f->cmd, gt, r->swapchain_images[idx]);
+                }
             }
             r->framegen_real_frames++;
             r->framegen_made_frames += gen_count;

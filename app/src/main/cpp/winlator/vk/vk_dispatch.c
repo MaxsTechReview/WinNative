@@ -49,6 +49,7 @@ bool vkd_load_instance(VkInstance instance) {
     LOAD(EnumeratePhysicalDevices);
     LOAD(GetPhysicalDeviceProperties);
     LOAD(GetPhysicalDeviceMemoryProperties);
+    LOAD(GetPhysicalDeviceFeatures2);
     LOAD(GetPhysicalDeviceQueueFamilyProperties);
     LOAD(GetPhysicalDeviceFormatProperties);
     LOAD(GetPhysicalDeviceImageFormatProperties);

@@ -40,10 +40,16 @@ LsfgShaders::LsfgShaders(const Device& device_, const std::string& cache_path)
         modules.emplace(module.id, handle);
     }
 
+    const LsfgVariant variant = set.variant;
     lsfg_release_modules(&set);
     valid = modules.size() == LSFG_SHADER_COUNT;
     if (valid) {
-        SHADER_LOGI("Created %zu LSFG shader modules", modules.size());
+        const char* variant_name = variant == LSFG_VARIANT_FP16   ? "fp16"
+                                   : variant == LSFG_VARIANT_FP32 ? "fp32"
+                                   : variant == LSFG_VARIANT_DXBC ? "dxbc-translated"
+                                                                  : "unknown";
+        SHADER_LOGI("Created %zu LSFG shader modules, variant=%s", modules.size(),
+                    variant_name);
     } else {
         SHADER_LOGE("Expected %u shader modules, got %zu", LSFG_SHADER_COUNT, modules.size());
         Release();
