@@ -2441,6 +2441,19 @@
     <string name="session_drawer_frame_generation_note">Lossless Scaling से रेंडर किए गए फ़्रेमों के बीच इंटरपोलेट करता है। गति अधिक सहज, लेकिन इनपुट में एक अतिरिक्त फ़्रेम की देरी।</string>
     <string name="session_drawer_frame_generation_target_note">स्थिर गुणक बनाए रखने के बजाय, केवल तभी लक्ष्य की ओर बढ़ता है जब इससे मापने योग्य लाभ हो।</string>
     <string name="session_drawer_frame_generation_missing">फ़्रेम जनरेशन उपयोग करने के लिए कंटेनर सेटिंग्स में Lossless Scaling इंस्टॉल करें।</string>
+    <string name="frame_generation_preset">गुणवत्ता प्रीसेट</string>
+    <string name="frame_generation_preset_ultra_performance">अल्ट्रा प्रदर्शन</string>
+    <string name="frame_generation_preset_performance">प्रदर्शन</string>
+    <string name="frame_generation_preset_balanced">संतुलित</string>
+    <string name="frame_generation_preset_quality">गुणवत्ता</string>
+    <string name="frame_generation_preset_ultra_performance_short">अल्ट्रा</string>
+    <string name="frame_generation_preset_performance_short">प्रदर्शन</string>
+    <string name="frame_generation_preset_balanced_short">संतुलित</string>
+    <string name="frame_generation_preset_quality_short">गुणवत्ता</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">गति का अनुमान 40% रिज़ॉल्यूशन पर लगाया जाता है। गुणवत्ता की GPU लागत का लगभग 40%। तेज़ गति में महीन विवरण नरम हो जाते हैं।</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">गति का अनुमान 50% रिज़ॉल्यूशन पर लगाया जाता है। गुणवत्ता की GPU लागत का लगभग 46%, लगभग कोई दृश्य हानि नहीं।</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">गति का अनुमान 70% रिज़ॉल्यूशन पर लगाया जाता है। गुणवत्ता की GPU लागत का लगभग 61%। हैंडहेल्ड के लिए अनुशंसित।</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">गति का अनुमान पूर्ण रिज़ॉल्यूशन पर लगाया जाता है। सर्वाधिक लागत; इसे तभी उपयोग करें जब गेम के पास GPU क्षमता बची हो।</string>
     <string name="settings_frame_generation_title">फ़्रेम जनरेशन</string>
     <string name="settings_frame_generation_importing">Lossless Scaling खोजा जा रहा है…</string>
     <string name="settings_frame_generation_ready">Lossless Scaling शेडर तैयार हैं।</string>

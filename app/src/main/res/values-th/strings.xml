@@ -2504,6 +2504,19 @@
     <string name="session_drawer_frame_generation_note">แทรกเฟรมระหว่างเฟรมที่เรนเดอร์ด้วย Lossless Scaling การเคลื่อนไหวลื่นขึ้น แต่มีความหน่วงของอินพุตเพิ่มขึ้นหนึ่งเฟรม</string>
     <string name="session_drawer_frame_generation_target_note">จะไต่ขึ้นสู่เป้าหมายเฉพาะเมื่อวัดผลได้ว่าช่วยจริง แทนที่จะคงตัวคูณไว้คงที่</string>
     <string name="session_drawer_frame_generation_missing">ติดตั้ง Lossless Scaling ในการตั้งค่าคอนเทนเนอร์เพื่อใช้การสร้างเฟรม</string>
+    <string name="frame_generation_preset">ค่าที่ตั้งไว้ของคุณภาพ</string>
+    <string name="frame_generation_preset_ultra_performance">ประสิทธิภาพสูงสุด</string>
+    <string name="frame_generation_preset_performance">ประสิทธิภาพ</string>
+    <string name="frame_generation_preset_balanced">สมดุล</string>
+    <string name="frame_generation_preset_quality">คุณภาพ</string>
+    <string name="frame_generation_preset_ultra_performance_short">อัลตรา</string>
+    <string name="frame_generation_preset_performance_short">ประสิทธิภาพ</string>
+    <string name="frame_generation_preset_balanced_short">สมดุล</string>
+    <string name="frame_generation_preset_quality_short">คุณภาพ</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">ประมาณการเคลื่อนไหวที่ความละเอียด 40% ใช้ GPU ประมาณ 40% ของโหมดคุณภาพ รายละเอียดเล็ก ๆ จะนุ่มลงเมื่อเคลื่อนไหวเร็ว</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">ประมาณการเคลื่อนไหวที่ความละเอียด 50% ใช้ GPU ประมาณ 46% ของโหมดคุณภาพ แทบไม่เห็นความแตกต่าง</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">ประมาณการเคลื่อนไหวที่ความละเอียด 70% ใช้ GPU ประมาณ 61% ของโหมดคุณภาพ แนะนำสำหรับเครื่องพกพา</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">ประมาณการเคลื่อนไหวที่ความละเอียดเต็ม ใช้ GPU สูงสุด ใช้เมื่อเกมมี GPU เหลือเท่านั้น</string>
     <string name="settings_frame_generation_title">การสร้างเฟรม</string>
     <string name="settings_frame_generation_importing">กำลังค้นหา Lossless Scaling…</string>
     <string name="settings_frame_generation_ready">เชเดอร์ของ Lossless Scaling พร้อมแล้ว</string>

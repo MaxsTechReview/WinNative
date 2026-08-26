@@ -2511,6 +2511,19 @@ Zainstalowana ścieżka:
     <string name="session_drawer_frame_generation_note">Interpoluje między wyrenderowanymi klatkami przy użyciu Lossless Scaling. Płynniejszy ruch, ale jedna dodatkowa klatka opóźnienia sterowania.</string>
     <string name="session_drawer_frame_generation_target_note">Zwiększa się w kierunku celu tylko wtedy, gdy przynosi to mierzalną korzyść, zamiast utrzymywać stały mnożnik.</string>
     <string name="session_drawer_frame_generation_missing">Zainstaluj Lossless Scaling w ustawieniach kontenera, aby korzystać z generowania klatek.</string>
+    <string name="frame_generation_preset">Ustawienie jakości</string>
+    <string name="frame_generation_preset_ultra_performance">Ultra wydajność</string>
+    <string name="frame_generation_preset_performance">Wydajność</string>
+    <string name="frame_generation_preset_balanced">Zrównoważony</string>
+    <string name="frame_generation_preset_quality">Jakość</string>
+    <string name="frame_generation_preset_ultra_performance_short">Ultra</string>
+    <string name="frame_generation_preset_performance_short">Wydajność</string>
+    <string name="frame_generation_preset_balanced_short">Zrówn.</string>
+    <string name="frame_generation_preset_quality_short">Jakość</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">Ruch szacowany przy 40% rozdzielczości. Około 40% obciążenia GPU trybu Jakość. Drobne detale miękną przy szybkim ruchu.</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">Ruch szacowany przy 50% rozdzielczości. Około 46% obciążenia GPU trybu Jakość, praktycznie bez widocznej straty.</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">Ruch szacowany przy 70% rozdzielczości. Około 61% obciążenia GPU trybu Jakość. Zalecane dla urządzeń przenośnych.</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">Ruch szacowany w pełnej rozdzielczości. Najwyższe obciążenie; używaj tylko, gdy gra ma zapas mocy GPU.</string>
     <string name="settings_frame_generation_title">Generowanie klatek</string>
     <string name="settings_frame_generation_importing">Szukanie Lossless Scaling…</string>
     <string name="settings_frame_generation_ready">Shadery Lossless Scaling gotowe.</string>

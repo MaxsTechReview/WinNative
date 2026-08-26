@@ -2504,6 +2504,19 @@
     <string name="session_drawer_frame_generation_note">Lossless Scaling でレンダリング済みフレーム間を補間します。動きは滑らかになりますが、入力遅延が 1 フレーム増えます。</string>
     <string name="session_drawer_frame_generation_target_note">固定倍率を保つのではなく、効果が測定できる間だけ目標に向けて上げていきます。</string>
     <string name="session_drawer_frame_generation_missing">フレーム生成を使用するには、コンテナ設定で Lossless Scaling をインストールしてください。</string>
+    <string name="frame_generation_preset">画質プリセット</string>
+    <string name="frame_generation_preset_ultra_performance">ウルトラパフォーマンス</string>
+    <string name="frame_generation_preset_performance">パフォーマンス</string>
+    <string name="frame_generation_preset_balanced">バランス</string>
+    <string name="frame_generation_preset_quality">画質</string>
+    <string name="frame_generation_preset_ultra_performance_short">ウルトラ</string>
+    <string name="frame_generation_preset_performance_short">性能</string>
+    <string name="frame_generation_preset_balanced_short">バランス</string>
+    <string name="frame_generation_preset_quality_short">画質</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">動きを解像度の40%で推定します。「画質」のGPU負荷の約40%です。速い動きでは細部が甘くなります。</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">動きを解像度の50%で推定します。「画質」のGPU負荷の約46%で、見た目の劣化はほとんどありません。</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">動きを解像度の70%で推定します。「画質」のGPU負荷の約61%です。携帯機に推奨されます。</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">動きをフル解像度で推定します。負荷は最大です。GPUに余裕がある場合のみ使用してください。</string>
     <string name="settings_frame_generation_title">フレーム生成</string>
     <string name="settings_frame_generation_importing">Lossless Scaling を検索中…</string>
     <string name="settings_frame_generation_ready">Lossless Scaling のシェーダーを準備しました。</string>

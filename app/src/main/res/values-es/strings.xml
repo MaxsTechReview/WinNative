@@ -2505,6 +2505,19 @@ Ruta instalada:
     <string name="session_drawer_frame_generation_note">Interpola entre fotogramas renderizados con Lossless Scaling. Movimiento más fluido, pero un fotograma extra de latencia de entrada.</string>
     <string name="session_drawer_frame_generation_target_note">Sube hacia el objetivo solo mientras ayude de forma medible, en lugar de mantener un multiplicador fijo.</string>
     <string name="session_drawer_frame_generation_missing">Instala Lossless Scaling en los ajustes del contenedor para usar la generación de fotogramas.</string>
+    <string name="frame_generation_preset">Preajuste de calidad</string>
+    <string name="frame_generation_preset_ultra_performance">Ultra rendimiento</string>
+    <string name="frame_generation_preset_performance">Rendimiento</string>
+    <string name="frame_generation_preset_balanced">Equilibrado</string>
+    <string name="frame_generation_preset_quality">Calidad</string>
+    <string name="frame_generation_preset_ultra_performance_short">Ultra</string>
+    <string name="frame_generation_preset_performance_short">Rend.</string>
+    <string name="frame_generation_preset_balanced_short">Equilibrado</string>
+    <string name="frame_generation_preset_quality_short">Calidad</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">El movimiento se calcula al 40 % de resolución. Alrededor del 40 % del coste de GPU de Calidad. El detalle fino se suaviza con el movimiento rápido.</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">El movimiento se calcula al 50 % de resolución. Alrededor del 46 % del coste de GPU de Calidad, casi sin pérdida visible.</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">El movimiento se calcula al 70 % de resolución. Alrededor del 61 % del coste de GPU de Calidad. Recomendado para portátiles.</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">El movimiento se calcula a resolución completa. Coste máximo; úsalo solo cuando el juego tenga GPU de sobra.</string>
     <string name="settings_frame_generation_title">Generación de fotogramas</string>
     <string name="settings_frame_generation_importing">Buscando Lossless Scaling…</string>
     <string name="settings_frame_generation_ready">Sombreadores de Lossless Scaling listos.</string>

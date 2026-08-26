@@ -2504,6 +2504,19 @@ Cale instalata:
     <string name="session_drawer_frame_generation_note">Interpolează între cadrele randate cu Lossless Scaling. Mișcare mai fluidă, dar un cadru suplimentar de latență la intrare.</string>
     <string name="session_drawer_frame_generation_target_note">Urcă spre țintă doar cât timp ajută în mod măsurabil, în loc să păstreze un multiplicator fix.</string>
     <string name="session_drawer_frame_generation_missing">Instalează Lossless Scaling din setările containerului pentru a folosi generarea de cadre.</string>
+    <string name="frame_generation_preset">Presetare de calitate</string>
+    <string name="frame_generation_preset_ultra_performance">Ultra performanță</string>
+    <string name="frame_generation_preset_performance">Performanță</string>
+    <string name="frame_generation_preset_balanced">Echilibrat</string>
+    <string name="frame_generation_preset_quality">Calitate</string>
+    <string name="frame_generation_preset_ultra_performance_short">Ultra</string>
+    <string name="frame_generation_preset_performance_short">Perf.</string>
+    <string name="frame_generation_preset_balanced_short">Echilibrat</string>
+    <string name="frame_generation_preset_quality_short">Calitate</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">Mișcarea este estimată la 40% din rezoluție. Aproximativ 40% din costul GPU al modului Calitate. Detaliile fine se estompează la mișcări rapide.</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">Mișcarea este estimată la 50% din rezoluție. Aproximativ 46% din costul GPU al modului Calitate, aproape fără pierderi vizibile.</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">Mișcarea este estimată la 70% din rezoluție. Aproximativ 61% din costul GPU al modului Calitate. Recomandat pentru dispozitive portabile.</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">Mișcarea este estimată la rezoluție completă. Cost maxim; folosiți-l doar când jocul are resurse GPU disponibile.</string>
     <string name="settings_frame_generation_title">Generare de cadre</string>
     <string name="settings_frame_generation_importing">Se caută Lossless Scaling…</string>
     <string name="settings_frame_generation_ready">Shaderele Lossless Scaling sunt gata.</string>

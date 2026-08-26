@@ -2505,6 +2505,19 @@ Chemin installé :
     <string name="session_drawer_frame_generation_note">Interpole entre les images rendues avec Lossless Scaling. Mouvement plus fluide, mais une image supplémentaire de latence d\'entrée.</string>
     <string name="session_drawer_frame_generation_target_note">Monte vers la cible uniquement tant que cela aide de façon mesurable, au lieu de conserver un multiplicateur fixe.</string>
     <string name="session_drawer_frame_generation_missing">Installez Lossless Scaling dans les paramètres du conteneur pour utiliser la génération d\'images.</string>
+    <string name="frame_generation_preset">Préréglage de qualité</string>
+    <string name="frame_generation_preset_ultra_performance">Ultra performance</string>
+    <string name="frame_generation_preset_performance">Performance</string>
+    <string name="frame_generation_preset_balanced">Équilibré</string>
+    <string name="frame_generation_preset_quality">Qualité</string>
+    <string name="frame_generation_preset_ultra_performance_short">Ultra</string>
+    <string name="frame_generation_preset_performance_short">Perf.</string>
+    <string name="frame_generation_preset_balanced_short">Équilibré</string>
+    <string name="frame_generation_preset_quality_short">Qualité</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">Le mouvement est estimé à 40 % de la résolution. Environ 40 % du coût GPU de Qualité. Les détails fins s\'adoucissent lors des mouvements rapides.</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">Le mouvement est estimé à 50 % de la résolution. Environ 46 % du coût GPU de Qualité, sans perte visible.</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">Le mouvement est estimé à 70 % de la résolution. Environ 61 % du coût GPU de Qualité. Recommandé pour les consoles portables.</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">Le mouvement est estimé en pleine résolution. Coût maximal ; à utiliser uniquement si le jeu dispose de marge GPU.</string>
     <string name="settings_frame_generation_title">Génération d\'images</string>
     <string name="settings_frame_generation_importing">Recherche de Lossless Scaling…</string>
     <string name="settings_frame_generation_ready">Shaders Lossless Scaling prêts.</string>

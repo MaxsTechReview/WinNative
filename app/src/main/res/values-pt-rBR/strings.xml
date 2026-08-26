@@ -2505,6 +2505,19 @@ Caminho instalado:
     <string name="session_drawer_frame_generation_note">Interpola entre quadros renderizados com o Lossless Scaling. Movimento mais suave, mas um quadro extra de latência de entrada.</string>
     <string name="session_drawer_frame_generation_target_note">Sobe em direção ao alvo apenas enquanto ajudar de forma mensurável, em vez de manter um multiplicador fixo.</string>
     <string name="session_drawer_frame_generation_missing">Instale o Lossless Scaling nas configurações do contêiner para usar a geração de quadros.</string>
+    <string name="frame_generation_preset">Predefinição de qualidade</string>
+    <string name="frame_generation_preset_ultra_performance">Ultra desempenho</string>
+    <string name="frame_generation_preset_performance">Desempenho</string>
+    <string name="frame_generation_preset_balanced">Equilibrado</string>
+    <string name="frame_generation_preset_quality">Qualidade</string>
+    <string name="frame_generation_preset_ultra_performance_short">Ultra</string>
+    <string name="frame_generation_preset_performance_short">Desemp.</string>
+    <string name="frame_generation_preset_balanced_short">Equilibrado</string>
+    <string name="frame_generation_preset_quality_short">Qualidade</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">O movimento é estimado a 40% da resolução. Cerca de 40% do custo de GPU de Qualidade. Os detalhes finos ficam mais suaves em movimentos rápidos.</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">O movimento é estimado a 50% da resolução. Cerca de 46% do custo de GPU de Qualidade, quase sem perda visível.</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">O movimento é estimado a 70% da resolução. Cerca de 61% do custo de GPU de Qualidade. Recomendado para portáteis.</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">O movimento é estimado na resolução total. Custo máximo; use apenas quando o jogo tiver folga de GPU.</string>
     <string name="settings_frame_generation_title">Geração de quadros</string>
     <string name="settings_frame_generation_importing">Procurando o Lossless Scaling…</string>
     <string name="settings_frame_generation_ready">Shaders do Lossless Scaling prontos.</string>

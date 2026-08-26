@@ -2505,6 +2505,19 @@
     <string name="session_drawer_frame_generation_note">使用 Lossless Scaling 在已渲染的帧之间插帧。画面更流畅，但输入延迟会增加一帧。</string>
     <string name="session_drawer_frame_generation_target_note">仅在能带来可测量的提升时才向目标提升，而不是保持固定倍数。</string>
     <string name="session_drawer_frame_generation_missing">请在容器设置中安装 Lossless Scaling 以使用帧生成。</string>
+    <string name="frame_generation_preset">画质预设</string>
+    <string name="frame_generation_preset_ultra_performance">极致性能</string>
+    <string name="frame_generation_preset_performance">性能</string>
+    <string name="frame_generation_preset_balanced">均衡</string>
+    <string name="frame_generation_preset_quality">画质</string>
+    <string name="frame_generation_preset_ultra_performance_short">极致</string>
+    <string name="frame_generation_preset_performance_short">性能</string>
+    <string name="frame_generation_preset_balanced_short">均衡</string>
+    <string name="frame_generation_preset_quality_short">画质</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">以 40% 分辨率估算运动。约为“画质”GPU 开销的 40%。快速运动时细节会变柔和。</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">以 50% 分辨率估算运动。约为“画质”GPU 开销的 46%，几乎没有可见损失。</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">以 70% 分辨率估算运动。约为“画质”GPU 开销的 61%。推荐用于掌机。</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">以完整分辨率估算运动。开销最高；仅在游戏有 GPU 余量时使用。</string>
     <string name="settings_frame_generation_title">帧生成</string>
     <string name="settings_frame_generation_importing">正在查找 Lossless Scaling…</string>
     <string name="settings_frame_generation_ready">Lossless Scaling 着色器已就绪。</string>

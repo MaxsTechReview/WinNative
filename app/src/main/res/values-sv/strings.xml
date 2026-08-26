@@ -2504,6 +2504,19 @@ Installerad sökväg:
     <string name="session_drawer_frame_generation_note">Interpolerar mellan renderade bildrutor med Lossless Scaling. Mjukare rörelse, men en extra bildruta med inmatningsfördröjning.</string>
     <string name="session_drawer_frame_generation_target_note">Stiger mot målet endast så länge det hjälper mätbart, i stället för att hålla en fast multiplikator.</string>
     <string name="session_drawer_frame_generation_missing">Installera Lossless Scaling i containerinställningarna för att använda bildgenerering.</string>
+    <string name="frame_generation_preset">Kvalitetsförval</string>
+    <string name="frame_generation_preset_ultra_performance">Ultraprestanda</string>
+    <string name="frame_generation_preset_performance">Prestanda</string>
+    <string name="frame_generation_preset_balanced">Balanserad</string>
+    <string name="frame_generation_preset_quality">Kvalitet</string>
+    <string name="frame_generation_preset_ultra_performance_short">Ultra</string>
+    <string name="frame_generation_preset_performance_short">Prestanda</string>
+    <string name="frame_generation_preset_balanced_short">Balanserad</string>
+    <string name="frame_generation_preset_quality_short">Kvalitet</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">Rörelse beräknas vid 40 % upplösning. Cirka 40 % av GPU-kostnaden för Kvalitet. Fina detaljer mjukas upp vid snabb rörelse.</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">Rörelse beräknas vid 50 % upplösning. Cirka 46 % av GPU-kostnaden för Kvalitet, med nästan ingen synlig förlust.</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">Rörelse beräknas vid 70 % upplösning. Cirka 61 % av GPU-kostnaden för Kvalitet. Rekommenderas för handhållna.</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">Rörelse beräknas vid full upplösning. Högst kostnad; använd endast när spelet har GPU-marginal.</string>
     <string name="settings_frame_generation_title">Bildgenerering</string>
     <string name="settings_frame_generation_importing">Söker efter Lossless Scaling…</string>
     <string name="settings_frame_generation_ready">Lossless Scaling-shaders klara.</string>

@@ -2511,6 +2511,19 @@
     <string name="session_drawer_frame_generation_note">Інтерполює між відрендереними кадрами за допомогою Lossless Scaling. Рух плавніший, але затримка вводу зростає на один кадр.</string>
     <string name="session_drawer_frame_generation_target_note">Підвищується до цілі лише доки це дає вимірний виграш, замість утримання фіксованого множника.</string>
     <string name="session_drawer_frame_generation_missing">Установіть Lossless Scaling у налаштуваннях контейнера, щоб використовувати генерацію кадрів.</string>
+    <string name="frame_generation_preset">Пресет якості</string>
+    <string name="frame_generation_preset_ultra_performance">Ультрапродуктивність</string>
+    <string name="frame_generation_preset_performance">Продуктивність</string>
+    <string name="frame_generation_preset_balanced">Збалансований</string>
+    <string name="frame_generation_preset_quality">Якість</string>
+    <string name="frame_generation_preset_ultra_performance_short">Ультра</string>
+    <string name="frame_generation_preset_performance_short">Продукт.</string>
+    <string name="frame_generation_preset_balanced_short">Баланс</string>
+    <string name="frame_generation_preset_quality_short">Якість</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">Рух обчислюється за 40 % роздільної здатності. Близько 40 % навантаження на GPU режиму «Якість». Дрібні деталі розмиваються під час швидкого руху.</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">Рух обчислюється за 50 % роздільної здатності. Близько 46 % навантаження на GPU режиму «Якість», майже без помітних втрат.</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">Рух обчислюється за 70 % роздільної здатності. Близько 61 % навантаження на GPU режиму «Якість». Рекомендовано для портативних пристроїв.</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">Рух обчислюється за повної роздільної здатності. Найвище навантаження; використовуйте, лише коли гра має запас GPU.</string>
     <string name="settings_frame_generation_title">Генерація кадрів</string>
     <string name="settings_frame_generation_importing">Пошук Lossless Scaling…</string>
     <string name="settings_frame_generation_ready">Шейдери Lossless Scaling готові.</string>

@@ -2506,6 +2506,19 @@ Installierter Pfad:
     <string name="session_drawer_frame_generation_note">Interpoliert zwischen gerenderten Frames mit Lossless Scaling. Flüssigere Bewegung, aber ein zusätzlicher Frame Eingabeverzögerung.</string>
     <string name="session_drawer_frame_generation_target_note">Steigt nur dann in Richtung Ziel, wenn es messbar hilft, statt einen festen Multiplikator zu halten.</string>
     <string name="session_drawer_frame_generation_missing">Installiere Lossless Scaling in den Container-Einstellungen, um Frame-Generierung zu nutzen.</string>
+    <string name="frame_generation_preset">Qualitätsvoreinstellung</string>
+    <string name="frame_generation_preset_ultra_performance">Ultra-Leistung</string>
+    <string name="frame_generation_preset_performance">Leistung</string>
+    <string name="frame_generation_preset_balanced">Ausgewogen</string>
+    <string name="frame_generation_preset_quality">Qualität</string>
+    <string name="frame_generation_preset_ultra_performance_short">Ultra</string>
+    <string name="frame_generation_preset_performance_short">Leistung</string>
+    <string name="frame_generation_preset_balanced_short">Ausgewogen</string>
+    <string name="frame_generation_preset_quality_short">Qualität</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">Bewegung wird mit 40 % Auflösung berechnet. Etwa 40 % der GPU-Last von Qualität. Feine Details werden bei schnellen Bewegungen weicher.</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">Bewegung wird mit 50 % Auflösung berechnet. Etwa 46 % der GPU-Last von Qualität, mit fast keinem sichtbaren Verlust.</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">Bewegung wird mit 70 % Auflösung berechnet. Etwa 61 % der GPU-Last von Qualität. Empfohlen für Handhelds.</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">Bewegung wird mit voller Auflösung berechnet. Höchste Last; nur verwenden, wenn das Spiel GPU-Reserven hat.</string>
     <string name="settings_frame_generation_title">Frame-Generierung</string>
     <string name="settings_frame_generation_importing">Suche nach Lossless Scaling…</string>
     <string name="settings_frame_generation_ready">Lossless-Scaling-Shader bereit.</string>

@@ -2504,6 +2504,19 @@ Asennuspolku:
     <string name="session_drawer_frame_generation_note">Interpoloi renderöityjen ruutujen välillä Lossless Scalingilla. Sulavampi liike, mutta yhden ruudun lisäviive syötteessä.</string>
     <string name="session_drawer_frame_generation_target_note">Nousee kohti tavoitetta vain, kun siitä on mitattavaa hyötyä, sen sijaan että pitäisi kiinteän kertoimen.</string>
     <string name="session_drawer_frame_generation_missing">Asenna Lossless Scaling säilön asetuksista käyttääksesi ruudun generointia.</string>
+    <string name="frame_generation_preset">Laatuesiasetus</string>
+    <string name="frame_generation_preset_ultra_performance">Ultra-suorituskyky</string>
+    <string name="frame_generation_preset_performance">Suorituskyky</string>
+    <string name="frame_generation_preset_balanced">Tasapainoinen</string>
+    <string name="frame_generation_preset_quality">Laatu</string>
+    <string name="frame_generation_preset_ultra_performance_short">Ultra</string>
+    <string name="frame_generation_preset_performance_short">Suoritus</string>
+    <string name="frame_generation_preset_balanced_short">Tasapaino</string>
+    <string name="frame_generation_preset_quality_short">Laatu</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">Liike arvioidaan 40 %:n tarkkuudella. Noin 40 % Laatu-asetuksen GPU-kuormasta. Hienot yksityiskohdat pehmenevät nopeassa liikkeessä.</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">Liike arvioidaan 50 %:n tarkkuudella. Noin 46 % Laatu-asetuksen GPU-kuormasta, lähes ilman näkyvää heikkenemistä.</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">Liike arvioidaan 70 %:n tarkkuudella. Noin 61 % Laatu-asetuksen GPU-kuormasta. Suositellaan käsikonsoleille.</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">Liike arvioidaan täydellä tarkkuudella. Suurin kuorma; käytä vain, kun pelillä on GPU-tehoa varalla.</string>
     <string name="settings_frame_generation_title">Ruudun generointi</string>
     <string name="settings_frame_generation_importing">Etsitään Lossless Scalingia…</string>
     <string name="settings_frame_generation_ready">Lossless Scalingin varjostimet valmiina.</string>

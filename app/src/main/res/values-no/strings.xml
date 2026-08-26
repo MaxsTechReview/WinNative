@@ -2504,6 +2504,19 @@ Installert bane:
     <string name="session_drawer_frame_generation_note">Interpolerer mellom gjengitte bilder med Lossless Scaling. Jevnere bevegelse, men ett ekstra bilde med inndataforsinkelse.</string>
     <string name="session_drawer_frame_generation_target_note">Stiger mot målet bare så lenge det hjelper målbart, i stedet for å holde en fast multiplikator.</string>
     <string name="session_drawer_frame_generation_missing">Installer Lossless Scaling i containerinnstillingene for å bruke bildegenerering.</string>
+    <string name="frame_generation_preset">Kvalitetsforhåndsinnstilling</string>
+    <string name="frame_generation_preset_ultra_performance">Ultra ytelse</string>
+    <string name="frame_generation_preset_performance">Ytelse</string>
+    <string name="frame_generation_preset_balanced">Balansert</string>
+    <string name="frame_generation_preset_quality">Kvalitet</string>
+    <string name="frame_generation_preset_ultra_performance_short">Ultra</string>
+    <string name="frame_generation_preset_performance_short">Ytelse</string>
+    <string name="frame_generation_preset_balanced_short">Balansert</string>
+    <string name="frame_generation_preset_quality_short">Kvalitet</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">Bevegelse beregnes ved 40 % oppløsning. Omtrent 40 % av GPU-kostnaden til Kvalitet. Fine detaljer mykes opp ved rask bevegelse.</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">Bevegelse beregnes ved 50 % oppløsning. Omtrent 46 % av GPU-kostnaden til Kvalitet, med nesten ingen synlig forringelse.</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">Bevegelse beregnes ved 70 % oppløsning. Omtrent 61 % av GPU-kostnaden til Kvalitet. Anbefales for håndholdte.</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">Bevegelse beregnes ved full oppløsning. Høyest kostnad; bruk den bare når spillet har GPU-kapasitet til overs.</string>
     <string name="settings_frame_generation_title">Bildegenerering</string>
     <string name="settings_frame_generation_importing">Leter etter Lossless Scaling…</string>
     <string name="settings_frame_generation_ready">Lossless Scaling-shadere klare.</string>

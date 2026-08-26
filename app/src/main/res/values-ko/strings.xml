@@ -2506,6 +2506,19 @@
     <string name="session_drawer_frame_generation_note">Lossless Scaling으로 렌더링된 프레임 사이를 보간합니다. 움직임은 부드러워지지만 입력 지연이 한 프레임 늘어납니다.</string>
     <string name="session_drawer_frame_generation_target_note">고정 배수를 유지하는 대신, 측정 가능한 이득이 있을 때만 목표를 향해 올립니다.</string>
     <string name="session_drawer_frame_generation_missing">프레임 생성을 사용하려면 컨테이너 설정에서 Lossless Scaling을 설치하세요.</string>
+    <string name="frame_generation_preset">품질 프리셋</string>
+    <string name="frame_generation_preset_ultra_performance">울트라 성능</string>
+    <string name="frame_generation_preset_performance">성능</string>
+    <string name="frame_generation_preset_balanced">균형</string>
+    <string name="frame_generation_preset_quality">품질</string>
+    <string name="frame_generation_preset_ultra_performance_short">울트라</string>
+    <string name="frame_generation_preset_performance_short">성능</string>
+    <string name="frame_generation_preset_balanced_short">균형</string>
+    <string name="frame_generation_preset_quality_short">품질</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">해상도의 40%에서 움직임을 추정합니다. 품질 대비 약 40%의 GPU 부하입니다. 빠른 움직임에서 미세한 디테일이 부드러워집니다.</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">해상도의 50%에서 움직임을 추정합니다. 품질 대비 약 46%의 GPU 부하이며, 눈에 띄는 손실이 거의 없습니다.</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">해상도의 70%에서 움직임을 추정합니다. 품질 대비 약 61%의 GPU 부하입니다. 휴대용 기기에 권장됩니다.</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">전체 해상도에서 움직임을 추정합니다. 부하가 가장 큽니다. GPU 여유가 있을 때만 사용하세요.</string>
     <string name="settings_frame_generation_title">프레임 생성</string>
     <string name="settings_frame_generation_importing">Lossless Scaling 찾는 중…</string>
     <string name="settings_frame_generation_ready">Lossless Scaling 셰이더가 준비되었습니다.</string>

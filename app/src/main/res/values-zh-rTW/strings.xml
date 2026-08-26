@@ -2504,6 +2504,19 @@
     <string name="session_drawer_frame_generation_note">使用 Lossless Scaling 在已算繪的影格之間插補。畫面更流暢，但輸入延遲會增加一個影格。</string>
     <string name="session_drawer_frame_generation_target_note">僅在能帶來可測量的提升時才朝目標提升，而不是維持固定倍數。</string>
     <string name="session_drawer_frame_generation_missing">請在容器設定中安裝 Lossless Scaling 以使用影格生成。</string>
+    <string name="frame_generation_preset">畫質預設</string>
+    <string name="frame_generation_preset_ultra_performance">極致效能</string>
+    <string name="frame_generation_preset_performance">效能</string>
+    <string name="frame_generation_preset_balanced">均衡</string>
+    <string name="frame_generation_preset_quality">畫質</string>
+    <string name="frame_generation_preset_ultra_performance_short">極致</string>
+    <string name="frame_generation_preset_performance_short">效能</string>
+    <string name="frame_generation_preset_balanced_short">均衡</string>
+    <string name="frame_generation_preset_quality_short">畫質</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">以 40% 解析度估算移動。約為「畫質」GPU 負載的 40%。快速移動時細節會變柔和。</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">以 50% 解析度估算移動。約為「畫質」GPU 負載的 46%，幾乎沒有可見損失。</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">以 70% 解析度估算移動。約為「畫質」GPU 負載的 61%。建議用於掌機。</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">以完整解析度估算移動。負載最高；僅在遊戲有 GPU 餘裕時使用。</string>
     <string name="settings_frame_generation_title">影格生成</string>
     <string name="settings_frame_generation_importing">正在尋找 Lossless Scaling…</string>
     <string name="settings_frame_generation_ready">Lossless Scaling 著色器已就緒。</string>
