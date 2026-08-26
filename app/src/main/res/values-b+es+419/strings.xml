@@ -2501,7 +2501,6 @@ Ruta instalada:
     <string name="session_drawer_frame_generation_target">Objetivo adaptativo</string>
     <string name="session_drawer_frame_generation_target_off">Fijo</string>
     <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
-    <string name="session_drawer_frame_generation_flow_scale">Escala de flujo</string>
     <string name="session_drawer_frame_generation_note">Interpola entre fotogramas renderizados con Lossless Scaling. Movimiento más fluido, pero un fotograma extra de latencia de entrada.</string>
     <string name="session_drawer_frame_generation_target_note">Sube hacia el objetivo solo mientras ayude de forma medible, en lugar de mantener un multiplicador fijo.</string>
     <string name="session_drawer_frame_generation_missing">Instala Lossless Scaling en los ajustes del contenedor para usar la generación de fotogramas.</string>

@@ -2501,7 +2501,6 @@
     <string name="session_drawer_frame_generation_target">アダプティブ目標</string>
     <string name="session_drawer_frame_generation_target_off">固定</string>
     <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
-    <string name="session_drawer_frame_generation_flow_scale">フロースケール</string>
     <string name="session_drawer_frame_generation_note">Lossless Scaling でレンダリング済みフレーム間を補間します。動きは滑らかになりますが、入力遅延が 1 フレーム増えます。</string>
     <string name="session_drawer_frame_generation_target_note">固定倍率を保つのではなく、効果が測定できる間だけ目標に向けて上げていきます。</string>
     <string name="session_drawer_frame_generation_missing">フレーム生成を使用するには、コンテナ設定で Lossless Scaling をインストールしてください。</string>

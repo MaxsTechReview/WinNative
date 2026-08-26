@@ -2502,7 +2502,6 @@ Percorso installato:
     <string name="session_drawer_frame_generation_target">Obiettivo adattivo</string>
     <string name="session_drawer_frame_generation_target_off">Fisso</string>
     <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
-    <string name="session_drawer_frame_generation_flow_scale">Scala del flusso</string>
     <string name="session_drawer_frame_generation_note">Interpola tra i fotogrammi renderizzati con Lossless Scaling. Movimento più fluido, ma un fotogramma in più di latenza di input.</string>
     <string name="session_drawer_frame_generation_target_note">Sale verso l\'obiettivo solo finché aiuta in modo misurabile, invece di mantenere un moltiplicatore fisso.</string>
     <string name="session_drawer_frame_generation_missing">Installa Lossless Scaling nelle impostazioni del contenitore per usare la generazione fotogrammi.</string>

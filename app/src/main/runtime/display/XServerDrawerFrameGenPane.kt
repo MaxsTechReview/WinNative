@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -28,9 +29,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.winlator.cmod.R
+import com.winlator.cmod.shared.framegen.FrameGenPreset
 import kotlin.math.roundToInt
 
 @Composable
@@ -200,34 +203,55 @@ private fun FrameGenerationSection(
                         )
                     }
 
-                    NavBooleanRow(
-                        title = stringResource(R.string.session_drawer_frame_generation_flow_scale_auto),
-                        checked = state.frameGenFlowScaleAuto,
-                        onCheckedChange = listener::onFrameGenFlowScaleAutoChanged,
+                    FrameGenPresetRow(
+                        selected = FrameGenPreset.fromFlowScale(state.frameGenFlowScale),
+                        onSelected = { listener.onFrameGenFlowScaleChanged(it.flowScale) },
+                        paneScale = paneScale,
                     )
-
-                    FrameGenNote(
-                        stringResource(R.string.session_drawer_frame_generation_flow_scale_auto_note),
-                        paneScale,
-                    )
-
-                    if (!state.frameGenFlowScaleAuto) {
-                        NavSliderRow(
-                            label = stringResource(R.string.session_drawer_frame_generation_flow_scale),
-                            valueText = "${state.frameGenFlowScale}%",
-                            value = state.frameGenFlowScale.toFloat(),
-                            valueRange = FrameGenFlowScaleMin.toFloat()..FrameGenFlowScaleMax.toFloat(),
-                            steps = (FrameGenFlowScaleMax - FrameGenFlowScaleMin) / 5 - 1,
-                            onValueChange = {
-                                listener.onFrameGenFlowScaleChanged(
-                                    it.roundToInt().coerceIn(FrameGenFlowScaleMin, FrameGenFlowScaleMax),
-                                )
-                            },
-                        )
-                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun FrameGenPresetRow(
+    selected: FrameGenPreset,
+    onSelected: (FrameGenPreset) -> Unit,
+    paneScale: Float,
+) {
+    val presets = FrameGenPreset.values()
+    val index = presets.indexOf(selected).coerceAtLeast(0)
+
+    Column(verticalArrangement = Arrangement.spacedBy((4f * paneScale).dp)) {
+        NavSliderRow(
+            label = stringResource(R.string.frame_generation_preset),
+            valueText = stringResource(selected.labelRes),
+            value = index.toFloat(),
+            valueRange = 0f..(presets.size - 1).toFloat(),
+            steps = presets.size - 2,
+            adjustStep = 1f,
+            onValueChange = { onSelected(FrameGenPreset.atIndex(it.roundToInt())) },
+        )
+
+        Row(modifier = Modifier.fillMaxWidth()) {
+            presets.forEachIndexed { i, preset ->
+                Text(
+                    text = stringResource(preset.shortLabelRes),
+                    color = if (i == index) DrawerAccent else DrawerTextSecondary,
+                    fontSize = (10f * paneScale).sp,
+                    fontWeight = if (i == index) FontWeight.SemiBold else FontWeight.Normal,
+                    textAlign = when (i) {
+                        0 -> TextAlign.Start
+                        presets.size - 1 -> TextAlign.End
+                        else -> TextAlign.Center
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+
+        FrameGenNote(stringResource(selected.descriptionRes), paneScale)
     }
 }
 

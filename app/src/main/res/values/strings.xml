@@ -772,9 +772,20 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_frame_generation_target">Adaptive Target</string>
     <string name="session_drawer_frame_generation_target_off">Fixed</string>
     <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
-    <string name="session_drawer_frame_generation_flow_scale">Flow Scale</string>
-    <string name="session_drawer_frame_generation_flow_scale_auto">Match Motion To Game</string>
-    <string name="session_drawer_frame_generation_flow_scale_auto_note">Estimates motion at the resolution the game actually renders instead of the upscaled output. Costs nothing in accuracy, since upscaling adds no motion detail.</string>
+    <string name="frame_generation_preset">Quality Preset</string>
+    <string name="frame_generation_preset_ultra_performance">Ultra Performance</string>
+    <string name="frame_generation_preset_performance">Performance</string>
+    <string name="frame_generation_preset_balanced">Balanced</string>
+    <string name="frame_generation_preset_quality">Quality</string>
+    <string name="frame_generation_preset_ultra_performance_short">Ultra</string>
+    <string name="frame_generation_preset_performance_short">Perf</string>
+    <string name="frame_generation_preset_balanced_short">Balanced</string>
+    <string name="frame_generation_preset_quality_short">Quality</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">Motion estimated at 40% resolution. Around 40% of Quality\'s GPU cost. Fine detail softens during fast motion.</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">Motion estimated at 50% resolution. Around 46% of Quality\'s GPU cost, with almost no visible loss.</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">Motion estimated at 70% resolution. Around 61% of Quality\'s GPU cost. Recommended for handhelds.</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">Motion estimated at full resolution. Highest cost; use it only when the game has GPU headroom to spare.</string>
+    <string name="frame_generation_preset_note">Sets how much GPU work motion estimation does. It never changes the multiplier — 2x stays 2x, 4x stays 4x.</string>
     <string name="session_drawer_frame_generation_note">Interpolates between rendered frames with Lossless Scaling. Smoother motion, but one extra frame of input latency.</string>
     <string name="session_drawer_frame_generation_target_note">Climbs toward the target only while it measurably helps, instead of holding a fixed multiplier.</string>
     <string name="session_drawer_frame_generation_missing">Install Lossless Scaling in container settings to use frame generation.</string>

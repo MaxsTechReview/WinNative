@@ -2408,7 +2408,6 @@
     <string name="session_drawer_frame_generation_target">Адаптивная цель</string>
     <string name="session_drawer_frame_generation_target_off">Фиксированный</string>
     <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
-    <string name="session_drawer_frame_generation_flow_scale">Масштаб потока</string>
     <string name="session_drawer_frame_generation_note">Интерполирует между отрисованными кадрами с помощью Lossless Scaling. Движение плавнее, но задержка ввода увеличивается на один кадр.</string>
     <string name="session_drawer_frame_generation_target_note">Повышается к цели только пока это даёт измеримый выигрыш, вместо удержания фиксированного множителя.</string>
     <string name="session_drawer_frame_generation_missing">Установите Lossless Scaling в настройках контейнера, чтобы использовать генерацию кадров.</string>

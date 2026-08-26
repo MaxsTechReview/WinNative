@@ -2501,7 +2501,6 @@ Asennuspolku:
     <string name="session_drawer_frame_generation_target">Mukautuva tavoite</string>
     <string name="session_drawer_frame_generation_target_off">Kiinteä</string>
     <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
-    <string name="session_drawer_frame_generation_flow_scale">Virtauksen skaala</string>
     <string name="session_drawer_frame_generation_note">Interpoloi renderöityjen ruutujen välillä Lossless Scalingilla. Sulavampi liike, mutta yhden ruudun lisäviive syötteessä.</string>
     <string name="session_drawer_frame_generation_target_note">Nousee kohti tavoitetta vain, kun siitä on mitattavaa hyötyä, sen sijaan että pitäisi kiinteän kertoimen.</string>
     <string name="session_drawer_frame_generation_missing">Asenna Lossless Scaling säilön asetuksista käyttääksesi ruudun generointia.</string>

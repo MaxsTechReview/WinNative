@@ -132,6 +132,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
@@ -145,6 +146,7 @@ import com.winlator.cmod.runtime.reshade.ReshadeCatalogEntry
 import com.winlator.cmod.runtime.reshade.ReshadeDownloader
 import com.winlator.cmod.runtime.reshade.ReshadeLoadout
 import com.winlator.cmod.runtime.reshade.ReshadeManager
+import com.winlator.cmod.shared.framegen.FrameGenPreset
 import com.winlator.cmod.shared.theme.GameSettingsStyle
 import com.winlator.cmod.runtime.wine.WineThemeManager
 import com.winlator.cmod.runtime.display.lsfg.LosslessScaling
@@ -427,7 +429,6 @@ class GameSettingsStateHolder {
     val frameGenMultiplier = mutableIntStateOf(2)
     val frameGenTargetRate = mutableIntStateOf(0)
     val frameGenFlowScale = mutableIntStateOf(70)
-    val frameGenFlowScaleAuto = mutableStateOf(true)
     val frameGenShaderState = mutableIntStateOf(FRAMEGEN_SHADERS_CHECKING)
     val frameGenSourceName = mutableStateOf("")
 
@@ -1885,28 +1886,12 @@ private fun FrameGenerationCard(state: GameSettingsStateHolder) {
 
             Spacer(Modifier.height(SettingItemGap))
 
-            SettingSwitch(
-                label = stringResource(R.string.session_drawer_frame_generation_flow_scale_auto),
-                checked = state.frameGenFlowScaleAuto.value,
-                onCheckedChange = { state.frameGenFlowScaleAuto.value = it },
+            FrameGenPresetSlider(
+                selected = FrameGenPreset.fromFlowScale(state.frameGenFlowScale.intValue),
+                onSelected = { state.frameGenFlowScale.intValue = it.flowScale },
             )
 
-            Text(
-                text = stringResource(R.string.session_drawer_frame_generation_flow_scale_auto_note),
-                color = TextSecondary,
-                fontSize = SettingLabelSize,
-                lineHeight = SettingLabelSize * 1.4f,
-            )
-
-            if (!state.frameGenFlowScaleAuto.value) {
-                SettingSlider(
-                    label = stringResource(R.string.session_drawer_frame_generation_flow_scale),
-                    value = state.frameGenFlowScale.intValue,
-                    range = 25..100,
-                    steps = 14,
-                    onValueChange = { state.frameGenFlowScale.intValue = it },
-                )
-            }
+            Spacer(Modifier.height(SettingItemGap))
 
             Text(
                 text = stringResource(R.string.session_drawer_frame_generation_note),
@@ -5895,6 +5880,97 @@ private fun SettingSwitch(
                 accentColor = AccentBlue,
                 textSecondaryColor = TextSecondary
             )
+        )
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun FrameGenPresetSlider(
+    selected: FrameGenPreset,
+    onSelected: (FrameGenPreset) -> Unit,
+) {
+    val presets = FrameGenPreset.values()
+    val index = presets.indexOf(selected).coerceAtLeast(0)
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.frame_generation_preset),
+                color = TextSecondary,
+                fontSize = SettingLabelSize,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 0.3.sp,
+            )
+            Spacer(Modifier.weight(1f))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(AccentBlue.copy(alpha = 0.1f))
+                    .padding(horizontal = 7.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    stringResource(selected.labelRes),
+                    color = AccentBlue,
+                    fontSize = SettingLabelSize,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+
+        Spacer(Modifier.height(SettingTightGap))
+
+        Slider(
+            value = index.toFloat(),
+            onValueChange = { onSelected(FrameGenPreset.atIndex(it.roundToInt())) },
+            valueRange = 0f..(presets.size - 1).toFloat(),
+            steps = presets.size - 2,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(SettingSliderHeight)
+                .controllerSliderEscape()
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onAdjust = { d -> onSelected(FrameGenPreset.atIndex(index + d)) },
+                    highlightColor = NavHighlight,
+                ),
+            colors = settingSliderColors(),
+            track = { SettingSliderTrack(it) },
+            thumb = {
+                Box(
+                    modifier = Modifier
+                        .size(SettingSliderThumbSize)
+                        .clip(RoundedCornerShape(50))
+                        .background(AccentBlue)
+                        .border(2.dp, CardSurface, RoundedCornerShape(50))
+                )
+            }
+        )
+
+        Row(modifier = Modifier.fillMaxWidth()) {
+            presets.forEachIndexed { i, preset ->
+                Text(
+                    text = stringResource(preset.shortLabelRes),
+                    color = if (i == index) AccentBlue else TextSecondary,
+                    fontSize = SettingLabelSize * 0.9f,
+                    fontWeight = if (i == index) FontWeight.SemiBold else FontWeight.Normal,
+                    textAlign = when (i) {
+                        0 -> TextAlign.Start
+                        presets.size - 1 -> TextAlign.End
+                        else -> TextAlign.Center
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+
+        Spacer(Modifier.height(SettingTightGap))
+
+        Text(
+            text = stringResource(selected.descriptionRes),
+            color = TextSecondary,
+            fontSize = SettingLabelSize,
+            lineHeight = SettingLabelSize * 1.4f,
         )
     }
 }

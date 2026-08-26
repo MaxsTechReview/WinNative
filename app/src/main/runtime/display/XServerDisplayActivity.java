@@ -451,8 +451,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
     private int frameGenMultiplier = 2;
     private int frameGenTargetRate = 0;
     private int frameGenFlowScale = 70;
-    private boolean frameGenFlowScaleAuto = true;
     private String frameGenCachePath = null;
+    private float frameGenRefreshRate = 0f;
     private boolean sgsrEnabled = false;
     private boolean sgsrRuntimeEnabled = false;
     private int sgsrUpscaleMode = 1;
@@ -763,7 +763,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         String containerMultiplier = container != null ? container.getExtra("frameGenMultiplier", "2") : "2";
         String containerTargetRate = container != null ? container.getExtra("frameGenTargetRate", "0") : "0";
         String containerFlowScale = container != null ? container.getExtra("frameGenFlowScale", "70") : "70";
-        String containerFlowScaleAuto = container != null ? container.getExtra("frameGenFlowScaleAuto", "1") : "1";
 
         frameGenEnabled = "1".equals(getFrameGenSetting("frameGen", containerValue));
         frameGenMultiplier = clampFrameGenMultiplier(
@@ -772,10 +771,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 parseSettingInt(getFrameGenSetting("frameGenTargetRate", containerTargetRate), 0));
         frameGenFlowScale = clampFrameGenFlowScale(
                 parseSettingInt(getFrameGenSetting("frameGenFlowScale", containerFlowScale), 70));
-        frameGenFlowScaleAuto = !"0".equals(
-                getFrameGenSetting("frameGenFlowScaleAuto", containerFlowScaleAuto));
 
-        if (frameGenEnabled) {
+        if (frameGenEnabled
+                || !com.winlator.cmod.runtime.display.lsfg.LosslessScaling.isInstalled(this)) {
             int result = com.winlator.cmod.feature.library.LosslessAutoImport.INSTANCE.sync(this).getResult();
             if (result != com.winlator.cmod.feature.library.LosslessAutoImport.RESULT_READY) {
                 Log.i("XServerDisplayActivity", "Lossless shader sync at launch: result=" + result);
@@ -806,14 +804,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
 
         renderer.setFrameGenerationShaders(frameGenCachePath);
         float refreshRate = applyFrameGenerationDisplayMode();
-        renderer.setFrameGenerationMode(frameGenMultiplier, frameGenTargetRate, frameGenFlowScale,
-                frameGenFlowScaleAuto);
+        renderer.setFrameGenerationMode(frameGenMultiplier, frameGenTargetRate, frameGenFlowScale);
+        frameGenRefreshRate = refreshRate;
         renderer.setFrameGenerationRefreshRate(refreshRate);
         renderer.setFrameGenerationEnabled(true);
         syncFrameGenerationHud();
         Log.i("XServerDisplayActivity", "Frame generation on: multiplier=" + frameGenMultiplier
                 + " targetRate=" + frameGenTargetRate + " flowScale=" + frameGenFlowScale
-                + " flowScaleAuto=" + frameGenFlowScaleAuto
                 + " refreshRate=" + refreshRate);
     }
 
@@ -855,9 +852,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         if (display == null) return 0f;
 
         android.view.Display.Mode active = display.getMode();
-        int wanted = frameGenTargetRate > 0
-                ? frameGenTargetRate
-                : frameGenMultiplier * (runtimeFpsLimit > 0 ? runtimeFpsLimit : 60);
+        int wanted;
+        if (frameGenTargetRate > 0) {
+            wanted = frameGenTargetRate;
+        } else if (runtimeFpsLimit > 0) {
+            wanted = frameGenMultiplier * runtimeFpsLimit;
+        } else {
+            wanted = Integer.MAX_VALUE;
+        }
 
         android.view.Display.Mode best = null;
         for (android.view.Display.Mode mode : display.getSupportedModes()) {
@@ -875,8 +877,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         params.preferredDisplayModeId = best.getModeId();
         params.preferredRefreshRate = 0f;
         window.setAttributes(params);
-        Log.i("XServerDisplayActivity", "Frame generation display mode: wanted " + wanted
-                + "Hz, selected " + Math.round(best.getRefreshRate()) + "Hz (mode "
+        Log.i("XServerDisplayActivity", "Frame generation display mode: wanted "
+                + (wanted == Integer.MAX_VALUE ? "highest" : wanted + "Hz")
+                + ", selected " + Math.round(best.getRefreshRate()) + "Hz (mode "
                 + best.getModeId() + ") fpsLimit=" + runtimeFpsLimit + " cadenceOk="
                 + (runtimeFpsLimit <= 0
                         || RefreshRateUtils.isFrameCadenceCompatible(
@@ -926,8 +929,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                     String.valueOf(frameGenTargetRate), "0");
             overridden |= saveFrameGenOverride("frameGenFlowScale",
                     String.valueOf(frameGenFlowScale), "70");
-            overridden |= saveFrameGenOverride("frameGenFlowScaleAuto",
-                    frameGenFlowScaleAuto ? "1" : "0", "1");
             if (overridden) shortcut.putExtra("use_container_defaults", "0");
             shortcut.saveData();
         } else if (container != null) {
@@ -935,7 +936,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
             container.putExtra("frameGenMultiplier", String.valueOf(frameGenMultiplier));
             container.putExtra("frameGenTargetRate", String.valueOf(frameGenTargetRate));
             container.putExtra("frameGenFlowScale", String.valueOf(frameGenFlowScale));
-            container.putExtra("frameGenFlowScaleAuto", frameGenFlowScaleAuto ? "1" : "0");
             container.saveData();
         }
     }
@@ -1139,6 +1139,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
             if (frameGenEnabled && frameGenCachePath != null) {
                 float refreshRate = applyFrameGenerationDisplayMode();
                 VulkanRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
+                frameGenRefreshRate = refreshRate;
                 if (renderer != null) renderer.setFrameGenerationRefreshRate(refreshRate);
                 return;
             }
@@ -1207,10 +1208,28 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
             applyPreferredRefreshRate();
         }
 
+        syncFrameGenerationRefreshRate();
+
         // Sync the in-drawer slider ceiling, but only if the drawer was opened (otherwise the next open rebuilds state fresh).
         if (maxChanged && drawerStateHolder != null) {
             renderDrawerMenu();
         }
+    }
+
+    private void syncFrameGenerationRefreshRate() {
+        if (!frameGenEnabled || frameGenCachePath == null) return;
+
+        android.view.Display display = getDisplayCompat();
+        if (display == null) return;
+
+        float active = display.getMode().getRefreshRate();
+        if (active <= 0f || Math.abs(active - frameGenRefreshRate) < 0.5f) return;
+
+        Log.i("XServerDisplayActivity", "Frame generation panel changed: "
+                + Math.round(frameGenRefreshRate) + "Hz -> " + Math.round(active) + "Hz");
+        frameGenRefreshRate = active;
+        VulkanRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
+        if (renderer != null) renderer.setFrameGenerationRefreshRate(active);
     }
 
     @Override
@@ -4516,7 +4535,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 frameGenMultiplier,
                 frameGenTargetRate,
                 frameGenFlowScale,
-                frameGenFlowScaleAuto,
                 getString(R.string.session_drawer_frame_generation));
 
         // Always-present "Output" tab (live controls while swapped, otherwise a Cast entry point).
@@ -4915,11 +4933,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                         applyFrameGenerationLive();
                     }
 
-                    @Override
-                    public void onFrameGenFlowScaleAutoChanged(boolean auto) {
-                        frameGenFlowScaleAuto = auto;
-                        applyFrameGenerationLive();
-                    }
 
                     @Override
                     public void onSGSREnabledChanged(boolean enabled) {

@@ -2502,7 +2502,6 @@ Chemin installé :
     <string name="session_drawer_frame_generation_target">Cible adaptative</string>
     <string name="session_drawer_frame_generation_target_off">Fixe</string>
     <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
-    <string name="session_drawer_frame_generation_flow_scale">Échelle de flux</string>
     <string name="session_drawer_frame_generation_note">Interpole entre les images rendues avec Lossless Scaling. Mouvement plus fluide, mais une image supplémentaire de latence d\'entrée.</string>
     <string name="session_drawer_frame_generation_target_note">Monte vers la cible uniquement tant que cela aide de façon mesurable, au lieu de conserver un multiplicateur fixe.</string>
     <string name="session_drawer_frame_generation_missing">Installez Lossless Scaling dans les paramètres du conteneur pour utiliser la génération d\'images.</string>

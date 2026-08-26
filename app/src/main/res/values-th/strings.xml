@@ -2501,7 +2501,6 @@
     <string name="session_drawer_frame_generation_target">เป้าหมายแบบปรับอัตโนมัติ</string>
     <string name="session_drawer_frame_generation_target_off">คงที่</string>
     <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
-    <string name="session_drawer_frame_generation_flow_scale">สเกลการไหล</string>
     <string name="session_drawer_frame_generation_note">แทรกเฟรมระหว่างเฟรมที่เรนเดอร์ด้วย Lossless Scaling การเคลื่อนไหวลื่นขึ้น แต่มีความหน่วงของอินพุตเพิ่มขึ้นหนึ่งเฟรม</string>
     <string name="session_drawer_frame_generation_target_note">จะไต่ขึ้นสู่เป้าหมายเฉพาะเมื่อวัดผลได้ว่าช่วยจริง แทนที่จะคงตัวคูณไว้คงที่</string>
     <string name="session_drawer_frame_generation_missing">ติดตั้ง Lossless Scaling ในการตั้งค่าคอนเทนเนอร์เพื่อใช้การสร้างเฟรม</string>

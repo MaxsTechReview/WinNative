@@ -625,7 +625,6 @@ data class XServerDrawerState(
     val frameGenMultiplier: Int = 2,
     val frameGenTargetRate: Int = 0,
     val frameGenFlowScale: Int = 70,
-    val frameGenFlowScaleAuto: Boolean = true,
     val screenEffectsCardExpanded: Boolean = false,
     val sgsrEnabled: Boolean = false,
     val sgsrSharpness: Int = 100,
@@ -1040,8 +1039,6 @@ interface XServerDrawerActionListener {
     fun onFrameGenTargetRateSelected(rate: Int)
 
     fun onFrameGenFlowScaleChanged(percent: Int)
-
-    fun onFrameGenFlowScaleAutoChanged(auto: Boolean)
 
     fun onScreenEffectsCardExpandedChanged(expanded: Boolean)
 
@@ -1497,7 +1494,6 @@ fun withFrameGenState(
     multiplier: Int,
     targetRate: Int,
     flowScale: Int,
-    flowScaleAuto: Boolean,
     frameGenTitle: String,
 ): XServerDrawerState =
     state.copy(
@@ -1515,7 +1511,6 @@ fun withFrameGenState(
         frameGenMultiplier = multiplier.coerceIn(2, FrameGenMultipliers.last()),
         frameGenTargetRate = targetRate.coerceAtLeast(0),
         frameGenFlowScale = flowScale.coerceIn(FrameGenFlowScaleMin, FrameGenFlowScaleMax),
-        frameGenFlowScaleAuto = flowScaleAuto,
     )
 
 // Append the always-present "Output" tab item and its state to the drawer state.

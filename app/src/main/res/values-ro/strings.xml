@@ -2501,7 +2501,6 @@ Cale instalata:
     <string name="session_drawer_frame_generation_target">Țintă adaptivă</string>
     <string name="session_drawer_frame_generation_target_off">Fix</string>
     <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
-    <string name="session_drawer_frame_generation_flow_scale">Scară a fluxului</string>
     <string name="session_drawer_frame_generation_note">Interpolează între cadrele randate cu Lossless Scaling. Mișcare mai fluidă, dar un cadru suplimentar de latență la intrare.</string>
     <string name="session_drawer_frame_generation_target_note">Urcă spre țintă doar cât timp ajută în mod măsurabil, în loc să păstreze un multiplicator fix.</string>
     <string name="session_drawer_frame_generation_missing">Instalează Lossless Scaling din setările containerului pentru a folosi generarea de cadre.</string>

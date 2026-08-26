@@ -1871,7 +1871,7 @@ static void create_lsfg(VkRenderer* r) {
     vkr_lsfg_configure(r->lsfg, r->framegen_multiplier ? r->framegen_multiplier : 2u,
                        r->framegen_target_rate,
                        r->framegen_flow_scale > 0.0f ? r->framegen_flow_scale : 0.7f,
-                       r->framegen_flow_scale_auto, r->framegen_refresh_rate);
+                       r->framegen_refresh_rate);
 }
 
 static uint32_t framegen_extra_images(const VkRenderer* r) {
@@ -3627,8 +3627,8 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenerationRefreshRate)(JNIEnv* env, 
 
 JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenerationMode)(JNIEnv* env, jclass clazz,
                                                             jlong handle, jint multiplier,
-                                                            jint targetRate, jint flowScalePct,
-                                                            jboolean flowScaleAuto) {
+                                                            jint targetRate,
+                                                            jint flowScalePct) {
     (void)env; (void)clazz;
     VkRenderer* r = (VkRenderer*)(intptr_t)handle;
     if (!r) return;
@@ -3638,11 +3638,9 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenerationMode)(JNIEnv* env, jclass 
     r->framegen_multiplier = multiplier < 2 ? 2u : (uint32_t)multiplier;
     r->framegen_target_rate = targetRate < 0 ? 0u : (uint32_t)targetRate;
     r->framegen_flow_scale = flowScalePct <= 0 ? 0.7f : (float)flowScalePct / 100.0f;
-    r->framegen_flow_scale_auto = flowScaleAuto == JNI_TRUE;
     if (r->lsfg) {
         vkr_lsfg_configure(r->lsfg, r->framegen_multiplier, r->framegen_target_rate,
-                           r->framegen_flow_scale, r->framegen_flow_scale_auto,
-                           r->framegen_refresh_rate);
+                           r->framegen_flow_scale, r->framegen_refresh_rate);
     }
     if (framegen_extra_images(r) != previous_images) {
         wait_inflight_frames(r);

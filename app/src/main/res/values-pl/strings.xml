@@ -2508,7 +2508,6 @@ Zainstalowana ścieżka:
     <string name="session_drawer_frame_generation_target">Cel adaptacyjny</string>
     <string name="session_drawer_frame_generation_target_off">Stały</string>
     <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
-    <string name="session_drawer_frame_generation_flow_scale">Skala przepływu</string>
     <string name="session_drawer_frame_generation_note">Interpoluje między wyrenderowanymi klatkami przy użyciu Lossless Scaling. Płynniejszy ruch, ale jedna dodatkowa klatka opóźnienia sterowania.</string>
     <string name="session_drawer_frame_generation_target_note">Zwiększa się w kierunku celu tylko wtedy, gdy przynosi to mierzalną korzyść, zamiast utrzymywać stały mnożnik.</string>
     <string name="session_drawer_frame_generation_missing">Zainstaluj Lossless Scaling w ustawieniach kontenera, aby korzystać z generowania klatek.</string>

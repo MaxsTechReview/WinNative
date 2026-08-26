@@ -2502,7 +2502,6 @@ Caminho instalado:
     <string name="session_drawer_frame_generation_target">Alvo adaptativo</string>
     <string name="session_drawer_frame_generation_target_off">Fixo</string>
     <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
-    <string name="session_drawer_frame_generation_flow_scale">Escala de fluxo</string>
     <string name="session_drawer_frame_generation_note">Interpola entre quadros renderizados com o Lossless Scaling. Movimento mais suave, mas um quadro extra de latência de entrada.</string>
     <string name="session_drawer_frame_generation_target_note">Sobe em direção ao alvo apenas enquanto ajudar de forma mensurável, em vez de manter um multiplicador fixo.</string>
     <string name="session_drawer_frame_generation_missing">Instale o Lossless Scaling nas configurações do contêiner para usar a geração de quadros.</string>

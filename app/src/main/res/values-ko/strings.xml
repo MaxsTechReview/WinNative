@@ -2503,7 +2503,6 @@
     <string name="session_drawer_frame_generation_target">적응형 목표</string>
     <string name="session_drawer_frame_generation_target_off">고정</string>
     <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
-    <string name="session_drawer_frame_generation_flow_scale">플로우 스케일</string>
     <string name="session_drawer_frame_generation_note">Lossless Scaling으로 렌더링된 프레임 사이를 보간합니다. 움직임은 부드러워지지만 입력 지연이 한 프레임 늘어납니다.</string>
     <string name="session_drawer_frame_generation_target_note">고정 배수를 유지하는 대신, 측정 가능한 이득이 있을 때만 목표를 향해 올립니다.</string>
     <string name="session_drawer_frame_generation_missing">프레임 생성을 사용하려면 컨테이너 설정에서 Lossless Scaling을 설치하세요.</string>

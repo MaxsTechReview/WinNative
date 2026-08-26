@@ -2503,7 +2503,6 @@ Installeret sti:
     <string name="session_drawer_frame_generation_target">Adaptivt mål</string>
     <string name="session_drawer_frame_generation_target_off">Fast</string>
     <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
-    <string name="session_drawer_frame_generation_flow_scale">Flow-skala</string>
     <string name="session_drawer_frame_generation_note">Interpolerer mellem gengivne billeder med Lossless Scaling. Blødere bevægelse, men ét ekstra billede med inputforsinkelse.</string>
     <string name="session_drawer_frame_generation_target_note">Stiger mod målet, kun mens det målbart hjælper, i stedet for at fastholde en fast multiplikator.</string>
     <string name="session_drawer_frame_generation_missing">Installér Lossless Scaling i containerindstillingerne for at bruge billedgenerering.</string>

@@ -2501,7 +2501,6 @@
     <string name="session_drawer_frame_generation_target">自適應目標</string>
     <string name="session_drawer_frame_generation_target_off">固定</string>
     <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
-    <string name="session_drawer_frame_generation_flow_scale">流場縮放</string>
     <string name="session_drawer_frame_generation_note">使用 Lossless Scaling 在已算繪的影格之間插補。畫面更流暢，但輸入延遲會增加一個影格。</string>
     <string name="session_drawer_frame_generation_target_note">僅在能帶來可測量的提升時才朝目標提升，而不是維持固定倍數。</string>
     <string name="session_drawer_frame_generation_missing">請在容器設定中安裝 Lossless Scaling 以使用影格生成。</string>

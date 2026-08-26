@@ -97,7 +97,6 @@ struct VkrLsfg {
     VkFormat built_format{VK_FORMAT_UNDEFINED};
     float built_flow_scale{};
     float flow_scale{1.0f};
-    bool flow_scale_auto{true};
 
     uint64_t frame_count{};
     uint64_t last_count{};
@@ -110,13 +109,13 @@ struct VkrLsfg {
 };
 
 static float lsfg_effective_flow_scale(const VkrLsfg* lsfg, uint32_t width) {
-    if (!lsfg->flow_scale_auto) return lsfg->flow_scale;
-    if (width == 0 || lsfg->peak_guest_extent.width == 0) return LSFG_FLOW_SCALE_MAX;
+    if (width == 0 || lsfg->peak_guest_extent.width == 0) return lsfg->flow_scale;
 
     const float ratio =
         static_cast<float>(lsfg->peak_guest_extent.width) / static_cast<float>(width);
     const float stepped = std::ceil(ratio * LSFG_FLOW_SCALE_STEPS) / LSFG_FLOW_SCALE_STEPS;
-    return std::clamp(stepped, LSFG_FLOW_SCALE_MIN, LSFG_FLOW_SCALE_MAX);
+    return std::clamp(std::min(stepped, lsfg->flow_scale), LSFG_FLOW_SCALE_MIN,
+                      LSFG_FLOW_SCALE_MAX);
 }
 
 VkrLsfg* vkr_lsfg_create(VkDevice device, VkPhysicalDevice physical_device,
@@ -145,7 +144,7 @@ void vkr_lsfg_destroy(VkrLsfg* lsfg) {
 }
 
 void vkr_lsfg_configure(VkrLsfg* lsfg, uint32_t multiplier, uint32_t target_rate,
-                        float flow_scale, bool flow_scale_auto, float refresh_rate) {
+                        float flow_scale, float refresh_rate) {
     if (!lsfg) return;
 
     lsfg::LsfgPacerConfig config = lsfg->pacer.Config();
@@ -154,7 +153,6 @@ void vkr_lsfg_configure(VkrLsfg* lsfg, uint32_t multiplier, uint32_t target_rate
     config.refresh_rate = refresh_rate;
     lsfg->pacer.SetConfig(config);
     lsfg->flow_scale = std::clamp(flow_scale, LSFG_FLOW_SCALE_MIN, LSFG_FLOW_SCALE_MAX);
-    lsfg->flow_scale_auto = flow_scale_auto;
 }
 
 void vkr_lsfg_set_guest_extent(VkrLsfg* lsfg, uint32_t width, uint32_t height) {
@@ -209,10 +207,10 @@ bool vkr_lsfg_prepare(VkrLsfg* lsfg, uint32_t width, uint32_t height, VkFormat f
     lsfg->warm = false;
     lsfg->generated = false;
     lsfg->pacer.Reset();
-    LSFG_LOGI("chain built at %ux%u, flow %ux%u scale %.2f (%s, guest %ux%u)", width, height,
-              (unsigned)(width * lsfg->built_flow_scale),
+    LSFG_LOGI("chain built at %ux%u, flow %ux%u scale %.2f (preset %.2f, guest %ux%u)", width,
+              height, (unsigned)(width * lsfg->built_flow_scale),
               (unsigned)(height * lsfg->built_flow_scale), (double)lsfg->built_flow_scale,
-              lsfg->flow_scale_auto ? "auto" : "manual", lsfg->peak_guest_extent.width,
+              (double)lsfg->flow_scale, lsfg->peak_guest_extent.width,
               lsfg->peak_guest_extent.height);
     return true;
 }
@@ -230,14 +228,17 @@ uint32_t vkr_lsfg_plan(VkrLsfg* lsfg, uint32_t capacity, uint64_t source_frames)
 
     if ((lsfg->plan_calls++ % LSFG_TELEMETRY_INTERVAL) == 0) {
         const lsfg::LsfgPacerStats stats = lsfg->pacer.Stats();
+        const float wanted =
+            stats.source_rate * static_cast<float>(lsfg->plan.generations + 1);
         LSFG_LOGI("pace gen=%zu max=%zu cap=%u guest=%.1f loop=%.1f refresh=%.1f target=%.0f "
-                  "slots=%.2f drawn=%llu cost=%zu fails=%u%s%s%s%s",
+                  "slots=%.2f drawn=%llu needs=%.1fHz%s%s",
                   lsfg->plan.generations, lsfg->pacer.MaxGenerations(), capacity,
                   (double)stats.source_rate, (double)stats.loop_rate,
                   (double)stats.refresh_rate, (double)stats.target_rate, (double)stats.slots,
-                  (unsigned long long)stats.last_drawn, stats.cost_ceiling, stats.cost_failures,
-                  stats.probing ? " probing" : "", stats.settling ? " settling" : "",
-                  stats.backing_off ? " backoff" : "",
+                  (unsigned long long)stats.last_drawn, (double)wanted,
+                  (stats.refresh_rate > 0.0f && wanted > stats.refresh_rate + 1.0f)
+                      ? " PANEL-BOUND"
+                      : "",
                   stats.rates_settled ? (lsfg->warm ? "" : " cold") : " sampling");
     }
 

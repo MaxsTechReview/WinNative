@@ -2501,7 +2501,6 @@ Installert bane:
     <string name="session_drawer_frame_generation_target">Adaptivt mål</string>
     <string name="session_drawer_frame_generation_target_off">Fast</string>
     <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
-    <string name="session_drawer_frame_generation_flow_scale">Flytskala</string>
     <string name="session_drawer_frame_generation_note">Interpolerer mellom gjengitte bilder med Lossless Scaling. Jevnere bevegelse, men ett ekstra bilde med inndataforsinkelse.</string>
     <string name="session_drawer_frame_generation_target_note">Stiger mot målet bare så lenge det hjelper målbart, i stedet for å holde en fast multiplikator.</string>
     <string name="session_drawer_frame_generation_missing">Installer Lossless Scaling i containerinnstillingene for å bruke bildegenerering.</string>
