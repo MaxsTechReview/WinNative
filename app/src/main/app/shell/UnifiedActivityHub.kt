@@ -2695,6 +2695,7 @@ internal fun UnifiedActivity.LibraryCarousel(
                     iconRefreshKey = iconRefreshKey,
                     artworkCacheRefreshKey = artworkCacheRefreshKey,
                     visibleCustomIconArtworkPathByAppId = visibleCustomIconArtworkPathByAppId,
+                    visibleCustomIconPathByAppId = visibleCustomIconPathByAppId,
                     visibleCustomArtworkPathByAppId = visibleCustomArtworkPathByAppId,
                     visibleCustomListPathByAppId = visibleCustomListPathByAppId,
                     visibleCustomHeroPathByAppId = visibleCustomHeroPathByAppId,
