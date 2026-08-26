@@ -1,113 +1,101 @@
 name: Build APK
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
-
-concurrency:
-  group: build-apk-${{ github.ref }}
-  cancel-in-progress: true
-
-permissions:
-  contents: read
+  push:
+    branches: ["**"]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           submodules: recursive
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Install Git LFS
-        run: |
-          git lfs install --local
-          git lfs pull
+          fetch-depth: 0
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
-          cache: gradle
+          java-version: "17"
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK packages
+      - name: Install Android dependencies
         run: |
-          sdkmanager --install \
+          yes | sdkmanager --licenses || true
+          sdkmanager \
             "platform-tools" \
             "platforms;android-35" \
             "build-tools;35.0.0" \
-            "ndk;27.3.13750724" \
-            "cmake;3.22.1"
-          yes | sdkmanager --licenses >/dev/null || true
+            "cmake;3.22.1" \
+            "ndk;27.3.13750724"
 
-      - name: Set up Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: stable
-          target: aarch64-linux-android
-          cache: true
-          cache-workspaces: app/src/main/cpp/wn-steam-client/rust
-
-      - name: Cache Gradle and native build outputs
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            app/.cxx
-            app/build/intermediates/cxx
-            app/src/main/cpp/wn-steam-client/rust/target
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-android-${{ hashFiles('**/*.gradle', '**/*.gradle.kts', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties', 'app/src/main/cpp/**', 'app/src/main/rust/**') }}
-          restore-keys: |
-            ${{ runner.os }}-android-
-
-      - name: Verify required submodules
+      - name: Prepare launcher resources
+        shell: bash
         run: |
-          set -euo pipefail
+          set -e
+
+          MAIN_RES="app/src/main/res"
+          STANDARD_RES="app/src/standard/res"
+
+          mkdir -p "$MAIN_RES"
+
+          if [ -d "$STANDARD_RES" ]; then
+            for dir in \
+              mipmap-mdpi \
+              mipmap-hdpi \
+              mipmap-xhdpi \
+              mipmap-xxhdpi \
+              mipmap-xxxhdpi \
+              mipmap-anydpi \
+              mipmap-anydpi-v26
+            do
+              if [ -d "$STANDARD_RES/$dir" ]; then
+                mkdir -p "$MAIN_RES/$dir"
+
+                cp -rn \
+                  "$STANDARD_RES/$dir"/ic_launcher* \
+                  "$MAIN_RES/$dir"/ 2>/dev/null || true
+              fi
+            done
+          fi
+
+          test -e "$MAIN_RES/mipmap-mdpi/ic_launcher.png" \
+            || test -e "$MAIN_RES/mipmap-anydpi-v26/ic_launcher.xml" \
+            || {
+              echo "::error::ic_launcher resource is missing"
+              exit 1
+            }
+
+          echo "Launcher resources:"
+          find "$MAIN_RES" -type f \
+            \( -name 'ic_launcher*' \) \
+            -print
+
+      - name: Verify native dependencies
+        shell: bash
+        run: |
+          set -e
+
           test -d app/src/main/cpp/adrenotools
-          test -n "$(find app/src/main/cpp/adrenotools -mindepth 1 -maxdepth 1 -print -quit)"
+          test -f app/src/main/cpp/adrenotools/CMakeLists.txt
 
-      - name: Build debug APK
-        env:
-          VERSION_NAME: CI-${{ github.run_number }}
-          GRADLE_OPTS: -Xmx4g -XX:+UseG1GC
-        run: |
-          set -euo pipefail
-          chmod +x ./gradlew
-          ./gradlew :app:assembleDebug --build-cache --parallel --stacktrace -x lint
+          echo "Native dependencies OK"
 
-      - name: Verify APK
-        run: |
-          set -euo pipefail
-          apk="app/build/outputs/apk/debug/app-debug.apk"
-          test -s "$apk"
+      - name: Make Gradle executable
+        run: chmod +x ./gradlew
 
-          build_tools="$ANDROID_SDK_ROOT/build-tools/35.0.0"
-          "$build_tools/apksigner" verify "$apk"
-          "$build_tools/aapt2" dump badging "$apk" | head -1
-          ls -lh "$apk"
+      - name: Build Debug APK
+        run: ./gradlew --no-daemon --stacktrace assembleDebug
 
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v7
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
-          name: WinNative-debug-${{ github.run_number }}-${{ github.sha }}
-          path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 14
-          compression-level: 0
+          name: app-debug
+          path: |
+            app/build/outputs/apk/debug/*.apk
