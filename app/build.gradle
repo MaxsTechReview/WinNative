@@ -229,6 +229,7 @@ dependencies {
     implementation libs.composeUi
     implementation libs.composeUiGraphics
     implementation libs.composeUiToolingPreview
+    implementation libs.composeFoundation
     implementation libs.composeMaterial3
     implementation libs.composeMaterialIconsExtended
     implementation libs.activityCompose
