@@ -581,13 +581,11 @@ Par ex. <b>META</b> pour la <i>touche META</i>, \n
     <string name="session_drawer_show_touchscreen_controls">Afficher les contrôles tactiles</string>
     <string name="session_drawer_magnifier">Loupe</string>
     <string name="session_drawer_logs">Journaux</string>
-    <string name="session_drawer_pip_mode">Mode PiP</string>
     <string name="session_drawer_toggle_relative_mouse">Basculer le mouvement relatif de la souris</string>
     <string name="session_drawer_toggle_mouse">Basculer la souris</string>
     <string name="session_drawer_pause_resume">Pause/Reprendre</string>
     <string name="session_drawer_relative_mouse_movement">Mouvement relatif de la souris</string>
     <string name="session_drawer_mouse_input">Saisie souris</string>
-    <string name="session_drawer_picture_in_picture">Image dans l\'image</string>
     <string name="session_drawer_exit_subtitle">Fermer la session en cours</string>
     <string name="session_drawer_touchscreen_overlay">Surcouche tactile</string>
     <string name="session_drawer_resume">Reprendre</string>
@@ -1144,7 +1142,6 @@ Chemin installé :
     <string name="session_drawer_rail_label_relative_mouse">Rel.Souris</string>
     <string name="session_drawer_rail_label_mouse">Souris</string>
     <string name="session_drawer_rail_label_fullscreen">Plein écran</string>
-    <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Tâches</string>
     <string name="session_drawer_rail_label_logs">Logs</string>
@@ -1569,7 +1566,6 @@ Chemin installé :
     <string name="session_drawer_hud_background_alpha">Alpha de l\'arrière-plan</string>
     <string name="session_drawer_hud_background_alpha_input_title">Définir l\'alpha de l\'arrière-plan</string>
     <string name="session_drawer_hud_element_temp">B.TMP</string>
-    <string name="session_drawer_refactor_size">Ajuster la taille</string>
     <string name="session_task_bring_to_front">Mettre au premier plan</string>
     <string name="session_task_custom_value">Valeur personnalisée</string>
     <string name="session_gyroscope_orientation_mode">Incliner pour viser (orientation)</string>

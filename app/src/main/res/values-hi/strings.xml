@@ -635,7 +635,6 @@
     <string name="session_drawer_show_touchscreen_controls">टचस्क्रीन नियंत्रण दिखाएँ</string>
     <string name="session_drawer_magnifier">आवर्धक</string>
     <string name="session_drawer_logs">लॉग</string>
-    <string name="session_drawer_pip_mode">PiP मोड</string>
     <string name="session_drawer_toggle_relative_mouse">सापेक्ष माउस मूवमेंट टॉगल करें</string>
     <string name="session_drawer_toggle_mouse">माउस टॉगल करें</string>
     <string name="session_drawer_pause_resume">रोकें/फिर शुरू करें</string>
@@ -650,7 +649,6 @@
     <string name="session_drawer_vivid">विविड</string>
     <string name="session_drawer_vivid_strength">विविड तीव्रता</string>
     <string name="session_drawer_color_profile">रंग प्रभाव</string>
-    <string name="session_drawer_picture_in_picture">पिक्चर इन पिक्चर</string>
     <string name="session_drawer_exit_subtitle">चल रहे सत्र को बंद करें</string>
     <string name="session_drawer_touchscreen_overlay">टचस्क्रीन ओवरले</string>
     <string name="session_drawer_resume">फिर शुरू करें</string>
@@ -735,7 +733,6 @@
     <string name="session_drawer_rail_label_relative_mouse">RelMouse</string>
     <string name="session_drawer_rail_label_mouse">माउस</string>
     <string name="session_drawer_rail_label_fullscreen">फ़ुलस्क्रीन</string>
-    <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_magnifier">ज़ूम</string>
     <string name="session_drawer_rail_label_task_manager">कार्य</string>
     <string name="session_drawer_rail_label_logs">लॉग</string>
@@ -1505,7 +1502,6 @@
     <string name="session_drawer_hud_background_alpha">पृष्ठभूमि अल्फा</string>
     <string name="session_drawer_hud_background_alpha_input_title">पृष्ठभूमि अल्फा सेट करें</string>
     <string name="session_drawer_hud_element_temp">B.TMP</string>
-    <string name="session_drawer_refactor_size">आकार समायोजित करें</string>
     <string name="session_task_bring_to_front">सामने लाएँ</string>
     <string name="session_task_custom_value">कस्टम मान</string>
     <string name="session_gyroscope_orientation_mode">निशाना लगाने के लिए झुकाएँ (ओरिएंटेशन)</string>

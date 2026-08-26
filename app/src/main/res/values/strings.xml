@@ -705,11 +705,9 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_toggle_fullscreen">Toggle Fullscreen</string>
     <string name="session_drawer_rotate_screen">Rotate Screen</string>
     <string name="session_drawer_rotate_screen_subtitle">Restarts session in rotated resolution</string>
-    <string name="session_drawer_refactor_size">Refactor Size</string>
     <string name="session_drawer_show_touchscreen_controls">Show Touchscreen Controls</string>
     <string name="session_drawer_magnifier">Magnifier</string>
     <string name="session_drawer_logs">Logs</string>
-    <string name="session_drawer_pip_mode">PiP Mode</string>
     <string name="session_drawer_toggle_relative_mouse">Toggle Relative Mouse Movement</string>
     <string name="session_drawer_toggle_mouse">Toggle Mouse</string>
     <string name="session_drawer_pause_resume">Pause/Resume</string>
@@ -768,7 +766,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_vivid">Vivid</string>
     <string name="session_drawer_vivid_strength">Vivid Strength</string>
     <string name="session_drawer_color_profile">Color Effect</string>
-    <string name="session_drawer_picture_in_picture">Picture in Picture</string>
     <string name="session_drawer_exit_subtitle">Close the running session</string>
     <string name="session_drawer_touchscreen_overlay">Touchscreen Overlay</string>
     <string name="session_drawer_resume">Resume</string>
@@ -924,7 +921,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_rail_label_mouse">Mouse</string>
     <string name="session_drawer_rail_label_fullscreen">Fullscreen</string>
     <string name="session_drawer_rail_label_rotate_screen">Rotate</string>
-    <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Tasks</string>
     <string name="session_drawer_rail_label_record">Record</string>

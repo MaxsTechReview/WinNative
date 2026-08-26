@@ -581,13 +581,11 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_drawer_show_touchscreen_controls">Vis touchskærmkontroller</string>
     <string name="session_drawer_magnifier">Forstørrelsesglas</string>
     <string name="session_drawer_logs">Logfiler</string>
-    <string name="session_drawer_pip_mode">PiP-tilstand</string>
     <string name="session_drawer_toggle_relative_mouse">Skift relativ musebevægelse</string>
     <string name="session_drawer_toggle_mouse">Skift mus</string>
     <string name="session_drawer_pause_resume">Pause/Genoptag</string>
     <string name="session_drawer_relative_mouse_movement">Relativ musebevægelse</string>
     <string name="session_drawer_mouse_input">Museinput</string>
-    <string name="session_drawer_picture_in_picture">Billede-i-billede</string>
     <string name="session_drawer_exit_subtitle">Luk den kørende session</string>
     <string name="session_drawer_touchscreen_overlay">Touchskærm-overlay</string>
     <string name="session_drawer_resume">Genoptag</string>
@@ -1144,7 +1142,6 @@ Installeret sti:
     <string name="session_drawer_rail_label_relative_mouse">RelMus</string>
     <string name="session_drawer_rail_label_mouse">Mus</string>
     <string name="session_drawer_rail_label_fullscreen">Fuldskærm</string>
-    <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Opgaver</string>
     <string name="session_drawer_rail_label_logs">Logs</string>
@@ -1569,7 +1566,6 @@ Installeret sti:
     <string name="session_drawer_hud_background_alpha">Baggrundsalfa</string>
     <string name="session_drawer_hud_background_alpha_input_title">Indstil baggrundsalfa</string>
     <string name="session_drawer_hud_element_temp">B.TMP</string>
-    <string name="session_drawer_refactor_size">Tilpas størrelse</string>
     <string name="session_task_bring_to_front">Flyt til forgrunden</string>
     <string name="session_task_custom_value">Brugerdefineret værdi</string>
     <string name="session_gyroscope_orientation_mode">Vip for at sigte (orientering)</string>

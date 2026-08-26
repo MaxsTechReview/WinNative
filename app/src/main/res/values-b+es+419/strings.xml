@@ -664,11 +664,9 @@ Por ejemplo, <b>META</b> para la <i>tecla META</i>, \n
     <string name="session_drawer_dual_series_battery">Batería de serie dual</string>
     <string name="session_drawer_hud_frametime_numeric">Mostrar el tiempo de fotograma como número</string>
     <string name="session_drawer_toggle_fullscreen">Alternar pantalla completa</string>
-    <string name="session_drawer_refactor_size">Reajustar tamaño</string>
     <string name="session_drawer_show_touchscreen_controls">Mostrar controles de pantalla táctil</string>
     <string name="session_drawer_magnifier">Lupa</string>
     <string name="session_drawer_logs">Registros</string>
-    <string name="session_drawer_pip_mode">Modo PiP</string>
     <string name="session_drawer_toggle_relative_mouse">Alternar movimiento relativo del mouse</string>
     <string name="session_drawer_toggle_mouse">Alternar mouse</string>
     <string name="session_drawer_pause_resume">Pausar/Reanudar</string>
@@ -727,7 +725,6 @@ Por ejemplo, <b>META</b> para la <i>tecla META</i>, \n
     <string name="session_drawer_vivid">Vívido</string>
     <string name="session_drawer_vivid_strength">Intensidad de vívido</string>
     <string name="session_drawer_color_profile">Efecto de color</string>
-    <string name="session_drawer_picture_in_picture">Imagen en imagen</string>
     <string name="session_drawer_exit_subtitle">Cerrar la sesión en ejecución</string>
     <string name="session_drawer_touchscreen_overlay">Superposición de pantalla táctil</string>
     <string name="session_drawer_resume">Reanudar</string>
@@ -882,7 +879,6 @@ Por ejemplo, <b>META</b> para la <i>tecla META</i>, \n
     <string name="session_drawer_rail_label_relative_mouse">MouseRel</string>
     <string name="session_drawer_rail_label_mouse">Mouse</string>
     <string name="session_drawer_rail_label_fullscreen">Pantalla completa</string>
-    <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Tareas</string>
     <string name="session_drawer_rail_label_record">Grabar</string>

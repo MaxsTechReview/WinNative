@@ -581,13 +581,11 @@ Ad es. <b>META</b> per il <i>tasto META</i>, \n
     <string name="session_drawer_show_touchscreen_controls">Mostra controlli touchscreen</string>
     <string name="session_drawer_magnifier">Lente d\'ingrandimento</string>
     <string name="session_drawer_logs">Log</string>
-    <string name="session_drawer_pip_mode">Modalità PiP</string>
     <string name="session_drawer_toggle_relative_mouse">Attiva/Disattiva movimento relativo del mouse</string>
     <string name="session_drawer_toggle_mouse">Attiva/Disattiva mouse</string>
     <string name="session_drawer_pause_resume">Pausa/Riprendi</string>
     <string name="session_drawer_relative_mouse_movement">Movimento relativo del mouse</string>
     <string name="session_drawer_mouse_input">Input mouse</string>
-    <string name="session_drawer_picture_in_picture">Picture in Picture</string>
     <string name="session_drawer_exit_subtitle">Chiudi la sessione in corso</string>
     <string name="session_drawer_touchscreen_overlay">Overlay touchscreen</string>
     <string name="session_drawer_resume">Riprendi</string>
@@ -1144,7 +1142,6 @@ Percorso installato:
     <string name="session_drawer_rail_label_relative_mouse">RelMouse</string>
     <string name="session_drawer_rail_label_mouse">Mouse</string>
     <string name="session_drawer_rail_label_fullscreen">Schermo intero</string>
-    <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Attività</string>
     <string name="session_drawer_rail_label_logs">Log</string>
@@ -1569,7 +1566,6 @@ Percorso installato:
     <string name="session_drawer_hud_background_alpha">Alfa sfondo</string>
     <string name="session_drawer_hud_background_alpha_input_title">Imposta alfa sfondo</string>
     <string name="session_drawer_hud_element_temp">B.TMP</string>
-    <string name="session_drawer_refactor_size">Adatta dimensione</string>
     <string name="session_task_bring_to_front">Porta in primo piano</string>
     <string name="session_task_custom_value">Valore personalizzato</string>
     <string name="session_gyroscope_orientation_mode">Inclina per mirare (orientamento)</string>

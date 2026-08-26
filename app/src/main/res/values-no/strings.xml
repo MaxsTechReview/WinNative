@@ -664,11 +664,9 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_drawer_dual_series_battery">Dobbel batteriserie</string>
     <string name="session_drawer_hud_frametime_numeric">Vis frametime som tall</string>
     <string name="session_drawer_toggle_fullscreen">Veksle fullskjerm</string>
-    <string name="session_drawer_refactor_size">Refaktorer størrelse</string>
     <string name="session_drawer_show_touchscreen_controls">Vis berøringsskjermkontroller</string>
     <string name="session_drawer_magnifier">Forstørrelsesglass</string>
     <string name="session_drawer_logs">Logger</string>
-    <string name="session_drawer_pip_mode">PiP-modus</string>
     <string name="session_drawer_toggle_relative_mouse">Veksle relativ musebevegelse</string>
     <string name="session_drawer_toggle_mouse">Veksle mus</string>
     <string name="session_drawer_pause_resume">Pause/gjenoppta</string>
@@ -727,7 +725,6 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_drawer_vivid">Levende</string>
     <string name="session_drawer_vivid_strength">Levende-styrke</string>
     <string name="session_drawer_color_profile">Fargeeffekt</string>
-    <string name="session_drawer_picture_in_picture">Bilde-i-bilde</string>
     <string name="session_drawer_exit_subtitle">Lukk den kjørende økten</string>
     <string name="session_drawer_touchscreen_overlay">Berøringsskjermoverlegg</string>
     <string name="session_drawer_resume">Gjenoppta</string>
@@ -882,7 +879,6 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_drawer_rail_label_relative_mouse">RelMus</string>
     <string name="session_drawer_rail_label_mouse">Mus</string>
     <string name="session_drawer_rail_label_fullscreen">Fullskjerm</string>
-    <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Oppgaver</string>
     <string name="session_drawer_rail_label_record">Ta opp</string>

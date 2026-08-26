@@ -664,11 +664,9 @@ E.g. <b>META</b> için <i>META tuşu</i>, \n
     <string name="session_drawer_dual_series_battery">Çift Seri Pil</string>
     <string name="session_drawer_hud_frametime_numeric">Kare Süresini Sayı Olarak Göster</string>
     <string name="session_drawer_toggle_fullscreen">Tam Ekranı Aç/Kapat</string>
-    <string name="session_drawer_refactor_size">Boyutu Yeniden Düzenle</string>
     <string name="session_drawer_show_touchscreen_controls">Dokunmatik Ekran Denetimlerini Göster</string>
     <string name="session_drawer_magnifier">Büyüteç</string>
     <string name="session_drawer_logs">Günlükler</string>
-    <string name="session_drawer_pip_mode">PiP Modu</string>
     <string name="session_drawer_toggle_relative_mouse">Göreli Fare Hareketini Aç/Kapat</string>
     <string name="session_drawer_toggle_mouse">Fareyi Aç/Kapat</string>
     <string name="session_drawer_pause_resume">Duraklat/Devam Et</string>
@@ -727,7 +725,6 @@ E.g. <b>META</b> için <i>META tuşu</i>, \n
     <string name="session_drawer_vivid">Canlı</string>
     <string name="session_drawer_vivid_strength">Canlılık Gücü</string>
     <string name="session_drawer_color_profile">Renk Efekti</string>
-    <string name="session_drawer_picture_in_picture">Resim İçinde Resim</string>
     <string name="session_drawer_exit_subtitle">Çalışan oturumu kapat</string>
     <string name="session_drawer_touchscreen_overlay">Dokunmatik Ekran Katmanı</string>
     <string name="session_drawer_resume">Devam Et</string>
@@ -882,7 +879,6 @@ E.g. <b>META</b> için <i>META tuşu</i>, \n
     <string name="session_drawer_rail_label_relative_mouse">GörFare</string>
     <string name="session_drawer_rail_label_mouse">Fare</string>
     <string name="session_drawer_rail_label_fullscreen">Tam Ekran</string>
-    <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_magnifier">Yakınlaştır</string>
     <string name="session_drawer_rail_label_task_manager">Görevler</string>
     <string name="session_drawer_rail_label_record">Kaydet</string>

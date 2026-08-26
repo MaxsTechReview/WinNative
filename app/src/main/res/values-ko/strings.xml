@@ -581,13 +581,11 @@
     <string name="session_drawer_show_touchscreen_controls">터치스크린 컨트롤 표시</string>
     <string name="session_drawer_magnifier">돋보기</string>
     <string name="session_drawer_logs">로그</string>
-    <string name="session_drawer_pip_mode">PiP 모드</string>
     <string name="session_drawer_toggle_relative_mouse">상대 마우스 이동 전환</string>
     <string name="session_drawer_toggle_mouse">마우스 전환</string>
     <string name="session_drawer_pause_resume">일시 중지/재개</string>
     <string name="session_drawer_relative_mouse_movement">상대 마우스 이동</string>
     <string name="session_drawer_mouse_input">마우스 입력</string>
-    <string name="session_drawer_picture_in_picture">PiP (화면 속 화면)</string>
     <string name="session_drawer_exit_subtitle">실행 중인 세션 닫기</string>
     <string name="session_drawer_touchscreen_overlay">터치스크린 오버레이</string>
     <string name="session_drawer_resume">재개</string>
@@ -1144,7 +1142,6 @@
     <string name="session_drawer_rail_label_relative_mouse">상대마우스</string>
     <string name="session_drawer_rail_label_mouse">마우스</string>
     <string name="session_drawer_rail_label_fullscreen">전체 화면</string>
-    <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_magnifier">확대</string>
     <string name="session_drawer_rail_label_task_manager">작업</string>
     <string name="session_drawer_rail_label_logs">로그</string>
@@ -1570,7 +1567,6 @@
     <string name="session_drawer_hud_background_alpha">배경 알파</string>
     <string name="session_drawer_hud_background_alpha_input_title">배경 알파 설정</string>
     <string name="session_drawer_hud_element_temp">B.TMP</string>
-    <string name="session_drawer_refactor_size">크기 조정</string>
     <string name="session_task_bring_to_front">앞으로 가져오기</string>
     <string name="session_task_custom_value">사용자 지정 값</string>
     <string name="session_gyroscope_orientation_mode">기울여 조준 (방향)</string>

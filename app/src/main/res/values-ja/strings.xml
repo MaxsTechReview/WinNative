@@ -664,11 +664,9 @@
     <string name="session_drawer_dual_series_battery">デュアルシリーズバッテリー</string>
     <string name="session_drawer_hud_frametime_numeric">フレームタイムを数値で表示</string>
     <string name="session_drawer_toggle_fullscreen">全画面表示を切り替え</string>
-    <string name="session_drawer_refactor_size">サイズを再調整</string>
     <string name="session_drawer_show_touchscreen_controls">タッチスクリーンコントロールを表示</string>
     <string name="session_drawer_magnifier">拡大鏡</string>
     <string name="session_drawer_logs">ログ</string>
-    <string name="session_drawer_pip_mode">PiP モード</string>
     <string name="session_drawer_toggle_relative_mouse">相対マウス移動を切り替え</string>
     <string name="session_drawer_toggle_mouse">マウスを切り替え</string>
     <string name="session_drawer_pause_resume">一時停止/再開</string>
@@ -727,7 +725,6 @@
     <string name="session_drawer_vivid">ビビッド</string>
     <string name="session_drawer_vivid_strength">ビビッドの強さ</string>
     <string name="session_drawer_color_profile">カラーエフェクト</string>
-    <string name="session_drawer_picture_in_picture">ピクチャーインピクチャー</string>
     <string name="session_drawer_exit_subtitle">実行中のセッションを閉じる</string>
     <string name="session_drawer_touchscreen_overlay">タッチスクリーンオーバーレイ</string>
     <string name="session_drawer_resume">再開</string>
@@ -882,7 +879,6 @@
     <string name="session_drawer_rail_label_relative_mouse">相対マウス</string>
     <string name="session_drawer_rail_label_mouse">マウス</string>
     <string name="session_drawer_rail_label_fullscreen">全画面</string>
-    <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_magnifier">ズーム</string>
     <string name="session_drawer_rail_label_task_manager">タスク</string>
     <string name="session_drawer_rail_label_record">録画</string>

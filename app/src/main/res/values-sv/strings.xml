@@ -664,11 +664,9 @@ T.ex. <b>META</b> för <i>META-tangent</i>, \n
     <string name="session_drawer_dual_series_battery">Dubbelseriebatteri</string>
     <string name="session_drawer_hud_frametime_numeric">Visa bildrutetid som siffra</string>
     <string name="session_drawer_toggle_fullscreen">Växla helskärm</string>
-    <string name="session_drawer_refactor_size">Ändra storlek</string>
     <string name="session_drawer_show_touchscreen_controls">Visa pekskärmskontroller</string>
     <string name="session_drawer_magnifier">Förstoringsglas</string>
     <string name="session_drawer_logs">Loggar</string>
-    <string name="session_drawer_pip_mode">PiP-läge</string>
     <string name="session_drawer_toggle_relative_mouse">Växla relativ musrörelse</string>
     <string name="session_drawer_toggle_mouse">Växla mus</string>
     <string name="session_drawer_pause_resume">Pausa/Återuppta</string>
@@ -727,7 +725,6 @@ T.ex. <b>META</b> för <i>META-tangent</i>, \n
     <string name="session_drawer_vivid">Livfull</string>
     <string name="session_drawer_vivid_strength">Livfullhetsstyrka</string>
     <string name="session_drawer_color_profile">Färgeffekt</string>
-    <string name="session_drawer_picture_in_picture">Bild-i-bild</string>
     <string name="session_drawer_exit_subtitle">Stäng den pågående sessionen</string>
     <string name="session_drawer_touchscreen_overlay">Pekskärmsöverlägg</string>
     <string name="session_drawer_resume">Återuppta</string>
@@ -882,7 +879,6 @@ T.ex. <b>META</b> för <i>META-tangent</i>, \n
     <string name="session_drawer_rail_label_relative_mouse">RelMus</string>
     <string name="session_drawer_rail_label_mouse">Mus</string>
     <string name="session_drawer_rail_label_fullscreen">Helskärm</string>
-    <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Uppgifter</string>
     <string name="session_drawer_rail_label_record">Spela in</string>

@@ -664,11 +664,9 @@ Por ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="session_drawer_dual_series_battery">Bateria de Série Dupla</string>
     <string name="session_drawer_hud_frametime_numeric">Mostrar Frametime como Número</string>
     <string name="session_drawer_toggle_fullscreen">Alternar Ecrã Inteiro</string>
-    <string name="session_drawer_refactor_size">Redimensionar</string>
     <string name="session_drawer_show_touchscreen_controls">Mostrar Controlos do Ecrã Tátil</string>
     <string name="session_drawer_magnifier">Lupa</string>
     <string name="session_drawer_logs">Registos</string>
-    <string name="session_drawer_pip_mode">Modo PiP</string>
     <string name="session_drawer_toggle_relative_mouse">Alternar Movimento Relativo do Rato</string>
     <string name="session_drawer_toggle_mouse">Alternar Rato</string>
     <string name="session_drawer_pause_resume">Pausar/Retomar</string>
@@ -727,7 +725,6 @@ Por ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="session_drawer_vivid">Vívido</string>
     <string name="session_drawer_vivid_strength">Intensidade do Vívido</string>
     <string name="session_drawer_color_profile">Efeito de Cor</string>
-    <string name="session_drawer_picture_in_picture">Imagem na Imagem</string>
     <string name="session_drawer_exit_subtitle">Fechar a sessão em execução</string>
     <string name="session_drawer_touchscreen_overlay">Sobreposição do Ecrã Tátil</string>
     <string name="session_drawer_resume">Retomar</string>
@@ -882,7 +879,6 @@ Por ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="session_drawer_rail_label_relative_mouse">RatoRel</string>
     <string name="session_drawer_rail_label_mouse">Rato</string>
     <string name="session_drawer_rail_label_fullscreen">Ecrã inteiro</string>
-    <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Tarefas</string>
     <string name="session_drawer_rail_label_record">Gravar</string>

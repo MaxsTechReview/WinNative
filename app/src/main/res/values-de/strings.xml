@@ -581,13 +581,11 @@ Z. B. <b>META</b> für <i>Meta-Taste</i>, \n
     <string name="session_drawer_show_touchscreen_controls">Touchscreen-Steuerung anzeigen</string>
     <string name="session_drawer_magnifier">Lupe</string>
     <string name="session_drawer_logs">Protokolle</string>
-    <string name="session_drawer_pip_mode">PiP-Modus</string>
     <string name="session_drawer_toggle_relative_mouse">Relative Mausbewegung umschalten</string>
     <string name="session_drawer_toggle_mouse">Maus umschalten</string>
     <string name="session_drawer_pause_resume">Pausieren/Fortsetzen</string>
     <string name="session_drawer_relative_mouse_movement">Relative Mausbewegung</string>
     <string name="session_drawer_mouse_input">Mauseingabe</string>
-    <string name="session_drawer_picture_in_picture">Bild-in-Bild</string>
     <string name="session_drawer_exit_subtitle">Laufende Sitzung schließen</string>
     <string name="session_drawer_touchscreen_overlay">Touchscreen-Overlay</string>
     <string name="session_drawer_resume">Fortsetzen</string>
@@ -1144,7 +1142,6 @@ Installierter Pfad:
     <string name="session_drawer_rail_label_relative_mouse">Rel.Maus</string>
     <string name="session_drawer_rail_label_mouse">Maus</string>
     <string name="session_drawer_rail_label_fullscreen">Vollbild</string>
-    <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Aufg.</string>
     <string name="session_drawer_rail_label_logs">Logs</string>
@@ -1569,7 +1566,6 @@ Installierter Pfad:
     <string name="session_drawer_hud_background_alpha">Hintergrund-Alpha</string>
     <string name="session_drawer_hud_background_alpha_input_title">Hintergrund-Alpha festlegen</string>
     <string name="session_drawer_hud_element_temp">B.TMP</string>
-    <string name="session_drawer_refactor_size">Größe anpassen</string>
     <string name="session_task_bring_to_front">In den Vordergrund</string>
     <string name="session_task_custom_value">Benutzerdefinierter Wert</string>
     <string name="session_gyroscope_orientation_mode">Zum Zielen neigen (Ausrichtung)</string>

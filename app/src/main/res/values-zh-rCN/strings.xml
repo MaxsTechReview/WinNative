@@ -581,13 +581,11 @@
     <string name="session_drawer_show_touchscreen_controls">显示触屏控制</string>
     <string name="session_drawer_magnifier">放大镜</string>
     <string name="session_drawer_logs">日志</string>
-    <string name="session_drawer_pip_mode">PiP 模式</string>
     <string name="session_drawer_toggle_relative_mouse">切换相对鼠标移动</string>
     <string name="session_drawer_toggle_mouse">切换鼠标</string>
     <string name="session_drawer_pause_resume">暂停/恢复</string>
     <string name="session_drawer_relative_mouse_movement">相对鼠标移动</string>
     <string name="session_drawer_mouse_input">鼠标输入</string>
-    <string name="session_drawer_picture_in_picture">画中画</string>
     <string name="session_drawer_exit_subtitle">关闭当前会话</string>
     <string name="session_drawer_touchscreen_overlay">触屏覆盖层</string>
     <string name="session_drawer_resume">恢复</string>
@@ -1144,7 +1142,6 @@
     <string name="session_drawer_rail_label_relative_mouse">相对鼠标</string>
     <string name="session_drawer_rail_label_mouse">鼠标</string>
     <string name="session_drawer_rail_label_fullscreen">全屏</string>
-    <string name="session_drawer_rail_label_pip">画中画</string>
     <string name="session_drawer_rail_label_magnifier">缩放</string>
     <string name="session_drawer_rail_label_task_manager">任务</string>
     <string name="session_drawer_rail_label_logs">日志</string>
@@ -1569,7 +1566,6 @@
     <string name="session_drawer_hud_background_alpha">背景透明度</string>
     <string name="session_drawer_hud_background_alpha_input_title">设置背景透明度</string>
     <string name="session_drawer_hud_element_temp">B.TMP</string>
-    <string name="session_drawer_refactor_size">调整大小</string>
     <string name="session_task_bring_to_front">置于顶层</string>
     <string name="session_task_custom_value">自定义值</string>
     <string name="session_gyroscope_orientation_mode">倾斜瞄准（方向）</string>

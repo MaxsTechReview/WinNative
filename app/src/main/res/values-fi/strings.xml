@@ -664,11 +664,9 @@ E.g. <b>META</b> for <i>META-näppäin</i>, \n
     <string name="session_drawer_dual_series_battery">Dual Series -akku</string>
     <string name="session_drawer_hud_frametime_numeric">Näytä kehysaika numerona</string>
     <string name="session_drawer_toggle_fullscreen">Vaihda koko näyttö</string>
-    <string name="session_drawer_refactor_size">Muokkaa kokoa</string>
     <string name="session_drawer_show_touchscreen_controls">Näytä kosketusnäytön ohjaimet</string>
     <string name="session_drawer_magnifier">Suurennuslasi</string>
     <string name="session_drawer_logs">Lokit</string>
-    <string name="session_drawer_pip_mode">PiP-tila</string>
     <string name="session_drawer_toggle_relative_mouse">Vaihda suhteellinen hiiren liike</string>
     <string name="session_drawer_toggle_mouse">Vaihda hiiri</string>
     <string name="session_drawer_pause_resume">Keskeytä/jatka</string>
@@ -727,7 +725,6 @@ E.g. <b>META</b> for <i>META-näppäin</i>, \n
     <string name="session_drawer_vivid">Eloisa</string>
     <string name="session_drawer_vivid_strength">Eloisuuden voimakkuus</string>
     <string name="session_drawer_color_profile">Väritehoste</string>
-    <string name="session_drawer_picture_in_picture">Kuva kuvassa</string>
     <string name="session_drawer_exit_subtitle">Sulje käynnissä oleva istunto</string>
     <string name="session_drawer_touchscreen_overlay">Kosketusnäytön peittokuva</string>
     <string name="session_drawer_resume">Jatka</string>
@@ -882,7 +879,6 @@ E.g. <b>META</b> for <i>META-näppäin</i>, \n
     <string name="session_drawer_rail_label_relative_mouse">SuhtHiiri</string>
     <string name="session_drawer_rail_label_mouse">Hiiri</string>
     <string name="session_drawer_rail_label_fullscreen">Koko näyttö</string>
-    <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_magnifier">Zoomaus</string>
     <string name="session_drawer_rail_label_task_manager">Tehtävät</string>
     <string name="session_drawer_rail_label_record">Tallenna</string>

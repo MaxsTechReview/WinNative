@@ -585,13 +585,11 @@ Np. <b>META</b> dla <i>klawisza META</i>, \n
     <string name="session_drawer_show_touchscreen_controls">Pokaż kontrolki dotykowe</string>
     <string name="session_drawer_magnifier">Lupa</string>
     <string name="session_drawer_logs">Logi</string>
-    <string name="session_drawer_pip_mode">Tryb PiP</string>
     <string name="session_drawer_toggle_relative_mouse">Przełącz ruch względny myszy</string>
     <string name="session_drawer_toggle_mouse">Przełącz mysz</string>
     <string name="session_drawer_pause_resume">Wstrzymaj/Wznów</string>
     <string name="session_drawer_relative_mouse_movement">Ruch względny myszy</string>
     <string name="session_drawer_mouse_input">Wejście myszy</string>
-    <string name="session_drawer_picture_in_picture">Obraz w obrazie</string>
     <string name="session_drawer_exit_subtitle">Zamknij bieżącą sesję</string>
     <string name="session_drawer_touchscreen_overlay">Nakładka dotykowa</string>
     <string name="session_drawer_resume">Wznów</string>
@@ -1150,7 +1148,6 @@ Zainstalowana ścieżka:
     <string name="session_drawer_rail_label_relative_mouse">RelMysz</string>
     <string name="session_drawer_rail_label_mouse">Mysz</string>
     <string name="session_drawer_rail_label_fullscreen">Pełny ekran</string>
-    <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Zad.</string>
     <string name="session_drawer_rail_label_logs">Logi</string>
@@ -1575,7 +1572,6 @@ Zainstalowana ścieżka:
     <string name="session_drawer_hud_background_alpha">Alfa tła</string>
     <string name="session_drawer_hud_background_alpha_input_title">Ustaw alfę tła</string>
     <string name="session_drawer_hud_element_temp">B.TMP</string>
-    <string name="session_drawer_refactor_size">Dopasuj rozmiar</string>
     <string name="session_task_bring_to_front">Przenieś na wierzch</string>
     <string name="session_task_custom_value">Wartość niestandardowa</string>
     <string name="session_gyroscope_orientation_mode">Przechyl, aby celować (orientacja)</string>

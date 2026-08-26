@@ -664,11 +664,9 @@
     <string name="session_drawer_dual_series_battery">แบตเตอรี่แบบสองชุด</string>
     <string name="session_drawer_hud_frametime_numeric">แสดง Frametime เป็นตัวเลข</string>
     <string name="session_drawer_toggle_fullscreen">สลับเต็มหน้าจอ</string>
-    <string name="session_drawer_refactor_size">ปรับขนาดใหม่</string>
     <string name="session_drawer_show_touchscreen_controls">แสดงปุ่มควบคุมหน้าจอสัมผัส</string>
     <string name="session_drawer_magnifier">แว่นขยาย</string>
     <string name="session_drawer_logs">บันทึก</string>
-    <string name="session_drawer_pip_mode">โหมด PiP</string>
     <string name="session_drawer_toggle_relative_mouse">สลับการเคลื่อนเมาส์แบบสัมพัทธ์</string>
     <string name="session_drawer_toggle_mouse">สลับเมาส์</string>
     <string name="session_drawer_pause_resume">หยุดชั่วคราว/ทำต่อ</string>
@@ -727,7 +725,6 @@
     <string name="session_drawer_vivid">สดใส</string>
     <string name="session_drawer_vivid_strength">ระดับความสดใส</string>
     <string name="session_drawer_color_profile">เอฟเฟกต์สี</string>
-    <string name="session_drawer_picture_in_picture">ภาพซ้อนภาพ</string>
     <string name="session_drawer_exit_subtitle">ปิดเซสชันที่กำลังทำงานอยู่</string>
     <string name="session_drawer_touchscreen_overlay">โอเวอร์เลย์หน้าจอสัมผัส</string>
     <string name="session_drawer_resume">ทำต่อ</string>
@@ -882,7 +879,6 @@
     <string name="session_drawer_rail_label_relative_mouse">เมาส์สัมพัทธ์</string>
     <string name="session_drawer_rail_label_mouse">เมาส์</string>
     <string name="session_drawer_rail_label_fullscreen">เต็มจอ</string>
-    <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_magnifier">ซูม</string>
     <string name="session_drawer_rail_label_task_manager">งาน</string>
     <string name="session_drawer_rail_label_record">บันทึก</string>

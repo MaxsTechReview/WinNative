@@ -408,11 +408,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean isPaused = false;
     private boolean reusingSession = false;
     private boolean isRelativeMouseMovement = false;
-    private boolean isRefactorSizeEnabled = false;
     private int screenTouchMode = 0;
     private boolean rtsGesturesEnabled = false;
-    private static final long REFACTOR_SIZE_EXE_BYTES = 17408L;
-    private static final long REFACTOR_SIZE_UNSTAGE_DELAY_MS = 3000L;
     private static final long GRAPHICS_TEST_32_EXE_BYTES = 2333245L;
     private static final long GRAPHICS_TEST_64_EXE_BYTES = 2361407L;
     private static final long INPUT_TEST_32_EXE_BYTES = 289656L;
@@ -2726,7 +2723,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         boolean cleaningUp = exitRequested.get() || sessionCleanupStarted.get() || activityDestroyed.get();
 
-        if (!cleaningUp && !isInPictureInPictureMode()) {
+        if (!cleaningUp) {
             if (environment != null) {
                 environment.onPause();
                 xServerView.onPause();
@@ -4347,7 +4344,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 globalCursorSpeed,
                 xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen(),
                 RefreshRateUtils.getMaxSupportedRefreshRate(this),
-                isRefactorSizeEnabled,
                 screenRecorder != null && screenRecorder.isRecording(),
                 buildRecordConfig(),
                 screenTouchMode,
@@ -5826,11 +5822,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             case R.id.main_menu_rotate_screen:
                 rotateScreenOrientation();
                 break;
-            case R.id.main_menu_refactor_size:
-                isRefactorSizeEnabled = !isRefactorSizeEnabled;
-                applyRefactorSize(isRefactorSizeEnabled);
-                renderDrawerMenu();
-                break;
             case R.id.main_menu_pause:
                 if (isPaused) {
                     ProcessHelper.resumeAllWineProcesses();
@@ -5844,10 +5835,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 }
                 isPaused = !isPaused;
                 renderDrawerMenu();
-                break;
-            case R.id.main_menu_pip_mode:
-                enterPictureInPictureMode(new android.app.PictureInPictureParams.Builder().build());
-                closeDrawerMenu();
                 break;
             case R.id.main_menu_magnifier:
                 if (magnifierView != null) {
@@ -6106,32 +6093,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         android.widget.Toast.makeText(this, R.string.session_record_saved, android.widget.Toast.LENGTH_SHORT).show();
     }
 
-    private void applyRefactorSize(boolean enabled) {
-        if (winHandler == null || container == null) return;
-        if (enabled) stageRefactorSizeHelper();
-        winHandler.exec("\"C:\\WinNative\\refactorsize.exe\" " + (enabled ? "on" : "off"));
-        if (!enabled) unstageRefactorSizeHelper();
-    }
-
-    private void stageRefactorSizeHelper() {
-        try {
-            File dir = new File(container.getRootDir(), ".wine/drive_c/WinNative");
-            if (!dir.isDirectory() && !dir.mkdirs()) return;
-            File dst = new File(dir, "refactorsize.exe");
-            if (dst.exists() && dst.length() == REFACTOR_SIZE_EXE_BYTES) return;
-            try (java.io.InputStream in = getAssets().open("winnative/refactorsize.exe");
-                 java.io.FileOutputStream out = new java.io.FileOutputStream(dst)) {
-                byte[] buf = new byte[64 * 1024];
-                int n;
-                while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-            }
-            Log.i("XServerDisplayActivity",
-                  "Refactor Size: staged refactorsize.exe (" + dst.length() + " B) at " + dst.getPath());
-        } catch (Exception e) {
-            Log.e("XServerDisplayActivity", "Refactor Size: helper staging failed", e);
-        }
-    }
-
     private void stageBundledTestExes() {
         if (container == null) return;
         File dir = new File(container.getRootDir(), ".wine/drive_c/ProgramData/Microsoft/Windows");
@@ -6153,13 +6114,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         } catch (Exception e) {
             Log.e("XServerDisplayActivity", "Failed to stage " + name, e);
         }
-    }
-
-    private void unstageRefactorSizeHelper() {
-        final File dst = new File(container.getRootDir(), ".wine/drive_c/WinNative/refactorsize.exe");
-        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-            if (!isRefactorSizeEnabled && dst.exists()) dst.delete();
-        }, REFACTOR_SIZE_UNSTAGE_DELAY_MS);
     }
 
     private boolean isDisplayReady() {

@@ -585,13 +585,11 @@
     <string name="session_drawer_show_touchscreen_controls">Показати сенсорні елементи керування</string>
     <string name="session_drawer_magnifier">Збільшувач</string>
     <string name="session_drawer_logs">Журнали</string>
-    <string name="session_drawer_pip_mode">Режим PiP</string>
     <string name="session_drawer_toggle_relative_mouse">Перемкнути відносний рух миші</string>
     <string name="session_drawer_toggle_mouse">Перемкнути мишу</string>
     <string name="session_drawer_pause_resume">Пауза/Продовжити</string>
     <string name="session_drawer_relative_mouse_movement">Відносний рух миші</string>
     <string name="session_drawer_mouse_input">Введення миші</string>
-    <string name="session_drawer_picture_in_picture">Картинка в картинці</string>
     <string name="session_drawer_exit_subtitle">Закрити поточну сесію</string>
     <string name="session_drawer_touchscreen_overlay">Сенсорне накладання</string>
     <string name="session_drawer_resume">Продовжити</string>
@@ -1150,7 +1148,6 @@
     <string name="session_drawer_rail_label_relative_mouse">ВіднМ.</string>
     <string name="session_drawer_rail_label_mouse">Миша</string>
     <string name="session_drawer_rail_label_fullscreen">Повний екран</string>
-    <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_magnifier">Лупа</string>
     <string name="session_drawer_rail_label_task_manager">Задачі</string>
     <string name="session_drawer_rail_label_logs">Логи</string>
@@ -1575,7 +1572,6 @@
     <string name="session_drawer_hud_background_alpha">Альфа фону</string>
     <string name="session_drawer_hud_background_alpha_input_title">Задати альфу фону</string>
     <string name="session_drawer_hud_element_temp">B.TMP</string>
-    <string name="session_drawer_refactor_size">Змінити розмір</string>
     <string name="session_task_bring_to_front">На передній план</string>
     <string name="session_task_custom_value">Власне значення</string>
     <string name="session_gyroscope_orientation_mode">Нахил для прицілювання (орієнтація)</string>

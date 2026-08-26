@@ -581,13 +581,11 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="session_drawer_show_touchscreen_controls">Mostrar Controles da Tela Sensivel ao Toque</string>
     <string name="session_drawer_magnifier">Lupa</string>
     <string name="session_drawer_logs">Logs</string>
-    <string name="session_drawer_pip_mode">Modo PiP</string>
     <string name="session_drawer_toggle_relative_mouse">Alternar Movimento Relativo do Mouse</string>
     <string name="session_drawer_toggle_mouse">Alternar Mouse</string>
     <string name="session_drawer_pause_resume">Pausar/Retomar</string>
     <string name="session_drawer_relative_mouse_movement">Movimento Relativo do Mouse</string>
     <string name="session_drawer_mouse_input">Entrada do Mouse</string>
-    <string name="session_drawer_picture_in_picture">Picture in Picture</string>
     <string name="session_drawer_exit_subtitle">Fechar a sessao em execucao</string>
     <string name="session_drawer_touchscreen_overlay">Sobreposicao da Tela Sensivel ao Toque</string>
     <string name="session_drawer_resume">Retomar</string>
@@ -1144,7 +1142,6 @@ Caminho instalado:
     <string name="session_drawer_rail_label_relative_mouse">RelMouse</string>
     <string name="session_drawer_rail_label_mouse">Mouse</string>
     <string name="session_drawer_rail_label_fullscreen">Tela cheia</string>
-    <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Tarefas</string>
     <string name="session_drawer_rail_label_logs">Logs</string>
@@ -1569,7 +1566,6 @@ Caminho instalado:
     <string name="session_drawer_hud_background_alpha">Alfa do fundo</string>
     <string name="session_drawer_hud_background_alpha_input_title">Definir alfa do fundo</string>
     <string name="session_drawer_hud_element_temp">B.TMP</string>
-    <string name="session_drawer_refactor_size">Ajustar tamanho</string>
     <string name="session_task_bring_to_front">Trazer para frente</string>
     <string name="session_task_custom_value">Valor personalizado</string>
     <string name="session_gyroscope_orientation_mode">Incline para mirar (orientação)</string>

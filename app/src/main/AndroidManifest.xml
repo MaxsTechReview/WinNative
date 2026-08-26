@@ -100,7 +100,6 @@
             android:name="com.winlator.cmod.runtime.display.XServerDisplayActivity"
             android:theme="@style/AppThemeFullscreen"
             android:launchMode="singleTask"
-            android:supportsPictureInPicture="true"
             android:screenOrientation="unspecified"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation"
             android:exported="true">

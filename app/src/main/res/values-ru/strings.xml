@@ -587,7 +587,6 @@
     <string name="session_drawer_show_touchscreen_controls">Показать элементы управления сенсорным экраном</string>
     <string name="session_drawer_magnifier">Лупа</string>
     <string name="session_drawer_logs">Журналы</string>
-    <string name="session_drawer_pip_mode">Режим PiP</string>
     <string name="session_drawer_toggle_relative_mouse">Переключить относительное движение мыши</string>
     <string name="session_drawer_toggle_mouse">Переключить мышь</string>
     <string name="session_drawer_pause_resume">Пауза/возобновить</string>
@@ -602,7 +601,6 @@
     <string name="session_drawer_vivid">Насыщенный</string>
     <string name="session_drawer_vivid_strength">Интенсивность насыщенности</string>
     <string name="session_drawer_color_profile">Цветовой эффект</string>
-    <string name="session_drawer_picture_in_picture">Картинка в картинке</string>
     <string name="session_drawer_exit_subtitle">Закрыть текущий сеанс</string>
     <string name="session_drawer_touchscreen_overlay">Наложение сенсорного экрана</string>
     <string name="session_drawer_resume">Продолжить</string>
@@ -687,7 +685,6 @@
     <string name="session_drawer_rail_label_relative_mouse">Отн. мышь</string>
     <string name="session_drawer_rail_label_mouse">Мышь</string>
     <string name="session_drawer_rail_label_fullscreen">Полноэкранный</string>
-    <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_magnifier">Лупа</string>
     <string name="session_drawer_rail_label_task_manager">Задачи</string>
     <string name="session_drawer_rail_label_logs">Журналы</string>
@@ -1475,7 +1472,6 @@
     <string name="session_drawer_hud_background_alpha">Альфа фона</string>
     <string name="session_drawer_hud_background_alpha_input_title">Задать альфу фона</string>
     <string name="session_drawer_hud_element_temp">B.TMP</string>
-    <string name="session_drawer_refactor_size">Изменить размер</string>
     <string name="session_task_bring_to_front">На передний план</string>
     <string name="session_task_custom_value">Своё значение</string>
     <string name="session_gyroscope_orientation_mode">Наклон для прицеливания (ориентация)</string>

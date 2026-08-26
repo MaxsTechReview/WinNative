@@ -581,13 +581,11 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="session_drawer_show_touchscreen_controls">Arata controalele tactile</string>
     <string name="session_drawer_magnifier">Lupa</string>
     <string name="session_drawer_logs">Jurnale</string>
-    <string name="session_drawer_pip_mode">Mod PiP</string>
     <string name="session_drawer_toggle_relative_mouse">Comuta miscarea relativa a mouse-ului</string>
     <string name="session_drawer_toggle_mouse">Comuta mouse-ul</string>
     <string name="session_drawer_pause_resume">Pauza/Reluare</string>
     <string name="session_drawer_relative_mouse_movement">Miscare relativa mouse</string>
     <string name="session_drawer_mouse_input">Intrare mouse</string>
-    <string name="session_drawer_picture_in_picture">Imagine in imagine</string>
     <string name="session_drawer_exit_subtitle">Inchide sesiunea curenta</string>
     <string name="session_drawer_touchscreen_overlay">Suprapunere tactila</string>
     <string name="session_drawer_resume">Reluare</string>
@@ -1144,7 +1142,6 @@ Cale instalata:
     <string name="session_drawer_rail_label_relative_mouse">RelMouse</string>
     <string name="session_drawer_rail_label_mouse">Mouse</string>
     <string name="session_drawer_rail_label_fullscreen">Ecran complet</string>
-    <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Sarcini</string>
     <string name="session_drawer_rail_label_logs">Loguri</string>
@@ -1568,7 +1565,6 @@ Cale instalata:
     <string name="session_drawer_hud_background_alpha">Alfa fundal</string>
     <string name="session_drawer_hud_background_alpha_input_title">Setează alfa fundalului</string>
     <string name="session_drawer_hud_element_temp">B.TMP</string>
-    <string name="session_drawer_refactor_size">Ajustează dimensiunea</string>
     <string name="session_task_bring_to_front">Adu în față</string>
     <string name="session_task_custom_value">Valoare personalizată</string>
     <string name="session_gyroscope_orientation_mode">Înclină pentru a ținti (orientare)</string>

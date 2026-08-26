@@ -83,7 +83,6 @@ import androidx.compose.material.icons.outlined.Keyboard
 import androidx.compose.material.icons.outlined.Monitor
 import androidx.compose.material.icons.outlined.Mouse
 import androidx.compose.material.icons.outlined.Pause
-import androidx.compose.material.icons.outlined.PictureInPictureAlt
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.ScreenRotation
 import androidx.compose.material.icons.outlined.Settings
@@ -1216,7 +1215,6 @@ fun buildXServerDrawerState(
     cursorSpeed: Float = 1.0f,
     fullscreenEnabled: Boolean = false,
     maxRefreshRate: Int = 60,
-    refactorSizeEnabled: Boolean = false,
     recordingActive: Boolean = false,
     recordConfig: RecordUiConfig = RecordUiConfig(),
     screenTouchMode: Int = 0,
@@ -1300,12 +1298,6 @@ fun buildXServerDrawerState(
                 icon = if (paused) Icons.Outlined.PlayArrow else Icons.Outlined.Pause,
                 active = paused,
             ),
-            XServerDrawerItem(
-                itemId = R.id.main_menu_pip_mode,
-                title = context.getString(R.string.session_drawer_picture_in_picture),
-                subtitle = "",
-                icon = Icons.Outlined.PictureInPictureAlt,
-            ),
         )
 
     if (showMagnifier) {
@@ -1318,15 +1310,6 @@ fun buildXServerDrawerState(
                 active = magnifierActive,
             )
     }
-
-    items +=
-        XServerDrawerItem(
-            itemId = R.id.main_menu_refactor_size,
-            title = context.getString(R.string.session_drawer_refactor_size),
-            subtitle = "",
-            icon = Icons.Outlined.PictureInPictureAlt,
-            active = refactorSizeEnabled,
-        )
 
     items +=
         XServerDrawerItem(
@@ -2384,7 +2367,6 @@ private fun railLabelResFor(itemId: Int): Int? =
         R.id.main_menu_disable_mouse -> R.string.session_drawer_rail_label_mouse
         R.id.main_menu_toggle_fullscreen -> R.string.session_drawer_rail_label_fullscreen
         R.id.main_menu_rotate_screen -> R.string.session_drawer_rail_label_rotate_screen
-        R.id.main_menu_pip_mode -> R.string.session_drawer_rail_label_pip
         R.id.main_menu_magnifier -> R.string.session_drawer_rail_label_magnifier
         R.id.main_menu_task_manager -> R.string.session_drawer_rail_label_task_manager
         R.id.main_menu_record -> R.string.session_drawer_rail_label_record

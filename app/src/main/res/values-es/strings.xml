@@ -581,13 +581,11 @@ Ej. <b>META</b> para la <i>tecla META</i>, \n
     <string name="session_drawer_show_touchscreen_controls">Mostrar controles táctiles</string>
     <string name="session_drawer_magnifier">Lupa</string>
     <string name="session_drawer_logs">Registros</string>
-    <string name="session_drawer_pip_mode">Modo PiP</string>
     <string name="session_drawer_toggle_relative_mouse">Alternar movimiento relativo del ratón</string>
     <string name="session_drawer_toggle_mouse">Alternar ratón</string>
     <string name="session_drawer_pause_resume">Pausar/Reanudar</string>
     <string name="session_drawer_relative_mouse_movement">Movimiento relativo del ratón</string>
     <string name="session_drawer_mouse_input">Entrada de ratón</string>
-    <string name="session_drawer_picture_in_picture">Imagen en imagen</string>
     <string name="session_drawer_exit_subtitle">Cerrar la sesión en ejecución</string>
     <string name="session_drawer_touchscreen_overlay">Superposición táctil</string>
     <string name="session_drawer_resume">Reanudar</string>
@@ -1144,7 +1142,6 @@ Ruta instalada:
     <string name="session_drawer_rail_label_relative_mouse">RelRatón</string>
     <string name="session_drawer_rail_label_mouse">Ratón</string>
     <string name="session_drawer_rail_label_fullscreen">Pantalla completa</string>
-    <string name="session_drawer_rail_label_pip">PiP</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Tareas</string>
     <string name="session_drawer_rail_label_logs">Reg.</string>
@@ -1569,7 +1566,6 @@ Ruta instalada:
     <string name="session_drawer_hud_background_alpha">Alfa del fondo</string>
     <string name="session_drawer_hud_background_alpha_input_title">Establecer alfa del fondo</string>
     <string name="session_drawer_hud_element_temp">B.TMP</string>
-    <string name="session_drawer_refactor_size">Ajustar tamaño</string>
     <string name="session_task_bring_to_front">Traer al frente</string>
     <string name="session_task_custom_value">Valor personalizado</string>
     <string name="session_gyroscope_orientation_mode">Inclinar para apuntar (orientación)</string>
