@@ -338,14 +338,22 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
                             }
                         }),
                 )
-                // Error overlaid at bottom of password field — no layout shift
                 androidx.compose.animation.AnimatedVisibility(
                     visible = showLoginError,
                     enter = fadeIn(tween(200)),
                     exit = fadeOut(tween(150)),
-                    modifier = Modifier.align(Alignment.BottomStart).offset(y = 8.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .offset(y = (-2).dp)
+                            .padding(horizontal = 12.dp),
                 ) {
-                    Text(stringResource(R.string.steam_login_invalid_username_or_password), color = DangerRed, fontSize = 11.sp)
+                    Text(
+                        stringResource(R.string.steam_login_invalid_username_or_password),
+                        color = DangerRed,
+                        fontSize = 11.sp,
+                        textAlign = TextAlign.Center,
+                    )
                 }
             }
 
