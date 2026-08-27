@@ -2297,8 +2297,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         return containerId;
     }
 
-    @Nullable
-    private Shortcut findShortcutByUuid(String uuid, int preferredContainerId) {
+    @Nullable private Shortcut findShortcutByUuid(String uuid, int preferredContainerId) {
         if (uuid == null || uuid.isEmpty() || containerManager == null) return null;
         try {
             Shortcut fallback = null;
@@ -2316,8 +2315,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         return null;
     }
 
-    @Nullable
-    private Shortcut findShortcutByPathHash(int pathHash, int preferredContainerId) {
+    @Nullable private Shortcut findShortcutByPathHash(int pathHash, int preferredContainerId) {
         if (pathHash == 0 || containerManager == null) return null;
         try {
             Shortcut fallback = null;
@@ -2335,8 +2333,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         return null;
     }
 
-    @Nullable
-    private Shortcut findShortcutByAbsolutePath(String absolutePath, int preferredContainerId) {
+    @Nullable private Shortcut findShortcutByAbsolutePath(String absolutePath, int preferredContainerId) {
         if (absolutePath == null || absolutePath.isEmpty() || containerManager == null) return null;
         try {
             Shortcut fallback = null;
@@ -3012,8 +3009,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         return normalized;
     }
 
-    @Nullable
-    private ArrayList<ProcessInfo> captureWinHandlerProcessSnapshot() {
+    @Nullable private ArrayList<ProcessInfo> captureWinHandlerProcessSnapshot() {
         WinHandler snapshotWinHandler = winHandler;
         if (snapshotWinHandler == null) return null;
 

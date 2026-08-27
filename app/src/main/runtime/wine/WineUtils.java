@@ -44,8 +44,7 @@ public abstract class WineUtils {
     return "Z:" + windowsPath;
   }
 
-  @Nullable
-  public static String tryHostPathToMappedWinePath(
+  @Nullable public static String tryHostPathToMappedWinePath(
       @Nullable Container container, @Nullable String hostPath) {
     if (hostPath == null || hostPath.isEmpty()) return null;
 
@@ -580,8 +579,7 @@ public abstract class WineUtils {
     return target.getAbsolutePath();
   }
 
-  @Nullable
-  private static String toStorageAlias(String path) {
+  @Nullable private static String toStorageAlias(String path) {
     if (path == null) return null;
     String normalized = path.replace('\\', '/');
     String mediaPrefix = "/mnt/media_rw/";
@@ -1554,8 +1552,7 @@ public abstract class WineUtils {
     return getDosPath(null, path);
   }
 
-  @Nullable
-  public static String tryGetDosPath(String path) {
+  @Nullable public static String tryGetDosPath(String path) {
     if (path == null || path.isEmpty()) return null;
 
     String normalizedPath = normalizeHostPath(path);

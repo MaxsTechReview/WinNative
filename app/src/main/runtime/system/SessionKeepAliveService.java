@@ -408,8 +408,7 @@ public class SessionKeepAliveService extends Service {
         super.onDestroy();
     }
 
-    @Nullable
-    @Override
+    @Nullable @Override
     public IBinder onBind(Intent intent) {
         return null;
     }
