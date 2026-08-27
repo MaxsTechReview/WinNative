@@ -287,12 +287,19 @@ open class MainActivityRuntime : ComponentActivity() {
         @Volatile var quitAfterStop = false
         @Volatile var launchedExternally = false
 
+        private fun finishHostActivity() {
+            val activity = instance ?: return
+            if (com.armsx2.WinNativeHost.enabled() || !activity.isTaskRoot) {
+                activity.finish()
+            } else {
+                activity.finishAndRemoveTask()
+            }
+        }
+
         private fun finishToLauncherIfRequested() {
             if (quitAfterStop) {
                 quitAfterStop = false
-                instance?.runOnUiThread {
-                    if (com.armsx2.WinNativeHost.enabled()) instance?.finish() else instance?.finishAndRemoveTask()
-                }
+                instance?.runOnUiThread { finishHostActivity() }
             }
         }
 
@@ -306,9 +313,7 @@ open class MainActivityRuntime : ComponentActivity() {
         @JvmStatic
         fun exitApp() {
             if (eState.value == EmuState.STOPPED && !vmStopInProgress && !vmRunLoopActive) {
-                instance?.runOnUiThread {
-                    if (com.armsx2.WinNativeHost.enabled()) instance?.finish() else instance?.finishAndRemoveTask()
-                }
+                instance?.runOnUiThread { finishHostActivity() }
             } else {
                 quitAfterStop = true
                 stop()
@@ -2099,7 +2104,7 @@ open class MainActivityRuntime : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        if (isChangingConfigurations()) {
+        if (isChangingConfigurations() || !isFinishing || instance !== this) {
             super.onDestroy()
             return
         }

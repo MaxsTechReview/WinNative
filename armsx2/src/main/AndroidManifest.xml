@@ -12,11 +12,10 @@
             android:name="com.armsx2.Main"
             android:process=":ps2"
             android:launchMode="singleTop"
-            android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|uiMode|screenSize|smallestScreenSize"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|uiMode|screenSize|smallestScreenSize|navigation|density"
             android:screenOrientation="sensorLandscape"
             android:hardwareAccelerated="true"
             android:exported="false"
-            android:resizeableActivity="false"
             android:theme="@style/Theme.ARMSX2" />
 
         <activity-alias

@@ -34,13 +34,13 @@ object Ps2GameOverlay {
     private const val FULL = 32767
 
     @Volatile
-    private var overlayAttached = false
+    private var attachedTo: java.lang.ref.WeakReference<ComponentActivity>? = null
 
     fun install() {
-        overlayAttached = false
+        attachedTo = null
         WinNativeHost.attachOverlay = attach@{ activity ->
-            if (overlayAttached) return@attach
-            overlayAttached = true
+            if (attachedTo?.get() === activity) return@attach
+            attachedTo = java.lang.ref.WeakReference(activity)
             attach(activity)
         }
         WinNativeHost.applyBootSettings = { ctx -> applyBootConfig(ctx) }
