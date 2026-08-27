@@ -1144,7 +1144,7 @@ Zainstalowana ścieżka:
     <string name="session_drawer_color_profile_crt">Efekt CRT</string>
     <string name="session_drawer_calibrate_advanced">Zaawansowana kalibracja</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
-    <string name="session_drawer_rail_label_frame_gen">FG</string>
+    <string name="session_drawer_rail_label_frame_gen">FPS</string>
     <string name="session_drawer_rail_label_gyro">Gyro</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">Więcej</string>

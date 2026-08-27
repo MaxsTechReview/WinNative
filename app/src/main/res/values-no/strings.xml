@@ -834,7 +834,7 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_drawer_reset_effects">Nullstill effekter</string>
     <string name="session_drawer_calibrate_advanced">Avansert kalibrering</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
-    <string name="session_drawer_rail_label_frame_gen">FG</string>
+    <string name="session_drawer_rail_label_frame_gen">FPS</string>
     <string name="session_drawer_rail_label_gyro">Gyro</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_output">Utgang</string>

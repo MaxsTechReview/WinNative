@@ -1144,7 +1144,7 @@
     <string name="session_drawer_color_profile_crt">Ефект CRT</string>
     <string name="session_drawer_calibrate_advanced">Розширене калібрування</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
-    <string name="session_drawer_rail_label_frame_gen">Кадри</string>
+    <string name="session_drawer_rail_label_frame_gen">FPS</string>
     <string name="session_drawer_rail_label_gyro">Гіро</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">Більше</string>

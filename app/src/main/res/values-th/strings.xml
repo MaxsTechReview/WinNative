@@ -834,7 +834,7 @@
     <string name="session_drawer_reset_effects">รีเซ็ตเอฟเฟกต์</string>
     <string name="session_drawer_calibrate_advanced">การปรับเทียบขั้นสูง</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
-    <string name="session_drawer_rail_label_frame_gen">สร้างเฟรม</string>
+    <string name="session_drawer_rail_label_frame_gen">FPS</string>
     <string name="session_drawer_rail_label_gyro">ไจโร</string>
     <string name="session_drawer_rail_label_effects">เอฟเฟกต์</string>
     <string name="session_drawer_rail_label_output">เอาต์พุต</string>

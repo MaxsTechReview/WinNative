@@ -905,7 +905,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_reset_effects">Reset effects</string>
     <string name="session_drawer_calibrate_advanced">Advanced calibration</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
-    <string name="session_drawer_rail_label_frame_gen">FG</string>
+    <string name="session_drawer_rail_label_frame_gen">FPS</string>
     <string name="session_drawer_rail_label_gyro">Gyro</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_output">Output</string>

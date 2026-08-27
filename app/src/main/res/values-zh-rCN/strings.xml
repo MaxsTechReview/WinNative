@@ -1138,7 +1138,7 @@
     <string name="session_drawer_color_profile_crt">CRT 效果</string>
     <string name="session_drawer_calibrate_advanced">高级校准</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
-    <string name="session_drawer_rail_label_frame_gen">帧生成</string>
+    <string name="session_drawer_rail_label_frame_gen">FPS</string>
     <string name="session_drawer_rail_label_gyro">陀螺仪</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">更多</string>
