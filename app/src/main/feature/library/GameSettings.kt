@@ -59,8 +59,7 @@ import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Monitor
 import androidx.compose.material.icons.outlined.Speed
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import android.os.Environment
 import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SportsEsports
@@ -149,7 +148,10 @@ import com.winlator.cmod.runtime.reshade.ReshadeManager
 import com.winlator.cmod.shared.framegen.FrameGenPreset
 import com.winlator.cmod.shared.theme.GameSettingsStyle
 import com.winlator.cmod.runtime.wine.WineThemeManager
+import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.runtime.display.lsfg.LosslessScaling
+import com.winlator.cmod.shared.android.DirectoryPickerDialog
+import com.winlator.cmod.shared.ui.dialog.findActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -177,6 +179,7 @@ import com.winlator.cmod.shared.ui.nav.paneHighlight
 import com.winlator.cmod.shared.ui.nav.paneNavItem
 import com.winlator.cmod.shared.ui.widget.EnvVarsView
 import com.winlator.cmod.shared.ui.widget.chasingBorder
+import java.io.File
 import kotlin.math.roundToInt
 
 private val BgDeep = GameSettingsStyle.BgDeep
@@ -1762,16 +1765,38 @@ private fun FrameGenerationCard(state: GameSettingsStateHolder) {
     }
 
     val scope = rememberCoroutineScope()
-    val picker =
-        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-            if (uri == null) return@rememberLauncherForActivityResult
-            state.frameGenShaderState.intValue = FRAMEGEN_SHADERS_IMPORTING
-            scope.launch {
-                val outcome = withContext(Dispatchers.IO) { LosslessAutoImport.importFrom(context, uri) }
-                state.frameGenSourceName.value = outcome.sourceName
-                state.frameGenShaderState.intValue = frameGenStateFor(outcome.result)
+    val pickDll = {
+        val activity = context.findActivity()
+        if (activity != null) {
+            val imagefsRoot = ImageFs.find(context).rootDir
+            DirectoryPickerDialog.showFile(
+                activity,
+                title = context.getString(R.string.settings_frame_generation_locate),
+                allowedExtensions = setOf("dll"),
+                extraRoots =
+                    listOf(
+                        DirectoryPickerDialog.ManagedRoot("C:", File(imagefsRoot, "home").absolutePath),
+                        DirectoryPickerDialog.ManagedRoot("Z:", imagefsRoot.absolutePath),
+                        DirectoryPickerDialog.ManagedRoot(
+                            "D:",
+                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath,
+                        ),
+                        DirectoryPickerDialog.ManagedRoot(
+                            "Internal",
+                            Environment.getExternalStorageDirectory().absolutePath,
+                        ),
+                    ),
+            ) { pickedPath ->
+                state.frameGenShaderState.intValue = FRAMEGEN_SHADERS_IMPORTING
+                scope.launch {
+                    val outcome =
+                        withContext(Dispatchers.IO) { LosslessAutoImport.importFrom(context, File(pickedPath)) }
+                    state.frameGenSourceName.value = outcome.sourceName
+                    state.frameGenShaderState.intValue = frameGenStateFor(outcome.result)
+                }
             }
         }
+    }
 
     val shaders = state.frameGenShaderState.intValue
     val ready = shaders == FRAMEGEN_SHADERS_READY || shaders == FRAMEGEN_SHADERS_UPDATED
@@ -1839,7 +1864,7 @@ private fun FrameGenerationCard(state: GameSettingsStateHolder) {
             SettingActionButton(
                 label = stringResource(R.string.settings_frame_generation_locate),
                 enabled = !busy,
-                onClick = { picker.launch(arrayOf("*/*")) },
+                onClick = { pickDll() },
             )
         }
 
