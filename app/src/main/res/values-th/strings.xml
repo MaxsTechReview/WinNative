@@ -893,6 +893,9 @@
     <string name="session_record_started">เริ่มบันทึกแล้ว</string>
     <string name="session_record_saved">บันทึกวิดีโอไปยัง WinNative/Recordings แล้ว</string>
     <string name="session_record_failed">ไม่สามารถเริ่มบันทึกได้</string>
+    <string name="session_locale_manifest_embedded">การแทนที่โลแคล (%1$s) อาจไม่มีผล: เกมนี้ฝังเมนิเฟสต์ของตัวเองไว้</string>
+    <string name="session_locale_manifest_embedded_codepage">ละเว้นการแทนที่โลแคล: เกมนี้กำหนดโค้ดเพจของตัวเอง (%1$s)</string>
+    <string name="session_locale_manifest_external">ข้ามการแทนที่โลแคล: เกมนี้มาพร้อมไฟล์เมนิเฟสต์ของตัวเอง</string>
     <string name="session_record_settings_title">การตั้งค่าการบันทึก</string>
     <string name="session_record_fps">อัตราเฟรม</string>
     <string name="session_record_resolution">ความละเอียด</string>

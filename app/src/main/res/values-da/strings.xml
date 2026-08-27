@@ -1617,6 +1617,9 @@ Installeret sti:
     <string name="cloud_saves_history_cloud_readonly">Skrivebeskyttet</string>
     <string name="session_drawer_rail_label_record">Optag</string>
     <string name="session_record_failed">Kunne ikke starte optagelse</string>
+    <string name="session_locale_manifest_embedded">Sprogtilsidesættelsen (%1$s) træder muligvis ikke i kraft: spillet har sit eget manifest indlejret</string>
+    <string name="session_locale_manifest_embedded_codepage">Sprogtilsidesættelse ignoreret: spillet angiver sin egen tegntabel (%1$s)</string>
+    <string name="session_locale_manifest_external">Sprogtilsidesættelse sprunget over: spillet leveres med sin egen manifestfil</string>
     <string name="session_record_fps">Billedhastighed</string>
     <string name="session_record_include_ui">Optag brugerflade</string>
     <string name="session_record_include_ui_subtitle">Inkludér HUD og skærmknapper</string>

@@ -1622,6 +1622,9 @@ Zainstalowana ścieżka:
     <string name="cloud_saves_history_cloud_readonly">Tylko do odczytu</string>
     <string name="session_drawer_rail_label_record">Nagrywaj</string>
     <string name="session_record_failed">Nie można rozpocząć nagrywania</string>
+    <string name="session_locale_manifest_embedded">Zmiana ustawień regionalnych (%1$s) może nie zadziałać: ta gra zawiera własny manifest</string>
+    <string name="session_locale_manifest_embedded_codepage">Zignorowano zmianę ustawień regionalnych: ta gra ustawia własną stronę kodową (%1$s)</string>
+    <string name="session_locale_manifest_external">Pominięto zmianę ustawień regionalnych: ta gra zawiera własny plik manifestu</string>
     <string name="session_record_fps">Częstotliwość klatek</string>
     <string name="session_record_include_ui">Nagrywaj interfejs</string>
     <string name="session_record_include_ui_subtitle">Uwzględnij HUD i elementy sterujące na ekranie</string>

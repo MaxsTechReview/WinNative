@@ -1615,6 +1615,9 @@ Cale instalata:
     <string name="cloud_saves_history_cloud_readonly">Doar citire</string>
     <string name="session_drawer_rail_label_record">Înregistrează</string>
     <string name="session_record_failed">Nu s-a putut porni înregistrarea</string>
+    <string name="session_locale_manifest_embedded">Suprascrierea localizării (%1$s) s-ar putea să nu se aplice: acest joc include propriul manifest</string>
+    <string name="session_locale_manifest_embedded_codepage">Suprascrierea localizării a fost ignorată: acest joc își setează propria pagină de coduri (%1$s)</string>
+    <string name="session_locale_manifest_external">Suprascrierea localizării a fost omisă: acest joc vine cu propriul fișier manifest</string>
     <string name="session_record_fps">Rata cadrelor</string>
     <string name="session_record_include_ui">Înregistrează interfața</string>
     <string name="session_record_include_ui_subtitle">Include HUD și comenzile de pe ecran</string>

@@ -964,6 +964,9 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_record_started">Recording started</string>
     <string name="session_record_saved">Recording saved to WinNative/Recordings</string>
     <string name="session_record_failed">Couldn\'t start recording</string>
+    <string name="session_locale_manifest_embedded">Locale override (%1$s) may not apply: this game embeds its own manifest</string>
+    <string name="session_locale_manifest_embedded_codepage">Locale override ignored: this game sets its own code page (%1$s)</string>
+    <string name="session_locale_manifest_external">Locale override skipped: this game ships its own manifest file</string>
     <string name="session_record_settings_title">Record Settings</string>
     <string name="session_record_fps">Frame Rate</string>
     <string name="session_record_resolution">Resolution</string>

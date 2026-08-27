@@ -893,6 +893,9 @@ Por ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="session_record_started">Gravação iniciada</string>
     <string name="session_record_saved">Gravação guardada em WinNative/Recordings</string>
     <string name="session_record_failed">Não foi possível iniciar a gravação</string>
+    <string name="session_locale_manifest_embedded">A substituição de localidade (%1$s) pode não ser aplicada: este jogo incorpora o próprio manifesto</string>
+    <string name="session_locale_manifest_embedded_codepage">Substituição de localidade ignorada: este jogo define a própria página de código (%1$s)</string>
+    <string name="session_locale_manifest_external">Substituição de localidade ignorada: este jogo inclui o próprio ficheiro de manifesto</string>
     <string name="session_record_settings_title">Definições de gravação</string>
     <string name="session_record_fps">Taxa de fotogramas</string>
     <string name="session_record_resolution">Resolução</string>

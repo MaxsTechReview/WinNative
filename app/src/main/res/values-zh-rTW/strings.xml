@@ -1615,6 +1615,9 @@
     <string name="cloud_saves_history_cloud_readonly">唯讀</string>
     <string name="session_drawer_rail_label_record">錄製</string>
     <string name="session_record_failed">無法開始錄製</string>
+    <string name="session_locale_manifest_embedded">地區設定覆寫 (%1$s) 可能不會生效：此遊戲內嵌了自己的資訊清單</string>
+    <string name="session_locale_manifest_embedded_codepage">已忽略地區設定覆寫：此遊戲指定了自己的字碼頁 (%1$s)</string>
+    <string name="session_locale_manifest_external">已略過地區設定覆寫：此遊戲自帶資訊清單檔案</string>
     <string name="session_record_fps">幀率</string>
     <string name="session_record_include_ui">錄製介面</string>
     <string name="session_record_include_ui_subtitle">包含 HUD 和螢幕控制項</string>

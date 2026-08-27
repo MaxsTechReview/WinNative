@@ -1617,6 +1617,9 @@ Installierter Pfad:
     <string name="cloud_saves_history_cloud_readonly">Schreibgeschützt</string>
     <string name="session_drawer_rail_label_record">Aufnehmen</string>
     <string name="session_record_failed">Aufnahme konnte nicht gestartet werden</string>
+    <string name="session_locale_manifest_embedded">Gebietsschema-Überschreibung (%1$s) wird möglicherweise nicht angewendet: Dieses Spiel bettet ein eigenes Manifest ein</string>
+    <string name="session_locale_manifest_embedded_codepage">Gebietsschema-Überschreibung ignoriert: Dieses Spiel legt seine eigene Codepage fest (%1$s)</string>
+    <string name="session_locale_manifest_external">Gebietsschema-Überschreibung übersprungen: Dieses Spiel bringt eine eigene Manifestdatei mit</string>
     <string name="session_record_fps">Bildrate</string>
     <string name="session_record_include_ui">Oberfläche aufnehmen</string>
     <string name="session_record_include_ui_subtitle">HUD und Bildschirmsteuerung einbeziehen</string>

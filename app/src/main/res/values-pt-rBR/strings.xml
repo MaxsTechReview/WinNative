@@ -1616,6 +1616,9 @@ Caminho instalado:
     <string name="cloud_saves_history_cloud_readonly">Somente leitura</string>
     <string name="session_drawer_rail_label_record">Gravar</string>
     <string name="session_record_failed">Não foi possível iniciar a gravação</string>
+    <string name="session_locale_manifest_embedded">A substituição de localidade (%1$s) pode não ser aplicada: este jogo incorpora o próprio manifesto</string>
+    <string name="session_locale_manifest_embedded_codepage">Substituição de localidade ignorada: este jogo define a própria página de código (%1$s)</string>
+    <string name="session_locale_manifest_external">Substituição de localidade ignorada: este jogo inclui o próprio arquivo de manifesto</string>
     <string name="session_record_fps">Taxa de Quadros</string>
     <string name="session_record_include_ui">Gravar interface</string>
     <string name="session_record_include_ui_subtitle">Incluir HUD e controles na tela</string>

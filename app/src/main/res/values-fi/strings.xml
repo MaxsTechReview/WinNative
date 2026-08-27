@@ -893,6 +893,9 @@ E.g. <b>META</b> for <i>META-näppäin</i>, \n
     <string name="session_record_started">Tallennus aloitettu</string>
     <string name="session_record_saved">Tallennus tallennettu kansioon WinNative/Recordings</string>
     <string name="session_record_failed">Tallennusta ei voitu aloittaa</string>
+    <string name="session_locale_manifest_embedded">Kielialueen ohitus (%1$s) ei ehkä tule voimaan: peli sisältää oman manifestin</string>
+    <string name="session_locale_manifest_embedded_codepage">Kielialueen ohitus sivuutettiin: peli määrittää oman koodisivunsa (%1$s)</string>
+    <string name="session_locale_manifest_external">Kielialueen ohitus ohitettiin: pelin mukana tulee oma manifestitiedosto</string>
     <string name="session_record_settings_title">Tallennusasetukset</string>
     <string name="session_record_fps">Ruutunopeus</string>
     <string name="session_record_resolution">Tarkkuus</string>

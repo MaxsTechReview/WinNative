@@ -1616,6 +1616,9 @@ Chemin installé :
     <string name="cloud_saves_history_cloud_readonly">Lecture seule</string>
     <string name="session_drawer_rail_label_record">Enregistrer</string>
     <string name="session_record_failed">Impossible de démarrer l\'enregistrement</string>
+    <string name="session_locale_manifest_embedded">Le forçage de la locale (%1$s) risque de ne pas s\'appliquer : ce jeu intègre son propre manifeste</string>
+    <string name="session_locale_manifest_embedded_codepage">Forçage de la locale ignoré : ce jeu définit sa propre page de codes (%1$s)</string>
+    <string name="session_locale_manifest_external">Forçage de la locale ignoré : ce jeu fournit son propre fichier manifeste</string>
     <string name="session_record_fps">Fréquence d\'images</string>
     <string name="session_record_include_ui">Enregistrer l\'interface</string>
     <string name="session_record_include_ui_subtitle">Inclure le HUD et les commandes à l\'écran</string>

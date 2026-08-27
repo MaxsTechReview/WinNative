@@ -893,6 +893,9 @@ E.g. <b>META</b> için <i>META tuşu</i>, \n
     <string name="session_record_started">Kayıt başladı</string>
     <string name="session_record_saved">Kayıt WinNative/Recordings konumuna kaydedildi</string>
     <string name="session_record_failed">Kayıt başlatılamadı</string>
+    <string name="session_locale_manifest_embedded">Yerel ayar geçersiz kılma (%1$s) uygulanmayabilir: bu oyun kendi bildirimini gömülü olarak içeriyor</string>
+    <string name="session_locale_manifest_embedded_codepage">Yerel ayar geçersiz kılma yoksayıldı: bu oyun kendi kod sayfasını belirliyor (%1$s)</string>
+    <string name="session_locale_manifest_external">Yerel ayar geçersiz kılma atlandı: bu oyun kendi bildirim dosyasıyla geliyor</string>
     <string name="session_record_settings_title">Kayıt Ayarları</string>
     <string name="session_record_fps">Kare Hızı</string>
     <string name="session_record_resolution">Çözünürlük</string>

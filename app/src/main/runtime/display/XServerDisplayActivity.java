@@ -194,6 +194,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import cn.sherlock.com.sun.media.sound.SF2Soundbank;
 import static com.winlator.cmod.runtime.display.XServerDisplayUtils.*;
@@ -348,6 +349,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
     private static final String UTF8_MANIFEST_MARKER = "WinNative.Utf8CodePage";
     private static final String LOCALE_MANIFEST_MARKER = "WinNative.LocaleCodePage";
     private static final String UTF8_ACTIVE_CODEPAGE_MANIFEST = codePageManifest(UTF8_MANIFEST_MARKER, "UTF-8");
+    private static final Pattern ACTIVE_CODE_PAGE_PATTERN =
+        Pattern.compile("<activeCodePage[^>]*>([^<]*)</activeCodePage>", Pattern.CASE_INSENSITIVE);
+    // Shown once the game window is up; a toast raised during setup would sit behind the preloader dialog.
+    private final AtomicReference<String> pendingLocaleManifestWarning = new AtomicReference<>();
     private int frameRatingWindowId = -1;
     private android.net.wifi.WifiManager.MulticastLock multicastLock;
     private final float[] xform = XForm.getInstance();
@@ -2070,6 +2075,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                             if (activeProfile != null) showInputControls(activeProfile);
                             else startTouchscreenTimeout();
                         }
+                        String localeWarning = pendingLocaleManifestWarning.getAndSet(null);
+                        if (localeWarning != null) WinToast.show(XServerDisplayActivity.this, localeWarning);
                     });
                     if (startFullscreenStretched) {
                         timeoutHandler.post(() -> {
@@ -8074,10 +8081,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 return;
             }
 
-            // An embedded RT_MANIFEST wins over the external file, silently ignoring our override.
-            if (exeHasEmbeddedManifest(exeFile)) {
-                Log.w("ContainerLaunch", "Game exe has an embedded manifest; the external "
-                        + localeName + " activeCodePage manifest may be ignored for " + gamePath);
+            // An embedded RT_MANIFEST wins over the external file, so the override may not take effect.
+            String embeddedCodePage = embeddedManifestCodePage(exeFile);
+            if (embeddedCodePage != null) {
+                if (!embeddedCodePage.isEmpty()) {
+                    Log.w("ContainerLaunch", "Game exe embeds activeCodePage " + embeddedCodePage
+                            + "; the external " + localeName + " manifest is ignored for " + gamePath);
+                    pendingLocaleManifestWarning.set(getString(
+                            R.string.session_locale_manifest_embedded_codepage, embeddedCodePage));
+                } else {
+                    Log.w("ContainerLaunch", "Game exe has an embedded manifest; the external "
+                            + localeName + " activeCodePage manifest may be ignored for " + gamePath);
+                    pendingLocaleManifestWarning.set(getString(
+                            R.string.session_locale_manifest_embedded, localeName));
+                }
             }
 
             String manifest = codePageManifest(LOCALE_MANIFEST_MARKER, localeName);
@@ -8085,6 +8102,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
             if (current != null && !current.contains(LOCALE_MANIFEST_MARKER)
                     && !current.contains(UTF8_MANIFEST_MARKER)) {
                 Log.w("ContainerLaunch", "Game ships its own manifest, not overriding: " + manifestFile);
+                pendingLocaleManifestWarning.set(getString(R.string.session_locale_manifest_external));
                 return;
             }
             if (FileUtils.writeString(manifestFile, manifest)) {
@@ -8210,9 +8228,25 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         }
     }
 
-    /** Minimal PE scan: does the executable embed an RT_MANIFEST (type 24) resource? */
-    private static boolean exeHasEmbeddedManifest(File exeFile) {
-        return exeResourceData(exeFile, 24) != null;
+    /**
+     * activeCodePage declared by the exe's embedded RT_MANIFEST (type 24): null when there is no
+     * embedded manifest, "" when it embeds one that sets no code page.
+     */
+    private static String embeddedManifestCodePage(File exeFile) {
+        byte[] blob = exeResourceData(exeFile, 24);
+        if (blob == null) return null;
+        Matcher matcher = ACTIVE_CODE_PAGE_PATTERN.matcher(decodeManifest(blob));
+        return matcher.find() ? matcher.group(1).trim() : "";
+    }
+
+    private static String decodeManifest(byte[] blob) {
+        if (blob.length >= 2 && (blob[0] & 0xFF) == 0xFF && (blob[1] & 0xFF) == 0xFE) {
+            return new String(blob, 2, blob.length - 2, java.nio.charset.StandardCharsets.UTF_16LE);
+        }
+        boolean utf8Bom = blob.length >= 3 && (blob[0] & 0xFF) == 0xEF
+                && (blob[1] & 0xFF) == 0xBB && (blob[2] & 0xFF) == 0xBF;
+        int start = utf8Bom ? 3 : 0;
+        return new String(blob, start, blob.length - start, java.nio.charset.StandardCharsets.UTF_8);
     }
 
     private boolean ensureRequestedWineVersionInstalled() {

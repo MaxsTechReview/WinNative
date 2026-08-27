@@ -1616,6 +1616,9 @@ Ruta instalada:
     <string name="cloud_saves_history_cloud_readonly">Solo lectura</string>
     <string name="session_drawer_rail_label_record">Grabar</string>
     <string name="session_record_failed">No se pudo iniciar la grabación</string>
+    <string name="session_locale_manifest_embedded">Puede que la configuración regional (%1$s) no se aplique: este juego incluye su propio manifiesto</string>
+    <string name="session_locale_manifest_embedded_codepage">Configuración regional ignorada: este juego define su propia página de códigos (%1$s)</string>
+    <string name="session_locale_manifest_external">Configuración regional omitida: este juego incluye su propio archivo de manifiesto</string>
     <string name="session_record_fps">Tasa de fotogramas</string>
     <string name="session_record_include_ui">Grabar interfaz</string>
     <string name="session_record_include_ui_subtitle">Incluir HUD y controles en pantalla</string>

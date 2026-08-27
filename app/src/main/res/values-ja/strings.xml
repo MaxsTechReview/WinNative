@@ -893,6 +893,9 @@
     <string name="session_record_started">録画を開始しました</string>
     <string name="session_record_saved">録画を WinNative/Recordings に保存しました</string>
     <string name="session_record_failed">録画を開始できませんでした</string>
+    <string name="session_locale_manifest_embedded">ロケール設定 (%1$s) が適用されない可能性があります: このゲームは独自のマニフェストを内蔵しています</string>
+    <string name="session_locale_manifest_embedded_codepage">ロケール設定は無視されました: このゲームは独自のコードページ (%1$s) を指定しています</string>
+    <string name="session_locale_manifest_external">ロケール設定をスキップしました: このゲームは独自のマニフェストファイルを同梱しています</string>
     <string name="session_record_settings_title">録画設定</string>
     <string name="session_record_fps">フレームレート</string>
     <string name="session_record_resolution">解像度</string>
