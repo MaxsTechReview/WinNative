@@ -824,9 +824,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
     }
 
     private void syncFrameGenerationHud() {
-        if (frameRating == null) return;
-        frameRating.setOutputFrameSource(frameGenEnabled ? frameGenOutputSource : null);
-        frameRating.setFrameGenerationActive(frameGenEnabled && frameGenCachePath != null);
+        boolean active = frameGenEnabled && frameGenCachePath != null;
+        FrameRating.OutputFrameSource source = frameGenEnabled ? frameGenOutputSource : null;
+        if (frameRating != null) {
+            frameRating.setOutputFrameSource(source);
+            frameRating.setFrameGenerationActive(active);
+        }
+        if (mangoHud != null) {
+            mangoHud.setOutputFrameSource(source);
+            mangoHud.setFrameGenerationActive(active);
+        }
     }
 
     private final FrameRating.OutputFrameSource frameGenOutputSource =
@@ -4674,6 +4681,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                                     xServer != null ? xServer.screenInfo.width + "x" + xServer.screenInfo.height : null,
                                     wineInfo != null ? String.valueOf(wineInfo) : null);
                             mangoHud.setHudVisible(enabled);
+                            syncFrameGenerationHud();
                         }
                         renderDrawerMenu();
                     }
@@ -7781,6 +7789,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
             rootView.post(() -> {
                 if (mangoHud != null && mangoHud.getParent() == null) rootView.addView(mangoHud);
             });
+            syncFrameGenerationHud();
         }
 
         setupControllerHudDetection();

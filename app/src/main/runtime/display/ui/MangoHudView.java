@@ -85,6 +85,8 @@ public class MangoHudView extends View {
   private static final int C_NET = vivid(0xFFE07B85);
   private static final int C_GRAPH = 0xFF00FF00;
   private static final int C_OUTLINE = 0xFF000000;
+  private static final int C_FPS_GEN = 0xFF00E5FF;
+  private static final int C_DIVISOR = 0xFF9E9E9E;
 
   private static int vivid(int color) {
     float[] hsv = new float[3];
@@ -114,6 +116,9 @@ public class MangoHudView extends View {
   private static final int LOWS_CAPACITY = 5000;
   private static final int GRAPH_SAMPLES = 200;
   private static final float GRAPH_CEIL_MS = 50f;
+  private static final int MAX_OUTPUT_SAMPLES = 8;
+  private static final long OUTPUT_WINDOW_NS = 1000000000L;
+  private static final long OUTPUT_MIN_SPAN_NS = 250000000L;
 
   private final SharedPreferences preferences;
   private final BatteryManager batteryManager;
@@ -132,6 +137,17 @@ public class MangoHudView extends View {
   private float currentMs;
   private volatile long lastGraphInvalidate;
 
+  private volatile FrameRating.OutputFrameSource outputFrameSource;
+  private volatile boolean frameGenActive;
+  private final long[] outputSampleNano = new long[MAX_OUTPUT_SAMPLES];
+  private final long[] outputSampleTotal = new long[MAX_OUTPUT_SAMPLES];
+  private final long[] outputSampleGenerated = new long[MAX_OUTPUT_SAMPLES];
+  private int outputSamplesStart, outputSamplesCount;
+  private float outputFps;
+  private boolean outputGenerating;
+  private boolean frameGenShowing;
+  private String arrowGlyph = "->";
+
   // ── formatted cells + layout, guarded by uiLock ──
   private final Object uiLock = new Object();
   private final StringBuilder sbGpuLoad = new StringBuilder(8);
@@ -145,6 +161,7 @@ public class MangoHudView extends View {
   private final StringBuilder sbBatW = new StringBuilder(8);
   private final StringBuilder sbBatTemp = new StringBuilder(8);
   private final StringBuilder sbFps = new StringBuilder(8);
+  private final StringBuilder sbFpsIn = new StringBuilder(8);
   private final StringBuilder sbMs = new StringBuilder(8);
   private final StringBuilder sbAvg = new StringBuilder(8);
   private final StringBuilder sbLow1 = new StringBuilder(8);
@@ -261,6 +278,7 @@ public class MangoHudView extends View {
     outlinePaint.setStyle(Paint.Style.STROKE);
     graphPaint.setColor(C_GRAPH);
     graphPaint.setStyle(Paint.Style.STROKE);
+    if (valuePaint.hasGlyph("→")) arrowGlyph = "→";
 
     setLayoutParams(new ViewGroup.LayoutParams(
         ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -361,6 +379,18 @@ public class MangoHudView extends View {
     }
   }
 
+  public void setOutputFrameSource(FrameRating.OutputFrameSource source) {
+    this.outputFrameSource = source;
+  }
+
+  public void setFrameGenerationActive(boolean active) {
+    if (this.frameGenActive == active) return;
+    this.frameGenActive = active;
+    synchronized (frameLock) {
+      resetOutputSamplesLocked();
+    }
+  }
+
   /** Static per-session rows: game resolution and wine/proton build. */
   public void setSessionInfo(String resolution, String wineVersion) {
     synchronized (uiLock) {
@@ -447,6 +477,53 @@ public class MangoHudView extends View {
     graphCount = 0;
     lastFrameNano = 0;
     currentMs = 0f;
+    resetOutputSamplesLocked();
+  }
+
+  private void resetOutputSamplesLocked() {
+    outputSamplesStart = 0;
+    outputSamplesCount = 0;
+    outputFps = 0f;
+    outputGenerating = false;
+  }
+
+  private void sampleOutputFramesLocked(long nowNano) {
+    FrameRating.OutputFrameSource source = outputFrameSource;
+    if (!frameGenActive || source == null) {
+      resetOutputSamplesLocked();
+      return;
+    }
+
+    long total = source.getPresentedFrameCount();
+    long generated = source.getGeneratedFrameCount();
+    int index = (outputSamplesStart + outputSamplesCount) % MAX_OUTPUT_SAMPLES;
+    if (outputSamplesCount == MAX_OUTPUT_SAMPLES) {
+      outputSamplesStart = (outputSamplesStart + 1) % MAX_OUTPUT_SAMPLES;
+      index = (outputSamplesStart + outputSamplesCount - 1) % MAX_OUTPUT_SAMPLES;
+    } else {
+      outputSamplesCount++;
+    }
+    outputSampleNano[index] = nowNano;
+    outputSampleTotal[index] = total;
+    outputSampleGenerated[index] = generated;
+
+    if (outputSamplesCount < 2) return;
+
+    int baseline = outputSamplesStart;
+    for (int i = 0; i < outputSamplesCount - 1; i++) {
+      int candidate = (outputSamplesStart + i) % MAX_OUTPUT_SAMPLES;
+      if (nowNano - outputSampleNano[candidate] >= OUTPUT_WINDOW_NS) {
+        baseline = candidate;
+      } else {
+        break;
+      }
+    }
+
+    long elapsedNano = nowNano - outputSampleNano[baseline];
+    long frames = total - outputSampleTotal[baseline];
+    if (elapsedNano < OUTPUT_MIN_SPAN_NS || frames < 0) return;
+    outputFps = (frames * 1000000000.0f) / elapsedNano;
+    outputGenerating = generated > outputSampleGenerated[baseline];
   }
 
   // ── stats thread ─────────────────────────────────────────────────
@@ -477,6 +554,8 @@ public class MangoHudView extends View {
     float fps;
     float ms;
     int lowsN;
+    float outFps;
+    boolean showOutput;
     float graphMin = 0f, graphMax = 0f;
     synchronized (frameLock) {
       // Trim the rolling FPS window here so the present path stays write-only.
@@ -494,6 +573,9 @@ public class MangoHudView extends View {
         fps = last > first ? (stampsCount - 1) * 1000000000.0f / (last - first) : 0f;
       }
       ms = idle ? 0f : currentMs;
+      sampleOutputFramesLocked(nowNano);
+      outFps = outputFps;
+      showOutput = frameGenActive && outputGenerating && outputFps > 0f && !idle;
       lowsN = lowsCount;
       System.arraycopy(lowsMs, 0, lowsScratch, 0, lowsN);
       for (int i = 0; i < graphCount; i++) {
@@ -535,7 +617,13 @@ public class MangoHudView extends View {
     }
 
     synchronized (uiLock) {
-      formatInt(sbFps, Math.round(fps));
+      frameGenShowing = showOutput;
+      if (showOutput) {
+        formatInt(sbFpsIn, Math.round(fps));
+        formatInt(sbFps, Math.round(outFps));
+      } else {
+        formatInt(sbFps, Math.round(fps));
+      }
       formatMs(sbMs, ms);
       formatInt(sbGpuLoad, gpuLoad);
       formatInt(sbGpuTemp, gpuTemp);
@@ -1082,6 +1170,10 @@ public class MangoHudView extends View {
     return charW * valueChars + smallCharW * (unitChars + 0.2f);
   }
 
+  private float fgInputCellW() {
+    return charW * (4 + arrowGlyph.length() + 1.0f);
+  }
+
   private void computeLayoutLocked() {
     labelColW = charW * 4.2f;
     fpsLabelColW = labelColW;
@@ -1136,7 +1228,12 @@ public class MangoHudView extends View {
       w = Math.max(w, labelColW + statCellW(3, 1) + statCellW(3, 2) + statCellW(4, 1));
     }
     rows++; // FPS row is the HUD core, always shown
-    w = Math.max(w, fpsLabelColW + statCellW(4, 3) + statCellW(4, 2));
+    w = Math.max(
+        w,
+        fpsLabelColW
+            + (frameGenShowing ? fgInputCellW() : 0f)
+            + statCellW(4, 3)
+            + statCellW(4, 2));
     if (elements[EL_LOWS]) {
       rows += 3;
       w = Math.max(w, labelColW + statCellW(4, 3));
@@ -1242,7 +1339,12 @@ public class MangoHudView extends View {
         } else {
           x = pad + labelColW;
         }
-        x = drawStatCell(canvas, sbFps, "FPS", x, y, 4);
+        if (frameGenShowing) {
+          x = drawFgInputCell(canvas, x, y);
+          x = drawStatCell(canvas, sbFps, "FPS", x, y, 4, C_FPS_GEN);
+        } else {
+          x = drawStatCell(canvas, sbFps, "FPS", x, y, 4);
+        }
         drawStatCell(canvas, sbMs, "ms", x, y, 4);
         y += rowH;
       }
@@ -1310,6 +1412,36 @@ public class MangoHudView extends View {
     float ux = x + charW * valueChars + smallCharW * 0.1f;
     drawOutlinedSmall(canvas, unit, 0, unit.length(), ux, y, C_TEXT);
     return x + statCellW(valueChars, unit.length());
+  }
+
+  private float drawStatCell(
+      Canvas canvas,
+      StringBuilder value,
+      String unit,
+      float x,
+      float rowTop,
+      int valueChars,
+      int valueColor) {
+    valuePaint.setColor(valueColor);
+    valuePaint.setAlpha(textAlphaInt());
+    float next = drawStatCell(canvas, value, unit, x, rowTop, valueChars);
+    valuePaint.setColor(C_TEXT);
+    valuePaint.setAlpha(textAlphaInt());
+    return next;
+  }
+
+  private float drawFgInputCell(Canvas canvas, float x, float rowTop) {
+    float y = rowTop + baseline;
+    float vx = x + charW * 4 - sbFpsIn.length() * charW;
+    outlinePaint.setTextSize(textSize);
+    canvas.drawText(sbFpsIn, 0, sbFpsIn.length(), vx, y, outlinePaint);
+    canvas.drawText(sbFpsIn, 0, sbFpsIn.length(), vx, y, valuePaint);
+    float ax = x + charW * 4.5f;
+    canvas.drawText(arrowGlyph, 0, arrowGlyph.length(), ax, y, outlinePaint);
+    labelPaint.setColor(C_DIVISOR);
+    labelPaint.setAlpha(textAlphaInt());
+    canvas.drawText(arrowGlyph, 0, arrowGlyph.length(), ax, y, labelPaint);
+    return x + fgInputCellW();
   }
 
   private void drawOutlinedSmall(Canvas canvas, CharSequence text, int start, int end,
