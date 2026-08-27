@@ -1138,6 +1138,7 @@ Chemin installé :
     <string name="session_drawer_color_profile_crt">Effet CRT</string>
     <string name="session_drawer_calibrate_advanced">Étalonnage avancé</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_frame_gen">FPS</string>
     <string name="session_drawer_rail_label_gyro">Gyro</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">Plus</string>
@@ -2189,6 +2190,17 @@ Chemin installé :
     <string name="retro_scr_credits_desc">Certaines fonctionnalités de WinNative reposent sur ces projets open source. Appuyez pour voir chaque source.</string>
     <string name="retro_scr_tab_defaults">Par défaut</string>
     <string name="retro_scr_tab_credits">Crédits</string>
+    <string name="settings_support_title">Assistance</string>
+    <string name="support_heading">OBTENIR DE L\'AIDE</string>
+    <string name="support_desc">Posez des questions, signalez des problèmes ou voyez ce qui est en cours. Chaque lien s\'ouvre dans votre navigateur.</string>
+    <string name="support_winnative_discord_desc">Discord • assistance et développement</string>
+    <string name="support_maxstechreview_discord_desc">Discord • communauté</string>
+    <string name="support_youtube_desc">YouTube • guides et actualités</string>
+    <string name="support_reddit_desc">Reddit • communauté</string>
+    <string name="support_winnative_discord">#WinNative</string>
+    <string name="support_maxstechreview_discord">#MaxsTechReview</string>
+    <string name="support_youtube">@MaxsTechReview</string>
+    <string name="support_reddit">r/EmulatorsForAndroid</string>
     <string name="retro_scr_enable_hardcore_title">Activer le mode Hardcore ?</string>
     <string name="retro_scr_enable_hardcore_body">Le mode Hardcore réinitialise le jeu maintenant et désactive le chargement des sauvegardes rapides, l\'avance rapide et les codes de triche. Toute progression non enregistrée sera perdue. Continuer ?</string>
     <string name="retro_scr_cancel">Annuler</string>
@@ -2494,5 +2506,37 @@ Chemin installé :
     <string name="retro_scr_consoles_verifying">Vérification du téléchargement…</string>
     <string name="retro_scr_consoles_working">Traitement…</string>
     <string name="retro_tab_system">Système</string>
+    <string name="session_drawer_frame_generation">Génération d\'images</string>
+    <string name="session_drawer_frame_generation_enable">Générer des images</string>
+    <string name="session_drawer_frame_generation_multiplier">Multiplicateur</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">Cible adaptative</string>
+    <string name="session_drawer_frame_generation_target_off">Fixe</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_note">Interpole entre les images rendues avec Lossless Scaling. Mouvement plus fluide, mais une image supplémentaire de latence d\'entrée.</string>
+    <string name="session_drawer_frame_generation_target_note">Monte vers la cible uniquement tant que cela aide de façon mesurable, au lieu de conserver un multiplicateur fixe.</string>
+    <string name="session_drawer_frame_generation_missing">Installez Lossless Scaling dans les paramètres du conteneur pour utiliser la génération d\'images.</string>
+    <string name="frame_generation_preset">Préréglage de qualité</string>
+    <string name="frame_generation_preset_ultra_performance">Ultra performance</string>
+    <string name="frame_generation_preset_performance">Performance</string>
+    <string name="frame_generation_preset_balanced">Équilibré</string>
+    <string name="frame_generation_preset_quality">Qualité</string>
+    <string name="frame_generation_preset_ultra_performance_short">Ultra</string>
+    <string name="frame_generation_preset_performance_short">Perf.</string>
+    <string name="frame_generation_preset_balanced_short">Équilibré</string>
+    <string name="frame_generation_preset_quality_short">Qualité</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">Le mouvement est estimé à 40 % de la résolution. Environ 40 % du coût GPU de Qualité. Les détails fins s\'adoucissent lors des mouvements rapides.</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">Le mouvement est estimé à 50 % de la résolution. Environ 46 % du coût GPU de Qualité, sans perte visible.</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">Le mouvement est estimé à 70 % de la résolution. Environ 61 % du coût GPU de Qualité. Recommandé pour les consoles portables.</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">Le mouvement est estimé en pleine résolution. Coût maximal ; à utiliser uniquement si le jeu dispose de marge GPU.</string>
+    <string name="settings_frame_generation_title">Génération d\'images</string>
+    <string name="settings_frame_generation_importing">Recherche de Lossless Scaling…</string>
+    <string name="settings_frame_generation_ready">Shaders Lossless Scaling prêts.</string>
+    <string name="settings_frame_generation_imported">Importé depuis %1$s.</string>
+    <string name="settings_frame_generation_not_found">Lossless Scaling est introuvable. Installez-le depuis Steam et rouvrez cet écran pour l\'importer automatiquement.</string>
+    <string name="settings_frame_generation_failed">Lossless.dll a été trouvé, mais ses shaders n\'ont pas pu être lus. Vérifiez les fichiers Steam et réessayez.</string>
+    <string name="settings_frame_generation_updated">Mis à jour depuis %1$s.</string>
+    <string name="settings_frame_generation_not_owned">La génération d\'images utilise les shaders de Lossless Scaling. Achetez-le sur Steam avec le compte connecté pour l\'activer.</string>
+    <string name="settings_frame_generation_locate">Sélectionner Lossless.dll…</string>
 </resources>
 

@@ -834,6 +834,7 @@
     <string name="session_drawer_reset_effects">รีเซ็ตเอฟเฟกต์</string>
     <string name="session_drawer_calibrate_advanced">การปรับเทียบขั้นสูง</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_frame_gen">FPS</string>
     <string name="session_drawer_rail_label_gyro">ไจโร</string>
     <string name="session_drawer_rail_label_effects">เอฟเฟกต์</string>
     <string name="session_drawer_rail_label_output">เอาต์พุต</string>
@@ -2188,6 +2189,17 @@
     <string name="retro_scr_credits_desc">ฟีเจอร์บางอย่างของ WinNative สร้างขึ้นบนโปรเจกต์โอเพนซอร์สเหล่านี้ แตะเพื่อดูแต่ละแหล่งที่มา</string>
     <string name="retro_scr_tab_defaults">ค่าเริ่มต้น</string>
     <string name="retro_scr_tab_credits">เครดิต</string>
+    <string name="settings_support_title">ฝ่ายสนับสนุน</string>
+    <string name="support_heading">ขอความช่วยเหลือ</string>
+    <string name="support_desc">ถามคำถาม แจ้งปัญหา หรือดูว่ากำลังพัฒนาอะไรอยู่ ลิงก์ทั้งหมดจะเปิดในเบราว์เซอร์</string>
+    <string name="support_winnative_discord_desc">Discord • สนับสนุนและพัฒนา</string>
+    <string name="support_maxstechreview_discord_desc">Discord • ชุมชน</string>
+    <string name="support_youtube_desc">YouTube • คู่มือและอัปเดต</string>
+    <string name="support_reddit_desc">Reddit • ชุมชน</string>
+    <string name="support_winnative_discord">#WinNative</string>
+    <string name="support_maxstechreview_discord">#MaxsTechReview</string>
+    <string name="support_youtube">@MaxsTechReview</string>
+    <string name="support_reddit">r/EmulatorsForAndroid</string>
     <string name="retro_scr_enable_hardcore_title">เปิดโหมดฮาร์ดคอร์?</string>
     <string name="retro_scr_enable_hardcore_body">โหมดฮาร์ดคอร์จะรีเซ็ตเกมทันทีและปิดการโหลดสเตตบันทึก การกรอไปข้างหน้า และสูตรโกง ความคืบหน้าที่ยังไม่ได้บันทึกจะสูญหาย ดำเนินการต่อ?</string>
     <string name="retro_scr_cancel">ยกเลิก</string>
@@ -2493,4 +2505,36 @@
     <string name="retro_scr_consoles_verifying">กำลังตรวจสอบไฟล์ที่ดาวน์โหลด…</string>
     <string name="retro_scr_consoles_working">กำลังดำเนินการ…</string>
     <string name="retro_tab_system">ระบบ</string>
+    <string name="session_drawer_frame_generation">การสร้างเฟรม</string>
+    <string name="session_drawer_frame_generation_enable">สร้างเฟรม</string>
+    <string name="session_drawer_frame_generation_multiplier">ตัวคูณ</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">เป้าหมายแบบปรับอัตโนมัติ</string>
+    <string name="session_drawer_frame_generation_target_off">คงที่</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_note">แทรกเฟรมระหว่างเฟรมที่เรนเดอร์ด้วย Lossless Scaling การเคลื่อนไหวลื่นขึ้น แต่มีความหน่วงของอินพุตเพิ่มขึ้นหนึ่งเฟรม</string>
+    <string name="session_drawer_frame_generation_target_note">จะไต่ขึ้นสู่เป้าหมายเฉพาะเมื่อวัดผลได้ว่าช่วยจริง แทนที่จะคงตัวคูณไว้คงที่</string>
+    <string name="session_drawer_frame_generation_missing">ติดตั้ง Lossless Scaling ในการตั้งค่าคอนเทนเนอร์เพื่อใช้การสร้างเฟรม</string>
+    <string name="frame_generation_preset">ค่าที่ตั้งไว้ของคุณภาพ</string>
+    <string name="frame_generation_preset_ultra_performance">ประสิทธิภาพสูงสุด</string>
+    <string name="frame_generation_preset_performance">ประสิทธิภาพ</string>
+    <string name="frame_generation_preset_balanced">สมดุล</string>
+    <string name="frame_generation_preset_quality">คุณภาพ</string>
+    <string name="frame_generation_preset_ultra_performance_short">อัลตรา</string>
+    <string name="frame_generation_preset_performance_short">ประสิทธิภาพ</string>
+    <string name="frame_generation_preset_balanced_short">สมดุล</string>
+    <string name="frame_generation_preset_quality_short">คุณภาพ</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">ประมาณการเคลื่อนไหวที่ความละเอียด 40% ใช้ GPU ประมาณ 40% ของโหมดคุณภาพ รายละเอียดเล็ก ๆ จะนุ่มลงเมื่อเคลื่อนไหวเร็ว</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">ประมาณการเคลื่อนไหวที่ความละเอียด 50% ใช้ GPU ประมาณ 46% ของโหมดคุณภาพ แทบไม่เห็นความแตกต่าง</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">ประมาณการเคลื่อนไหวที่ความละเอียด 70% ใช้ GPU ประมาณ 61% ของโหมดคุณภาพ แนะนำสำหรับเครื่องพกพา</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">ประมาณการเคลื่อนไหวที่ความละเอียดเต็ม ใช้ GPU สูงสุด ใช้เมื่อเกมมี GPU เหลือเท่านั้น</string>
+    <string name="settings_frame_generation_title">การสร้างเฟรม</string>
+    <string name="settings_frame_generation_importing">กำลังค้นหา Lossless Scaling…</string>
+    <string name="settings_frame_generation_ready">เชเดอร์ของ Lossless Scaling พร้อมแล้ว</string>
+    <string name="settings_frame_generation_imported">นำเข้าจาก %1$s แล้ว</string>
+    <string name="settings_frame_generation_not_found">ไม่พบ Lossless Scaling ติดตั้งจาก Steam แล้วเปิดหน้านี้อีกครั้งเพื่อนำเข้าโดยอัตโนมัติ</string>
+    <string name="settings_frame_generation_failed">พบ Lossless.dll แต่ไม่สามารถอ่านเชเดอร์ได้ ตรวจสอบไฟล์ Steam แล้วลองอีกครั้ง</string>
+    <string name="settings_frame_generation_updated">อัปเดตจาก %1$s แล้ว</string>
+    <string name="settings_frame_generation_not_owned">การสร้างเฟรมใช้เชเดอร์จาก Lossless Scaling ซื้อบน Steam ด้วยบัญชีที่ลงชื่อเข้าใช้อยู่เพื่อเปิดใช้งาน</string>
+    <string name="settings_frame_generation_locate">เลือก Lossless.dll…</string>
 </resources>

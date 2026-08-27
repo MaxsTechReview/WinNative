@@ -58,6 +58,9 @@ import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Monitor
+import androidx.compose.material.icons.outlined.Speed
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SportsEsports
@@ -129,6 +132,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
@@ -142,8 +146,10 @@ import com.winlator.cmod.runtime.reshade.ReshadeCatalogEntry
 import com.winlator.cmod.runtime.reshade.ReshadeDownloader
 import com.winlator.cmod.runtime.reshade.ReshadeLoadout
 import com.winlator.cmod.runtime.reshade.ReshadeManager
+import com.winlator.cmod.shared.framegen.FrameGenPreset
 import com.winlator.cmod.shared.theme.GameSettingsStyle
 import com.winlator.cmod.runtime.wine.WineThemeManager
+import com.winlator.cmod.runtime.display.lsfg.LosslessScaling
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -419,6 +425,13 @@ class GameSettingsStateHolder {
     val sgsrUpscaleMode = mutableIntStateOf(1)
     val sgsrSharpness = mutableIntStateOf(100)
 
+    val frameGenEnabled = mutableStateOf(false)
+    val frameGenMultiplier = mutableIntStateOf(2)
+    val frameGenTargetRate = mutableIntStateOf(0)
+    val frameGenFlowScale = mutableIntStateOf(70)
+    val frameGenShaderState = mutableIntStateOf(FRAMEGEN_SHADERS_CHECKING)
+    val frameGenSourceName = mutableStateOf("")
+
     // scanned drop-in pool + ordered loadout; saved as a reshadeLoadout array plus nested reshadeParams object.
     val reshadeEffects = mutableStateOf<List<ReshadeManager.ReshadeEffect>>(emptyList())
     val reshadeLoadout = ReshadeLoadoutState()
@@ -648,6 +661,17 @@ private data class SidebarSection(
     val icon: ImageVector,
     val labelResId: Int
 )
+
+const val FRAMEGEN_SHADERS_CHECKING = 0
+const val FRAMEGEN_SHADERS_READY = 1
+const val FRAMEGEN_SHADERS_IMPORTING = 2
+const val FRAMEGEN_SHADERS_MISSING = 3
+const val FRAMEGEN_SHADERS_FAILED = 4
+const val FRAMEGEN_SHADERS_UPDATED = 5
+const val FRAMEGEN_SHADERS_NOT_OWNED = 6
+
+val FrameGenMultiplierOptions = listOf(2, 3, 4)
+val FrameGenTargetOptions = listOf(0, 60, 90, 120, 144)
 
 private const val SEC_GENERAL = 0
 private const val SEC_STEAM = 1
@@ -1602,7 +1626,7 @@ private fun GeneralSection(
     if (!isContainer) {
         Spacer(Modifier.height(SettingSectionGap))
         SettingGroup(verticalPadding = SettingTightGap) {
-            val fpsMin = 30
+            val fpsMin = 15
             // Cap the slider at the panel's highest supported refresh rate (parsed from entries like "120 Hz"); fall back to 60.
             val supportedMax = state.refreshRateEntries.value
                 .mapNotNull { it.trim().substringBefore(" ").toIntOrNull() }
@@ -1707,6 +1731,10 @@ private fun DisplaySection(
 
     Spacer(Modifier.height(SettingItemGap))
 
+    FrameGenerationCard(state)
+
+    Spacer(Modifier.height(SettingItemGap))
+
     val dxWrapperEntries = state.dxWrapperEntries.value
     val dxWrapperIdx = state.selectedDxWrapper.intValue
     val selectedDxWrapper = if (dxWrapperIdx in dxWrapperEntries.indices)
@@ -1719,6 +1747,160 @@ private fun DisplaySection(
         WineD3DConfigCard(state)
     }
 
+}
+
+@Composable
+private fun FrameGenerationCard(state: GameSettingsStateHolder) {
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        if (state.frameGenShaderState.intValue != FRAMEGEN_SHADERS_CHECKING) return@LaunchedEffect
+        state.frameGenShaderState.intValue = FRAMEGEN_SHADERS_IMPORTING
+        val outcome = withContext(Dispatchers.IO) { LosslessAutoImport.sync(context) }
+        state.frameGenSourceName.value = outcome.sourceName
+        state.frameGenShaderState.intValue = frameGenStateFor(outcome.result)
+    }
+
+    val scope = rememberCoroutineScope()
+    val picker =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri == null) return@rememberLauncherForActivityResult
+            state.frameGenShaderState.intValue = FRAMEGEN_SHADERS_IMPORTING
+            scope.launch {
+                val outcome = withContext(Dispatchers.IO) { LosslessAutoImport.importFrom(context, uri) }
+                state.frameGenSourceName.value = outcome.sourceName
+                state.frameGenShaderState.intValue = frameGenStateFor(outcome.result)
+            }
+        }
+
+    val shaders = state.frameGenShaderState.intValue
+    val ready = shaders == FRAMEGEN_SHADERS_READY || shaders == FRAMEGEN_SHADERS_UPDATED
+    val busy = shaders == FRAMEGEN_SHADERS_IMPORTING || shaders == FRAMEGEN_SHADERS_CHECKING
+    val enabled = ready && state.frameGenEnabled.value
+    val targetRate = state.frameGenTargetRate.intValue
+
+    SettingGroup {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Outlined.Speed,
+                contentDescription = null,
+                tint = AccentBlue,
+                modifier = Modifier.size(SettingIconSize),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                stringResource(R.string.settings_frame_generation_title),
+                color = TextPrimary,
+                fontSize = SettingValueSize,
+                fontWeight = FontWeight.Medium,
+            )
+        }
+
+        Spacer(Modifier.height(SettingItemGap))
+
+        SettingSwitch(
+            label = stringResource(R.string.session_drawer_frame_generation_enable),
+            checked = enabled,
+            enabled = ready,
+            onCheckedChange = { state.frameGenEnabled.value = it },
+        )
+
+
+        Text(
+            text =
+                when (shaders) {
+                    FRAMEGEN_SHADERS_IMPORTING, FRAMEGEN_SHADERS_CHECKING ->
+                        stringResource(R.string.settings_frame_generation_importing)
+                    FRAMEGEN_SHADERS_READY ->
+                        if (state.frameGenSourceName.value.isEmpty()) {
+                            stringResource(R.string.settings_frame_generation_ready)
+                        } else {
+                            stringResource(
+                                R.string.settings_frame_generation_imported,
+                                state.frameGenSourceName.value,
+                            )
+                        }
+                    FRAMEGEN_SHADERS_UPDATED ->
+                        stringResource(
+                            R.string.settings_frame_generation_updated,
+                            state.frameGenSourceName.value,
+                        )
+                    FRAMEGEN_SHADERS_NOT_OWNED -> stringResource(R.string.settings_frame_generation_not_owned)
+                    FRAMEGEN_SHADERS_FAILED -> stringResource(R.string.settings_frame_generation_failed)
+                    else -> stringResource(R.string.settings_frame_generation_not_found)
+                },
+            color = TextSecondary,
+            fontSize = SettingLabelSize,
+            lineHeight = SettingLabelSize * 1.4f,
+        )
+
+        if (shaders != FRAMEGEN_SHADERS_NOT_OWNED) {
+            Spacer(Modifier.height(SettingItemGap))
+            SettingActionButton(
+                label = stringResource(R.string.settings_frame_generation_locate),
+                enabled = !busy,
+                onClick = { picker.launch(arrayOf("*/*")) },
+            )
+        }
+
+        if (enabled) {
+            Spacer(Modifier.height(SettingItemGap))
+
+            SettingPairRow {
+                Box(Modifier.weight(1f)) {
+                    SettingDropdown(
+                        label = stringResource(R.string.session_drawer_frame_generation_target),
+                        entries =
+                            FrameGenTargetOptions.map { rate ->
+                                if (rate == 0) {
+                                    stringResource(R.string.session_drawer_frame_generation_target_off)
+                                } else {
+                                    stringResource(R.string.session_drawer_frame_generation_target_value, rate)
+                                }
+                            },
+                        selectedIndex = FrameGenTargetOptions.indexOf(targetRate).coerceAtLeast(0),
+                        onSelected = { state.frameGenTargetRate.intValue = FrameGenTargetOptions[it] },
+                    )
+                }
+                Box(Modifier.weight(1f)) {
+                    SettingDropdown(
+                        label = stringResource(R.string.session_drawer_frame_generation_multiplier),
+                        entries =
+                            FrameGenMultiplierOptions.map { multiplier ->
+                                stringResource(
+                                    R.string.session_drawer_frame_generation_multiplier_value,
+                                    multiplier,
+                                )
+                            },
+                        selectedIndex =
+                            FrameGenMultiplierOptions
+                                .indexOf(state.frameGenMultiplier.intValue)
+                                .coerceAtLeast(0),
+                        onSelected = {
+                            state.frameGenMultiplier.intValue = FrameGenMultiplierOptions[it]
+                        },
+                        enabled = targetRate == 0,
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(SettingItemGap))
+
+            FrameGenPresetSlider(
+                selected = FrameGenPreset.fromFlowScale(state.frameGenFlowScale.intValue),
+                onSelected = { state.frameGenFlowScale.intValue = it.flowScale },
+            )
+
+            Spacer(Modifier.height(SettingItemGap))
+
+            Text(
+                text = stringResource(R.string.session_drawer_frame_generation_note),
+                color = TextSecondary,
+                fontSize = SettingLabelSize,
+                lineHeight = SettingLabelSize * 1.4f,
+            )
+        }
+    }
 }
 
 @Composable
@@ -5339,6 +5521,49 @@ private fun EmulatorSectionHeader(title: String, usage: String?) {
 }
 
 @Composable
+private fun SettingActionButton(
+    label: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    val alpha = if (enabled) 1f else 0.4f
+    Box(
+        modifier = Modifier
+            .alpha(alpha)
+            .clip(RoundedCornerShape(10.dp))
+            .background(AccentBlue.copy(alpha = 0.08f))
+            .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+            .then(
+                if (enabled) {
+                    Modifier
+                        .paneNavItem(cornerRadius = 10.dp, onActivate = onClick, highlightColor = NavHighlight)
+                        .clickable { onClick() }
+                } else {
+                    Modifier
+                }
+            )
+            .padding(horizontal = 12.dp, vertical = 7.dp)
+    ) {
+        Text(
+            text = label,
+            color = AccentBlue,
+            fontSize = SettingValueSize,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1
+        )
+    }
+}
+
+private fun frameGenStateFor(result: Int): Int =
+    when (result) {
+        LosslessAutoImport.RESULT_READY, LosslessAutoImport.RESULT_IMPORTED -> FRAMEGEN_SHADERS_READY
+        LosslessAutoImport.RESULT_UPDATED -> FRAMEGEN_SHADERS_UPDATED
+        LosslessAutoImport.RESULT_NOT_OWNED -> FRAMEGEN_SHADERS_NOT_OWNED
+        LosslessAutoImport.RESULT_NOT_FOUND -> FRAMEGEN_SHADERS_MISSING
+        else -> FRAMEGEN_SHADERS_FAILED
+    }
+
+@Composable
 private fun SettingGroup(
     modifier: Modifier = Modifier,
     verticalPadding: Dp = SettingGroupPadding,
@@ -5655,6 +5880,97 @@ private fun SettingSwitch(
                 accentColor = AccentBlue,
                 textSecondaryColor = TextSecondary
             )
+        )
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun FrameGenPresetSlider(
+    selected: FrameGenPreset,
+    onSelected: (FrameGenPreset) -> Unit,
+) {
+    val presets = FrameGenPreset.values()
+    val index = presets.indexOf(selected).coerceAtLeast(0)
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.frame_generation_preset),
+                color = TextSecondary,
+                fontSize = SettingLabelSize,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 0.3.sp,
+            )
+            Spacer(Modifier.weight(1f))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(AccentBlue.copy(alpha = 0.1f))
+                    .padding(horizontal = 7.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    stringResource(selected.labelRes),
+                    color = AccentBlue,
+                    fontSize = SettingLabelSize,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+
+        Spacer(Modifier.height(SettingTightGap))
+
+        Slider(
+            value = index.toFloat(),
+            onValueChange = { onSelected(FrameGenPreset.atIndex(it.roundToInt())) },
+            valueRange = 0f..(presets.size - 1).toFloat(),
+            steps = presets.size - 2,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(SettingSliderHeight)
+                .controllerSliderEscape()
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onAdjust = { d -> onSelected(FrameGenPreset.atIndex(index + d)) },
+                    highlightColor = NavHighlight,
+                ),
+            colors = settingSliderColors(),
+            track = { SettingSliderTrack(it) },
+            thumb = {
+                Box(
+                    modifier = Modifier
+                        .size(SettingSliderThumbSize)
+                        .clip(RoundedCornerShape(50))
+                        .background(AccentBlue)
+                        .border(2.dp, CardSurface, RoundedCornerShape(50))
+                )
+            }
+        )
+
+        Row(modifier = Modifier.fillMaxWidth()) {
+            presets.forEachIndexed { i, preset ->
+                Text(
+                    text = stringResource(preset.shortLabelRes),
+                    color = if (i == index) AccentBlue else TextSecondary,
+                    fontSize = SettingLabelSize * 0.9f,
+                    fontWeight = if (i == index) FontWeight.SemiBold else FontWeight.Normal,
+                    textAlign = when (i) {
+                        0 -> TextAlign.Start
+                        presets.size - 1 -> TextAlign.End
+                        else -> TextAlign.Center
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+
+        Spacer(Modifier.height(SettingTightGap))
+
+        Text(
+            text = stringResource(selected.descriptionRes),
+            color = TextSecondary,
+            fontSize = SettingLabelSize,
+            lineHeight = SettingLabelSize * 1.4f,
         )
     }
 }

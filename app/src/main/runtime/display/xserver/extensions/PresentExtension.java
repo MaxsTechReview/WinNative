@@ -485,8 +485,10 @@ public class PresentExtension
           presentPixmap(client, p, outputStream);
         }
 
-        if (client.xServer.getRenderer() != null)
-          client.xServer.getRenderer().requestRenderCoalesced();
+        if (client.xServer.getRenderer() != null) {
+          client.xServer.getRenderer().onGuestFramePresented();
+          client.xServer.getRenderer().requestRenderImmediate();
+        }
         break;
       }
       case ClientOpcodes.SELECT_INPUT:

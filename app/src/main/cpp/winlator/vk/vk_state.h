@@ -14,6 +14,7 @@
 // All vk* calls route through the dispatch table — vk_dispatch.h is the Vulkan header for
 // this translation unit (do not include <vulkan/vulkan.h> directly).
 #include "vk_dispatch.h"
+#include "lsfg/vkr_lsfg.h"
 
 #define VK_LOG_TAG "VkRenderer"
 #define VK_LOGI(...) __android_log_print(ANDROID_LOG_INFO,  VK_LOG_TAG, __VA_ARGS__)
@@ -25,6 +26,9 @@
 // Encoder input-surface swapchains can expose many more images than a display swapchain.
 #define VK_MAX_RECORD_IMAGES 32
 #define VK_MAX_EFFECTS 8
+#define VK_MAX_COMPOSITE_TARGETS 8
+#define VK_FRAMEGEN_ACQUIRE_TIMEOUT_NS 3000000ULL
+#define VK_FRAMEGEN_ACQUIRE_TIMEOUT_MAX_NS 12000000ULL
 #define VK_MAX_RENDERABLE_WINDOWS 64
 // Number of in-flight upload slots. Each slot owns a persistently-mapped staging buffer,
 // fence, and command pool. An upload only blocks when this many uploads are still pending
@@ -188,6 +192,7 @@ typedef struct VkPipelineSet {
     // Render passes
     VkRenderPass swapchain_pass;             // load=clear, store=store, final=present
     VkRenderPass offscreen_pass;             // load=clear, store=store, final=shader-read
+    VkRenderPass composite_pass;
 } VkPipelineSet;
 
 // ============================================================
@@ -196,6 +201,7 @@ typedef struct VkPipelineSet {
 
 typedef struct VkFrame {
     VkSemaphore image_available;
+    VkSemaphore image_available_gen[VKR_LSFG_MAX_GENERATIONS];
     VkFence     in_flight;
     VkCommandBuffer cmd;
 } VkFrame;
@@ -220,6 +226,14 @@ typedef struct VkSgsr1State {
     uint32_t    width;
     uint32_t    height;
 } VkSgsr1State;
+
+typedef struct VkCompositeTarget {
+    VkImage        image;
+    VkImageView    view;
+    VkDeviceMemory memory;
+    VkFramebuffer  framebuffer;
+    uint32_t       width, height;
+} VkCompositeTarget;
 
 // Recording mirror: a second swapchain on a MediaCodec input surface; each frame is blitted from
 // the display swapchain into it and co-presented. Gated on rec.active.
@@ -398,6 +412,33 @@ typedef struct VkRenderer {
     bool             offscreen_built;
     VkSgsr1State     sgsr1;
 
+    VkCompositeTarget composite[VK_MAX_COMPOSITE_TARGETS];
+    uint32_t          composite_count;
+    bool              composite_built;
+    bool              framegen_supported;
+    bool              framegen_requested;
+    bool              swapchain_transfer_dst;
+    bool              swapchain_storage;
+    uint64_t          framegen_present_failures;
+    struct VkrLsfg*   lsfg;
+    char*             lsfg_cache_path;
+    uint32_t          framegen_multiplier;
+    uint32_t          framegen_target_rate;
+    float             framegen_flow_scale;
+    float             framegen_refresh_rate;
+    int32_t           framegen_refresh_mhz;
+    uint64_t          framegen_source_frames;
+    uint64_t          framegen_real_frames;
+    uint64_t          framegen_log_real;
+    uint64_t          framegen_log_made;
+    uint64_t          framegen_made_frames;
+    uint64_t          framegen_acquire_misses;
+    uint64_t          framegen_draw_ns;
+    uint64_t          framegen_gap_ns;
+    uint64_t          framegen_last_end_ns;
+    uint64_t          framegen_timed_frames;
+    uint64_t          presented_frames;
+
     // record_blit_src adds TRANSFER_SRC usage to the display swapchain (toggled by start/stop recording).
     bool             record_blit_src;
     VkRecordSwap     rec;
@@ -441,6 +482,7 @@ typedef struct VkRenderer {
     // Extensions present
     bool ext_ahb;
     bool ext_ycbcr;
+    bool ext_shader_float16;
 
     // Cached device capabilities populated by query_device_caps().
     VkDeviceCaps caps;

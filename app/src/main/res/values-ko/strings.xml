@@ -1138,6 +1138,7 @@
     <string name="session_drawer_color_profile_crt">CRT 효과</string>
     <string name="session_drawer_calibrate_advanced">고급 보정</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_frame_gen">FPS</string>
     <string name="session_drawer_rail_label_gyro">자이로</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">더 보기</string>
@@ -2190,6 +2191,17 @@
     <string name="retro_scr_credits_desc">WinNative의 일부 기능은 이러한 오픈 소스 프로젝트를 기반으로 합니다. 탭하여 각 소스를 확인하세요.</string>
     <string name="retro_scr_tab_defaults">기본값</string>
     <string name="retro_scr_tab_credits">크레딧</string>
+    <string name="settings_support_title">지원</string>
+    <string name="support_heading">도움말</string>
+    <string name="support_desc">질문하거나 문제를 보고하고, 진행 중인 작업을 확인하세요. 각 링크는 브라우저에서 열립니다.</string>
+    <string name="support_winnative_discord_desc">Discord • 지원 및 개발</string>
+    <string name="support_maxstechreview_discord_desc">Discord • 커뮤니티</string>
+    <string name="support_youtube_desc">YouTube • 가이드 및 소식</string>
+    <string name="support_reddit_desc">Reddit • 커뮤니티</string>
+    <string name="support_winnative_discord">#WinNative</string>
+    <string name="support_maxstechreview_discord">#MaxsTechReview</string>
+    <string name="support_youtube">@MaxsTechReview</string>
+    <string name="support_reddit">r/EmulatorsForAndroid</string>
     <string name="retro_scr_enable_hardcore_title">하드코어 모드를 사용하시겠습니까?</string>
     <string name="retro_scr_enable_hardcore_body">하드코어 모드는 지금 게임을 재설정하고 상태 저장 불러오기, 빨리 감기, 치트를 비활성화합니다. 저장하지 않은 진행 상황은 손실됩니다. 계속하시겠습니까?</string>
     <string name="retro_scr_cancel">취소</string>
@@ -2495,5 +2507,37 @@
     <string name="retro_scr_consoles_verifying">다운로드 확인 중…</string>
     <string name="retro_scr_consoles_working">처리 중…</string>
     <string name="retro_tab_system">시스템</string>
+    <string name="session_drawer_frame_generation">프레임 생성</string>
+    <string name="session_drawer_frame_generation_enable">프레임 생성 사용</string>
+    <string name="session_drawer_frame_generation_multiplier">배수</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">적응형 목표</string>
+    <string name="session_drawer_frame_generation_target_off">고정</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_note">Lossless Scaling으로 렌더링된 프레임 사이를 보간합니다. 움직임은 부드러워지지만 입력 지연이 한 프레임 늘어납니다.</string>
+    <string name="session_drawer_frame_generation_target_note">고정 배수를 유지하는 대신, 측정 가능한 이득이 있을 때만 목표를 향해 올립니다.</string>
+    <string name="session_drawer_frame_generation_missing">프레임 생성을 사용하려면 컨테이너 설정에서 Lossless Scaling을 설치하세요.</string>
+    <string name="frame_generation_preset">품질 프리셋</string>
+    <string name="frame_generation_preset_ultra_performance">울트라 성능</string>
+    <string name="frame_generation_preset_performance">성능</string>
+    <string name="frame_generation_preset_balanced">균형</string>
+    <string name="frame_generation_preset_quality">품질</string>
+    <string name="frame_generation_preset_ultra_performance_short">울트라</string>
+    <string name="frame_generation_preset_performance_short">성능</string>
+    <string name="frame_generation_preset_balanced_short">균형</string>
+    <string name="frame_generation_preset_quality_short">품질</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">해상도의 40%에서 움직임을 추정합니다. 품질 대비 약 40%의 GPU 부하입니다. 빠른 움직임에서 미세한 디테일이 부드러워집니다.</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">해상도의 50%에서 움직임을 추정합니다. 품질 대비 약 46%의 GPU 부하이며, 눈에 띄는 손실이 거의 없습니다.</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">해상도의 70%에서 움직임을 추정합니다. 품질 대비 약 61%의 GPU 부하입니다. 휴대용 기기에 권장됩니다.</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">전체 해상도에서 움직임을 추정합니다. 부하가 가장 큽니다. GPU 여유가 있을 때만 사용하세요.</string>
+    <string name="settings_frame_generation_title">프레임 생성</string>
+    <string name="settings_frame_generation_importing">Lossless Scaling 찾는 중…</string>
+    <string name="settings_frame_generation_ready">Lossless Scaling 셰이더가 준비되었습니다.</string>
+    <string name="settings_frame_generation_imported">%1$s에서 가져왔습니다.</string>
+    <string name="settings_frame_generation_not_found">Lossless Scaling을 찾을 수 없습니다. Steam에서 설치한 뒤 이 화면을 다시 열면 자동으로 가져옵니다.</string>
+    <string name="settings_frame_generation_failed">Lossless.dll을 찾았지만 셰이더를 읽을 수 없습니다. Steam 파일을 확인하고 다시 시도하세요.</string>
+    <string name="settings_frame_generation_updated">%1$s에서 업데이트했습니다.</string>
+    <string name="settings_frame_generation_not_owned">프레임 생성은 Lossless Scaling의 셰이더를 사용합니다. 사용하려면 로그인한 계정으로 Steam에서 구매하세요.</string>
+    <string name="settings_frame_generation_locate">Lossless.dll 선택…</string>
 </resources>
 

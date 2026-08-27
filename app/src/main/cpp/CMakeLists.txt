@@ -38,6 +38,7 @@ if(NOT xz_POPULATED)
     set(BUILD_SHARED_LIBS "${_winlator_saved_bsl}")
 endif()
 
+add_subdirectory(thirdparty/dxbc EXCLUDE_FROM_ALL)
 add_subdirectory(patchelf)
 add_subdirectory(adrenotools)
 add_subdirectory(wn-steam-client)
@@ -147,6 +148,21 @@ add_library(winlator SHARED
         winlator/vk/vk_dispatch.c
         winlator/vk/vk_image.c
         winlator/vk/vk_renderer.c
+        winlator/vk/lsfg/lsfg_dll.c
+        winlator/vk/lsfg/lsfg_dxbc.cpp
+        winlator/vk/lsfg/lsfg_common.cpp
+        winlator/vk/lsfg/lsfg_shaders.cpp
+        winlator/vk/lsfg/lsfg_mipmaps.cpp
+        winlator/vk/lsfg/lsfg_generate.cpp
+        winlator/vk/lsfg/lsfg_alpha.cpp
+        winlator/vk/lsfg/lsfg_beta.cpp
+        winlator/vk/lsfg/lsfg_gamma.cpp
+        winlator/vk/lsfg/lsfg_delta.cpp
+        winlator/vk/lsfg/lsfg_chain.cpp
+        winlator/vk/lsfg/lsfg_pacer.cpp
+        winlator/vk/lsfg/vkr_lsfg.cpp
+        winlator/vk/lsfg/lsfg_probe.c
+        winlator/vk/lsfg/lsfg_jni.c
 )
 
 add_dependencies(winlator winlator_shaders)
@@ -169,6 +185,7 @@ target_link_libraries(winlator
         jnigraphics
         vulkan
         adrenotools
+        dxbc
         libzstd_static
         liblzma
         curl::curl

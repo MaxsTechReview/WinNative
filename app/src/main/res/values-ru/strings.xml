@@ -681,6 +681,7 @@
     <string name="session_drawer_color_profile_crt">ЭЛТ-эффект</string>
     <string name="session_drawer_calibrate_advanced">Расширенная калибровка</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_frame_gen">FPS</string>
     <string name="session_drawer_rail_label_gyro">Гироскоп</string>
     <string name="session_drawer_rail_label_effects">Эффекты</string>
     <string name="session_drawer_rail_label_apps">Еще</string>
@@ -2095,6 +2096,17 @@
     <string name="retro_scr_credits_desc">Некоторые функции WinNative построены на этих проектах с открытым исходным кодом. Нажмите, чтобы посмотреть каждый источник.</string>
     <string name="retro_scr_tab_defaults">По умолчанию</string>
     <string name="retro_scr_tab_credits">Благодарности</string>
+    <string name="settings_support_title">Поддержка</string>
+    <string name="support_heading">ПОМОЩЬ</string>
+    <string name="support_desc">Задавайте вопросы, сообщайте о проблемах или следите за разработкой. Каждая ссылка открывается в браузере.</string>
+    <string name="support_winnative_discord_desc">Discord • поддержка и разработка</string>
+    <string name="support_maxstechreview_discord_desc">Discord • сообщество</string>
+    <string name="support_youtube_desc">YouTube • руководства и новости</string>
+    <string name="support_reddit_desc">Reddit • сообщество</string>
+    <string name="support_winnative_discord">#WinNative</string>
+    <string name="support_maxstechreview_discord">#MaxsTechReview</string>
+    <string name="support_youtube">@MaxsTechReview</string>
+    <string name="support_reddit">r/EmulatorsForAndroid</string>
     <string name="retro_scr_enable_hardcore_title">Включить режим Hardcore?</string>
     <string name="retro_scr_enable_hardcore_body">Режим Hardcore сбрасывает игру сейчас и отключает загрузку сохранений состояний, ускорение и читы. Любой несохранённый прогресс будет потерян. Продолжить?</string>
     <string name="retro_scr_cancel">Отмена</string>
@@ -2400,4 +2412,36 @@
     <string name="retro_scr_consoles_verifying">Проверка загрузки…</string>
     <string name="retro_scr_consoles_working">Выполняется…</string>
     <string name="retro_tab_system">Система</string>
+    <string name="session_drawer_frame_generation">Генерация кадров</string>
+    <string name="session_drawer_frame_generation_enable">Генерировать кадры</string>
+    <string name="session_drawer_frame_generation_multiplier">Множитель</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">Адаптивная цель</string>
+    <string name="session_drawer_frame_generation_target_off">Фиксированный</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_note">Интерполирует между отрисованными кадрами с помощью Lossless Scaling. Движение плавнее, но задержка ввода увеличивается на один кадр.</string>
+    <string name="session_drawer_frame_generation_target_note">Повышается к цели только пока это даёт измеримый выигрыш, вместо удержания фиксированного множителя.</string>
+    <string name="session_drawer_frame_generation_missing">Установите Lossless Scaling в настройках контейнера, чтобы использовать генерацию кадров.</string>
+    <string name="frame_generation_preset">Пресет качества</string>
+    <string name="frame_generation_preset_ultra_performance">Ультрапроизводительность</string>
+    <string name="frame_generation_preset_performance">Производительность</string>
+    <string name="frame_generation_preset_balanced">Сбалансированный</string>
+    <string name="frame_generation_preset_quality">Качество</string>
+    <string name="frame_generation_preset_ultra_performance_short">Ультра</string>
+    <string name="frame_generation_preset_performance_short">Произв.</string>
+    <string name="frame_generation_preset_balanced_short">Баланс</string>
+    <string name="frame_generation_preset_quality_short">Качество</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">Движение вычисляется при 40 % разрешения. Около 40 % нагрузки на GPU режима «Качество». Мелкие детали смазываются при быстром движении.</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">Движение вычисляется при 50 % разрешения. Около 46 % нагрузки на GPU режима «Качество», почти без заметных потерь.</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">Движение вычисляется при 70 % разрешения. Около 61 % нагрузки на GPU режима «Качество». Рекомендуется для портативных устройств.</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">Движение вычисляется при полном разрешении. Максимальная нагрузка; используйте, только когда у игры есть запас GPU.</string>
+    <string name="settings_frame_generation_title">Генерация кадров</string>
+    <string name="settings_frame_generation_importing">Поиск Lossless Scaling…</string>
+    <string name="settings_frame_generation_ready">Шейдеры Lossless Scaling готовы.</string>
+    <string name="settings_frame_generation_imported">Импортировано из %1$s.</string>
+    <string name="settings_frame_generation_not_found">Lossless Scaling не найден. Установите его из Steam и снова откройте этот экран, чтобы импортировать автоматически.</string>
+    <string name="settings_frame_generation_failed">Lossless.dll найден, но его шейдеры не удалось прочитать. Проверьте файлы Steam и попробуйте снова.</string>
+    <string name="settings_frame_generation_updated">Обновлено из %1$s.</string>
+    <string name="settings_frame_generation_not_owned">Генерация кадров использует шейдеры Lossless Scaling. Купите его в Steam под текущей учётной записью, чтобы включить эту функцию.</string>
+    <string name="settings_frame_generation_locate">Выбрать Lossless.dll…</string>
 </resources>

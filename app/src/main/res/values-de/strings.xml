@@ -1138,6 +1138,7 @@ Installierter Pfad:
     <string name="session_drawer_color_profile_crt">CRT-Effekt</string>
     <string name="session_drawer_calibrate_advanced">Erweiterte Kalibrierung</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_frame_gen">FPS</string>
     <string name="session_drawer_rail_label_gyro">Gyro</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">Mehr</string>
@@ -2190,6 +2191,17 @@ Installierter Pfad:
     <string name="retro_scr_credits_desc">Einige Funktionen von WinNative basieren auf diesen Open-Source-Projekten. Tippe, um die jeweilige Quelle anzuzeigen.</string>
     <string name="retro_scr_tab_defaults">Standards</string>
     <string name="retro_scr_tab_credits">Mitwirkende</string>
+    <string name="settings_support_title">Support</string>
+    <string name="support_heading">HILFE</string>
+    <string name="support_desc">Stelle Fragen, melde Probleme oder sieh, woran gerade gearbeitet wird. Jeder Link öffnet sich im Browser.</string>
+    <string name="support_winnative_discord_desc">Discord • Support und Entwicklung</string>
+    <string name="support_maxstechreview_discord_desc">Discord • Community</string>
+    <string name="support_youtube_desc">YouTube • Anleitungen und Neuigkeiten</string>
+    <string name="support_reddit_desc">Reddit • Community</string>
+    <string name="support_winnative_discord">#WinNative</string>
+    <string name="support_maxstechreview_discord">#MaxsTechReview</string>
+    <string name="support_youtube">@MaxsTechReview</string>
+    <string name="support_reddit">r/EmulatorsForAndroid</string>
     <string name="retro_scr_enable_hardcore_title">Hardcore-Modus aktivieren?</string>
     <string name="retro_scr_enable_hardcore_body">Der Hardcore-Modus setzt das Spiel jetzt zurück und deaktiviert das Laden von Spielständen, Schnellvorlauf und Cheats. Nicht gespeicherter Fortschritt geht verloren. Fortfahren?</string>
     <string name="retro_scr_cancel">Abbrechen</string>
@@ -2495,4 +2507,36 @@ Installierter Pfad:
     <string name="retro_scr_consoles_verifying">Download wird geprüft…</string>
     <string name="retro_scr_consoles_working">Wird ausgeführt…</string>
     <string name="retro_tab_system">System</string>
+    <string name="session_drawer_frame_generation">Frame-Generierung</string>
+    <string name="session_drawer_frame_generation_enable">Frames generieren</string>
+    <string name="session_drawer_frame_generation_multiplier">Multiplikator</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">Adaptives Ziel</string>
+    <string name="session_drawer_frame_generation_target_off">Fest</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_note">Interpoliert zwischen gerenderten Frames mit Lossless Scaling. Flüssigere Bewegung, aber ein zusätzlicher Frame Eingabeverzögerung.</string>
+    <string name="session_drawer_frame_generation_target_note">Steigt nur dann in Richtung Ziel, wenn es messbar hilft, statt einen festen Multiplikator zu halten.</string>
+    <string name="session_drawer_frame_generation_missing">Installiere Lossless Scaling in den Container-Einstellungen, um Frame-Generierung zu nutzen.</string>
+    <string name="frame_generation_preset">Qualitätsvoreinstellung</string>
+    <string name="frame_generation_preset_ultra_performance">Ultra-Leistung</string>
+    <string name="frame_generation_preset_performance">Leistung</string>
+    <string name="frame_generation_preset_balanced">Ausgewogen</string>
+    <string name="frame_generation_preset_quality">Qualität</string>
+    <string name="frame_generation_preset_ultra_performance_short">Ultra</string>
+    <string name="frame_generation_preset_performance_short">Leistung</string>
+    <string name="frame_generation_preset_balanced_short">Ausgewogen</string>
+    <string name="frame_generation_preset_quality_short">Qualität</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">Bewegung wird mit 40 % Auflösung berechnet. Etwa 40 % der GPU-Last von Qualität. Feine Details werden bei schnellen Bewegungen weicher.</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">Bewegung wird mit 50 % Auflösung berechnet. Etwa 46 % der GPU-Last von Qualität, mit fast keinem sichtbaren Verlust.</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">Bewegung wird mit 70 % Auflösung berechnet. Etwa 61 % der GPU-Last von Qualität. Empfohlen für Handhelds.</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">Bewegung wird mit voller Auflösung berechnet. Höchste Last; nur verwenden, wenn das Spiel GPU-Reserven hat.</string>
+    <string name="settings_frame_generation_title">Frame-Generierung</string>
+    <string name="settings_frame_generation_importing">Suche nach Lossless Scaling…</string>
+    <string name="settings_frame_generation_ready">Lossless-Scaling-Shader bereit.</string>
+    <string name="settings_frame_generation_imported">Aus %1$s importiert.</string>
+    <string name="settings_frame_generation_not_found">Lossless Scaling wurde nicht gefunden. Installiere es über Steam und öffne diesen Bildschirm erneut, um es automatisch zu importieren.</string>
+    <string name="settings_frame_generation_failed">Lossless.dll wurde gefunden, aber ihre Shader konnten nicht gelesen werden. Überprüfe die Steam-Dateien und versuche es erneut.</string>
+    <string name="settings_frame_generation_updated">Aus %1$s aktualisiert.</string>
+    <string name="settings_frame_generation_not_owned">Frame-Generierung nutzt Shader von Lossless Scaling. Kaufe es auf Steam mit dem angemeldeten Konto, um dies zu aktivieren.</string>
+    <string name="settings_frame_generation_locate">Lossless.dll auswählen…</string>
 </resources>

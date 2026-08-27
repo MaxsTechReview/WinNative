@@ -1138,6 +1138,7 @@ Cale instalata:
     <string name="session_drawer_color_profile_crt">Efect CRT</string>
     <string name="session_drawer_calibrate_advanced">Calibrare avansată</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_frame_gen">FPS</string>
     <string name="session_drawer_rail_label_gyro">Giro</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">Mai multe</string>
@@ -2188,6 +2189,17 @@ Cale instalata:
     <string name="retro_scr_credits_desc">Unele funcții ale WinNative sunt construite pe aceste proiecte open-source. Atinge pentru a vedea fiecare sursă.</string>
     <string name="retro_scr_tab_defaults">Implicite</string>
     <string name="retro_scr_tab_credits">Credite</string>
+    <string name="settings_support_title">Asistență</string>
+    <string name="support_heading">OBȚINE AJUTOR</string>
+    <string name="support_desc">Pune întrebări, raportează probleme sau vezi la ce se lucrează. Fiecare link se deschide în browser.</string>
+    <string name="support_winnative_discord_desc">Discord • asistență și dezvoltare</string>
+    <string name="support_maxstechreview_discord_desc">Discord • comunitate</string>
+    <string name="support_youtube_desc">YouTube • ghiduri și noutăți</string>
+    <string name="support_reddit_desc">Reddit • comunitate</string>
+    <string name="support_winnative_discord">#WinNative</string>
+    <string name="support_maxstechreview_discord">#MaxsTechReview</string>
+    <string name="support_youtube">@MaxsTechReview</string>
+    <string name="support_reddit">r/EmulatorsForAndroid</string>
     <string name="retro_scr_enable_hardcore_title">Activezi modul Hardcore?</string>
     <string name="retro_scr_enable_hardcore_body">Modul Hardcore resetează jocul acum și dezactivează încărcarea salvărilor de stare, derularea rapidă și codurile. Orice progres nesalvat va fi pierdut. Continui?</string>
     <string name="retro_scr_cancel">Anulează</string>
@@ -2493,5 +2505,37 @@ Cale instalata:
     <string name="retro_scr_consoles_verifying">Se verifică descărcarea…</string>
     <string name="retro_scr_consoles_working">Se lucrează…</string>
     <string name="retro_tab_system">Sistem</string>
+    <string name="session_drawer_frame_generation">Generare de cadre</string>
+    <string name="session_drawer_frame_generation_enable">Generează cadre</string>
+    <string name="session_drawer_frame_generation_multiplier">Multiplicator</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">Țintă adaptivă</string>
+    <string name="session_drawer_frame_generation_target_off">Fix</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_note">Interpolează între cadrele randate cu Lossless Scaling. Mișcare mai fluidă, dar un cadru suplimentar de latență la intrare.</string>
+    <string name="session_drawer_frame_generation_target_note">Urcă spre țintă doar cât timp ajută în mod măsurabil, în loc să păstreze un multiplicator fix.</string>
+    <string name="session_drawer_frame_generation_missing">Instalează Lossless Scaling din setările containerului pentru a folosi generarea de cadre.</string>
+    <string name="frame_generation_preset">Presetare de calitate</string>
+    <string name="frame_generation_preset_ultra_performance">Ultra performanță</string>
+    <string name="frame_generation_preset_performance">Performanță</string>
+    <string name="frame_generation_preset_balanced">Echilibrat</string>
+    <string name="frame_generation_preset_quality">Calitate</string>
+    <string name="frame_generation_preset_ultra_performance_short">Ultra</string>
+    <string name="frame_generation_preset_performance_short">Perf.</string>
+    <string name="frame_generation_preset_balanced_short">Echilibrat</string>
+    <string name="frame_generation_preset_quality_short">Calitate</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">Mișcarea este estimată la 40% din rezoluție. Aproximativ 40% din costul GPU al modului Calitate. Detaliile fine se estompează la mișcări rapide.</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">Mișcarea este estimată la 50% din rezoluție. Aproximativ 46% din costul GPU al modului Calitate, aproape fără pierderi vizibile.</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">Mișcarea este estimată la 70% din rezoluție. Aproximativ 61% din costul GPU al modului Calitate. Recomandat pentru dispozitive portabile.</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">Mișcarea este estimată la rezoluție completă. Cost maxim; folosiți-l doar când jocul are resurse GPU disponibile.</string>
+    <string name="settings_frame_generation_title">Generare de cadre</string>
+    <string name="settings_frame_generation_importing">Se caută Lossless Scaling…</string>
+    <string name="settings_frame_generation_ready">Shaderele Lossless Scaling sunt gata.</string>
+    <string name="settings_frame_generation_imported">Importat din %1$s.</string>
+    <string name="settings_frame_generation_not_found">Lossless Scaling nu a fost găsit. Instalează-l din Steam și redeschide acest ecran pentru a-l importa automat.</string>
+    <string name="settings_frame_generation_failed">Lossless.dll a fost găsit, dar shaderele sale nu au putut fi citite. Verifică fișierele Steam și încearcă din nou.</string>
+    <string name="settings_frame_generation_updated">Actualizat din %1$s.</string>
+    <string name="settings_frame_generation_not_owned">Generarea de cadre folosește shadere din Lossless Scaling. Cumpără-l pe Steam cu contul conectat pentru a activa acest lucru.</string>
+    <string name="settings_frame_generation_locate">Selectează Lossless.dll…</string>
 </resources>
 

@@ -49,6 +49,7 @@ bool vkd_load_instance(VkInstance instance) {
     LOAD(EnumeratePhysicalDevices);
     LOAD(GetPhysicalDeviceProperties);
     LOAD(GetPhysicalDeviceMemoryProperties);
+    LOAD(GetPhysicalDeviceFeatures2);
     LOAD(GetPhysicalDeviceQueueFamilyProperties);
     LOAD(GetPhysicalDeviceFormatProperties);
     LOAD(GetPhysicalDeviceImageFormatProperties);
@@ -112,6 +113,7 @@ bool vkd_load_instance(VkInstance instance) {
     LOAD(CreatePipelineLayout);
     LOAD(DestroyPipelineLayout);
     LOAD(CreateGraphicsPipelines);
+    LOAD(CreateComputePipelines);
     LOAD(DestroyPipeline);
     LOAD(CreateShaderModule);
     LOAD(DestroyShaderModule);
@@ -151,6 +153,8 @@ bool vkd_load_instance(VkInstance instance) {
     LOAD(CmdPipelineBarrier);
     LOAD(CmdCopyBufferToImage);
     LOAD(CmdBlitImage);
+    LOAD(CmdCopyImage);
+    LOAD(CmdDispatch);
 
     // Queue
     LOAD(QueueSubmit);

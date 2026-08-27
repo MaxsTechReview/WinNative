@@ -1144,6 +1144,7 @@
     <string name="session_drawer_color_profile_crt">Ефект CRT</string>
     <string name="session_drawer_calibrate_advanced">Розширене калібрування</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_frame_gen">FPS</string>
     <string name="session_drawer_rail_label_gyro">Гіро</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">Більше</string>
@@ -2195,6 +2196,17 @@
     <string name="retro_scr_credits_desc">Деякі функції WinNative побудовані на цих проєктах з відкритим кодом. Торкніться, щоб переглянути кожне джерело.</string>
     <string name="retro_scr_tab_defaults">Стандартні</string>
     <string name="retro_scr_tab_credits">Автори</string>
+    <string name="settings_support_title">Підтримка</string>
+    <string name="support_heading">ОТРИМАТИ ДОПОМОГУ</string>
+    <string name="support_desc">Ставте запитання, повідомляйте про проблеми або стежте за розробкою. Кожне посилання відкривається у браузері.</string>
+    <string name="support_winnative_discord_desc">Discord • підтримка та розробка</string>
+    <string name="support_maxstechreview_discord_desc">Discord • спільнота</string>
+    <string name="support_youtube_desc">YouTube • посібники та новини</string>
+    <string name="support_reddit_desc">Reddit • спільнота</string>
+    <string name="support_winnative_discord">#WinNative</string>
+    <string name="support_maxstechreview_discord">#MaxsTechReview</string>
+    <string name="support_youtube">@MaxsTechReview</string>
+    <string name="support_reddit">r/EmulatorsForAndroid</string>
     <string name="retro_scr_enable_hardcore_title">Увімкнути режим Hardcore?</string>
     <string name="retro_scr_enable_hardcore_body">Режим Hardcore зараз скидає гру та вимикає завантаження станів, прискорення й чити. Будь-який незбережений прогрес буде втрачено. Продовжити?</string>
     <string name="retro_scr_cancel">Скасувати</string>
@@ -2500,5 +2512,37 @@
     <string name="retro_scr_consoles_verifying">Перевірка завантаження…</string>
     <string name="retro_scr_consoles_working">Виконується…</string>
     <string name="retro_tab_system">Система</string>
+    <string name="session_drawer_frame_generation">Генерація кадрів</string>
+    <string name="session_drawer_frame_generation_enable">Генерувати кадри</string>
+    <string name="session_drawer_frame_generation_multiplier">Множник</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">Адаптивна ціль</string>
+    <string name="session_drawer_frame_generation_target_off">Фіксований</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_note">Інтерполює між відрендереними кадрами за допомогою Lossless Scaling. Рух плавніший, але затримка вводу зростає на один кадр.</string>
+    <string name="session_drawer_frame_generation_target_note">Підвищується до цілі лише доки це дає вимірний виграш, замість утримання фіксованого множника.</string>
+    <string name="session_drawer_frame_generation_missing">Установіть Lossless Scaling у налаштуваннях контейнера, щоб використовувати генерацію кадрів.</string>
+    <string name="frame_generation_preset">Пресет якості</string>
+    <string name="frame_generation_preset_ultra_performance">Ультрапродуктивність</string>
+    <string name="frame_generation_preset_performance">Продуктивність</string>
+    <string name="frame_generation_preset_balanced">Збалансований</string>
+    <string name="frame_generation_preset_quality">Якість</string>
+    <string name="frame_generation_preset_ultra_performance_short">Ультра</string>
+    <string name="frame_generation_preset_performance_short">Продукт.</string>
+    <string name="frame_generation_preset_balanced_short">Баланс</string>
+    <string name="frame_generation_preset_quality_short">Якість</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">Рух обчислюється за 40 % роздільної здатності. Близько 40 % навантаження на GPU режиму «Якість». Дрібні деталі розмиваються під час швидкого руху.</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">Рух обчислюється за 50 % роздільної здатності. Близько 46 % навантаження на GPU режиму «Якість», майже без помітних втрат.</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">Рух обчислюється за 70 % роздільної здатності. Близько 61 % навантаження на GPU режиму «Якість». Рекомендовано для портативних пристроїв.</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">Рух обчислюється за повної роздільної здатності. Найвище навантаження; використовуйте, лише коли гра має запас GPU.</string>
+    <string name="settings_frame_generation_title">Генерація кадрів</string>
+    <string name="settings_frame_generation_importing">Пошук Lossless Scaling…</string>
+    <string name="settings_frame_generation_ready">Шейдери Lossless Scaling готові.</string>
+    <string name="settings_frame_generation_imported">Імпортовано з %1$s.</string>
+    <string name="settings_frame_generation_not_found">Lossless Scaling не знайдено. Встановіть його зі Steam і відкрийте цей екран знову, щоб імпортувати автоматично.</string>
+    <string name="settings_frame_generation_failed">Lossless.dll знайдено, але не вдалося прочитати його шейдери. Перевірте файли Steam і спробуйте ще раз.</string>
+    <string name="settings_frame_generation_updated">Оновлено з %1$s.</string>
+    <string name="settings_frame_generation_not_owned">Генерація кадрів використовує шейдери Lossless Scaling. Придбайте його у Steam під поточним обліковим записом, щоб увімкнути це.</string>
+    <string name="settings_frame_generation_locate">Вибрати Lossless.dll…</string>
 </resources>
 

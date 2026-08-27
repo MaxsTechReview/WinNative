@@ -257,6 +257,15 @@ class PluviaApp : Application() {
                 com.winlator.cmod.runtime.system.LogManager
                     .startAppLogging(this@PluviaApp)
 
+                runCatching {
+                    val outcome =
+                        com.winlator.cmod.feature.library.LosslessAutoImport
+                            .sync(this@PluviaApp)
+                    if (outcome.result != com.winlator.cmod.feature.library.LosslessAutoImport.RESULT_READY) {
+                        Log.i("PluviaApp", "Lossless shader sync: result=${outcome.result}")
+                    }
+                }.onFailure { Log.e("PluviaApp", "Lossless shader sync failed", it) }
+
                 if (steamLogsEnabled) {
                     withContext(Dispatchers.Main.immediate) {
                         if (timber.log.Timber.forest().none { it is timber.log.Timber.DebugTree }) {

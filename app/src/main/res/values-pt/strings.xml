@@ -834,6 +834,7 @@ Por ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="session_drawer_reset_effects">Repor efeitos</string>
     <string name="session_drawer_calibrate_advanced">Calibração avançada</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_frame_gen">FPS</string>
     <string name="session_drawer_rail_label_gyro">Giro</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_output">Saída</string>
@@ -2188,6 +2189,17 @@ Caminho instalado:
     <string name="retro_scr_credits_desc">Algumas funcionalidades do WinNative baseiam-se nestes projetos de código aberto. Toque para ver cada fonte.</string>
     <string name="retro_scr_tab_defaults">Predefinições</string>
     <string name="retro_scr_tab_credits">Créditos</string>
+    <string name="settings_support_title">Suporte</string>
+    <string name="support_heading">OBTER AJUDA</string>
+    <string name="support_desc">Faça perguntas, comunique problemas ou veja o que está a ser desenvolvido. Cada ligação abre no seu navegador.</string>
+    <string name="support_winnative_discord_desc">Discord • suporte e desenvolvimento</string>
+    <string name="support_maxstechreview_discord_desc">Discord • comunidade</string>
+    <string name="support_youtube_desc">YouTube • guias e novidades</string>
+    <string name="support_reddit_desc">Reddit • comunidade</string>
+    <string name="support_winnative_discord">#WinNative</string>
+    <string name="support_maxstechreview_discord">#MaxsTechReview</string>
+    <string name="support_youtube">@MaxsTechReview</string>
+    <string name="support_reddit">r/EmulatorsForAndroid</string>
     <string name="retro_scr_enable_hardcore_title">Ativar o modo Hardcore?</string>
     <string name="retro_scr_enable_hardcore_body">O modo Hardcore reinicia o jogo agora e desativa o carregamento de estados guardados, o avanço rápido e as batotas. Qualquer progresso não guardado será perdido. Continuar?</string>
     <string name="retro_scr_cancel">Cancelar</string>
@@ -2493,4 +2505,36 @@ Caminho instalado:
     <string name="retro_scr_consoles_verifying">A verificar a transferência…</string>
     <string name="retro_scr_consoles_working">A processar…</string>
     <string name="retro_tab_system">Sistema</string>
+    <string name="session_drawer_frame_generation">Geração de fotogramas</string>
+    <string name="session_drawer_frame_generation_enable">Gerar fotogramas</string>
+    <string name="session_drawer_frame_generation_multiplier">Multiplicador</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">Alvo adaptativo</string>
+    <string name="session_drawer_frame_generation_target_off">Fixo</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_note">Interpola entre fotogramas renderizados com o Lossless Scaling. Movimento mais suave, mas um fotograma extra de latência de entrada.</string>
+    <string name="session_drawer_frame_generation_target_note">Sobe em direção ao alvo apenas enquanto ajudar de forma mensurável, em vez de manter um multiplicador fixo.</string>
+    <string name="session_drawer_frame_generation_missing">Instale o Lossless Scaling nas definições do contentor para usar a geração de fotogramas.</string>
+    <string name="frame_generation_preset">Predefinição de qualidade</string>
+    <string name="frame_generation_preset_ultra_performance">Ultra desempenho</string>
+    <string name="frame_generation_preset_performance">Desempenho</string>
+    <string name="frame_generation_preset_balanced">Equilibrado</string>
+    <string name="frame_generation_preset_quality">Qualidade</string>
+    <string name="frame_generation_preset_ultra_performance_short">Ultra</string>
+    <string name="frame_generation_preset_performance_short">Desemp.</string>
+    <string name="frame_generation_preset_balanced_short">Equilibrado</string>
+    <string name="frame_generation_preset_quality_short">Qualidade</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">O movimento é estimado a 40 % da resolução. Cerca de 40 % do custo de GPU de Qualidade. Os detalhes finos suavizam-se em movimentos rápidos.</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">O movimento é estimado a 50 % da resolução. Cerca de 46 % do custo de GPU de Qualidade, quase sem perda visível.</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">O movimento é estimado a 70 % da resolução. Cerca de 61 % do custo de GPU de Qualidade. Recomendado para portáteis.</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">O movimento é estimado na resolução total. Custo máximo; use apenas quando o jogo tiver margem de GPU.</string>
+    <string name="settings_frame_generation_title">Geração de fotogramas</string>
+    <string name="settings_frame_generation_importing">A procurar o Lossless Scaling…</string>
+    <string name="settings_frame_generation_ready">Shaders do Lossless Scaling prontos.</string>
+    <string name="settings_frame_generation_imported">Importado de %1$s.</string>
+    <string name="settings_frame_generation_not_found">O Lossless Scaling não foi encontrado. Instale-o a partir do Steam e reabra este ecrã para importá-lo automaticamente.</string>
+    <string name="settings_frame_generation_failed">O Lossless.dll foi encontrado, mas não foi possível ler os seus shaders. Verifique os ficheiros do Steam e tente novamente.</string>
+    <string name="settings_frame_generation_updated">Atualizado de %1$s.</string>
+    <string name="settings_frame_generation_not_owned">A geração de fotogramas usa shaders do Lossless Scaling. Compre-o no Steam com a conta com sessão iniciada para ativar isto.</string>
+    <string name="settings_frame_generation_locate">Selecionar Lossless.dll…</string>
 </resources>

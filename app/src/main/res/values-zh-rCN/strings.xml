@@ -1138,6 +1138,7 @@
     <string name="session_drawer_color_profile_crt">CRT 效果</string>
     <string name="session_drawer_calibrate_advanced">高级校准</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_frame_gen">FPS</string>
     <string name="session_drawer_rail_label_gyro">陀螺仪</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">更多</string>
@@ -2189,6 +2190,17 @@
     <string name="retro_scr_credits_desc">WinNative 的部分功能基于这些开源项目构建。点按可查看各来源。</string>
     <string name="retro_scr_tab_defaults">默认</string>
     <string name="retro_scr_tab_credits">鸣谢</string>
+    <string name="settings_support_title">支持</string>
+    <string name="support_heading">获取帮助</string>
+    <string name="support_desc">提问、反馈问题，或了解正在进行的开发。每个链接都会在浏览器中打开。</string>
+    <string name="support_winnative_discord_desc">Discord • 支持与开发</string>
+    <string name="support_maxstechreview_discord_desc">Discord • 社区</string>
+    <string name="support_youtube_desc">YouTube • 指南与更新</string>
+    <string name="support_reddit_desc">Reddit • 社区</string>
+    <string name="support_winnative_discord">#WinNative</string>
+    <string name="support_maxstechreview_discord">#MaxsTechReview</string>
+    <string name="support_youtube">@MaxsTechReview</string>
+    <string name="support_reddit">r/EmulatorsForAndroid</string>
     <string name="retro_scr_enable_hardcore_title">启用硬核模式？</string>
     <string name="retro_scr_enable_hardcore_body">硬核模式将立即重置游戏，并禁用加载即时存档、快进和金手指。任何未保存的进度都将丢失。是否继续？</string>
     <string name="retro_scr_cancel">取消</string>
@@ -2494,5 +2506,37 @@
     <string name="retro_scr_consoles_verifying">正在校验下载…</string>
     <string name="retro_scr_consoles_working">处理中…</string>
     <string name="retro_tab_system">系统</string>
+    <string name="session_drawer_frame_generation">帧生成</string>
+    <string name="session_drawer_frame_generation_enable">生成帧</string>
+    <string name="session_drawer_frame_generation_multiplier">倍数</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">自适应目标</string>
+    <string name="session_drawer_frame_generation_target_off">固定</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_note">使用 Lossless Scaling 在已渲染的帧之间插帧。画面更流畅，但输入延迟会增加一帧。</string>
+    <string name="session_drawer_frame_generation_target_note">仅在能带来可测量的提升时才向目标提升，而不是保持固定倍数。</string>
+    <string name="session_drawer_frame_generation_missing">请在容器设置中安装 Lossless Scaling 以使用帧生成。</string>
+    <string name="frame_generation_preset">画质预设</string>
+    <string name="frame_generation_preset_ultra_performance">极致性能</string>
+    <string name="frame_generation_preset_performance">性能</string>
+    <string name="frame_generation_preset_balanced">均衡</string>
+    <string name="frame_generation_preset_quality">画质</string>
+    <string name="frame_generation_preset_ultra_performance_short">极致</string>
+    <string name="frame_generation_preset_performance_short">性能</string>
+    <string name="frame_generation_preset_balanced_short">均衡</string>
+    <string name="frame_generation_preset_quality_short">画质</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">以 40% 分辨率估算运动。约为“画质”GPU 开销的 40%。快速运动时细节会变柔和。</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">以 50% 分辨率估算运动。约为“画质”GPU 开销的 46%，几乎没有可见损失。</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">以 70% 分辨率估算运动。约为“画质”GPU 开销的 61%。推荐用于掌机。</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">以完整分辨率估算运动。开销最高；仅在游戏有 GPU 余量时使用。</string>
+    <string name="settings_frame_generation_title">帧生成</string>
+    <string name="settings_frame_generation_importing">正在查找 Lossless Scaling…</string>
+    <string name="settings_frame_generation_ready">Lossless Scaling 着色器已就绪。</string>
+    <string name="settings_frame_generation_imported">已从 %1$s 导入。</string>
+    <string name="settings_frame_generation_not_found">未找到 Lossless Scaling。请从 Steam 安装，然后重新打开此页面以自动导入。</string>
+    <string name="settings_frame_generation_failed">已找到 Lossless.dll，但无法读取其着色器。请校验 Steam 文件后重试。</string>
+    <string name="settings_frame_generation_updated">已从 %1$s 更新。</string>
+    <string name="settings_frame_generation_not_owned">帧生成使用 Lossless Scaling 的着色器。请使用当前登录的账号在 Steam 上购买以启用此功能。</string>
+    <string name="settings_frame_generation_locate">选择 Lossless.dll…</string>
 </resources>
 

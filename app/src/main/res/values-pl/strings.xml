@@ -1144,6 +1144,7 @@ Zainstalowana ścieżka:
     <string name="session_drawer_color_profile_crt">Efekt CRT</string>
     <string name="session_drawer_calibrate_advanced">Zaawansowana kalibracja</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_frame_gen">FPS</string>
     <string name="session_drawer_rail_label_gyro">Gyro</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">Więcej</string>
@@ -2195,6 +2196,17 @@ Zainstalowana ścieżka:
     <string name="retro_scr_credits_desc">Niektóre funkcje WinNative są oparte na tych projektach open-source. Dotknij, aby zobaczyć każde źródło.</string>
     <string name="retro_scr_tab_defaults">Domyślne</string>
     <string name="retro_scr_tab_credits">Autorzy</string>
+    <string name="settings_support_title">Wsparcie</string>
+    <string name="support_heading">UZYSKAJ POMOC</string>
+    <string name="support_desc">Zadawaj pytania, zgłaszaj problemy lub sprawdź, nad czym trwają prace. Każdy odnośnik otwiera się w przeglądarce.</string>
+    <string name="support_winnative_discord_desc">Discord • wsparcie i rozwój</string>
+    <string name="support_maxstechreview_discord_desc">Discord • społeczność</string>
+    <string name="support_youtube_desc">YouTube • poradniki i nowości</string>
+    <string name="support_reddit_desc">Reddit • społeczność</string>
+    <string name="support_winnative_discord">#WinNative</string>
+    <string name="support_maxstechreview_discord">#MaxsTechReview</string>
+    <string name="support_youtube">@MaxsTechReview</string>
+    <string name="support_reddit">r/EmulatorsForAndroid</string>
     <string name="retro_scr_enable_hardcore_title">Włączyć tryb Hardcore?</string>
     <string name="retro_scr_enable_hardcore_body">Tryb Hardcore resetuje teraz grę i wyłącza wczytywanie stanów zapisu, przewijanie i kody. Wszelkie niezapisane postępy zostaną utracone. Kontynuować?</string>
     <string name="retro_scr_cancel">Anuluj</string>
@@ -2500,5 +2512,37 @@ Zainstalowana ścieżka:
     <string name="retro_scr_consoles_verifying">Weryfikowanie pobranego pliku…</string>
     <string name="retro_scr_consoles_working">Trwa praca…</string>
     <string name="retro_tab_system">System</string>
+    <string name="session_drawer_frame_generation">Generowanie klatek</string>
+    <string name="session_drawer_frame_generation_enable">Generuj klatki</string>
+    <string name="session_drawer_frame_generation_multiplier">Mnożnik</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">Cel adaptacyjny</string>
+    <string name="session_drawer_frame_generation_target_off">Stały</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_note">Interpoluje między wyrenderowanymi klatkami przy użyciu Lossless Scaling. Płynniejszy ruch, ale jedna dodatkowa klatka opóźnienia sterowania.</string>
+    <string name="session_drawer_frame_generation_target_note">Zwiększa się w kierunku celu tylko wtedy, gdy przynosi to mierzalną korzyść, zamiast utrzymywać stały mnożnik.</string>
+    <string name="session_drawer_frame_generation_missing">Zainstaluj Lossless Scaling w ustawieniach kontenera, aby korzystać z generowania klatek.</string>
+    <string name="frame_generation_preset">Ustawienie jakości</string>
+    <string name="frame_generation_preset_ultra_performance">Ultra wydajność</string>
+    <string name="frame_generation_preset_performance">Wydajność</string>
+    <string name="frame_generation_preset_balanced">Zrównoważony</string>
+    <string name="frame_generation_preset_quality">Jakość</string>
+    <string name="frame_generation_preset_ultra_performance_short">Ultra</string>
+    <string name="frame_generation_preset_performance_short">Wydajność</string>
+    <string name="frame_generation_preset_balanced_short">Zrówn.</string>
+    <string name="frame_generation_preset_quality_short">Jakość</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">Ruch szacowany przy 40% rozdzielczości. Około 40% obciążenia GPU trybu Jakość. Drobne detale miękną przy szybkim ruchu.</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">Ruch szacowany przy 50% rozdzielczości. Około 46% obciążenia GPU trybu Jakość, praktycznie bez widocznej straty.</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">Ruch szacowany przy 70% rozdzielczości. Około 61% obciążenia GPU trybu Jakość. Zalecane dla urządzeń przenośnych.</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">Ruch szacowany w pełnej rozdzielczości. Najwyższe obciążenie; używaj tylko, gdy gra ma zapas mocy GPU.</string>
+    <string name="settings_frame_generation_title">Generowanie klatek</string>
+    <string name="settings_frame_generation_importing">Szukanie Lossless Scaling…</string>
+    <string name="settings_frame_generation_ready">Shadery Lossless Scaling gotowe.</string>
+    <string name="settings_frame_generation_imported">Zaimportowano z %1$s.</string>
+    <string name="settings_frame_generation_not_found">Nie znaleziono Lossless Scaling. Zainstaluj je ze Steam i otwórz ten ekran ponownie, aby zaimportować je automatycznie.</string>
+    <string name="settings_frame_generation_failed">Znaleziono Lossless.dll, ale nie udało się odczytać shaderów. Sprawdź pliki Steam i spróbuj ponownie.</string>
+    <string name="settings_frame_generation_updated">Zaktualizowano z %1$s.</string>
+    <string name="settings_frame_generation_not_owned">Generowanie klatek korzysta z shaderów Lossless Scaling. Kup je na Steam na zalogowanym koncie, aby to włączyć.</string>
+    <string name="settings_frame_generation_locate">Wybierz Lossless.dll…</string>
 </resources>
 

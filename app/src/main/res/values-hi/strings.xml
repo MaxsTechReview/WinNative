@@ -729,6 +729,7 @@
     <string name="session_drawer_color_profile_crt">CRT प्रभाव</string>
     <string name="session_drawer_calibrate_advanced">उन्नत कैलिब्रेशन</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_frame_gen">FPS</string>
     <string name="session_drawer_rail_label_gyro">Gyro</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">और</string>
@@ -2125,6 +2126,17 @@
     <string name="retro_scr_credits_desc">WinNative की कुछ सुविधाएँ इन ओपन-सोर्स परियोजनाओं पर आधारित हैं. प्रत्येक स्रोत देखने के लिए टैप करें.</string>
     <string name="retro_scr_tab_defaults">डिफ़ॉल्ट</string>
     <string name="retro_scr_tab_credits">क्रेडिट</string>
+    <string name="settings_support_title">सहायता</string>
+    <string name="support_heading">मदद पाएँ</string>
+    <string name="support_desc">सवाल पूछें, समस्याएँ बताएँ, या देखें कि किस पर काम हो रहा है। हर लिंक आपके ब्राउज़र में खुलता है।</string>
+    <string name="support_winnative_discord_desc">Discord • सहायता और विकास</string>
+    <string name="support_maxstechreview_discord_desc">Discord • समुदाय</string>
+    <string name="support_youtube_desc">YouTube • गाइड और अपडेट</string>
+    <string name="support_reddit_desc">Reddit • समुदाय</string>
+    <string name="support_winnative_discord">#WinNative</string>
+    <string name="support_maxstechreview_discord">#MaxsTechReview</string>
+    <string name="support_youtube">@MaxsTechReview</string>
+    <string name="support_reddit">r/EmulatorsForAndroid</string>
     <string name="retro_scr_enable_hardcore_title">हार्डकोर मोड सक्षम करें?</string>
     <string name="retro_scr_enable_hardcore_body">हार्डकोर मोड अभी गेम रीसेट करता है और सेव स्टेट लोड करना, फ़ास्ट फ़ॉरवर्ड, और चीट्स अक्षम कर देता है. कोई भी असहेजी प्रगति खो जाएगी. जारी रखें?</string>
     <string name="retro_scr_cancel">रद्द करें</string>
@@ -2430,4 +2442,36 @@
     <string name="retro_scr_consoles_verifying">डाउनलोड सत्यापित हो रहा है…</string>
     <string name="retro_scr_consoles_working">काम चल रहा है…</string>
     <string name="retro_tab_system">सिस्टम</string>
+    <string name="session_drawer_frame_generation">फ़्रेम जनरेशन</string>
+    <string name="session_drawer_frame_generation_enable">फ़्रेम जनरेट करें</string>
+    <string name="session_drawer_frame_generation_multiplier">गुणक</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">अनुकूली लक्ष्य</string>
+    <string name="session_drawer_frame_generation_target_off">स्थिर</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_note">Lossless Scaling से रेंडर किए गए फ़्रेमों के बीच इंटरपोलेट करता है। गति अधिक सहज, लेकिन इनपुट में एक अतिरिक्त फ़्रेम की देरी।</string>
+    <string name="session_drawer_frame_generation_target_note">स्थिर गुणक बनाए रखने के बजाय, केवल तभी लक्ष्य की ओर बढ़ता है जब इससे मापने योग्य लाभ हो।</string>
+    <string name="session_drawer_frame_generation_missing">फ़्रेम जनरेशन उपयोग करने के लिए कंटेनर सेटिंग्स में Lossless Scaling इंस्टॉल करें।</string>
+    <string name="frame_generation_preset">गुणवत्ता प्रीसेट</string>
+    <string name="frame_generation_preset_ultra_performance">अल्ट्रा प्रदर्शन</string>
+    <string name="frame_generation_preset_performance">प्रदर्शन</string>
+    <string name="frame_generation_preset_balanced">संतुलित</string>
+    <string name="frame_generation_preset_quality">गुणवत्ता</string>
+    <string name="frame_generation_preset_ultra_performance_short">अल्ट्रा</string>
+    <string name="frame_generation_preset_performance_short">प्रदर्शन</string>
+    <string name="frame_generation_preset_balanced_short">संतुलित</string>
+    <string name="frame_generation_preset_quality_short">गुणवत्ता</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">गति का अनुमान 40% रिज़ॉल्यूशन पर लगाया जाता है। गुणवत्ता की GPU लागत का लगभग 40%। तेज़ गति में महीन विवरण नरम हो जाते हैं।</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">गति का अनुमान 50% रिज़ॉल्यूशन पर लगाया जाता है। गुणवत्ता की GPU लागत का लगभग 46%, लगभग कोई दृश्य हानि नहीं।</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">गति का अनुमान 70% रिज़ॉल्यूशन पर लगाया जाता है। गुणवत्ता की GPU लागत का लगभग 61%। हैंडहेल्ड के लिए अनुशंसित।</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">गति का अनुमान पूर्ण रिज़ॉल्यूशन पर लगाया जाता है। सर्वाधिक लागत; इसे तभी उपयोग करें जब गेम के पास GPU क्षमता बची हो।</string>
+    <string name="settings_frame_generation_title">फ़्रेम जनरेशन</string>
+    <string name="settings_frame_generation_importing">Lossless Scaling खोजा जा रहा है…</string>
+    <string name="settings_frame_generation_ready">Lossless Scaling शेडर तैयार हैं।</string>
+    <string name="settings_frame_generation_imported">%1$s से आयात किया गया।</string>
+    <string name="settings_frame_generation_not_found">Lossless Scaling नहीं मिला। इसे Steam से इंस्टॉल करें और इसे स्वतः आयात करने के लिए यह स्क्रीन दोबारा खोलें।</string>
+    <string name="settings_frame_generation_failed">Lossless.dll मिली, लेकिन उसके शेडर पढ़े नहीं जा सके। Steam फ़ाइलें जाँचें और फिर कोशिश करें।</string>
+    <string name="settings_frame_generation_updated">%1$s से अपडेट किया गया।</string>
+    <string name="settings_frame_generation_not_owned">फ़्रेम जनरेशन Lossless Scaling के शेडर उपयोग करता है। इसे सक्षम करने के लिए साइन-इन खाते से Steam पर इसे खरीदें।</string>
+    <string name="settings_frame_generation_locate">Lossless.dll चुनें…</string>
 </resources>

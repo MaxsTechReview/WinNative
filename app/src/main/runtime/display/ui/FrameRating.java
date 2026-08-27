@@ -84,6 +84,7 @@ public class FrameRating extends LinearLayout implements Runnable {
   private final int C_CPU;
   private final int C_DIVISOR;
   private final int C_FPS_OK;
+  private final int C_FPS_GEN;
   private final int C_WARM;
   private final int C_HOT;
   private final int C_GPU;
@@ -128,6 +129,28 @@ public class FrameRating extends LinearLayout implements Runnable {
   public void setFrameObserver(FrameObserver observer) {
     this.frameObserver = observer;
   }
+
+  public interface OutputFrameSource {
+    long getPresentedFrameCount();
+
+    long getGeneratedFrameCount();
+  }
+
+  public void setOutputFrameSource(OutputFrameSource source) {
+    this.outputFrameSource = source;
+  }
+
+  public void setFrameGenerationActive(boolean active) {
+    if (this.frameGenActive == active) {
+      return;
+    }
+    this.frameGenActive = active;
+    synchronized (this) {
+      this.outputSamplesCount = 0;
+      this.outputFPS = 0.0f;
+      this.outputGenerating = false;
+    }
+  }
   private FrametimeGraphView graphView;
   private boolean isNativeActive;
   private boolean isStatsRunning;
@@ -142,6 +165,15 @@ public class FrameRating extends LinearLayout implements Runnable {
   private final long[] frameTimesNano = new long[MAX_FRAME_SAMPLES];
   private int frameTimesStart;
   private int frameTimesCount;
+  private volatile OutputFrameSource outputFrameSource;
+  private volatile boolean frameGenActive;
+  private volatile float outputFPS;
+  private volatile boolean outputGenerating;
+  private final long[] outputSampleNano = new long[MAX_OUTPUT_SAMPLES];
+  private final long[] outputSampleTotal = new long[MAX_OUTPUT_SAMPLES];
+  private final long[] outputSampleGenerated = new long[MAX_OUTPUT_SAMPLES];
+  private int outputSamplesStart;
+  private int outputSamplesCount;
   private String rendererName;
   private String gpuName;
   private final View sep0, sep1, sep2, sep3, sep4, sep5, sep6;
@@ -169,6 +201,9 @@ public class FrameRating extends LinearLayout implements Runnable {
   private static final long HUD_REFRESH_MS = 500L;
   private static final long CPU_WARMUP_POLL_MS = 500L;
   private static final int MAX_FRAME_SAMPLES = 1024;
+  private static final int MAX_OUTPUT_SAMPLES = 8;
+  private static final long OUTPUT_WINDOW_NS = 1000000000L;
+  private static final long OUTPUT_MIN_SPAN_NS = 250000000L;
 
   // ── Tap-cycle display modes ──────────────────────────────────────
   // 0/1 horizontal (no-backdrop/backdrop), 2/3 vertical (no-backdrop/backdrop)
@@ -244,6 +279,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.C_CPU_TEMP = Color.parseColor("#9E9E9E");
     this.C_GPU = Color.parseColor("#E040FB");
     this.C_FPS_OK = Color.parseColor("#76FF03");
+    this.C_FPS_GEN = Color.parseColor("#00E5FF");
     this.C_WARM = Color.parseColor("#FFC107"); // TMP value when battery is warm (40-44C)
     this.C_HOT = Color.parseColor("#FF1744"); // TMP value when battery is hot (>=45C)
     this.C_DIVISOR = Color.parseColor("#616161");
@@ -1187,6 +1223,9 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.frameTimesCount = 0;
     this.lastFPS = 0.0f;
     this.currentMs = 0.0f;
+    this.outputSamplesCount = 0;
+    this.outputFPS = 0.0f;
+    this.outputGenerating = false;
     post(this);
   }
 
@@ -1426,6 +1465,55 @@ public class FrameRating extends LinearLayout implements Runnable {
     }
   }
 
+  private boolean showOutputFps() {
+    return this.frameGenActive && this.outputGenerating && this.outputFPS > 0.0f;
+  }
+
+  private void sampleOutputFramesLocked(long nowNano) {
+    OutputFrameSource source = this.outputFrameSource;
+    if (!this.frameGenActive || source == null) {
+      this.outputSamplesCount = 0;
+      this.outputFPS = 0.0f;
+      this.outputGenerating = false;
+      return;
+    }
+
+    long total = source.getPresentedFrameCount();
+    long generated = source.getGeneratedFrameCount();
+    int index = (this.outputSamplesStart + this.outputSamplesCount) % MAX_OUTPUT_SAMPLES;
+    if (this.outputSamplesCount == MAX_OUTPUT_SAMPLES) {
+      this.outputSamplesStart = (this.outputSamplesStart + 1) % MAX_OUTPUT_SAMPLES;
+      index = (this.outputSamplesStart + this.outputSamplesCount - 1) % MAX_OUTPUT_SAMPLES;
+    } else {
+      this.outputSamplesCount++;
+    }
+    this.outputSampleNano[index] = nowNano;
+    this.outputSampleTotal[index] = total;
+    this.outputSampleGenerated[index] = generated;
+
+    if (this.outputSamplesCount < 2) {
+      return;
+    }
+
+    int baseline = this.outputSamplesStart;
+    for (int i = 0; i < this.outputSamplesCount - 1; i++) {
+      int candidate = (this.outputSamplesStart + i) % MAX_OUTPUT_SAMPLES;
+      if (nowNano - this.outputSampleNano[candidate] >= OUTPUT_WINDOW_NS) {
+        baseline = candidate;
+      } else {
+        break;
+      }
+    }
+
+    long elapsedNano = nowNano - this.outputSampleNano[baseline];
+    long frames = total - this.outputSampleTotal[baseline];
+    if (elapsedNano < OUTPUT_MIN_SPAN_NS || frames < 0) {
+      return;
+    }
+    this.outputFPS = (frames * 1000000000.0f) / elapsedNano;
+    this.outputGenerating = generated > this.outputSampleGenerated[baseline];
+  }
+
   private void updateRollingFpsLocked() {
     if (this.frameTimesCount <= 1) {
       this.lastFPS = 0.0f;
@@ -1633,6 +1721,7 @@ public class FrameRating extends LinearLayout implements Runnable {
       // Moved off the present path: maintain the 1s rolling window at display cadence.
       trimFrameTimesLocked(nowNano - FPS_CALC_INTERVAL_NS);
       updateRollingFpsLocked();
+      sampleOutputFramesLocked(nowNano);
     }
     if (this.lastFrameNano > 0 && nowNano - this.lastFrameNano > 1500000000L) {
       synchronized (this) {
@@ -1640,13 +1729,17 @@ public class FrameRating extends LinearLayout implements Runnable {
         this.currentMs = 0.0f;
         this.frameTimesStart = 0;
         this.frameTimesCount = 0;
+        this.outputSamplesCount = 0;
+        this.outputFPS = 0.0f;
+        this.outputGenerating = false;
       }
     }
     // Feed the phone gauge HUD (single source of truth) even while the on-screen overlay is hidden.
     com.winlator.cmod.runtime.display.PerformanceHudState.updateValues(
         this.lastFPS, this.currentMs, this.gpuLoad, this.cpuPercent, ramPercentValue(),
         (this.dualSeriesBattery && this.batteryWatts >= 0.0f) ? this.batteryWatts * 2.0f : this.batteryWatts,
-        this.cpuTemp, this.rendererName != null ? this.rendererName : "");
+        this.cpuTemp, this.rendererName != null ? this.rendererName : "",
+        showOutputFps() ? this.outputFPS : 0.0f);
     if (getVisibility() != View.VISIBLE) return;
 
     if (this.enableGpu && this.tvGpuLoad != null) {
@@ -1736,8 +1829,16 @@ public class FrameRating extends LinearLayout implements Runnable {
     }
 
     if (this.enableFps && this.tvFpsBig != null) {
-      this.tvFpsBig.setText(String.format(Locale.US, "%.0f", this.lastFPS));
       this.tvFpsBig.setTextColor(this.C_FPS_OK);
+      if (showOutputFps()) {
+        SpannableStringBuilder b = new SpannableStringBuilder();
+        append(b, String.format(Locale.US, "%.0f", this.lastFPS), this.C_FPS_OK);
+        append(b, " → ", this.C_DIVISOR);
+        append(b, String.format(Locale.US, "%.0f", this.outputFPS), this.C_FPS_GEN);
+        this.tvFpsBig.setText(b);
+      } else {
+        this.tvFpsBig.setText(String.format(Locale.US, "%.0f", this.lastFPS));
+      }
       this.tvFpsBig.setVisibility(View.VISIBLE);
     } else if (this.tvFpsBig != null) this.tvFpsBig.setVisibility(View.GONE);
 

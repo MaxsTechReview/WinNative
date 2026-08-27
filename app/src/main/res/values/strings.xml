@@ -765,6 +765,38 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_upscaler_mode">Upscaler</string>
     <string name="session_drawer_upscaler_fsr">SGSR 1</string>
     <string name="session_drawer_sgsr_edge_sharpness">Edge Sharpness</string>
+    <string name="session_drawer_frame_generation">Frame Generation</string>
+    <string name="session_drawer_frame_generation_enable">Generate Frames</string>
+    <string name="session_drawer_frame_generation_multiplier">Multiplier</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">Adaptive Target</string>
+    <string name="session_drawer_frame_generation_target_off">Fixed</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="frame_generation_preset">Quality Preset</string>
+    <string name="frame_generation_preset_ultra_performance">Ultra Performance</string>
+    <string name="frame_generation_preset_performance">Performance</string>
+    <string name="frame_generation_preset_balanced">Balanced</string>
+    <string name="frame_generation_preset_quality">Quality</string>
+    <string name="frame_generation_preset_ultra_performance_short">Ultra</string>
+    <string name="frame_generation_preset_performance_short">Perf</string>
+    <string name="frame_generation_preset_balanced_short">Balanced</string>
+    <string name="frame_generation_preset_quality_short">Quality</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">Motion estimated at 40% resolution. Around 40% of Quality\'s GPU cost. Fine detail softens during fast motion.</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">Motion estimated at 50% resolution. Around 46% of Quality\'s GPU cost, with almost no visible loss.</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">Motion estimated at 70% resolution. Around 61% of Quality\'s GPU cost. Recommended for handhelds.</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">Motion estimated at full resolution. Highest cost; use it only when the game has GPU headroom to spare.</string>
+    <string name="session_drawer_frame_generation_note">Interpolates between rendered frames with Lossless Scaling. Smoother motion, but one extra frame of input latency.</string>
+    <string name="session_drawer_frame_generation_target_note">Climbs toward the target only while it measurably helps, instead of holding a fixed multiplier.</string>
+    <string name="session_drawer_frame_generation_missing">Install Lossless Scaling in container settings to use frame generation.</string>
+    <string name="settings_frame_generation_title">Frame Generation</string>
+    <string name="settings_frame_generation_importing">Looking for Lossless Scaling…</string>
+    <string name="settings_frame_generation_ready">Lossless Scaling shaders ready.</string>
+    <string name="settings_frame_generation_imported">Imported from %1$s.</string>
+    <string name="settings_frame_generation_not_found">Lossless Scaling was not found. Install it from Steam and reopen this screen to import it automatically.</string>
+    <string name="settings_frame_generation_failed">Lossless.dll was found but its shaders could not be read. Verify the Steam files and try again.</string>
+    <string name="settings_frame_generation_updated">Updated from %1$s.</string>
+    <string name="settings_frame_generation_not_owned">Frame generation uses shaders from Lossless Scaling. Buy it on Steam with the signed-in account to enable this.</string>
+    <string name="settings_frame_generation_locate">Select Lossless.dll…</string>
     <string name="session_drawer_vivid">Vivid</string>
     <string name="session_drawer_vivid_strength">Vivid Strength</string>
     <string name="session_drawer_color_profile">Color Effect</string>
@@ -873,6 +905,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_reset_effects">Reset effects</string>
     <string name="session_drawer_calibrate_advanced">Advanced calibration</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_frame_gen">FPS</string>
     <string name="session_drawer_rail_label_gyro">Gyro</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_output">Output</string>
@@ -2329,6 +2362,17 @@ Installed path:
     <string name="retro_scr_credits_desc">Some of WinNative\'s features are built on these open-source projects. Tap to view each source.</string>
     <string name="retro_scr_tab_defaults">Defaults</string>
     <string name="retro_scr_tab_credits">Credits</string>
+    <string name="settings_support_title">Support</string>
+    <string name="support_heading">GET HELP</string>
+    <string name="support_desc">Ask questions, report problems, or see what is being worked on. Each opens in your browser.</string>
+    <string name="support_winnative_discord">#WinNative</string>
+    <string name="support_winnative_discord_desc">Discord • support and development</string>
+    <string name="support_maxstechreview_discord">#MaxsTechReview</string>
+    <string name="support_maxstechreview_discord_desc">Discord • community</string>
+    <string name="support_youtube">@MaxsTechReview</string>
+    <string name="support_youtube_desc">YouTube • guides and updates</string>
+    <string name="support_reddit">r/EmulatorsForAndroid</string>
+    <string name="support_reddit_desc">Reddit • community</string>
     <string name="retro_scr_enable_hardcore_title">Enable Hardcore mode?</string>
     <string name="retro_scr_enable_hardcore_body">Hardcore mode resets the game now and disables loading save states, fast forward, and cheats. Any unsaved progress will be lost. Continue?</string>
     <string name="retro_scr_cancel">Cancel</string>

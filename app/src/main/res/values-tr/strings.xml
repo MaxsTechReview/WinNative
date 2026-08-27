@@ -834,6 +834,7 @@ E.g. <b>META</b> için <i>META tuşu</i>, \n
     <string name="session_drawer_reset_effects">Efektleri sıfırla</string>
     <string name="session_drawer_calibrate_advanced">Gelişmiş kalibrasyon</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_frame_gen">FPS</string>
     <string name="session_drawer_rail_label_gyro">Jiro</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_output">Çıkış</string>
@@ -2188,6 +2189,17 @@ Yüklü konum:
     <string name="retro_scr_credits_desc">WinNative\'in bazı özellikleri bu açık kaynaklı projeler üzerine kuruludur. Her kaynağı görüntülemek için dokunun.</string>
     <string name="retro_scr_tab_defaults">Varsayılanlar</string>
     <string name="retro_scr_tab_credits">Katkıda Bulunanlar</string>
+    <string name="settings_support_title">Destek</string>
+    <string name="support_heading">YARDIM AL</string>
+    <string name="support_desc">Soru sorun, sorun bildirin veya nelerin üzerinde çalışıldığını görün. Her bağlantı tarayıcınızda açılır.</string>
+    <string name="support_winnative_discord_desc">Discord • destek ve geliştirme</string>
+    <string name="support_maxstechreview_discord_desc">Discord • topluluk</string>
+    <string name="support_youtube_desc">YouTube • rehberler ve güncellemeler</string>
+    <string name="support_reddit_desc">Reddit • topluluk</string>
+    <string name="support_winnative_discord">#WinNative</string>
+    <string name="support_maxstechreview_discord">#MaxsTechReview</string>
+    <string name="support_youtube">@MaxsTechReview</string>
+    <string name="support_reddit">r/EmulatorsForAndroid</string>
     <string name="retro_scr_enable_hardcore_title">Hardcore modu etkinleştirilsin mi?</string>
     <string name="retro_scr_enable_hardcore_body">Hardcore modu oyunu şimdi sıfırlar ve durum kaydı yükleme, ileri sarma ile hileleri devre dışı bırakır. Kaydedilmemiş tüm ilerleme kaybolur. Devam edilsin mi?</string>
     <string name="retro_scr_cancel">İptal</string>
@@ -2493,4 +2505,36 @@ Yüklü konum:
     <string name="retro_scr_consoles_verifying">İndirme doğrulanıyor…</string>
     <string name="retro_scr_consoles_working">Çalışıyor…</string>
     <string name="retro_tab_system">Sistem</string>
+    <string name="session_drawer_frame_generation">Kare üretimi</string>
+    <string name="session_drawer_frame_generation_enable">Kare üret</string>
+    <string name="session_drawer_frame_generation_multiplier">Çarpan</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">Uyarlanabilir hedef</string>
+    <string name="session_drawer_frame_generation_target_off">Sabit</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_note">Lossless Scaling ile işlenmiş kareler arasında ara kare üretir. Daha akıcı hareket, ancak bir kare fazladan giriş gecikmesi.</string>
+    <string name="session_drawer_frame_generation_target_note">Sabit bir çarpanı korumak yerine, yalnızca ölçülebilir fayda sağladığı sürece hedefe doğru yükselir.</string>
+    <string name="session_drawer_frame_generation_missing">Kare üretimini kullanmak için kapsayıcı ayarlarından Lossless Scaling\'i yükleyin.</string>
+    <string name="frame_generation_preset">Kalite ön ayarı</string>
+    <string name="frame_generation_preset_ultra_performance">Ultra performans</string>
+    <string name="frame_generation_preset_performance">Performans</string>
+    <string name="frame_generation_preset_balanced">Dengeli</string>
+    <string name="frame_generation_preset_quality">Kalite</string>
+    <string name="frame_generation_preset_ultra_performance_short">Ultra</string>
+    <string name="frame_generation_preset_performance_short">Perf.</string>
+    <string name="frame_generation_preset_balanced_short">Dengeli</string>
+    <string name="frame_generation_preset_quality_short">Kalite</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">Hareket %40 çözünürlükte hesaplanır. Kalite modunun GPU maliyetinin yaklaşık %40\'ı. Hızlı harekette ince ayrıntılar yumuşar.</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">Hareket %50 çözünürlükte hesaplanır. Kalite modunun GPU maliyetinin yaklaşık %46\'sı, neredeyse görünür kayıp olmadan.</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">Hareket %70 çözünürlükte hesaplanır. Kalite modunun GPU maliyetinin yaklaşık %61\'i. El konsolları için önerilir.</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">Hareket tam çözünürlükte hesaplanır. En yüksek maliyet; yalnızca oyunun GPU payı varken kullanın.</string>
+    <string name="settings_frame_generation_title">Kare üretimi</string>
+    <string name="settings_frame_generation_importing">Lossless Scaling aranıyor…</string>
+    <string name="settings_frame_generation_ready">Lossless Scaling gölgelendiricileri hazır.</string>
+    <string name="settings_frame_generation_imported">%1$s kaynağından içe aktarıldı.</string>
+    <string name="settings_frame_generation_not_found">Lossless Scaling bulunamadı. Steam üzerinden yükleyin ve otomatik olarak içe aktarmak için bu ekranı yeniden açın.</string>
+    <string name="settings_frame_generation_failed">Lossless.dll bulundu ancak gölgelendiricileri okunamadı. Steam dosyalarını doğrulayıp tekrar deneyin.</string>
+    <string name="settings_frame_generation_updated">%1$s kaynağından güncellendi.</string>
+    <string name="settings_frame_generation_not_owned">Kare üretimi Lossless Scaling gölgelendiricilerini kullanır. Bunu etkinleştirmek için oturum açmış hesapla Steam\'den satın alın.</string>
+    <string name="settings_frame_generation_locate">Lossless.dll seç…</string>
 </resources>

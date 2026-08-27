@@ -35,6 +35,14 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
     private long nextContinuousFrameNs;
     private int renderMode = RENDERMODE_WHEN_DIRTY;
 
+    private static final int REASON_REQUESTED = 0;
+    private static final int REASON_CONTINUOUS = 1;
+    private static final int REASON_TRANSIENT_REQ = 2;
+    private static final int REASON_TRANSIENT_ACTIVE = 3;
+    private final int[] drawReasonCounts = new int[4];
+    private int drawReasonTotal;
+    private long drawReasonStartNs;
+
     private volatile int width;
     private volatile int height;
 
@@ -192,6 +200,7 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
         while (true) {
             Runnable event = null;
             boolean draw = false;
+            int reason = 0;
             synchronized (renderLock) {
                 while (true) {
                     if (!running) break;
@@ -211,6 +220,7 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
 
                     if (renderRequested) {
                         draw = true;
+                        reason = REASON_REQUESTED;
                         renderRequested = false;
                         transientRenderRequested = false;
                         if (!transientActive) nextContinuousFrameNs = 0;
@@ -219,6 +229,7 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
 
                     if (renderMode == RENDERMODE_CONTINUOUSLY) {
                         draw = true;
+                        reason = REASON_CONTINUOUS;
                         transientRenderRequested = false;
                         nextContinuousFrameNs = 0;
                         break;
@@ -226,6 +237,7 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
 
                     if (transientRenderRequested) {
                         draw = true;
+                        reason = REASON_TRANSIENT_REQ;
                         transientRenderRequested = false;
                         nextContinuousFrameNs = now + TRANSIENT_FRAME_INTERVAL_NS;
                         break;
@@ -234,6 +246,7 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
                     if (transientActive) {
                         if (nextContinuousFrameNs == 0 || now >= nextContinuousFrameNs) {
                             draw = true;
+                            reason = REASON_TRANSIENT_ACTIVE;
                             nextContinuousFrameNs = now + TRANSIENT_FRAME_INTERVAL_NS;
                             break;
                         }
@@ -245,6 +258,7 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
                     try { renderLock.wait(); } catch (InterruptedException ignore) {}
                 }
             }
+            if (draw) countDrawReason(reason);
             if (!running) break;
             if (event != null) {
                 try { event.run(); } catch (Throwable ignore) {}
@@ -253,6 +267,21 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
             }
         }
         renderer.onSurfaceDestroyed();
+    }
+
+    private void countDrawReason(int reason) {
+        drawReasonCounts[reason]++;
+        if (++drawReasonTotal < 600) return;
+        long nowNs = System.nanoTime();
+        float seconds = drawReasonStartNs == 0 ? 0f : (nowNs - drawReasonStartNs) / 1e9f;
+        drawReasonStartNs = nowNs;
+        android.util.Log.i("VkRenderer", String.format(
+                "draw reasons over %.1fs: requested=%d continuous=%d transientReq=%d transientActive=%d guestPresents=%d coalesced:%s",
+                seconds, drawReasonCounts[REASON_REQUESTED], drawReasonCounts[REASON_CONTINUOUS],
+                drawReasonCounts[REASON_TRANSIENT_REQ], drawReasonCounts[REASON_TRANSIENT_ACTIVE],
+                renderer.takeGuestPresentDelta(), renderer.takeWakeBreakdown()));
+        java.util.Arrays.fill(drawReasonCounts, 0);
+        drawReasonTotal = 0;
     }
 
     private void waitNanosLocked(long nanos) {

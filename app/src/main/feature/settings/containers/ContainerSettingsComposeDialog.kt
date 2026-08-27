@@ -560,6 +560,14 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         state.surfaceEffectEntries.value = surfaceEffectArr
         state.selectedSurfaceEffect.intValue = if (c?.getExtra("swapRB", "0") == "1") 1 else 0
 
+        state.frameGenEnabled.value = c?.getExtra("frameGen", "0") == "1"
+        state.frameGenMultiplier.intValue =
+            c?.getExtra("frameGenMultiplier", "2")?.toIntOrNull()?.coerceIn(2, 4) ?: 2
+        state.frameGenTargetRate.intValue =
+            c?.getExtra("frameGenTargetRate", "0")?.toIntOrNull()?.coerceAtLeast(0) ?: 0
+        state.frameGenFlowScale.intValue =
+            c?.getExtra("frameGenFlowScale", "70")?.toIntOrNull()?.coerceIn(25, 100) ?: 70
+
         // init() migrates a legacy single reshadeEffect / flat reshadeParams into the loadout model
         val reshadeEffects = com.winlator.cmod.runtime.reshade.ReshadeManager.scanEffects(context)
         state.reshadeEffects.value = reshadeEffects
@@ -841,6 +849,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             c.setDXWrapperConfig(dxwrapperConfig)
             c.putExtra("swapRB", if (state.selectedSurfaceEffect.intValue == 1) "1" else "0")
             c.putExtra("refreshRate", getRefreshRateFromState())
+            writeFrameGenExtras(c)
             run {
                 // reshadeEffect stays coherent (= first effect) for legacy readers; all null when empty
                 val loadoutJson = state.reshadeLoadout.loadoutJsonOrNull()
@@ -931,6 +940,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                             if (state.selectedSurfaceEffect.intValue == 1) "1" else "0"
                         )
                         getRefreshRateFromState()?.let { newContainer.putExtra("refreshRate", it) }
+                        writeFrameGenExtras(newContainer)
                         newContainer.setZinkMode(if (state.selectedZinkMode.intValue == 1) "windows" else "unix")
                         newContainer.saveData()
                         saveMouseWarpOverride(newContainer)
@@ -969,6 +979,13 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         return installedProfiles.firstOrNull()
             ?.let(ContentsManager::getEntryName)
             ?: WineInfo.MAIN_WINE_VERSION.identifier()
+    }
+
+    private fun writeFrameGenExtras(c: Container) {
+        c.putExtra("frameGen", if (state.frameGenEnabled.value) "1" else "0")
+        c.putExtra("frameGenMultiplier", state.frameGenMultiplier.intValue.coerceIn(2, 4).toString())
+        c.putExtra("frameGenTargetRate", state.frameGenTargetRate.intValue.coerceAtLeast(0).toString())
+        c.putExtra("frameGenFlowScale", state.frameGenFlowScale.intValue.coerceIn(25, 100).toString())
     }
 
     private fun saveMouseWarpOverride(c: Container) {

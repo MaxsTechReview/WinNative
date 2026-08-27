@@ -29,6 +29,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /** Native Vulkan compositor: owns the C-side renderer handle and pushes a scene snapshot per frame. */
 public class VulkanRenderer
@@ -67,7 +68,7 @@ public class VulkanRenderer
 
     public void setSwapRB(boolean v) {
         this.swapRB = v;
-        requestRenderCoalesced();
+        requestRenderCoalesced(WAKE_SETTING);
     }
     private boolean screenOffsetYRelativeToCursor = false;
     private String[] unviewableWMClasses = null;
@@ -83,7 +84,10 @@ public class VulkanRenderer
     public volatile int surfaceHeight;
     private boolean cpuSaverMode = false;
     private static final long CURSOR_ACTIVE_NS = 100_000_000L;
+    private static final long GUEST_ACTIVE_NS = 100_000_000L;
     private volatile long cursorActiveUntilNs = 0L;
+    private volatile long lastGuestPresentNs = 0L;
+    private long guestPresentMark = 0L;
 
     private static final int MAX_FPS_LIMIT = 1000;
     private volatile int currentFpsLimit = 0;
@@ -117,6 +121,8 @@ public class VulkanRenderer
             ByteBuffer.allocateDirect(SCENE_BUF_SIZE).order(ByteOrder.nativeOrder());
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final AtomicBoolean renderRequested = new AtomicBoolean(false);
+    private final AtomicLong sourceFrames = new AtomicLong();
+    private final AtomicLong presentFrames = new AtomicLong();
 
     // Reusable scratch — sized once, refilled per frame.
     private final float[] sceneXform = XForm.getInstance();
@@ -170,7 +176,67 @@ public class VulkanRenderer
     private volatile Choreographer mainChoreographer;
     private final Choreographer.FrameCallback coalescedRenderCallback;
 
+    public void onGuestFramePresented() {
+        presentFrames.incrementAndGet();
+        lastGuestPresentNs = System.nanoTime();
+    }
+
+    public void requestRenderImmediate() {
+        xServerView.requestRender();
+    }
+
+    public long takeGuestPresentDelta() {
+        long now = presentFrames.get();
+        long delta = now - guestPresentMark;
+        guestPresentMark = now;
+        return delta;
+    }
+
+    private boolean guestIsDrivingFrames() {
+        long last = lastGuestPresentNs;
+        return last != 0L && System.nanoTime() - last < GUEST_ACTIVE_NS;
+    }
+
+    public static final int WAKE_OTHER = 0;
+    public static final int WAKE_CONTENT = 1;
+    public static final int WAKE_GEOMETRY = 2;
+    public static final int WAKE_WINDOW = 3;
+    public static final int WAKE_CURSOR = 4;
+    public static final int WAKE_FRAME = 5;
+    public static final int WAKE_SUPPRESSED = 6;
+    public static final int WAKE_POINTER = 7;
+    public static final int WAKE_WINHANDLER = 8;
+    public static final int WAKE_INPUTVIEW = 9;
+    public static final int WAKE_SETTING = 10;
+    private final java.util.concurrent.atomic.AtomicLongArray wakeSources =
+            new java.util.concurrent.atomic.AtomicLongArray(11);
+
+    public String takeWakeBreakdown() {
+        StringBuilder sb = new StringBuilder();
+        String[] names =
+                {"other", "content", "geometry", "window", "cursor", "frame", "suppressed",
+                 "pointer", "winhandler", "inputview", "setting"};
+        for (int i = 0; i < names.length; i++) {
+            sb.append(' ').append(names[i]).append('=').append(wakeSources.getAndSet(i, 0));
+        }
+        return sb.toString();
+    }
+
     public void requestRenderCoalesced() {
+        requestRenderCoalesced(WAKE_OTHER);
+    }
+
+    private static boolean isGuestRedundantWake(int source) {
+        return source == WAKE_CONTENT || source == WAKE_FRAME || source == WAKE_WINHANDLER
+                || source == WAKE_INPUTVIEW;
+    }
+
+    public void requestRenderCoalesced(int source) {
+        wakeSources.incrementAndGet(source);
+        if (isGuestRedundantWake(source) && guestIsDrivingFrames()) {
+            wakeSources.incrementAndGet(WAKE_SUPPRESSED);
+            return;
+        }
         if (renderRequested.compareAndSet(false, true)) {
             // Post directly (thread-safe): a handler hop arms past the next doFrame and halves the visible cursor rate.
             Choreographer choreographer = mainChoreographer;
@@ -216,6 +282,15 @@ public class VulkanRenderer
                 }
                 if (requestedScaleFilter != SCALE_FILTER_OFF) {
                     nativeSetScaleFilter(nativeHandle, requestedScaleFilter);
+                }
+                if (frameGenerationShaderCache != null) {
+                    nativeSetFrameGenerationShaders(nativeHandle, frameGenerationShaderCache);
+                }
+                nativeSetFrameGenerationMode(nativeHandle, frameGenerationMultiplier,
+                        frameGenerationTargetRate, frameGenerationFlowScale);
+                nativeSetFrameGenerationRefreshRate(nativeHandle, frameGenerationRefreshRate);
+                if (frameGenerationRequested) {
+                    nativeSetFrameGenerationEnabled(nativeHandle, true);
                 }
                 destroyed.set(false);
                 xServer.windowManager.addOnWindowModificationListener(this);
@@ -566,6 +641,8 @@ public class VulkanRenderer
         }
 
         nativeSetScene(nativeHandle, buf);
+        long presents = presentFrames.get();
+        nativeSetSourceFrameCount(nativeHandle, presents > 0 ? presents : sourceFrames.get());
         // nativeSetFpsLimit is a native no-op (pacing is done elsewhere); not called per frame.
         nativeRenderFrame(nativeHandle);
     }
@@ -575,24 +652,25 @@ public class VulkanRenderer
     @Override
     public void onMapWindow(Window window) {
         xServerView.queueEvent(this::updateScene);
-        requestRenderCoalesced();
+        requestRenderCoalesced(WAKE_WINDOW);
     }
 
     @Override
     public void onUnmapWindow(Window window) {
         xServerView.queueEvent(this::updateScene);
-        requestRenderCoalesced();
+        requestRenderCoalesced(WAKE_WINDOW);
     }
 
     @Override
     public void onChangeWindowZOrder(Window window) {
         xServerView.queueEvent(this::updateScene);
-        requestRenderCoalesced();
+        requestRenderCoalesced(WAKE_WINDOW);
     }
 
     @Override
     public void onUpdateWindowContent(Window window) {
-        requestRenderCoalesced();
+        sourceFrames.incrementAndGet();
+        requestRenderCoalesced(WAKE_CONTENT);
     }
 
     @Override
@@ -603,16 +681,21 @@ public class VulkanRenderer
             xServerView.queueEvent(() -> updateWindowPosition(window));
             xServerView.queueEvent(this::updateScene);
         }
-        requestRenderCoalesced();
+        requestRenderCoalesced(WAKE_GEOMETRY);
     }
 
     @Override
     public void onUpdateWindowAttributes(Window window, Bitmask mask) {
-        if (mask.isSet(WindowAttributes.FLAG_CURSOR)) requestRenderCoalesced();
+        if (mask.isSet(WindowAttributes.FLAG_CURSOR)) requestRenderCoalesced(WAKE_CURSOR);
     }
 
     public void requestCursorRender() {
         cursorActiveUntilNs = System.nanoTime() + CURSOR_ACTIVE_NS;
+        wakeSources.incrementAndGet(WAKE_POINTER);
+        if (guestIsDrivingFrames()) {
+            wakeSources.incrementAndGet(WAKE_SUPPRESSED);
+            return;
+        }
         xServerView.requestTransientRender(100);
     }
 
@@ -629,7 +712,7 @@ public class VulkanRenderer
     public void onFramePresented(Window window, WindowManager.FrameSource source, int serial) {
         // DRI3_BUFFER fires at pixmap allocation, not a visible change; the real present already wakes us. Skip it.
         if (source == WindowManager.FrameSource.DRI3_BUFFER) return;
-        requestRenderCoalesced();
+        requestRenderCoalesced(WAKE_FRAME);
     }
 
     private void updateScene() {
@@ -697,13 +780,13 @@ public class VulkanRenderer
                     viewTransformation.viewWidth + "x" + viewTransformation.viewHeight +
                     "@" + viewTransformation.viewOffsetX + "," + viewTransformation.viewOffsetY);
         }
-        requestRenderCoalesced();
+        requestRenderCoalesced(WAKE_SETTING);
     }
 
     public void toggleFullscreen() {
         fullscreen = !fullscreen;
         viewportNeedsUpdate = true;
-        requestRenderCoalesced();
+        requestRenderCoalesced(WAKE_SETTING);
     }
 
     public boolean isFullscreen() { return fullscreen; }
@@ -711,7 +794,7 @@ public class VulkanRenderer
     public void setCursorVisible(boolean v) {
         if (this.cursorVisible == v) return;
         this.cursorVisible = v;
-        requestRenderCoalesced();
+        requestRenderCoalesced(WAKE_SETTING);
     }
 
     public boolean isCursorVisible() { return cursorVisible; }
@@ -720,7 +803,7 @@ public class VulkanRenderer
 
     public void setScreenOffsetYRelativeToCursor(boolean v) {
         this.screenOffsetYRelativeToCursor = v;
-        requestRenderCoalesced();
+        requestRenderCoalesced(WAKE_SETTING);
     }
 
     public float getMagnifierZoom() { return magnifierZoom; }
@@ -730,7 +813,7 @@ public class VulkanRenderer
             this.magnifierZoom = v;
             magnifierPanInitialized = false;
         }
-        requestRenderCoalesced();
+        requestRenderCoalesced(WAKE_SETTING);
     }
 
     private void computeMagnifierPan(float[] outXForm) {
@@ -848,7 +931,7 @@ public class VulkanRenderer
             cpuSaverMode = enable;
             viewportNeedsUpdate = true;
             xServerView.setRenderMode(XServerSurfaceView.RENDERMODE_WHEN_DIRTY);
-            requestRenderCoalesced();
+            requestRenderCoalesced(WAKE_SETTING);
         }
     }
 
@@ -860,7 +943,7 @@ public class VulkanRenderer
         magnifierPanInitialized = false;
         viewportNeedsUpdate = true;
         xServerView.setRenderMode(XServerSurfaceView.RENDERMODE_WHEN_DIRTY);
-        requestRenderCoalesced();
+        requestRenderCoalesced(WAKE_SETTING);
     }
 
     public boolean isMagnifierUIActive() { return magnifierUIActive; }
@@ -882,6 +965,65 @@ public class VulkanRenderer
     public void setPresentMode(int mode) {
         requestedPresentMode = mode;
         if (nativeHandle != 0) nativeSetPresentMode(nativeHandle, mode);
+    }
+
+    private boolean frameGenerationRequested = false;
+    private String frameGenerationShaderCache = null;
+    private int frameGenerationMultiplier = 2;
+    private int frameGenerationTargetRate = 0;
+    private int frameGenerationFlowScale = 70;
+    private float frameGenerationRefreshRate = 0f;
+
+    public void setFrameGenerationEnabled(boolean enabled) {
+        frameGenerationRequested = enabled;
+        if (nativeHandle != 0) nativeSetFrameGenerationEnabled(nativeHandle, enabled);
+    }
+
+    public void setFrameGenerationShaders(String cachePath) {
+        if (java.util.Objects.equals(frameGenerationShaderCache, cachePath)) return;
+        frameGenerationShaderCache = cachePath;
+        if (nativeHandle != 0) nativeSetFrameGenerationShaders(nativeHandle, cachePath);
+    }
+
+    public void setFrameGenerationMode(int multiplier, int targetRate, int flowScalePercent) {
+        int wantMultiplier = Math.max(2, multiplier);
+        int wantTargetRate = Math.max(0, targetRate);
+        int wantFlowScale = flowScalePercent <= 0 ? 70 : flowScalePercent;
+        if (wantMultiplier == frameGenerationMultiplier
+                && wantTargetRate == frameGenerationTargetRate
+                && wantFlowScale == frameGenerationFlowScale) {
+            return;
+        }
+        frameGenerationMultiplier = wantMultiplier;
+        frameGenerationTargetRate = wantTargetRate;
+        frameGenerationFlowScale = wantFlowScale;
+        if (nativeHandle != 0) {
+            nativeSetFrameGenerationMode(nativeHandle, frameGenerationMultiplier,
+                    frameGenerationTargetRate, frameGenerationFlowScale);
+        }
+    }
+
+    public void setFrameGenerationRefreshRate(float refreshRate) {
+        frameGenerationRefreshRate = refreshRate > 0f ? refreshRate : 0f;
+        if (nativeHandle != 0) {
+            nativeSetFrameGenerationRefreshRate(nativeHandle, frameGenerationRefreshRate);
+        }
+    }
+
+    public boolean isFrameGenerationRequested() {
+        return frameGenerationRequested;
+    }
+
+    public boolean isFrameGenerationSupported() {
+        return nativeHandle != 0 && nativeIsFrameGenerationSupported(nativeHandle);
+    }
+
+    public long getGeneratedFrameCount() {
+        return nativeHandle != 0 ? nativeGetGeneratedFrameCount(nativeHandle) : 0L;
+    }
+
+    public long getPresentedFrameCount() {
+        return nativeHandle != 0 ? nativeGetPresentedFrameCount(nativeHandle) : 0L;
     }
 
     public static int parsePresentMode(String name) {
@@ -937,4 +1079,14 @@ public class VulkanRenderer
     private static native void nativeSetFpsLimit(long handle, int fps);
     private static native void nativeSetPresentMode(long handle, int mode);
     private static native void nativeSetScaleFilter(long handle, int mode);
+    private static native void nativeSetFrameGenerationEnabled(long handle, boolean enabled);
+    private static native boolean nativeIsFrameGenerationSupported(long handle);
+    private static native void nativeSetFrameGenerationShaders(long handle, String cachePath);
+    private static native void nativeSetSourceFrameCount(long handle, long count);
+    private static native void nativeSetFrameGenerationRefreshRate(long handle, float hz);
+    private static native void nativeSetFrameGenerationMode(long handle, int multiplier,
+                                                            int targetRate,
+                                                            int flowScalePercent);
+    private static native long nativeGetGeneratedFrameCount(long handle);
+    private static native long nativeGetPresentedFrameCount(long handle);
 }

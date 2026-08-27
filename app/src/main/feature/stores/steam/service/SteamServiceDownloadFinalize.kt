@@ -142,6 +142,7 @@ import okhttp3.FormBody
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
+import com.winlator.cmod.feature.library.LosslessAutoImport
 import timber.log.Timber
 import java.io.File
 import java.io.IOException
@@ -530,6 +531,15 @@ internal suspend fun SteamService.Companion.completeAppDownload(
         downloadInfo.setActive(false)
         downloadInfo.updateStatus(DownloadPhase.COMPLETE)
         PluviaApp.events.emit(AndroidEvent.LibraryInstallStatusChanged(downloadInfo.gameId))
+
+        if (downloadInfo.gameId == LosslessAutoImport.STEAM_APP_ID) {
+            instance?.let { context ->
+                Thread {
+                    val outcome = runCatching { LosslessAutoImport.sync(context) }.getOrNull()
+                    Timber.i("Lossless Scaling finished downloading; shader import result=${outcome?.result}")
+                }.start()
+            }
+        }
 
         downloadInfo.clearPersistedBytesDownloaded(appDirPath, sync = true)
         // Notify the coordinator to advance the cross-store queue and persist COMPLETE.

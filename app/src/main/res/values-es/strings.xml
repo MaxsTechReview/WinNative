@@ -1138,6 +1138,7 @@ Ruta instalada:
     <string name="session_drawer_color_profile_crt">Efecto CRT</string>
     <string name="session_drawer_calibrate_advanced">Calibración avanzada</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_frame_gen">FPS</string>
     <string name="session_drawer_rail_label_gyro">Giro</string>
     <string name="session_drawer_rail_label_effects">FX</string>
     <string name="session_drawer_rail_label_apps">Más</string>
@@ -2189,6 +2190,17 @@ Ruta instalada:
     <string name="retro_scr_credits_desc">Algunas de las funciones de WinNative se basan en estos proyectos de código abierto. Toca para ver cada fuente.</string>
     <string name="retro_scr_tab_defaults">Predeterminados</string>
     <string name="retro_scr_tab_credits">Créditos</string>
+    <string name="settings_support_title">Soporte</string>
+    <string name="support_heading">OBTENER AYUDA</string>
+    <string name="support_desc">Haz preguntas, informa de problemas o mira en qué se está trabajando. Cada enlace se abre en tu navegador.</string>
+    <string name="support_winnative_discord_desc">Discord • soporte y desarrollo</string>
+    <string name="support_maxstechreview_discord_desc">Discord • comunidad</string>
+    <string name="support_youtube_desc">YouTube • guías y novedades</string>
+    <string name="support_reddit_desc">Reddit • comunidad</string>
+    <string name="support_winnative_discord">#WinNative</string>
+    <string name="support_maxstechreview_discord">#MaxsTechReview</string>
+    <string name="support_youtube">@MaxsTechReview</string>
+    <string name="support_reddit">r/EmulatorsForAndroid</string>
     <string name="retro_scr_enable_hardcore_title">¿Activar el modo Hardcore?</string>
     <string name="retro_scr_enable_hardcore_body">El modo Hardcore reinicia el juego ahora y desactiva la carga de estados guardados, el avance rápido y los trucos. Se perderá cualquier progreso sin guardar. ¿Continuar?</string>
     <string name="retro_scr_cancel">Cancelar</string>
@@ -2494,5 +2506,37 @@ Ruta instalada:
     <string name="retro_scr_consoles_verifying">Verificando la descarga…</string>
     <string name="retro_scr_consoles_working">Procesando…</string>
     <string name="retro_tab_system">Sistema</string>
+    <string name="session_drawer_frame_generation">Generación de fotogramas</string>
+    <string name="session_drawer_frame_generation_enable">Generar fotogramas</string>
+    <string name="session_drawer_frame_generation_multiplier">Multiplicador</string>
+    <string name="session_drawer_frame_generation_multiplier_value">%1$dx</string>
+    <string name="session_drawer_frame_generation_target">Objetivo adaptativo</string>
+    <string name="session_drawer_frame_generation_target_off">Fijo</string>
+    <string name="session_drawer_frame_generation_target_value">%1$d fps</string>
+    <string name="session_drawer_frame_generation_note">Interpola entre fotogramas renderizados con Lossless Scaling. Movimiento más fluido, pero un fotograma extra de latencia de entrada.</string>
+    <string name="session_drawer_frame_generation_target_note">Sube hacia el objetivo solo mientras ayude de forma medible, en lugar de mantener un multiplicador fijo.</string>
+    <string name="session_drawer_frame_generation_missing">Instala Lossless Scaling en los ajustes del contenedor para usar la generación de fotogramas.</string>
+    <string name="frame_generation_preset">Preajuste de calidad</string>
+    <string name="frame_generation_preset_ultra_performance">Ultra rendimiento</string>
+    <string name="frame_generation_preset_performance">Rendimiento</string>
+    <string name="frame_generation_preset_balanced">Equilibrado</string>
+    <string name="frame_generation_preset_quality">Calidad</string>
+    <string name="frame_generation_preset_ultra_performance_short">Ultra</string>
+    <string name="frame_generation_preset_performance_short">Rend.</string>
+    <string name="frame_generation_preset_balanced_short">Equilibrado</string>
+    <string name="frame_generation_preset_quality_short">Calidad</string>
+    <string name="frame_generation_preset_ultra_performance_note" formatted="false">El movimiento se calcula al 40 % de resolución. Alrededor del 40 % del coste de GPU de Calidad. El detalle fino se suaviza con el movimiento rápido.</string>
+    <string name="frame_generation_preset_performance_note" formatted="false">El movimiento se calcula al 50 % de resolución. Alrededor del 46 % del coste de GPU de Calidad, casi sin pérdida visible.</string>
+    <string name="frame_generation_preset_balanced_note" formatted="false">El movimiento se calcula al 70 % de resolución. Alrededor del 61 % del coste de GPU de Calidad. Recomendado para portátiles.</string>
+    <string name="frame_generation_preset_quality_note" formatted="false">El movimiento se calcula a resolución completa. Coste máximo; úsalo solo cuando el juego tenga GPU de sobra.</string>
+    <string name="settings_frame_generation_title">Generación de fotogramas</string>
+    <string name="settings_frame_generation_importing">Buscando Lossless Scaling…</string>
+    <string name="settings_frame_generation_ready">Sombreadores de Lossless Scaling listos.</string>
+    <string name="settings_frame_generation_imported">Importado desde %1$s.</string>
+    <string name="settings_frame_generation_not_found">No se encontró Lossless Scaling. Instálalo desde Steam y vuelve a abrir esta pantalla para importarlo automáticamente.</string>
+    <string name="settings_frame_generation_failed">Se encontró Lossless.dll, pero no se pudieron leer sus sombreadores. Verifica los archivos de Steam e inténtalo de nuevo.</string>
+    <string name="settings_frame_generation_updated">Actualizado desde %1$s.</string>
+    <string name="settings_frame_generation_not_owned">La generación de fotogramas usa sombreadores de Lossless Scaling. Cómpralo en Steam con la cuenta con la que has iniciado sesión para activarlo.</string>
+    <string name="settings_frame_generation_locate">Seleccionar Lossless.dll…</string>
 </resources>
 

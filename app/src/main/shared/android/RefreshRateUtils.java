@@ -226,7 +226,7 @@ public final class RefreshRateUtils {
     return fpsLimit;
   }
 
-  private static boolean isFrameCadenceCompatible(float refreshRate, int fpsLimit) {
+  public static boolean isFrameCadenceCompatible(float refreshRate, int fpsLimit) {
     if (refreshRate <= 0f || fpsLimit <= 0 || refreshRate < fpsLimit) {
       return false;
     }
