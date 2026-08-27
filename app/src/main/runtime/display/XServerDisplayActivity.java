@@ -2083,8 +2083,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                             if (activeProfile != null) showInputControls(activeProfile);
                             else startTouchscreenTimeout();
                         }
-                        String localeWarning = pendingLocaleManifestWarning.getAndSet(null);
-                        if (localeWarning != null) WinToast.show(XServerDisplayActivity.this, localeWarning);
+                        // Locale/codepage warning prompt removed per user request — do not show on screen.
+                        // String localeWarning = pendingLocaleManifestWarning.getAndSet(null);
+                        // if (localeWarning != null) WinToast.show(XServerDisplayActivity.this, localeWarning);
                     });
                     if (startFullscreenStretched) {
                         timeoutHandler.post(() -> {
