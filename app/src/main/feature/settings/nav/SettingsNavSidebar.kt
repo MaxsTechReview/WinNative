@@ -36,6 +36,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Extension
+import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.Memory
@@ -98,6 +99,7 @@ enum class NavSection {
     SYSTEM,
     TOOLS,
     CREDITS,
+    HELP,
 }
 
 enum class SettingsNavItem(
@@ -117,6 +119,7 @@ enum class SettingsNavItem(
     OTHER(R.id.main_menu_other, Icons.Outlined.Widgets, R.string.common_ui_other, NavSection.SYSTEM),
     DEBUG(R.id.main_menu_advanced, Icons.Outlined.BugReport, R.string.settings_debug_title, NavSection.TOOLS),
     CREDITS(R.id.main_menu_credits, Icons.Outlined.Info, R.string.retro_scr_tab_credits, NavSection.CREDITS),
+    SUPPORT(R.id.main_menu_support, Icons.Outlined.HelpOutline, R.string.settings_support_title, NavSection.HELP),
     ;
 
     companion object {

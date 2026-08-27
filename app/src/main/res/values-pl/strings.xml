@@ -2196,6 +2196,17 @@ Zainstalowana ścieżka:
     <string name="retro_scr_credits_desc">Niektóre funkcje WinNative są oparte na tych projektach open-source. Dotknij, aby zobaczyć każde źródło.</string>
     <string name="retro_scr_tab_defaults">Domyślne</string>
     <string name="retro_scr_tab_credits">Autorzy</string>
+    <string name="settings_support_title">Wsparcie</string>
+    <string name="support_heading">UZYSKAJ POMOC</string>
+    <string name="support_desc">Zadawaj pytania, zgłaszaj problemy lub sprawdź, nad czym trwają prace. Każdy odnośnik otwiera się w przeglądarce.</string>
+    <string name="support_winnative_discord_desc">Discord • wsparcie i rozwój</string>
+    <string name="support_maxstechreview_discord_desc">Discord • społeczność</string>
+    <string name="support_youtube_desc">YouTube • poradniki i nowości</string>
+    <string name="support_reddit_desc">Reddit • społeczność</string>
+    <string name="support_winnative_discord">#WinNative</string>
+    <string name="support_maxstechreview_discord">#MaxsTechReview</string>
+    <string name="support_youtube">@MaxsTechReview</string>
+    <string name="support_reddit">r/EmulatorsForAndroid</string>
     <string name="retro_scr_enable_hardcore_title">Włączyć tryb Hardcore?</string>
     <string name="retro_scr_enable_hardcore_body">Tryb Hardcore resetuje teraz grę i wyłącza wczytywanie stanów zapisu, przewijanie i kody. Wszelkie niezapisane postępy zostaną utracone. Kontynuować?</string>
     <string name="retro_scr_cancel">Anuluj</string>
