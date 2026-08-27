@@ -893,6 +893,9 @@ Por ejemplo, <b>META</b> para la <i>tecla META</i>, \n
     <string name="session_record_started">Grabación iniciada</string>
     <string name="session_record_saved">Grabación guardada en WinNative/Recordings</string>
     <string name="session_record_failed">No se pudo iniciar la grabación</string>
+    <string name="session_locale_manifest_embedded">Puede que la configuración regional (%1$s) no se aplique: este juego incluye su propio manifiesto</string>
+    <string name="session_locale_manifest_embedded_codepage">Configuración regional ignorada: este juego define su propia página de códigos (%1$s)</string>
+    <string name="session_locale_manifest_external">Configuración regional omitida: este juego incluye su propio archivo de manifiesto</string>
     <string name="session_record_settings_title">Ajustes de grabación</string>
     <string name="session_record_fps">Velocidad de fotogramas</string>
     <string name="session_record_resolution">Resolución</string>

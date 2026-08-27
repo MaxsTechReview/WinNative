@@ -893,6 +893,9 @@ T.ex. <b>META</b> för <i>META-tangent</i>, \n
     <string name="session_record_started">Inspelning startad</string>
     <string name="session_record_saved">Inspelning sparad i WinNative/Recordings</string>
     <string name="session_record_failed">Kunde inte starta inspelningen</string>
+    <string name="session_locale_manifest_embedded">Språköverstyrningen (%1$s) kanske inte tillämpas: spelet har ett eget manifest inbäddat</string>
+    <string name="session_locale_manifest_embedded_codepage">Språköverstyrningen ignorerades: spelet anger en egen teckentabell (%1$s)</string>
+    <string name="session_locale_manifest_external">Språköverstyrningen hoppades över: spelet levereras med en egen manifestfil</string>
     <string name="session_record_settings_title">Inspelningsinställningar</string>
     <string name="session_record_fps">Bildfrekvens</string>
     <string name="session_record_resolution">Upplösning</string>

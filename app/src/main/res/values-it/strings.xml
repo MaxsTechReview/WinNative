@@ -1616,6 +1616,9 @@ Percorso installato:
     <string name="cloud_saves_history_cloud_readonly">Sola lettura</string>
     <string name="session_drawer_rail_label_record">Registra</string>
     <string name="session_record_failed">Impossibile avviare la registrazione</string>
+    <string name="session_locale_manifest_embedded">L\'override della lingua (%1$s) potrebbe non essere applicato: questo gioco incorpora un proprio manifest</string>
+    <string name="session_locale_manifest_embedded_codepage">Override della lingua ignorato: questo gioco imposta la propria tabella codici (%1$s)</string>
+    <string name="session_locale_manifest_external">Override della lingua saltato: questo gioco include un proprio file manifest</string>
     <string name="session_record_fps">Frequenza fotogrammi</string>
     <string name="session_record_include_ui">Registra interfaccia</string>
     <string name="session_record_include_ui_subtitle">Includi HUD e controlli su schermo</string>

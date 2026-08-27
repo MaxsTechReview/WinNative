@@ -1622,6 +1622,9 @@
     <string name="cloud_saves_history_cloud_readonly">Лише читання</string>
     <string name="session_drawer_rail_label_record">Запис</string>
     <string name="session_record_failed">Не вдалося почати запис</string>
+    <string name="session_locale_manifest_embedded">Перевизначення локалі (%1$s) може не спрацювати: гра містить власний маніфест</string>
+    <string name="session_locale_manifest_embedded_codepage">Перевизначення локалі проігноровано: гра задає власну кодову сторінку (%1$s)</string>
+    <string name="session_locale_manifest_external">Перевизначення локалі пропущено: гра постачається з власним файлом маніфесту</string>
     <string name="session_record_fps">Частота кадрів</string>
     <string name="session_record_include_ui">Записувати інтерфейс</string>
     <string name="session_record_include_ui_subtitle">Включити HUD та екранні елементи керування</string>

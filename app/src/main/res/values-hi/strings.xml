@@ -1552,6 +1552,9 @@
     <string name="cloud_saves_history_cloud_readonly">केवल पढ़ने योग्य</string>
     <string name="session_drawer_rail_label_record">रिकॉर्ड करें</string>
     <string name="session_record_failed">रिकॉर्डिंग शुरू नहीं हो सकी</string>
+    <string name="session_locale_manifest_embedded">लोकेल ओवरराइड (%1$s) लागू नहीं हो सकता: यह गेम अपना स्वयं का मेनिफ़ेस्ट एम्बेड करता है</string>
+    <string name="session_locale_manifest_embedded_codepage">लोकेल ओवरराइड अनदेखा किया गया: यह गेम अपना स्वयं का कोड पेज सेट करता है (%1$s)</string>
+    <string name="session_locale_manifest_external">लोकेल ओवरराइड छोड़ा गया: यह गेम अपनी स्वयं की मेनिफ़ेस्ट फ़ाइल के साथ आता है</string>
     <string name="session_record_fps">फ़्रेम दर</string>
     <string name="session_record_include_ui">UI रिकॉर्ड करें</string>
     <string name="session_record_include_ui_subtitle">HUD और ऑन-स्क्रीन नियंत्रण शामिल करें</string>

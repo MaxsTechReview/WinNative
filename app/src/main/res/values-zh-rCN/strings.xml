@@ -1616,6 +1616,9 @@
     <string name="cloud_saves_history_cloud_readonly">只读</string>
     <string name="session_drawer_rail_label_record">录制</string>
     <string name="session_record_failed">无法开始录制</string>
+    <string name="session_locale_manifest_embedded">区域设置覆盖 (%1$s) 可能不会生效：此游戏内嵌了自己的清单</string>
+    <string name="session_locale_manifest_embedded_codepage">已忽略区域设置覆盖：此游戏指定了自己的代码页 (%1$s)</string>
+    <string name="session_locale_manifest_external">已跳过区域设置覆盖：此游戏自带清单文件</string>
     <string name="session_record_fps">帧率</string>
     <string name="session_record_include_ui">录制界面</string>
     <string name="session_record_include_ui_subtitle">包含 HUD 和屏幕控件</string>

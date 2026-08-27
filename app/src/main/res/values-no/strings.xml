@@ -893,6 +893,9 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_record_started">Opptak startet</string>
     <string name="session_record_saved">Opptak lagret i WinNative/Recordings</string>
     <string name="session_record_failed">Kunne ikke starte opptak</string>
+    <string name="session_locale_manifest_embedded">Overstyring av språk (%1$s) trer kanskje ikke i kraft: spillet har sitt eget manifest innebygd</string>
+    <string name="session_locale_manifest_embedded_codepage">Overstyring av språk ignorert: spillet angir sin egen tegntabell (%1$s)</string>
+    <string name="session_locale_manifest_external">Overstyring av språk hoppet over: spillet leveres med sin egen manifestfil</string>
     <string name="session_record_settings_title">Opptaksinnstillinger</string>
     <string name="session_record_fps">Bildefrekvens</string>
     <string name="session_record_resolution">Oppløsning</string>
