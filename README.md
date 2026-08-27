@@ -134,6 +134,43 @@ Please match the existing code style and ensure any AI-assisted code is thorough
 - **libretro / RetroArch** and the individual core authors, built from source: [FCEUmm](https://github.com/libretro/libretro-fceumm), [Snes9x](https://github.com/libretro/snes9x), [Gambatte](https://github.com/libretro/gambatte-libretro), [mGBA](https://github.com/libretro/mgba), [Genesis Plus GX](https://github.com/libretro/Genesis-Plus-GX), [Mupen64Plus-Next](https://github.com/libretro/mupen64plus-libretro-nx), [Beetle PSX](https://github.com/libretro/beetle-psx-libretro)
 - **ARMSX2** by the [ARMSX2](https://github.com/ARMSX2/ARMSX2) team (GPL-3.0) — the PlayStation 2 core, a fork of **[PCSX2](https://github.com/pcsx2/pcsx2)** (GPL-3.0), built from source into `libemucore`. PS2 online play uses PCSX2's DEV9 network adapter
 - **lsfg-vk** by [PancakeTAS](https://github.com/PancakeTAS/lsfg-vk) (GPL-3.0-or-later) — the original Vulkan reimplementation of the Lossless Scaling frame generation chain
-- **Eden Emulator Project** by the [eden](https://github.com/eden-emu/eden) team (GPL-3.0-or-later) — the Android port of that chain, which WinNative's compute passes derive from
+- **Eden Emulator Project** by the [eden](https://git.eden-emu.dev/eden-emu/eden) team (GPL-3.0-or-later) — the Vulkan port of that chain that WinNative's frame generation is derived from. See [Frame generation — what came from Eden](#frame-generation--what-came-from-eden) below
 - **DXVK** by [Philip Rebohle and contributors](https://github.com/doitsujin/dxvk) (zlib/libpng) — the `dxbc` shader translator, vendored at `app/src/main/cpp/thirdparty/dxbc` to convert the frame generation shaders to SPIR-V
 - **Lossless Scaling** (Steam) — the source of the frame generation shaders. They are read from the user's own installed copy at runtime; none are redistributed with WinNative
+
+#### Frame generation — what came from Eden
+
+WinNative's frame generation exists because the [Eden Emulator Project](https://git.eden-emu.dev/eden-emu/eden)
+had already solved the hard part: getting the Lossless Scaling compute chain running correctly
+on Vulkan, on mobile GPUs. The port here started from Eden's work and still carries it. Their
+copyright notices are preserved in every file that derives from them, under GPL-3.0-or-later.
+
+Derived from Eden (jointly with **[lsfg-vk](https://github.com/PancakeTAS/lsfg-vk)**, which Eden
+themselves ported from):
+
+| Source file | What it provides |
+| --- | --- |
+| `lsfg_chain.*` | The shape of the whole chain — which of the 25 shaders run, in what order, and what each stage feeds the next |
+| `lsfg_mipmaps.*` | The flow pyramid the rest of the chain is built on |
+| `lsfg_alpha.*` | Per-level feature extraction, including the batched-barrier dispatch pattern the rest of the chain follows |
+| `lsfg_beta.*` | The coarse flow estimate the refinement stages start from |
+| `lsfg_gamma.*` | Coarse-to-fine flow refinement, one instance per pyramid level |
+| `lsfg_delta.*` | The extra refinement and detail passes on the finest levels |
+| `lsfg_generate.*` | The final warp that produces the interpolated frame |
+| `lsfg_common.*` | The Vulkan plumbing all of the above sit on — image, sampler and buffer wrappers, the barrier builder, the descriptor writer, and the pass/pipeline helper |
+
+Derived from Eden specifically:
+
+| Source file | What it provides |
+| --- | --- |
+| `lsfg_pacer.*` | Deciding how many frames to generate per real frame |
+| `lsfg_shaders.*` | Turning the extracted shader blobs into Vulkan shader modules |
+
+Getting the descriptor layouts, barrier placement and dispatch geometry of a 25-shader chain
+right is not something you arrive at by reading the shaders; it is the part that takes the
+debugging. Eden did that work, and this port would not have been possible without it.
+
+What WinNative added on top is the Windows and Android side of it: reading the shader blobs out
+of a user's own Lossless Scaling install (`lsfg_dll.*`), translating them when only DXBC is
+available (`lsfg_dxbc.*`), the JNI surface (`lsfg_jni.*`), driver probing (`lsfg_probe.*`), and
+wiring the chain into WinNative's compositor and swapchain (`vkr_lsfg.*`).
