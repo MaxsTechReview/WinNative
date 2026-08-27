@@ -1092,12 +1092,7 @@ open class MainActivityRuntime : ComponentActivity() {
     }
 
     fun applyEmulationOrientation() {
-        requestedOrientation = when (prefs.getInt("ui.orientation", 0)) {
-            1 -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            2 -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
-            3 -> ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
-            else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-        }
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
     }
 
     private fun applyEdgeToEdge() {

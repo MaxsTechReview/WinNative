@@ -13,6 +13,7 @@
             android:process=":ps2"
             android:launchMode="singleTop"
             android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|uiMode|screenSize|smallestScreenSize"
+            android:screenOrientation="sensorLandscape"
             android:hardwareAccelerated="true"
             android:exported="false"
             android:resizeableActivity="false"
