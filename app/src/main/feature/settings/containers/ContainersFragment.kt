@@ -95,7 +95,12 @@ class ContainersFragment : Fragment() {
     private fun loadContainersList() {
         val context = context ?: return
         manager = ContainerManager(context)
-        screenState = screenState.copy(containers = manager.containers.toList())
+        screenState =
+            screenState.copy(
+                containers = manager.containers.toList(),
+                defaultX86ContainerId = SetupWizardActivity.getDefaultX86ContainerId(context),
+                defaultArm64ContainerId = SetupWizardActivity.getDefaultArm64ContainerId(context),
+            )
     }
 
     private fun openAddContainer() {
@@ -172,6 +177,7 @@ class ContainersFragment : Fragment() {
         } else {
             SetupWizardActivity.saveDefaultX86ContainerId(ctx, container.id)
         }
+        loadContainersList()
         val archLabel =
             if (isArm64) getString(R.string.container_config_arch_arm64)
             else getString(R.string.container_config_arch_x86_64)

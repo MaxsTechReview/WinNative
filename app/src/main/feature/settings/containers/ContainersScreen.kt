@@ -89,6 +89,8 @@ private const val ContainerCardAspect = 1.2f
 
 data class ContainersScreenState(
     val containers: List<Container> = emptyList(),
+    val defaultX86ContainerId: Int = 0,
+    val defaultArm64ContainerId: Int = 0,
     val dialog: ContainersDialogUiState = ContainersDialogUiState.None,
 )
 
@@ -204,6 +206,8 @@ fun ContainersScreen(
                                                     container = container,
                                                     navRow = gyBase,
                                                     navCol = gxBase,
+                                                    isDefault = container.id == state.defaultX86ContainerId ||
+                                                        container.id == state.defaultArm64ContainerId,
                                                     onRun = { onRunContainer(container) },
                                                     onEdit = { onEditContainer(container) },
                                                     onDuplicate = { onDuplicateContainer(container) },
@@ -405,6 +409,7 @@ private fun ContainerCard(
     onInstallComponents: () -> Unit,
     onRemove: () -> Unit,
     onShowInfo: () -> Unit,
+    isDefault: Boolean,
     onSetDefault: () -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -497,17 +502,40 @@ private fun ContainerCard(
                     .weight(1f),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = container.name,
-                color = ContainersTextPrimary,
-                fontSize = nameFontSize,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-            )
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = container.name,
+                    color = ContainersTextPrimary,
+                    fontSize = nameFontSize,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (isDefault) {
+                    Spacer(Modifier.height(4.dp))
+                    Box(
+                        modifier =
+                            Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(ContainersAccent.copy(alpha = 0.16f))
+                                .border(1.dp, ContainersAccent.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 8.dp, vertical = 2.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.containers_default_badge),
+                            color = ContainersAccent,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+            }
         }
 
         Row(
