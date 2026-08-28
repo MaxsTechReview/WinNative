@@ -103,7 +103,8 @@ private const val SettingsSliderTrackScaleY = 0.72f
 data class OtherSettingsState(
     val checkForUpdates: Boolean = true,
     val updateChannelIndex: Int = 0,
-    val downloadSourceBase: String = "",
+    val useChinaMirror: Boolean = false,
+    val chinaMirrorBase: String = com.winlator.cmod.shared.io.DownloadSource.DEFAULT_CHINA_MIRROR_BASE,
     val languageLabels: List<String> = emptyList(),
     val languageIndex: Int = 0,
     val soundFontFiles: List<String> = emptyList(),
@@ -148,7 +149,8 @@ fun OtherSettingsScreen(
     onCheckForUpdatesChanged: (Boolean) -> Unit,
     onCheckForUpdatesNow: () -> Unit,
     onUpdateChannelSelected: (Int) -> Unit,
-    onDownloadSourceBaseChanged: (String) -> Unit,
+    onChinaMirrorChanged: (Boolean) -> Unit,
+    onChinaMirrorBaseChanged: (String) -> Unit,
     onLanguageSelected: (Int) -> Unit,
     onSoundFontSelected: (Int) -> Unit,
     onInstallSoundFont: () -> Unit,
@@ -335,7 +337,12 @@ fun OtherSettingsScreen(
 
             SectionLabel(stringResource(R.string.settings_general_imagefs), modifier = Modifier.padding(top = 8.dp))
 
-            DownloadSourceCard(base = state.downloadSourceBase, onChange = onDownloadSourceBaseChanged)
+            DownloadSourceCard(
+                enabled = state.useChinaMirror,
+                base = state.chinaMirrorBase,
+                onEnabled = onChinaMirrorChanged,
+                onChange = onChinaMirrorBaseChanged,
+            )
 
             ReinstallImagefsCard(onClick = { showReinstallDialog = true })
 
@@ -957,10 +964,12 @@ private fun CursorSpeedCard(
     }
 }
 
-// Mirror base for GitHub downloads (e.g. a Gitee fork). Empty = GitHub direct.
+// China mirror toggle + fork base for GitHub component downloads. Default off (GitHub direct).
 @Composable
 private fun DownloadSourceCard(
+    enabled: Boolean,
     base: String,
+    onEnabled: (Boolean) -> Unit,
     onChange: (String) -> Unit,
 ) {
     var showDialog by remember { mutableStateOf(false) }
@@ -1005,15 +1014,19 @@ private fun DownloadSourceCard(
                 )
                 Text(
                     text =
-                        if (base.isBlank()) {
-                            stringResource(R.string.settings_other_download_source_default)
-                        } else {
+                        if (enabled) {
                             base
+                        } else {
+                            stringResource(R.string.settings_other_download_source_default)
                         },
                     color = onSurfaceVariant,
                     fontSize = 11.sp,
                 )
             }
+            Switch(
+                checked = enabled,
+                onCheckedChange = onEnabled,
+            )
         }
     }
 
@@ -1035,7 +1048,7 @@ private fun DownloadSourceCard(
                     value = draft,
                     onValueChange = { draft = it },
                     label = { Text(stringResource(R.string.settings_other_download_source_hint)) },
-                    placeholder = { Text("https://gitee.com/yourname") },
+                    placeholder = { Text(com.winlator.cmod.shared.io.DownloadSource.DEFAULT_CHINA_MIRROR_BASE) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 )
