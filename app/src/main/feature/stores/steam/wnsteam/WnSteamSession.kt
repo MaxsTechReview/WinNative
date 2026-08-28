@@ -717,13 +717,8 @@ class WnSteamSession : AutoCloseable {
         @JvmStatic private external fun nativeCancelDownload(handle: Long)
         @JvmStatic private external fun nativeSetUseChinaCdn(enabled: Boolean)
 
-        /** Keep Steam-China-only CDN servers in the depot download server list.
-         *  Global flag, default off; persists via PrefManager.steamUseChinaCdn. */
         @JvmStatic
         fun setUseChinaCdn(enabled: Boolean) {
-            // The static native setter requires libwnsteam.so to be loaded. Callers may
-            // invoke this before any WnSteamSession exists (e.g. app start), so load the
-            // lib first and never let a LinkageError crash the app.
             runCatching {
                 com.winlator.cmod.feature.stores.steam.wnsteam.WnSteamClient.ensureLoaded()
                 nativeSetUseChinaCdn(enabled)

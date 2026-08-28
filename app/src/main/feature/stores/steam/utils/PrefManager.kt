@@ -300,7 +300,6 @@ object PrefManager {
             setBoolean("enable_steam_logs", value)
         }
 
-    /** Keep Steam-China-only CDN servers in the native depot download server list. */
     var steamUseChinaCdn: Boolean
         get() = getBoolean("steam_use_china_cdn", false)
         set(value) {

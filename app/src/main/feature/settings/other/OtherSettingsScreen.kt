@@ -965,7 +965,6 @@ private fun CursorSpeedCard(
     }
 }
 
-// China mirror toggle + fork base for GitHub component downloads. Default off (GitHub direct).
 @Composable
 private fun DownloadSourceCard(
     enabled: Boolean,

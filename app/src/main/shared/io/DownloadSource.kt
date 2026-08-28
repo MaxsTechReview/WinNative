@@ -3,27 +3,11 @@ package com.winlator.cmod.shared.io
 import android.content.Context
 import androidx.preference.PreferenceManager
 
-/**
- * Rewrites hardcoded GitHub download URLs through a user-configured China
- * accelerator (a GitHub reverse-proxy such as gh-proxy.com / ghfast.top), so
- * components/containers can be fetched on networks where github.com is slow
- * or unreachable.
- *
- * When the toggle ("use_china_mirror") is on, any https://github.com/ or
- * https://raw.githubusercontent.com/ URL is prefixed with the proxy base
- * ("china_mirror_base", default one of the common ghproxy mirrors). The
- * original URLs are never modified when the toggle is off, and non-GitHub
- * repos are untouched.
- *
- * A legacy free-text base ("download_source_base") is still honored if set
- * manually: it replaces the host prefixes keeping owner/repo/path.
- */
 object DownloadSource {
     private const val PREF_KEY = "download_source_base"
     private const val PREF_CHINA_MIRROR = "use_china_mirror"
     private const val PREF_CHINA_MIRROR_BASE = "china_mirror_base"
 
-    /** Default China GitHub proxy. Easily replaced in Settings if it changes. */
     const val DEFAULT_CHINA_MIRROR_BASE = "https://gh-proxy.com"
 
     fun isChineseLocale(): Boolean = java.util.Locale.getDefault().language.startsWith("zh")
@@ -54,11 +38,9 @@ object DownloadSource {
             ?.trimEnd('/')
             .orEmpty()
 
-    /** Returns [url] rewritten through the configured accelerator, or [url] unchanged. */
     fun mirroredUrl(context: Context, url: String): String {
         if (url.isBlank()) return url
 
-        // 1) China accelerator: prefix GitHub URLs with the proxy base.
         if (chinaMirrorEnabled(context)) {
             val base = chinaMirrorBase(context)
             if (base.isNotEmpty() &&
@@ -71,7 +53,6 @@ object DownloadSource {
             return url
         }
 
-        // 2) Legacy custom base: host/owner-prefix swap (repo names must match).
         val custom = customBase(context)
         if (custom.isEmpty()) return url
         val rawPrefix = "https://raw.githubusercontent.com/"

@@ -577,7 +577,6 @@ class InputControlsFragment : Fragment() {
         }
     }
 
-    /** INPUT_CONTROLS_URL rewritten through the user's download mirror (if enabled). */
     private fun inputControlsUrl(): String =
         com.winlator.cmod.shared.io.DownloadSource
             .mirroredUrl(requireContext(), INPUT_CONTROLS_URL)
