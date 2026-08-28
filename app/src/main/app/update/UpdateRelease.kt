@@ -3,6 +3,7 @@ package com.winlator.cmod.app.update
 import com.winlator.cmod.BuildConfig
 import org.json.JSONArray
 import org.json.JSONObject
+import timber.log.Timber
 import java.util.Locale
 
 enum class UpdateChannel(
@@ -48,11 +49,40 @@ data class UpdateRelease(
         const val RELEASES_URL = "https://api.github.com/repos/WinNative-Emu/WinNative/releases?per_page=30"
         const val RELEASES_PAGE = "https://github.com/WinNative-Emu/WinNative/releases"
 
-        private val variantName: String
-            get() =
-                BuildConfig.FLAVOR.replaceFirstChar {
-                    if (it.isLowerCase()) it.titlecase(Locale.US) else it.toString()
+        val KNOWN_VARIANTS: List<String> =
+            BuildConfig.KNOWN_FLAVORS
+                .split(',')
+                .map { it.trim().lowercase(Locale.US) }
+                .filter { it.isNotEmpty() }
+
+        private val TOKEN_SEPARATORS = charArrayOf('-', '_', '.', ' ', '+')
+
+        fun matchApkAsset(
+            names: List<String>,
+            flavor: String,
+        ): String? {
+            val wanted = flavor.lowercase(Locale.US)
+            if (wanted.isEmpty()) return null
+            var preferred: String? = null
+            var fallback: String? = null
+            for (name in names) {
+                if (!name.endsWith(".apk", ignoreCase = true)) continue
+                val tokens =
+                    name
+                        .lowercase(Locale.US)
+                        .removeSuffix(".apk")
+                        .split(*TOKEN_SEPARATORS)
+                        .filter { it.isNotEmpty() }
+                val variants = KNOWN_VARIANTS.filter { tokens.contains(it) }
+                if (variants.size != 1 || variants.first() != wanted) continue
+                if (tokens.contains("signed")) {
+                    if (preferred == null) preferred = name
+                } else if (fallback == null) {
+                    fallback = name
                 }
+            }
+            return preferred ?: fallback
+        }
 
         fun installedVersion(): AppVersion? = AppVersion.parse(BuildConfig.VERSION_NAME)
 
@@ -78,17 +108,23 @@ data class UpdateRelease(
             val version = AppVersion.parse(tag) ?: return null
 
             val assets = o.optJSONArray("assets") ?: return null
-            var apk: JSONObject? = null
-            val suffix = "-$variantName-signed.apk"
+            val byName = LinkedHashMap<String, JSONObject>()
             for (i in 0 until assets.length()) {
                 val asset = assets.optJSONObject(i) ?: continue
                 val name = asset.optString("name")
-                if (name.endsWith(suffix, ignoreCase = true)) {
-                    apk = asset
-                    break
-                }
+                if (name.isNotBlank()) byName[name] = asset
             }
-            if (apk == null) return null
+            val chosen = matchApkAsset(byName.keys.toList(), BuildConfig.FLAVOR)
+            if (chosen == null) {
+                Timber.w(
+                    "Release %s has no %s APK; assets=%s",
+                    tag,
+                    BuildConfig.FLAVOR,
+                    byName.keys.joinToString(),
+                )
+                return null
+            }
+            val apk = byName.getValue(chosen)
 
             val url = apk.optString("browser_download_url").takeIf { it.startsWith("https://") } ?: return null
 

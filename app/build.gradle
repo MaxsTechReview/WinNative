@@ -244,6 +244,11 @@ android {
         }
     }
 
+    applicationVariants.configureEach { variant ->
+        def names = android.productFlavors.collect { it.name }.join(",")
+        variant.buildConfigField "String", "KNOWN_FLAVORS", "\"${names}\""
+    }
+
     ndkVersion '27.3.13750724'
 
     externalNativeBuild {
