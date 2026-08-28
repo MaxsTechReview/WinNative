@@ -1217,7 +1217,12 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     // 2. Fetch full catalog (content.json)
                     val fullCatalog =
                         parseRecommendedPackages(
-                            Downloader.downloadString(ContentsManager.REMOTE_PROFILES),
+                            Downloader.downloadString(
+                                com.winlator.cmod.shared.io.DownloadSource.mirroredUrl(
+                                    this@SetupWizardActivity,
+                                    ContentsManager.REMOTE_PROFILES,
+                                )
+                            )
                         )
 
                     // 3. Merge: start with recommended, then add any full catalog entries not already present
@@ -2530,7 +2535,11 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                                                     checked = mirrorChecked,
                                                     onCheckedChange = { checked ->
                                                         mirrorChecked = checked
-                                                        prefs(this@SetupWizardActivity)
+                                                        // Must write the DEFAULT prefs: DownloadSource mirrors via
+                                                        // PreferenceManager.getDefaultSharedPreferences, and the Other-settings
+                                                        // toggle uses the same file — keeps both switches in sync.
+                                                        androidx.preference.PreferenceManager
+                                                            .getDefaultSharedPreferences(this@SetupWizardActivity)
                                                             .edit()
                                                             .putBoolean("use_china_mirror", checked)
                                                             .apply()
