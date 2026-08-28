@@ -70,6 +70,14 @@ object LosslessAutoImport {
         return Outcome(RESULT_IMPORTED, uri.lastPathSegment?.substringAfterLast('/').orEmpty())
     }
 
+    fun importFrom(context: Context, dll: File): Outcome {
+        val name = dll.parentFile?.name?.takeIf { it.isNotBlank() } ?: dll.name
+        if (!isOwned()) return Outcome(RESULT_NOT_OWNED, name)
+        val status = LosslessScaling.installFrom(context, dll)
+        if (status != LosslessScaling.STATUS_OK) return Outcome(RESULT_FAILED, name)
+        return Outcome(RESULT_IMPORTED, name)
+    }
+
     private fun steamCandidateDirs(): List<File> {
         val dirs = LinkedHashSet<File>()
 
