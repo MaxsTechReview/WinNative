@@ -1271,7 +1271,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         }
 
     private fun fetchRecommendedPackages(): List<RemotePackageSpec> {
-        val json = Downloader.downloadString(resolveJsonDownloadUrl(DEFAULT_JSON_URL))
+        val json = Downloader.downloadString(com.winlator.cmod.shared.io.DownloadSource.mirroredUrl(this, resolveJsonDownloadUrl(DEFAULT_JSON_URL)))
         if (!json.isNullOrBlank()) {
             prefs(this).edit().putString(KEY_DEFAULT_JSON_CACHE, json).apply()
             val specs = parseRecommendedPackages(json)
@@ -1417,7 +1417,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                                 val downloaded =
                                     downloadFileToCache(
                                         label = spec.verName,
-                                        url = spec.remoteUrl,
+                                        url = com.winlator.cmod.shared.io.DownloadSource.mirroredUrl(this@SetupWizardActivity, spec.remoteUrl),
                                         currentIndex = position,
                                         total = total,
                                         title = title,

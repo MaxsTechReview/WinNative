@@ -873,6 +873,10 @@
     <string name="settings_other_language_system_default">系统默认</string>
 
     <string name="settings_other_section_integration">集成</string>
+    <string name="settings_other_download_source_title">下载源（GitHub 镜像）</string>
+    <string name="settings_other_download_source_default">GitHub（默认）</string>
+    <string name="settings_other_download_source_message">组件/容器下载的镜像基础地址，例如 https://gitee.com/你的用户名。你的镜像需保留相同的仓库名、Release 标签和资产文件名。留空则直连 GitHub。</string>
+    <string name="settings_other_download_source_hint">镜像基础地址</string>
     <string name="settings_other_checking_for_updates">正在检查更新\u2026</string>
     <string name="settings_other_update_check_cooldown">请等待 %1$d 秒后再次检查</string>
     <string name="settings_other_persistable_permission_failed">无法获取持久化权限：%1$s</string>

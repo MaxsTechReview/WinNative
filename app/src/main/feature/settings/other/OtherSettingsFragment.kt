@@ -115,6 +115,10 @@ class OtherSettingsFragment : Fragment() {
                             UpdateService.setChannel(ctx, UpdateChannel.entries[index])
                             refresh()
                         },
+                        onDownloadSourceBaseChanged = { base ->
+                            preferences.edit { putString("download_source_base", base) }
+                            refresh()
+                        },
                         onLanguageSelected = { index ->
                             val currentIndex =
                                 LocaleHelper.indexForTag(
@@ -233,6 +237,7 @@ class OtherSettingsFragment : Fragment() {
             OtherSettingsState(
                 checkForUpdates = preferences.getBoolean("check_for_updates", true),
                 updateChannelIndex = UpdateChannel.entries.indexOf(UpdateService.channel(ctx)),
+                downloadSourceBase = preferences.getString("download_source_base", "") ?: "",
                 languageLabels = languageLabels,
                 languageIndex = languageIndex,
                 soundFontFiles = soundFontFiles,

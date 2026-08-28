@@ -1255,6 +1255,10 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_other_game_language_summary">Preferred language for Steam/Epic/GOG downloads</string>
 
     <string name="settings_other_section_integration">Integration</string>
+    <string name="settings_other_download_source_title">Download Source (GitHub Mirror)</string>
+    <string name="settings_other_download_source_default">GitHub (default)</string>
+    <string name="settings_other_download_source_message">Mirror base for component/container downloads, e.g. https://gitee.com/yourname. Your mirror must keep the same repo names, release tags and asset filenames. Leave empty to use GitHub directly.</string>
+    <string name="settings_other_download_source_hint">Mirror base URL</string>
     <string name="settings_other_setup_wizard_title">Setup Wizard</string>
     <string name="settings_other_setup_wizard_summary">Open the setup wizard again to review permissions, system files, and default containers.</string>
     <string name="settings_other_checking_for_updates">Checking for updates\u2026</string>

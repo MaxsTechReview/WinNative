@@ -4,6 +4,7 @@ package com.winlator.cmod.feature.settings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,6 +47,8 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SliderState
@@ -100,6 +103,7 @@ private const val SettingsSliderTrackScaleY = 0.72f
 data class OtherSettingsState(
     val checkForUpdates: Boolean = true,
     val updateChannelIndex: Int = 0,
+    val downloadSourceBase: String = "",
     val languageLabels: List<String> = emptyList(),
     val languageIndex: Int = 0,
     val soundFontFiles: List<String> = emptyList(),
@@ -144,6 +148,7 @@ fun OtherSettingsScreen(
     onCheckForUpdatesChanged: (Boolean) -> Unit,
     onCheckForUpdatesNow: () -> Unit,
     onUpdateChannelSelected: (Int) -> Unit,
+    onDownloadSourceBaseChanged: (String) -> Unit,
     onLanguageSelected: (Int) -> Unit,
     onSoundFontSelected: (Int) -> Unit,
     onInstallSoundFont: () -> Unit,
@@ -329,6 +334,8 @@ fun OtherSettingsScreen(
             )
 
             SectionLabel(stringResource(R.string.settings_general_imagefs), modifier = Modifier.padding(top = 8.dp))
+
+            DownloadSourceCard(base = state.downloadSourceBase, onChange = onDownloadSourceBaseChanged)
 
             ReinstallImagefsCard(onClick = { showReinstallDialog = true })
 
@@ -946,6 +953,93 @@ private fun CursorSpeedCard(
                             highlightColor = NavHighlight,
                         ),
             )
+        }
+    }
+}
+
+// Mirror base for GitHub downloads (e.g. a Gitee fork). Empty = GitHub direct.
+@Composable
+private fun DownloadSourceCard(
+    base: String,
+    onChange: (String) -> Unit,
+) {
+    var showDialog by remember { mutableStateOf(false) }
+    val surface = MaterialTheme.colorScheme.surface
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val outline = MaterialTheme.colorScheme.outline
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+
+    Box(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(surface)
+                .border(1.dp, outline, RoundedCornerShape(12.dp))
+                .clickable { showDialog = true }
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(surface.copy(alpha = 0.6f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Settings,
+                    contentDescription = null,
+                    tint = onSurface,
+                    modifier = Modifier.size(17.dp),
+                )
+            }
+            Spacer(Modifier.width(13.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.settings_other_download_source_title),
+                    color = onSurface,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                Text(
+                    text =
+                        if (base.isBlank()) {
+                            stringResource(R.string.settings_other_download_source_default)
+                        } else {
+                            base
+                        },
+                    color = onSurfaceVariant,
+                    fontSize = 11.sp,
+                )
+            }
+        }
+    }
+
+    if (showDialog) {
+        var draft by remember { mutableStateOf(base) }
+        Dialog(onDismissRequest = { showDialog = false }) {
+            PopupDialog(
+                title = stringResource(R.string.settings_other_download_source_title),
+                message = stringResource(R.string.settings_other_download_source_message),
+                icon = Icons.Outlined.Settings,
+                confirmLabel = stringResource(R.string.common_ui_ok),
+                onConfirm = {
+                    onChange(draft.trim().trimEnd('/'))
+                    showDialog = false
+                },
+                onCancel = { showDialog = false },
+            ) {
+                OutlinedTextField(
+                    value = draft,
+                    onValueChange = { draft = it },
+                    label = { Text(stringResource(R.string.settings_other_download_source_hint)) },
+                    placeholder = { Text("https://gitee.com/yourname") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                )
+            }
         }
     }
 }
