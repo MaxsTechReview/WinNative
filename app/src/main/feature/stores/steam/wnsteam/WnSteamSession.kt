@@ -721,7 +721,15 @@ class WnSteamSession : AutoCloseable {
          *  Global flag, default off; persists via PrefManager.steamUseChinaCdn. */
         @JvmStatic
         fun setUseChinaCdn(enabled: Boolean) {
-            nativeSetUseChinaCdn(enabled)
+            // The static native setter requires libwnsteam.so to be loaded. Callers may
+            // invoke this before any WnSteamSession exists (e.g. app start), so load the
+            // lib first and never let a LinkageError crash the app.
+            runCatching {
+                com.winlator.cmod.feature.stores.steam.wnsteam.WnSteamClient.ensureLoaded()
+                nativeSetUseChinaCdn(enabled)
+            }.onFailure { t ->
+                android.util.Log.w("WnSteamSession", "setUseChinaCdn failed: ${t.message}")
+            }
         }
         @JvmStatic private external fun nativeStartWineBridge(
             handle: Long, steam3Port: Int, clientServicePort: Int): Boolean
