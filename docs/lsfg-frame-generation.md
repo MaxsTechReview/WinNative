@@ -11,7 +11,7 @@ the Wine boundary.
 | `FrankBarretta/LSFG-Android` | `da867e9` |
 | └ `lsfg-vk-android` (submodule, branch of `PancakeTAS/lsfg-vk` 1.0.0) | `b55b182` |
 | └ `LSFG-Android-Application` (submodule) | `b847541` |
-| `eden-emu/eden` PR #4263 — *[vulkan, android] Initial implementation of LSFG-VK* | `469c9af` (base `dc95cd0`) |
+| `eden-emu/eden` PR #4263 by Camille LaVey — *[vulkan, android] Initial implementation of LSFG-VK* | `469c9af` (base `dc95cd0`) |
 | WinNative | `acc130ee` |
 
 The two clones live outside the repo at `~/Build/lsfg-research/`. The only thing
