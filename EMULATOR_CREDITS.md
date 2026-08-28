@@ -51,14 +51,14 @@ Each core is shipped as an unmodified `arm64-v8a` build and loaded through Libre
 ## Frame generation
 
 Frame generation is a port of the Lossless Scaling compute chain to Vulkan. WinNative did not
-port it from scratch: it derives from the **Eden Emulator Project**'s port, which in turn derives
-from **lsfg-vk**. Both are GPL-3.0-or-later, and both copyright notices are preserved in the
-header of every file that carries their work.
+port it from scratch: it derives from **Camille LaVey**'s port in the **Eden Emulator Project**,
+which in turn derives from **lsfg-vk**. Both are GPL-3.0-or-later, and both copyright notices are
+preserved in the header of every file that carries their work.
 
 | Component | Role | License | Source |
 | --- | --- | --- | --- |
-| Eden Emulator Project | The Vulkan frame generation chain WinNative's port is derived from | GPL-3.0-or-later | https://git.eden-emu.dev/eden-emu/eden |
-| lsfg-vk | The original Vulkan reimplementation, which Eden's port derives from | GPL-3.0-or-later | https://github.com/PancakeTAS/lsfg-vk |
+| Camille LaVey (Eden Emulator Project) | The Vulkan frame generation chain WinNative's port is derived from | GPL-3.0-or-later | https://git.eden-emu.dev/eden-emu/eden |
+| lsfg-vk | The original Vulkan reimplementation, which the Eden port derives from | GPL-3.0-or-later | https://github.com/PancakeTAS/lsfg-vk |
 | DXVK (`dxbc`) | Shader translator, used when only DXBC shaders are available | zlib/libpng | https://github.com/doitsujin/dxvk |
 
 The chain layout, the pyramid stages (`lsfg_mipmaps`, `lsfg_alpha`, `lsfg_beta`, `lsfg_gamma`,

@@ -134,19 +134,20 @@ Please match the existing code style and ensure any AI-assisted code is thorough
 - **libretro / RetroArch** and the individual core authors, built from source: [FCEUmm](https://github.com/libretro/libretro-fceumm), [Snes9x](https://github.com/libretro/snes9x), [Gambatte](https://github.com/libretro/gambatte-libretro), [mGBA](https://github.com/libretro/mgba), [Genesis Plus GX](https://github.com/libretro/Genesis-Plus-GX), [Mupen64Plus-Next](https://github.com/libretro/mupen64plus-libretro-nx), [Beetle PSX](https://github.com/libretro/beetle-psx-libretro)
 - **ARMSX2** by the [ARMSX2](https://github.com/ARMSX2/ARMSX2) team (GPL-3.0) — the PlayStation 2 core, a fork of **[PCSX2](https://github.com/pcsx2/pcsx2)** (GPL-3.0), built from source into `libemucore`. PS2 online play uses PCSX2's DEV9 network adapter
 - **lsfg-vk** by [PancakeTAS](https://github.com/PancakeTAS/lsfg-vk) (GPL-3.0-or-later) — the original Vulkan reimplementation of the Lossless Scaling frame generation chain
-- **Eden Emulator Project** by the [eden](https://git.eden-emu.dev/eden-emu/eden) team (GPL-3.0-or-later) — the Vulkan port of that chain that WinNative's frame generation is derived from. See [Frame generation — what came from Eden](#frame-generation--what-came-from-eden) below
+- **LSFG frame generation** by **Camille LaVey** of the [Eden Emulator Project](https://git.eden-emu.dev/eden-emu/eden) (GPL-3.0-or-later) — the Vulkan port of that chain that WinNative's frame generation is derived from. See [Frame generation — what came from Camille LaVey's Eden port](#frame-generation--what-came-from-camille-laveys-eden-port) below
 - **DXVK** by [Philip Rebohle and contributors](https://github.com/doitsujin/dxvk) (zlib/libpng) — the `dxbc` shader translator, vendored at `app/src/main/cpp/thirdparty/dxbc` to convert the frame generation shaders to SPIR-V
 - **Lossless Scaling** (Steam) — the source of the frame generation shaders. They are read from the user's own installed copy at runtime; none are redistributed with WinNative
 
-#### Frame generation — what came from Eden
+#### Frame generation — what came from Camille LaVey's Eden port
 
-WinNative's frame generation exists because the [Eden Emulator Project](https://git.eden-emu.dev/eden-emu/eden)
-had already solved the hard part: getting the Lossless Scaling compute chain running correctly
-on Vulkan, on mobile GPUs. The port here started from Eden's work and still carries it. Their
-copyright notices are preserved in every file that derives from them, under GPL-3.0-or-later.
+WinNative's frame generation exists because **Camille LaVey**, working in the
+[Eden Emulator Project](https://git.eden-emu.dev/eden-emu/eden), had already solved the hard
+part: getting the Lossless Scaling compute chain running correctly on Vulkan, on mobile GPUs.
+The port here started from that work and still carries it. The Eden Emulator Project copyright
+notices are preserved in every file that derives from it, under GPL-3.0-or-later.
 
-Derived from Eden (jointly with **[lsfg-vk](https://github.com/PancakeTAS/lsfg-vk)**, which Eden
-themselves ported from):
+Derived from Camille LaVey's Eden port (jointly with **[lsfg-vk](https://github.com/PancakeTAS/lsfg-vk)**,
+which that port was in turn ported from):
 
 | Source file | What it provides |
 | --- | --- |
@@ -159,7 +160,7 @@ themselves ported from):
 | `lsfg_generate.*` | The final warp that produces the interpolated frame |
 | `lsfg_common.*` | The Vulkan plumbing all of the above sit on — image, sampler and buffer wrappers, the barrier builder, the descriptor writer, and the pass/pipeline helper |
 
-Derived from Eden specifically:
+Derived from the Eden port specifically:
 
 | Source file | What it provides |
 | --- | --- |
@@ -168,7 +169,7 @@ Derived from Eden specifically:
 
 Getting the descriptor layouts, barrier placement and dispatch geometry of a 25-shader chain
 right is not something you arrive at by reading the shaders; it is the part that takes the
-debugging. Eden did that work, and this port would not have been possible without it.
+debugging. Camille LaVey did that work, and this port would not have been possible without it.
 
 What WinNative added on top is the Windows and Android side of it: reading the shader blobs out
 of a user's own Lossless Scaling install (`lsfg_dll.*`), translating them when only DXBC is
