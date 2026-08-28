@@ -162,8 +162,6 @@ class ContainersFragment : Fragment() {
         startStorageScan(container)
     }
 
-    /** Sets this container as the default target for NEW games of its architecture.
-     *  Only writes the default-container preference — existing games/shortcuts are untouched. */
     private fun setDefaultContainer(container: Container) {
         val ctx = context ?: return
         val isArm64 =
