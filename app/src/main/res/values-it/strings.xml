@@ -2541,5 +2541,10 @@ Percorso installato:
     <string name="settings_frame_generation_updated">Aggiornato da %1$s.</string>
     <string name="settings_frame_generation_not_owned">La generazione fotogrammi usa gli shader di Lossless Scaling. Acquistalo su Steam con l\'account connesso per abilitarla.</string>
     <string name="settings_frame_generation_locate">Seleziona Lossless.dll…</string>
+    <string name="containers_set_default">Imposta come predefinito</string>
+    <string name="containers_default_badge">Predefinito</string>
+    <string name="containers_set_default_success">Contenitore %1$s impostato come predefinito per i nuovi giochi. I giochi esistenti non sono interessati.</string>
+    <string name="container_config_arch_x86_64">x86-64</string>
+    <string name="container_config_arch_arm64">ARM64EC</string>
 </resources>
 

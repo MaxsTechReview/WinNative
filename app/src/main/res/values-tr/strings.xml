@@ -2540,4 +2540,9 @@ Yüklü konum:
     <string name="settings_frame_generation_updated">%1$s kaynağından güncellendi.</string>
     <string name="settings_frame_generation_not_owned">Kare üretimi Lossless Scaling gölgelendiricilerini kullanır. Bunu etkinleştirmek için oturum açmış hesapla Steam\'den satın alın.</string>
     <string name="settings_frame_generation_locate">Lossless.dll seç…</string>
+    <string name="containers_set_default">Varsayılan yap</string>
+    <string name="containers_default_badge">Varsayılan</string>
+    <string name="containers_set_default_success">%1$s kapsayıcısı yeni oyunlar için varsayılan yapıldı. Mevcut oyunlar etkilenmez.</string>
+    <string name="container_config_arch_x86_64">x86-64</string>
+    <string name="container_config_arch_arm64">ARM64EC</string>
 </resources>

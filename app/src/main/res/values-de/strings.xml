@@ -2542,4 +2542,9 @@ Installierter Pfad:
     <string name="settings_frame_generation_updated">Aus %1$s aktualisiert.</string>
     <string name="settings_frame_generation_not_owned">Frame-Generierung nutzt Shader von Lossless Scaling. Kaufe es auf Steam mit dem angemeldeten Konto, um dies zu aktivieren.</string>
     <string name="settings_frame_generation_locate">Lossless.dll auswählen…</string>
+    <string name="containers_set_default">Als Standard festlegen</string>
+    <string name="containers_default_badge">Standard</string>
+    <string name="containers_set_default_success">%1$s-Container als Standard für neue Spiele festgelegt. Bestehende Spiele bleiben unverändert.</string>
+    <string name="container_config_arch_x86_64">x86-64</string>
+    <string name="container_config_arch_arm64">ARM64EC</string>
 </resources>

@@ -2542,5 +2542,10 @@
     <string name="settings_frame_generation_updated">%1$s에서 업데이트했습니다.</string>
     <string name="settings_frame_generation_not_owned">프레임 생성은 Lossless Scaling의 셰이더를 사용합니다. 사용하려면 로그인한 계정으로 Steam에서 구매하세요.</string>
     <string name="settings_frame_generation_locate">Lossless.dll 선택…</string>
+    <string name="containers_set_default">기본값으로 설정</string>
+    <string name="containers_default_badge">기본값</string>
+    <string name="containers_set_default_success">%1$s 컨테이너를 새 게임의 기본값으로 설정했습니다. 기존 게임은 영향받지 않습니다.</string>
+    <string name="container_config_arch_x86_64">x86-64</string>
+    <string name="container_config_arch_arm64">ARM64EC</string>
 </resources>
 

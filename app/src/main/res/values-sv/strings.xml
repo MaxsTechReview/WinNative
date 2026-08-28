@@ -2540,4 +2540,9 @@ Installerad sökväg:
     <string name="settings_frame_generation_updated">Uppdaterad från %1$s.</string>
     <string name="settings_frame_generation_not_owned">Bildgenerering använder shaders från Lossless Scaling. Köp det på Steam med det inloggade kontot för att aktivera detta.</string>
     <string name="settings_frame_generation_locate">Välj Lossless.dll…</string>
+    <string name="containers_set_default">Ange som standard</string>
+    <string name="containers_default_badge">Standard</string>
+    <string name="containers_set_default_success">%1$s-behållaren är nu standard för nya spel. Befintliga spel påverkas inte.</string>
+    <string name="container_config_arch_x86_64">x86-64</string>
+    <string name="container_config_arch_arm64">ARM64EC</string>
 </resources>

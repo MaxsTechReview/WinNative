@@ -2540,5 +2540,10 @@
     <string name="settings_frame_generation_updated">已從 %1$s 更新。</string>
     <string name="settings_frame_generation_not_owned">影格生成使用 Lossless Scaling 的著色器。請使用目前登入的帳號在 Steam 上購買以啟用此功能。</string>
     <string name="settings_frame_generation_locate">選擇 Lossless.dll…</string>
+    <string name="containers_set_default">設為預設</string>
+    <string name="containers_default_badge">預設</string>
+    <string name="containers_set_default_success">已將 %1$s 容器設為新遊戲預設。不影響已有遊戲。</string>
+    <string name="container_config_arch_x86_64">x86-64</string>
+    <string name="container_config_arch_arm64">ARM64EC</string>
 </resources>
 

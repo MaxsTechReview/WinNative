@@ -2540,4 +2540,9 @@
     <string name="settings_frame_generation_updated">อัปเดตจาก %1$s แล้ว</string>
     <string name="settings_frame_generation_not_owned">การสร้างเฟรมใช้เชเดอร์จาก Lossless Scaling ซื้อบน Steam ด้วยบัญชีที่ลงชื่อเข้าใช้อยู่เพื่อเปิดใช้งาน</string>
     <string name="settings_frame_generation_locate">เลือก Lossless.dll…</string>
+    <string name="containers_set_default">ตั้งเป็นค่าเริ่มต้น</string>
+    <string name="containers_default_badge">ค่าเริ่มต้น</string>
+    <string name="containers_set_default_success">ตั้งคอนเทนเนอร์ %1$s เป็นค่าเริ่มต้นสำหรับเกมใหม่ เกมเดิมไม่ได้รับผลกระทบ</string>
+    <string name="container_config_arch_x86_64">x86-64</string>
+    <string name="container_config_arch_arm64">ARM64EC</string>
 </resources>

@@ -2547,5 +2547,10 @@ Zainstalowana ścieżka:
     <string name="settings_frame_generation_updated">Zaktualizowano z %1$s.</string>
     <string name="settings_frame_generation_not_owned">Generowanie klatek korzysta z shaderów Lossless Scaling. Kup je na Steam na zalogowanym koncie, aby to włączyć.</string>
     <string name="settings_frame_generation_locate">Wybierz Lossless.dll…</string>
+    <string name="containers_set_default">Ustaw jako domyślny</string>
+    <string name="containers_default_badge">Domyślny</string>
+    <string name="containers_set_default_success">Kontener %1$s ustawiony jako domyślny dla nowych gier. Istniejące gry pozostają bez zmian.</string>
+    <string name="container_config_arch_x86_64">x86-64</string>
+    <string name="container_config_arch_arm64">ARM64EC</string>
 </resources>
 

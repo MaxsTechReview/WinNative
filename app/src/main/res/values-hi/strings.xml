@@ -2477,4 +2477,9 @@
     <string name="settings_frame_generation_updated">%1$s से अपडेट किया गया।</string>
     <string name="settings_frame_generation_not_owned">फ़्रेम जनरेशन Lossless Scaling के शेडर उपयोग करता है। इसे सक्षम करने के लिए साइन-इन खाते से Steam पर इसे खरीदें।</string>
     <string name="settings_frame_generation_locate">Lossless.dll चुनें…</string>
+    <string name="containers_set_default">डिफ़ॉल्ट के रूप में सेट करें</string>
+    <string name="containers_default_badge">डिफ़ॉल्ट</string>
+    <string name="containers_set_default_success">%1$s कंटेनर नए गेम के लिए डिफ़ॉल्ट सेट किया गया। मौजूदा गेम प्रभावित नहीं होंगे।</string>
+    <string name="container_config_arch_x86_64">x86-64</string>
+    <string name="container_config_arch_arm64">ARM64EC</string>
 </resources>

@@ -2541,5 +2541,10 @@ Ruta instalada:
     <string name="settings_frame_generation_updated">Actualizado desde %1$s.</string>
     <string name="settings_frame_generation_not_owned">La generación de fotogramas usa sombreadores de Lossless Scaling. Cómpralo en Steam con la cuenta con la que has iniciado sesión para activarlo.</string>
     <string name="settings_frame_generation_locate">Seleccionar Lossless.dll…</string>
+    <string name="containers_set_default">Establecer como predeterminado</string>
+    <string name="containers_default_badge">Predeterminado</string>
+    <string name="containers_set_default_success">Contenedor %1$s establecido como predeterminado para juegos nuevos. Los existentes no cambian.</string>
+    <string name="container_config_arch_x86_64">x86-64</string>
+    <string name="container_config_arch_arm64">ARM64EC</string>
 </resources>
 
