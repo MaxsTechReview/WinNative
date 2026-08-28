@@ -26,6 +26,8 @@ import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.content.ContentsManager
 import com.winlator.cmod.runtime.display.XServerDisplayActivity
 import com.winlator.cmod.runtime.display.environment.ImageFs
+import com.winlator.cmod.runtime.wine.WineInfo
+import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.ui.dialog.ContainerProgressPopup
@@ -65,6 +67,7 @@ class ContainersFragment : Fragment() {
                         onInstallComponents = ::openComponentInstaller,
                         onRemoveContainer = ::removeContainer,
                         onShowInfo = ::showContainerInfo,
+                        onSetDefaultContainer = ::setDefaultContainer,
                         onDismissDialog = ::dismissDialog,
                         onConfirmDuplicateDialog = ::performDuplicateContainer,
                         onConfirmRemoveDialog = ::performRemoveContainer,
@@ -152,6 +155,30 @@ class ContainersFragment : Fragment() {
                     ),
             )
         startStorageScan(container)
+    }
+
+    /** Sets this container as the default target for NEW games of its architecture.
+     *  Only writes the default-container preference — existing games/shortcuts are untouched. */
+    private fun setDefaultContainer(container: Container) {
+        val ctx = context ?: return
+        val isArm64 =
+            runCatching {
+                val contents = ContentsManager(ctx)
+                contents.syncContents()
+                WineInfo.fromIdentifier(ctx, contents, container.getWineVersion()).isArm64EC()
+            }.getOrDefault(container.getWineVersion().contains("arm64ec", ignoreCase = true))
+        if (isArm64) {
+            SetupWizardActivity.saveDefaultArm64ContainerId(ctx, container.id)
+        } else {
+            SetupWizardActivity.saveDefaultX86ContainerId(ctx, container.id)
+        }
+        val archLabel =
+            if (isArm64) getString(R.string.container_config_arch_arm64)
+            else getString(R.string.container_config_arch_x86_64)
+        WinToast.show(
+            ctx,
+            getString(R.string.containers_set_default_success, archLabel),
+        )
     }
 
     private fun performDuplicateContainer(container: Container) {
