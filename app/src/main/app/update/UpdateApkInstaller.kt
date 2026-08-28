@@ -106,6 +106,7 @@ object UpdateApkInstaller {
                 }
                 session.commit(statusIntent(appContext, sessionId).intentSender)
             }
+            UpdateDownloader.clear(appContext)
         }.onFailure {
             Timber.e(it, "Update install failed")
             onFailure(it.message ?: "Install failed")
