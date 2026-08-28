@@ -611,10 +611,7 @@ public abstract class WineUtils {
       canonicalGameDirectory = gameDirectory.getAbsoluteFile();
     }
     String canonicalGameDirectoryPath = canonicalGameDirectory.getPath();
-    String gameName =
-        (canonicalInstallDir != null && !canonicalInstallDir.trim().isEmpty())
-            ? canonicalInstallDir.trim()
-            : canonicalGameDirectory.getName();
+    String onDiskName = canonicalGameDirectory.getName();
 
     // Create C:\Program Files (x86)\Steam\steamapps\common
     File steamCommonDir =
@@ -624,6 +621,38 @@ public abstract class WineUtils {
       steamCommonDir.mkdirs();
     }
 
+    linkSteamGameDir(steamCommonDir, onDiskName, canonicalGameDirectoryPath);
+    String installDirName =
+        (canonicalInstallDir != null) ? canonicalInstallDir.trim() : "";
+    if (!installDirName.isEmpty() && !installDirName.equals(onDiskName)) {
+      linkSteamGameDir(steamCommonDir, installDirName, canonicalGameDirectoryPath);
+    }
+
+    File gameCommonRedist = new File(canonicalGameDirectory, "_CommonRedist");
+    File steamworksSharedDir = new File(steamCommonDir, "Steamworks Shared");
+    if (!steamworksSharedDir.exists()) {
+      steamworksSharedDir.mkdirs();
+    }
+    File steamworksCommonRedist = new File(steamworksSharedDir, "_CommonRedist");
+    if (isSymlink(steamworksCommonRedist)) {
+      FileUtils.delete(steamworksCommonRedist);
+    }
+    if (gameCommonRedist.exists() && gameCommonRedist.isDirectory()) {
+      FileUtils.copy(gameCommonRedist, steamworksCommonRedist);
+    } else if (!steamworksCommonRedist.exists()) {
+      steamworksCommonRedist.mkdirs();
+    }
+
+    // Ensure steamapps directory exists
+    File steamappsDir =
+        new File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam/steamapps");
+    if (!steamappsDir.exists()) {
+      steamappsDir.mkdirs();
+    }
+  }
+
+  private static void linkSteamGameDir(
+      File steamCommonDir, String gameName, String canonicalGameDirectoryPath) {
     File steamGameLink = new File(steamCommonDir, gameName);
     boolean needsCreation = false;
     if (steamGameLink.exists() || isSymlink(steamGameLink)) {
@@ -663,28 +692,6 @@ public abstract class WineUtils {
               + steamGameLink
               + " -> "
               + canonicalGameDirectoryPath);
-    }
-
-    File gameCommonRedist = new File(canonicalGameDirectory, "_CommonRedist");
-    File steamworksSharedDir = new File(steamCommonDir, "Steamworks Shared");
-    if (!steamworksSharedDir.exists()) {
-      steamworksSharedDir.mkdirs();
-    }
-    File steamworksCommonRedist = new File(steamworksSharedDir, "_CommonRedist");
-    if (isSymlink(steamworksCommonRedist)) {
-      FileUtils.delete(steamworksCommonRedist);
-    }
-    if (gameCommonRedist.exists() && gameCommonRedist.isDirectory()) {
-      FileUtils.copy(gameCommonRedist, steamworksCommonRedist);
-    } else if (!steamworksCommonRedist.exists()) {
-      steamworksCommonRedist.mkdirs();
-    }
-
-    // Ensure steamapps directory exists
-    File steamappsDir =
-        new File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam/steamapps");
-    if (!steamappsDir.exists()) {
-      steamappsDir.mkdirs();
     }
   }
 

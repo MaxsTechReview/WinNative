@@ -9303,13 +9303,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
 
                 String gameInstPath = resolveSteamGameInstallPath(appId);
                 if (gameInstPath != null && new File(gameInstPath).exists()) {
-                    WineUtils.ensureSteamappsCommonSymlink(container, gameInstPath);
-                    String sharedCanonicalDir = canonicalSteamInstallDir(appId);
-                    if (sharedCanonicalDir != null
-                            && !sharedCanonicalDir.equals(new File(gameInstPath).getName())) {
-                        WineUtils.ensureSteamappsCommonSymlink(container, gameInstPath,
-                                sharedCanonicalDir);
-                    }
+                    WineUtils.ensureSteamappsCommonSymlink(container, gameInstPath,
+                            canonicalSteamInstallDir(appId));
                 }
 
                 File containerSteamDir = new File(container.getRootDir(),

@@ -249,6 +249,13 @@ static std::string vdf_escape(const char* s) {
     return out;
 }
 
+static bool is_windows_path(const char* s) {
+    if (!s || !*s) return false;
+    if (s[0] == '\\' && s[1] == '\\') return true;
+    bool drive = (s[0] >= 'A' && s[0] <= 'Z') || (s[0] >= 'a' && s[0] <= 'z');
+    return drive && s[1] == ':' && (s[2] == '\\' || s[2] == '/');
+}
+
 static void stage_app_manifest(uint32_t appId, const char* gameExe) {
     if (appId == 0 || !gameExe) return;
     const char* marker = "\\steamapps\\common\\";
@@ -907,19 +914,23 @@ int main(int argc, char** argv) {
     if (specSrc) {
         FILE* spec = fopen(specSrc, "r");
         if (spec) {
-            specIsFile = true;
             if (fgets(gameExeBuf, sizeof(gameExeBuf), spec)) {
                 size_t n = strlen(gameExeBuf);
                 while (n && (gameExeBuf[n - 1] == '\n' || gameExeBuf[n - 1] == '\r')) gameExeBuf[--n] = 0;
-                if (gameExeBuf[0]) gameExe = gameExeBuf;
+                if (is_windows_path(gameExeBuf)) {
+                    specIsFile = true;
+                    gameExe = gameExeBuf;
+                }
             }
-            if (fgets(specAppBuf, sizeof(specAppBuf), spec)) {
+            if (specIsFile && fgets(specAppBuf, sizeof(specAppBuf), spec)) {
                 uint32_t specAppId = (uint32_t) strtoul(specAppBuf, NULL, 10);
                 if (specAppId) appId = specAppId;
             }
             fclose(spec);
-            log_line("[wn-launcher] spec file %s -> exe=%s appId=%u",
-                     specSrc, gameExe ? gameExe : "(none)", appId);
+            if (specIsFile) {
+                log_line("[wn-launcher] spec file %s -> exe=%s appId=%u",
+                         specSrc, gameExe, appId);
+            }
         }
     }
     if (!gameExe && argc > 1 && !specIsFile) gameExe = argv[1];

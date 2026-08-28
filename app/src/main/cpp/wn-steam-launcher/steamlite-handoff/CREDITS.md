@@ -39,6 +39,22 @@ backslashes had to survive Wine command-line quoting. The agent now accepts a sp
 `WN_STEAM_GAMEEXE_FILE`, and falls back to treating `argv[1]` as the exe path directly.
 WinNative writes `C:\wn-steam-game.spec` per launch and passes that instead.
 
+## Fixed on top of the handoff
+
+**Spec-file detection.** The handoff's `argv[1]` handling calls `fopen` on the argument
+and treats any file that opens as a spec. A bare game-exe path — the documented
+back-compat form, and the fallback WinNative takes when the spec cannot be written —
+opens successfully, so the first line of the PE was parsed as the game path (`exe=MZ...`).
+Verified under Wine 9.0 against the built agent. The first line must now look like an
+absolute Windows path (`X:\`, `X:/` or a UNC prefix) before the argument is accepted as a
+spec; anything else falls through to `argv[1]` as the exe path, which is what their
+comment describes.
+
+**Redist staging.** `WineUtils.ensureSteamappsCommonSymlink` re-copies the game's
+`_CommonRedist` into `Steamworks Shared` on every call, so creating the canonical link as
+a second call doubled that copy on each launch. The method now creates both link names in
+one pass and stages the redists once.
+
 ## Already present in WinNative, confirmed against the recipe
 
 - `PROTON_DISABLE_LSTEAMCLIENT=1` plus `WINEDLLOVERRIDES=lsteamclient=`, and physical
