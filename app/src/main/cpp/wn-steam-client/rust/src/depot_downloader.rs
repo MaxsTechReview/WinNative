@@ -137,12 +137,18 @@ pub fn validate_resolved_download_inputs(
     Ok(())
 }
 
+/// When true, Steam-China-only CDN servers are kept in the usable server list.
+/// Off by default: china-only servers are filtered out (see filter_usable_cdn_servers).
+/// Set from Kotlin via WnSteamSession.setUseChinaCdn (download page toggle).
+pub static USE_CHINA_CDN: AtomicBool = AtomicBool::new(false);
+
 pub fn filter_usable_cdn_servers(
     servers: impl IntoIterator<Item = CContentServerDirectoryServerInfo>,
 ) -> Vec<CContentServerDirectoryServerInfo> {
+    let allow_china = USE_CHINA_CDN.load(Ordering::Relaxed);
     servers
         .into_iter()
-        .filter(|server| !server.steam_china_only && !server.host.is_empty())
+        .filter(|server| (allow_china || !server.steam_china_only) && !server.host.is_empty())
         .collect()
 }
 

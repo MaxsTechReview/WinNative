@@ -715,6 +715,14 @@ class WnSteamSession : AutoCloseable {
             listener: WnDownloadListener,
         )
         @JvmStatic private external fun nativeCancelDownload(handle: Long)
+        @JvmStatic private external fun nativeSetUseChinaCdn(enabled: Boolean)
+
+        /** Keep Steam-China-only CDN servers in the depot download server list.
+         *  Global flag, default off; persists via PrefManager.steamUseChinaCdn. */
+        @JvmStatic
+        fun setUseChinaCdn(enabled: Boolean) {
+            nativeSetUseChinaCdn(enabled)
+        }
         @JvmStatic private external fun nativeStartWineBridge(
             handle: Long, steam3Port: Int, clientServicePort: Int): Boolean
         @JvmStatic private external fun nativeStopWineBridge(handle: Long)

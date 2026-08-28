@@ -58,6 +58,11 @@ class PluviaApp : Application() {
         PrefManager.install(this)
         GOGConstants.init(this)
 
+        // Persisted Steam download CDN preference: re-apply to the native client at startup
+        // so a download started without visiting the Downloads tab still honors it.
+        com.winlator.cmod.feature.stores.steam.wnsteam.WnSteamSession
+            .setUseChinaCdn(com.winlator.cmod.feature.stores.steam.utils.PrefManager.steamUseChinaCdn)
+
         com.winlator.cmod.app.service.NetworkMonitor
             .init(this)
         scheduleColdStartWarmups()

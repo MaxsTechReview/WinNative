@@ -125,6 +125,8 @@
     <string name="store_game_update_failed_notice">更新失败</string>
     <string name="store_game_update_check_failed_notice">检查更新失败</string>
     <string name="store_game_download_already_active">此游戏已在下载。请先取消当前下载，然后再添加 DLC。</string>
+    <string name="steam_download_use_china_cdn">Steam 中国 CDN</string>
+    <string name="steam_download_use_china_cdn_summary">允许使用仅限 Steam 中国区的下载服务器。默认关闭。</string>
     <string name="common_ui_select">选择</string>
     <string name="common_ui_select_folder">选择文件夹</string>
     <string name="common_ui_current_folder">当前文件夹</string>
