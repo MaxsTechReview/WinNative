@@ -1382,6 +1382,7 @@ Installed path:
     <string name="setup_wizard_no_runtime_hint">Install a Wine or Proton package from the previous step, or skip this for now.</string>
     <string name="setup_wizard_recommended_label">Recommended</string>
     <string name="setup_wizard_install_all_recommended">Install All Recommended</string>
+    <string name="setup_wizard_mirror">Mirror</string>
     <string name="setup_wizard_create_container">Create Container</string>
     <string name="setup_wizard_creating_container">Creating\u2026</string>
 

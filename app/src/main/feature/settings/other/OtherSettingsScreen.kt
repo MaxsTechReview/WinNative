@@ -47,7 +47,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -973,10 +972,10 @@ private fun DownloadSourceCard(
     onChange: (String) -> Unit,
 ) {
     var showDialog by remember { mutableStateOf(false) }
-    val surface = MaterialTheme.colorScheme.surface
-    val onSurface = MaterialTheme.colorScheme.onSurface
-    val outline = MaterialTheme.colorScheme.outline
-    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    val surface = CardDark
+    val onSurface = TextPrimary
+    val outline = CardBorder
+    val onSurfaceVariant = TextSecondary
 
     Box(
         modifier =
@@ -994,13 +993,13 @@ private fun DownloadSourceCard(
                     Modifier
                         .size(34.dp)
                         .clip(RoundedCornerShape(9.dp))
-                        .background(surface.copy(alpha = 0.6f)),
+                        .background(IconBoxBg),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Settings,
                     contentDescription = null,
-                    tint = onSurface,
+                    tint = Accent,
                     modifier = Modifier.size(17.dp),
                 )
             }

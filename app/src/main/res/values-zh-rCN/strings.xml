@@ -997,6 +997,7 @@
     <string name="setup_wizard_no_runtime_hint">请在上一步安装 Wine 或 Proton 软件包，或暂时跳过。</string>
     <string name="setup_wizard_recommended_label">推荐</string>
     <string name="setup_wizard_install_all_recommended">安装所有推荐</string>
+    <string name="setup_wizard_mirror">镜像</string>
     <string name="setup_wizard_create_container">创建容器</string>
     <string name="setup_wizard_creating_container">正在创建\u2026</string>
 

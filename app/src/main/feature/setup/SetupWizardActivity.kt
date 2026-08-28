@@ -75,6 +75,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -2502,10 +2503,41 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                                             val installAllEnabled = !allRecommendedInstalled
                                             val navHere = controller && region == REGION_CONTENT && navIdx == 0
                                             val installAllShape = RoundedCornerShape(8.dp)
-                                            Box(
+                                            val mirrorOn =
+                                                com.winlator.cmod.shared.io.DownloadSource
+                                                    .chinaMirrorEnabled(this@SetupWizardActivity)
+                                            var mirrorChecked by remember(mirrorOn) {
+                                                mutableStateOf(mirrorOn)
+                                            }
+                                            Row(
                                                 modifier = Modifier.fillMaxWidth(),
-                                                contentAlignment = Alignment.CenterEnd,
+                                                verticalAlignment = Alignment.CenterVertically,
                                             ) {
+                                                Text(
+                                                    text = stringResource(R.string.setup_wizard_mirror),
+                                                    color =
+                                                        if (mirrorChecked) {
+                                                            Color(0xFF1A9FFF)
+                                                        } else {
+                                                            Color(0xFF7A8FA8)
+                                                        },
+                                                    fontFamily = InterFont,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    fontSize = 11.sp,
+                                                )
+                                                Spacer(Modifier.width(8.dp))
+                                                Switch(
+                                                    checked = mirrorChecked,
+                                                    onCheckedChange = { checked ->
+                                                        mirrorChecked = checked
+                                                        prefs(this@SetupWizardActivity)
+                                                            .edit()
+                                                            .putBoolean("use_china_mirror", checked)
+                                                            .apply()
+                                                        refreshRecommendedPackageCache()
+                                                    },
+                                                )
+                                                Spacer(Modifier.weight(1f))
                                                 Box(
                                                     modifier =
                                                         Modifier
