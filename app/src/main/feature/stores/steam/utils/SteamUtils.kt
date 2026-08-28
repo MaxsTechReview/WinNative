@@ -885,12 +885,18 @@ object SteamUtils {
                 Timber.w("Skipping ACF manifest for appId=$steamAppId because the install is not trusted on disk")
                 return
             }
-            val gameName = gameDir.name
+            val gameName = SteamService.getAppDirName(appInfo).ifBlank { gameDir.name }
             val sizeOnDisk = calculateDirectorySize(gameDir)
             val selectedBranch = SteamService.resolveSelectedBetaName(steamAppId).ifBlank { "public" }
             val ownerSteamId = PrefManager.steamUserSteamId64.takeIf { it > 0L }?.toString() ?: "0"
 
-            // Create symlink from Steam common directory to actual game directory
+            if (gameName != gameDir.name) {
+                Timber.i(
+                    "ACF installdir '$gameName' differs from the on-disk folder '${gameDir.name}' " +
+                        "for appId=$steamAppId; linking under the canonical name so LaunchApp resolves it",
+                )
+            }
+
             val steamGameLink = File(commonDir, gameName)
             if (!steamGameLink.exists()) {
                 try {

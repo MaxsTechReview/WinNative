@@ -897,8 +897,32 @@ int main(int argc, char** argv) {
     const char* user     = getenv("WN_STEAM_USERNAME");
     const char* token    = getenv("WN_STEAM_TOKEN");
     uint64_t    steamId  = env_u64("WN_STEAM_STEAMID");
-    const char* gameExe  = (argc > 1) ? argv[1] : NULL;
     uint32_t    appId    = appIdStr ? (uint32_t) strtoul(appIdStr, NULL, 10) : 0;
+
+    const char* gameExe = NULL;
+    static char gameExeBuf[1024];
+    static char specAppBuf[64];
+    const char* specSrc = (argc > 1) ? argv[1] : getenv("WN_STEAM_GAMEEXE_FILE");
+    bool specIsFile = false;
+    if (specSrc) {
+        FILE* spec = fopen(specSrc, "r");
+        if (spec) {
+            specIsFile = true;
+            if (fgets(gameExeBuf, sizeof(gameExeBuf), spec)) {
+                size_t n = strlen(gameExeBuf);
+                while (n && (gameExeBuf[n - 1] == '\n' || gameExeBuf[n - 1] == '\r')) gameExeBuf[--n] = 0;
+                if (gameExeBuf[0]) gameExe = gameExeBuf;
+            }
+            if (fgets(specAppBuf, sizeof(specAppBuf), spec)) {
+                uint32_t specAppId = (uint32_t) strtoul(specAppBuf, NULL, 10);
+                if (specAppId) appId = specAppId;
+            }
+            fclose(spec);
+            log_line("[wn-launcher] spec file %s -> exe=%s appId=%u",
+                     specSrc, gameExe ? gameExe : "(none)", appId);
+        }
+    }
+    if (!gameExe && argc > 1 && !specIsFile) gameExe = argv[1];
 
     log_line("[wn-launcher] env appId=%u steamId=%llu user=%s exe=%s",
              appId,
@@ -915,8 +939,8 @@ int main(int argc, char** argv) {
     } else {
         log_line("[wn-launcher] token missing");
     }
-    if (argc <= 1 || !gameExe || !*gameExe) {
-        log_line("[wn-launcher] no game exe passed on argv[1]");
+    if (!gameExe || !*gameExe) {
+        log_line("[wn-launcher] no game exe from argv[1], spec file or WN_STEAM_GAMEEXE_FILE");
         return 1;
     }
 

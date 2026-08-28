@@ -6625,7 +6625,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 File bionicSteamDir = new File(container.getRootDir(),
                         ".wine/drive_c/Program Files (x86)/Steam");
                 bionicSteamDir.mkdirs();
-                WineUtils.ensureSteamappsCommonSymlink(container, gameInstallPath);
+                WineUtils.ensureSteamappsCommonSymlink(container, gameInstallPath,
+                        canonicalSteamInstallDir(appId));
 
                 boolean bionicOverlayOk = false;
                 if (!wnPlanWActive) {
@@ -9236,6 +9237,37 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         return "\"" + windowsPath + "\"";
     }
 
+    private String canonicalSteamInstallDir(int appId) {
+        try {
+            com.winlator.cmod.feature.stores.steam.data.SteamApp info =
+                    com.winlator.cmod.feature.stores.steam.service.SteamService.Companion
+                            .getAppInfoOf(appId);
+            String dirName = com.winlator.cmod.feature.stores.steam.service.SteamService.Companion
+                    .getAppDirName(info);
+            return (dirName != null && !dirName.trim().isEmpty()) ? dirName.trim() : null;
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity", "canonicalSteamInstallDir failed for appId=" + appId, e);
+            return null;
+        }
+    }
+
+    private String writePlanWGameSpec(String gameExeWinPath, int appId) {
+        if (gameExeWinPath == null || gameExeWinPath.isEmpty()) return null;
+        File spec = new File(container.getRootDir(), ".wine/drive_c/wn-steam-game.spec");
+        try {
+            File parent = spec.getParentFile();
+            if (parent != null) parent.mkdirs();
+            FileUtils.writeString(spec, gameExeWinPath + "\n" + appId + "\n");
+            Log.d("XServerDisplayActivity",
+                    "Steam Launcher: wrote game spec " + spec.getAbsolutePath()
+                    + " (appId=" + appId + ")");
+            return "C:\\wn-steam-game.spec";
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity", "Failed to write Steam Launcher game spec", e);
+            return null;
+        }
+    }
+
     private String getWineStartCommand(GuestProgramLauncherComponent launcherComponent) {
         EnvVars envVars = getOverrideEnvVars();
         String args = "";
@@ -9272,6 +9304,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 String gameInstPath = resolveSteamGameInstallPath(appId);
                 if (gameInstPath != null && new File(gameInstPath).exists()) {
                     WineUtils.ensureSteamappsCommonSymlink(container, gameInstPath);
+                    String sharedCanonicalDir = canonicalSteamInstallDir(appId);
+                    if (sharedCanonicalDir != null
+                            && !sharedCanonicalDir.equals(new File(gameInstPath).getName())) {
+                        WineUtils.ensureSteamappsCommonSymlink(container, gameInstPath,
+                                sharedCanonicalDir);
+                    }
                 }
 
                 File containerSteamDir = new File(container.getRootDir(),
@@ -9306,7 +9344,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                     Log.d("XServerDisplayActivity", "ColdClient launch via steamclient_loader_x64.exe for appId=" + appId);
                 } else {
                     // Goldberg launches through steamapps/common to avoid drive-letter drift.
-                    String gameDirName = (gameInstPath != null) ? new File(gameInstPath).getName() : "";
+                    String onDiskDirName = (gameInstPath != null) ? new File(gameInstPath).getName() : "";
+                    String canonicalDirName = canonicalSteamInstallDir(appId);
+                    String gameDirName = (canonicalDirName != null && !canonicalDirName.isEmpty())
+                            ? canonicalDirName
+                            : onDiskDirName;
                     String relativeExe = resolveRelativeGameExe(appId, gameInstPath);
                     // If the resolved exe isn't Steam's configured launch entry the user overrode it; tell the launcher to skip LaunchApp and start the selected exe directly.
                     wnSteamDirectExeOverride = isUserOverriddenSteamExe(appId, relativeExe);
@@ -9339,11 +9381,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                                     .PrefManager.INSTANCE.getWnPlanW();
                             String wrapperExe = planW
                                     ? "steam.exe" : "wn-steam-helper.exe";
+                            String launchArg = steamGameExe;
+                            if (planW) {
+                                String specPath = writePlanWGameSpec(steamGameExe, appId);
+                                if (specPath != null) {
+                                    launchArg = specPath;
+                                    envVars.put("WN_STEAM_GAMEEXE_FILE", specPath);
+                                }
+                            }
                             args = "\"C:\\Program Files (x86)\\Steam\\" + wrapperExe
-                                    + "\" \"" + steamGameExe + "\"" + steamExtraArgs;
+                                    + "\" \"" + launchArg + "\"" + steamExtraArgs;
                             Log.d("XServerDisplayActivity",
                                     "Bionic Steam launch via " + wrapperExe
-                                    + " (planW=" + planW + "): " + steamGameExe);
+                                    + " (planW=" + planW + "): " + steamGameExe
+                                    + " arg=" + launchArg);
                         } else {
                             args = "\"" + steamGameExe + "\"" + steamExtraArgs;
                             Log.d("XServerDisplayActivity", "Goldberg launch: " + steamGameExe);
@@ -11395,7 +11446,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
             File steamappsDir = new File(steamDir, "steamapps");
             File commonDir = new File(steamappsDir, "common");
             commonDir.mkdirs();
-            WineUtils.ensureSteamappsCommonSymlink(container, gameDir.getAbsolutePath());
+            WineUtils.ensureSteamappsCommonSymlink(container, gameDir.getAbsolutePath(),
+                    canonicalSteamInstallDir(appId));
 
             String acfLanguage = PrefManager.INSTANCE.getContainerLanguage();
             String containerLang = container.getExtra("containerLanguage", null);

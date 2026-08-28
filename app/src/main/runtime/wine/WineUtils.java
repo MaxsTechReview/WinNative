@@ -596,6 +596,11 @@ public abstract class WineUtils {
   }
 
   public static void ensureSteamappsCommonSymlink(Container container, String gameDirectoryPath) {
+    ensureSteamappsCommonSymlink(container, gameDirectoryPath, null);
+  }
+
+  public static void ensureSteamappsCommonSymlink(
+      Container container, String gameDirectoryPath, String canonicalInstallDir) {
     if (gameDirectoryPath == null || gameDirectoryPath.isEmpty()) return;
 
     File gameDirectory = new File(gameDirectoryPath);
@@ -606,7 +611,10 @@ public abstract class WineUtils {
       canonicalGameDirectory = gameDirectory.getAbsoluteFile();
     }
     String canonicalGameDirectoryPath = canonicalGameDirectory.getPath();
-    String gameName = canonicalGameDirectory.getName();
+    String gameName =
+        (canonicalInstallDir != null && !canonicalInstallDir.trim().isEmpty())
+            ? canonicalInstallDir.trim()
+            : canonicalGameDirectory.getName();
 
     // Create C:\Program Files (x86)\Steam\steamapps\common
     File steamCommonDir =
