@@ -4,7 +4,7 @@ import android.app.Application
 import android.os.Bundle
 import android.util.Log
 import com.winlator.cmod.app.db.PluviaDatabase
-import com.winlator.cmod.app.update.UpdateChecker
+import com.winlator.cmod.app.update.UpdateService
 import com.winlator.cmod.feature.stores.gog.service.GOGAuthManager
 import com.winlator.cmod.feature.stores.gog.service.GOGConstants
 import com.winlator.cmod.feature.stores.steam.events.EventDispatcher
@@ -239,9 +239,6 @@ class PluviaApp : Application() {
                         false
                     }
 
-                if (UpdateChecker.isEnabled(this@PluviaApp)) {
-                    UpdateChecker.refreshInstallTimestamp(this@PluviaApp)
-                }
 
                 runCatching { PluviaDatabase.init(this@PluviaApp) }
                     .onFailure { Log.e("PluviaApp", "Database warmup failed", it) }

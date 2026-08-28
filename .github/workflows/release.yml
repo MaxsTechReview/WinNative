@@ -39,6 +39,7 @@ jobs:
       contents: read
     outputs:
       version: ${{ steps.check.outputs.version }}
+      versionCode: ${{ steps.check.outputs.versionCode }}
     steps:
       - name: Validate inputs and preconditions
         id: check
@@ -69,8 +70,10 @@ jobs:
             exit 1
           fi
 
+          VERSION_CODE=$(date -u +%y%m%d%H)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Releasing $VERSION from ${GITHUB_SHA}"
+          echo "versionCode=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "Releasing $VERSION (versionCode $VERSION_CODE) from ${GITHUB_SHA}"
 
   build:
     needs: prepare
@@ -161,6 +164,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           GRADLE_OPTS: -Xmx4g -XX:+UseG1GC
           VERSION_NAME: ${{ needs.prepare.outputs.version }}
+          VERSION_CODE: ${{ needs.prepare.outputs.versionCode }}
         run: |
           set -euo pipefail
           export KEYSTORE_FILE="${{ github.workspace }}/release.jks"

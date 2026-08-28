@@ -59,7 +59,7 @@ import androidx.preference.PreferenceManager;
 import com.winlator.cmod.R;
 import com.winlator.cmod.app.config.SettingsConfig;
 import com.winlator.cmod.app.shell.UnifiedActivity;
-import com.winlator.cmod.app.update.UpdateChecker;
+import com.winlator.cmod.app.update.UpdateService;
 import com.winlator.cmod.feature.settings.DebugFragment;
 import com.winlator.cmod.feature.setup.SetupWizardActivity;
 import com.winlator.cmod.runtime.container.Container;
@@ -2167,7 +2167,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                         SessionKeepAliveService.getActiveEnvironment() != null &&
                         SessionKeepAliveService.getActiveXServer() != null;
 
-                UpdateChecker.INSTANCE.cancelPostGameCheck();
+                UpdateService.INSTANCE.cancelPostGameCheck();
 
                 if (!sessionToReuse) {
                     if (isSteamShortcut()) {
@@ -4249,7 +4249,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
 
         super.onDestroy();
         if (!switchLaunchInProgress.get()) {
-            UpdateChecker.INSTANCE.schedulePostGameCheck(this);
+            UpdateService.INSTANCE.onGameFinished(this);
         }
 
         if (!sessionCleanupStarted.get()) {

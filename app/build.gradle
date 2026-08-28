@@ -139,6 +139,11 @@ def appVersionName = providers.gradleProperty("VERSION_NAME")
         .orElse(providers.environmentVariable("VERSION_NAME"))
         .getOrElse("Nightly")
 
+def appVersionCode = providers.gradleProperty("VERSION_CODE")
+        .orElse(providers.environmentVariable("VERSION_CODE"))
+        .map { Integer.parseInt(it.trim()) }
+        .getOrElse(2)
+
 def coldClientVersionFile = rootProject.file("tools/gbe_fork.version")
 def coldClientVersion = coldClientVersionFile.exists() ? coldClientVersionFile.text.trim() : "unknown"
 
@@ -150,7 +155,7 @@ android {
         applicationId "com.winnative.cmod"
         minSdk 26
         targetSdk 28
-        versionCode 2
+        versionCode appVersionCode
         versionName appVersionName
 
         externalNativeBuild {
