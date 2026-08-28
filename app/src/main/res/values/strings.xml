@@ -1257,8 +1257,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_other_section_integration">Integration</string>
     <string name="settings_other_download_source_title">Download Source (GitHub Mirror)</string>
     <string name="settings_other_download_source_default">GitHub (default)</string>
-    <string name="settings_other_download_source_message">Switch on to download components from your China mirror (Gitee fork) instead of GitHub. The mirror must keep the same release tags and asset filenames, and Gitee forks do NOT copy GitHub releases — recreate the releases/assets there. Leave the toggle off to use GitHub directly.</string>
-    <string name="settings_other_download_source_hint">Gitee fork URL</string>
+    <string name="settings_other_download_source_message">Switch on to fetch component downloads through a China GitHub accelerator (e.g. gh-proxy.com — reverse proxy for github.com). Pick a working proxy in the field; result looks like {proxy}/https://github.com/... Leave off to use GitHub directly.</string>
+    <string name="settings_other_download_source_hint">GitHub proxy base URL</string>
     <string name="settings_other_setup_wizard_title">Setup Wizard</string>
     <string name="settings_other_setup_wizard_summary">Open the setup wizard again to review permissions, system files, and default containers.</string>
     <string name="settings_other_checking_for_updates">Checking for updates\u2026</string>

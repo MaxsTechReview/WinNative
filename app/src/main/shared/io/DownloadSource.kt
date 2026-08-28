@@ -4,35 +4,27 @@ import android.content.Context
 import androidx.preference.PreferenceManager
 
 /**
- * Rewrites hardcoded GitHub download URLs to a user-configured mirror so
- * components/containers can be fetched on networks where github.com is
- * unreachable (e.g. a Gitee fork in mainland China).
+ * Rewrites hardcoded GitHub download URLs through a user-configured China
+ * accelerator (a GitHub reverse-proxy such as gh-proxy.com / ghfast.top), so
+ * components/containers can be fetched on networks where github.com is slow
+ * or unreachable.
  *
- * Two mechanisms (both off by default — original URLs are never modified):
+ * When the toggle ("use_china_mirror") is on, any https://github.com/ or
+ * https://raw.githubusercontent.com/ URL is prefixed with the proxy base
+ * ("china_mirror_base", default one of the common ghproxy mirrors). The
+ * original URLs are never modified when the toggle is off, and non-GitHub
+ * repos are untouched.
  *
- *  1. China mirror toggle ("use_china_mirror"): rewrites the WinNative-Components
- *     repo specifically, mapping the GitHub repo path wholesale to the user's
- *     Gitee fork ("china_mirror_base", default the user's fork). This handles the
- *     renamed fork repo ("winnative-components-cnfork") — a plain host+owner
- *     prefix swap would keep "WinNative-Components" and 404.
- *
- *  2. Legacy custom base ("download_source_base"): replace the "https://github.com/"
- *     and "https://raw.githubusercontent.com/" prefixes with the given base,
- *     keeping owner/repo/branch/path (repo names must match).
- *
- * The mirror must keep the same release tags and asset filenames as the originals.
+ * A legacy free-text base ("download_source_base") is still honored if set
+ * manually: it replaces the host prefixes keeping owner/repo/path.
  */
 object DownloadSource {
     private const val PREF_KEY = "download_source_base"
     private const val PREF_CHINA_MIRROR = "use_china_mirror"
     private const val PREF_CHINA_MIRROR_BASE = "china_mirror_base"
 
-    /** The GitHub repo that the China mirror replaces. */
-    private const val GITHUB_COMPONENTS_HTTPS = "https://github.com/nicholasx417/WinNative-Components"
-    private const val GITHUB_COMPONENTS_RAW = "https://raw.githubusercontent.com/nicholasx417/WinNative-Components/"
-
-    /** Default China mirror: the user's Gitee fork of WinNative-Components. */
-    const val DEFAULT_CHINA_MIRROR_BASE = "https://gitee.com/kingokksa/winnative-components-cnfork"
+    /** Default China GitHub proxy. Easily replaced in Settings if it changes. */
+    const val DEFAULT_CHINA_MIRROR_BASE = "https://gh-proxy.com"
 
     fun chinaMirrorEnabled(context: Context): Boolean =
         PreferenceManager.getDefaultSharedPreferences(context)
@@ -55,32 +47,20 @@ object DownloadSource {
             ?.trimEnd('/')
             .orEmpty()
 
-    /** Returns [url] rewritten through the configured mirror, or [url] unchanged. */
+    /** Returns [url] rewritten through the configured accelerator, or [url] unchanged. */
     fun mirroredUrl(context: Context, url: String): String {
         if (url.isBlank()) return url
 
-        // 1) China mirror: repo-path-level mapping (handles renamed fork repos).
+        // 1) China accelerator: prefix GitHub URLs with the proxy base.
         if (chinaMirrorEnabled(context)) {
             val base = chinaMirrorBase(context)
-            if (base.isNotEmpty()) {
-                // raw.githubusercontent.com/nicholasx417/WinNative-Components/{branch}/{path}
-                //   -> {base}/raw/{branch}/{path}
-                if (url.startsWith(GITHUB_COMPONENTS_RAW)) {
-                    val rest = url.removePrefix(GITHUB_COMPONENTS_RAW) // branch/path
-                    val parts = rest.split('/')
-                    if (parts.isNotEmpty() && parts[0].isNotEmpty()) {
-                        val branch = parts[0]
-                        val path = parts.drop(1).joinToString("/")
-                        return "$base/raw/$branch/$path"
-                    }
-                }
-                // github.com/nicholasx417/WinNative-Components/... (releases/download, blob, tree)
-                //   -> {base}/...
-                if (url.startsWith(GITHUB_COMPONENTS_HTTPS)) {
-                    return base + url.removePrefix(GITHUB_COMPONENTS_HTTPS)
-                }
+            if (base.isNotEmpty() &&
+                !url.startsWith(base) &&
+                (url.startsWith("https://github.com/") ||
+                    url.startsWith("https://raw.githubusercontent.com/"))
+            ) {
+                return base.trimEnd('/') + "/" + url
             }
-            // Other GitHub repos are intentionally untouched (default repos preserved).
             return url
         }
 
