@@ -26,9 +26,16 @@ object DownloadSource {
     /** Default China GitHub proxy. Easily replaced in Settings if it changes. */
     const val DEFAULT_CHINA_MIRROR_BASE = "https://gh-proxy.com"
 
-    fun chinaMirrorEnabled(context: Context): Boolean =
-        PreferenceManager.getDefaultSharedPreferences(context)
-            .getBoolean(PREF_CHINA_MIRROR, false)
+    fun isChineseLocale(): Boolean = java.util.Locale.getDefault().language.startsWith("zh")
+
+    fun chinaMirrorEnabled(context: Context): Boolean {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        return if (prefs.contains(PREF_CHINA_MIRROR)) {
+            prefs.getBoolean(PREF_CHINA_MIRROR, false)
+        } else {
+            isChineseLocale()
+        }
+    }
 
     fun chinaMirrorBase(context: Context): String {
         val stored =

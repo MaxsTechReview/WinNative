@@ -2518,35 +2518,34 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                                                 modifier = Modifier.fillMaxWidth(),
                                                 verticalAlignment = Alignment.CenterVertically,
                                             ) {
-                                                Text(
-                                                    text = stringResource(R.string.setup_wizard_mirror),
-                                                    color =
-                                                        if (mirrorChecked) {
-                                                            Color(0xFF1A9FFF)
-                                                        } else {
-                                                            Color(0xFF7A8FA8)
+                                                if (com.winlator.cmod.shared.io.DownloadSource.isChineseLocale()) {
+                                                    Text(
+                                                        text = stringResource(R.string.setup_wizard_mirror),
+                                                        color =
+                                                            if (mirrorChecked) {
+                                                                Color(0xFF1A9FFF)
+                                                            } else {
+                                                                Color(0xFF7A8FA8)
+                                                            },
+                                                        fontFamily = InterFont,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        fontSize = 11.sp,
+                                                    )
+                                                    Spacer(Modifier.width(8.dp))
+                                                    Switch(
+                                                        checked = mirrorChecked,
+                                                        onCheckedChange = { checked ->
+                                                            mirrorChecked = checked
+                                                            androidx.preference.PreferenceManager
+                                                                .getDefaultSharedPreferences(this@SetupWizardActivity)
+                                                                .edit()
+                                                                .putBoolean("use_china_mirror", checked)
+                                                                .apply()
+                                                            refreshRecommendedPackageCache()
                                                         },
-                                                    fontFamily = InterFont,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    fontSize = 11.sp,
-                                                )
-                                                Spacer(Modifier.width(8.dp))
-                                                Switch(
-                                                    checked = mirrorChecked,
-                                                    onCheckedChange = { checked ->
-                                                        mirrorChecked = checked
-                                                        // Must write the DEFAULT prefs: DownloadSource mirrors via
-                                                        // PreferenceManager.getDefaultSharedPreferences, and the Other-settings
-                                                        // toggle uses the same file — keeps both switches in sync.
-                                                        androidx.preference.PreferenceManager
-                                                            .getDefaultSharedPreferences(this@SetupWizardActivity)
-                                                            .edit()
-                                                            .putBoolean("use_china_mirror", checked)
-                                                            .apply()
-                                                        refreshRecommendedPackageCache()
-                                                    },
-                                                )
-                                                Spacer(Modifier.weight(1f))
+                                                    )
+                                                    Spacer(Modifier.weight(1f))
+                                                }
                                                 Box(
                                                     modifier =
                                                         Modifier

@@ -241,7 +241,7 @@ class OtherSettingsFragment : Fragment() {
             OtherSettingsState(
                 checkForUpdates = preferences.getBoolean("check_for_updates", true),
                 updateChannelIndex = UpdateChannel.entries.indexOf(UpdateService.channel(ctx)),
-                useChinaMirror = preferences.getBoolean("use_china_mirror", false),
+                useChinaMirror = com.winlator.cmod.shared.io.DownloadSource.chinaMirrorEnabled(ctx),
                 chinaMirrorBase = preferences.getString("china_mirror_base", "")?.ifBlank {
                     com.winlator.cmod.shared.io.DownloadSource.DEFAULT_CHINA_MIRROR_BASE
                 } ?: com.winlator.cmod.shared.io.DownloadSource.DEFAULT_CHINA_MIRROR_BASE,

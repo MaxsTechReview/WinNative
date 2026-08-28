@@ -336,12 +336,14 @@ fun OtherSettingsScreen(
 
             SectionLabel(stringResource(R.string.settings_general_imagefs), modifier = Modifier.padding(top = 8.dp))
 
-            DownloadSourceCard(
-                enabled = state.useChinaMirror,
-                base = state.chinaMirrorBase,
-                onEnabled = onChinaMirrorChanged,
-                onChange = onChinaMirrorBaseChanged,
-            )
+            if (com.winlator.cmod.shared.io.DownloadSource.isChineseLocale()) {
+                DownloadSourceCard(
+                    enabled = state.useChinaMirror,
+                    base = state.chinaMirrorBase,
+                    onEnabled = onChinaMirrorChanged,
+                    onChange = onChinaMirrorBaseChanged,
+                )
+            }
 
             ReinstallImagefsCard(onClick = { showReinstallDialog = true })
 
