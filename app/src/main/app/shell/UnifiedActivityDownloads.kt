@@ -1356,6 +1356,7 @@ internal fun UnifiedActivity.GameManagerDialog(
     var isCheckingForUpdate by remember(app.id) { mutableStateOf(false) }
     var isUpdateCheckCoolingDown by remember(app.id) { mutableStateOf(false) }
     var showWorkshopDialog by remember(app.id) { mutableStateOf(false) }
+    val launchOptionsState = rememberSteamLaunchOptionsState(app.id, enabled = installed == true)
     var updateInfo by remember(app.id) { mutableStateOf<SteamService.SteamUpdateInfo?>(null) }
     var updateStatusText by remember(app.id) { mutableStateOf<String?>(null) }
     val downloadRecords by com.winlator.cmod.app.service.download.DownloadCoordinator.records.collectAsState(
@@ -1547,6 +1548,8 @@ internal fun UnifiedActivity.GameManagerDialog(
                 showWorkshop = isReallyInstalled,
                 showVerifyFiles = isReallyInstalled,
                 areSteamActionsEnabled = !hasBlockingSteamDownload,
+                showLaunchOptions = launchOptionsState.options.size >= 2,
+                onLaunchOptions = launchOptionsState::show,
                 dlcs = dlcItems,
                 selectedDlcIds = selectedDlcIds.toSet(),
                 isDlcSelectionEnabled = steamDownloadRecord == null,
@@ -1686,6 +1689,8 @@ internal fun UnifiedActivity.GameManagerDialog(
             onDismissRequest = { showWorkshopDialog = false },
         )
     }
+
+    SteamLaunchOptionsDialogHost(app.id, app.name, launchOptionsState)
 }
 
 @Composable

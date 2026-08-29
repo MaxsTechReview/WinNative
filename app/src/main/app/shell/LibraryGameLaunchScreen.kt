@@ -52,6 +52,7 @@ import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.RocketLaunch
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Save
@@ -148,6 +149,8 @@ internal fun LibraryGameLaunchScreen(
     showVerifyFiles: Boolean = true,
     showCheckForUpdate: Boolean = true,
     showWorkshop: Boolean = true,
+    showLaunchOptions: Boolean = false,
+    onLaunchOptions: () -> Unit = {},
     playEnabled: Boolean = true,
     playDisabledLabel: String? = null,
     /**
@@ -305,6 +308,7 @@ internal fun LibraryGameLaunchScreen(
                 showCheckForUpdate = showCheckForUpdate,
                 showWorkshop = showWorkshop,
                 showAchievements = onAchievements != null,
+                showLaunchOptions = showLaunchOptions,
                 showCheats = onCheats != null,
                 cheatsEnabled = cheatsEnabled,
                 areSteamActionsEnabled = areSteamActionsEnabled,
@@ -312,6 +316,7 @@ internal fun LibraryGameLaunchScreen(
                 onCheckForUpdate = onCheckForUpdate,
                 onWorkshop = onWorkshop,
                 onAchievements = { onAchievements?.invoke() },
+                onLaunchOptions = onLaunchOptions,
                 onCheats = { onCheats?.invoke() },
             )
         }
@@ -888,6 +893,7 @@ private fun SourceTag(
     showCheckForUpdate: Boolean = true,
     showWorkshop: Boolean = true,
     showAchievements: Boolean = false,
+    showLaunchOptions: Boolean = false,
     showCheats: Boolean = false,
     cheatsEnabled: Boolean = true,
     areSteamActionsEnabled: Boolean = true,
@@ -895,6 +901,7 @@ private fun SourceTag(
     onCheckForUpdate: () -> Unit = {},
     onWorkshop: () -> Unit = {},
     onAchievements: () -> Unit = {},
+    onLaunchOptions: () -> Unit = {},
     onCheats: () -> Unit = {},
 ) {
     var menuOpen by remember { mutableStateOf(false) }
@@ -972,6 +979,13 @@ private fun SourceTag(
                         icon = Icons.Outlined.EmojiEvents,
                         label = stringResource(R.string.steam_achievements_title),
                     ) { menuOpen = false; onAchievements() }
+                }
+                if (menuEnabled && showLaunchOptions) {
+                    LaunchSourceMenuItem(
+                        icon = Icons.Outlined.RocketLaunch,
+                        label = stringResource(R.string.store_game_launch_options),
+                        enabled = areSteamActionsEnabled,
+                    ) { menuOpen = false; onLaunchOptions() }
                 }
                 if (showCheats) {
                     LaunchSourceMenuItem(

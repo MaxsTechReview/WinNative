@@ -113,6 +113,10 @@
     <string name="store_game_update_check_failed">Verificarea actualizărilor a eșuat</string>
     <string name="store_game_update">Actualizează</string>
     <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_launch_options">Opțiuni de lansare</string>
+    <string name="store_game_launch_option_failed">Nu s-a putut salva opțiunea de lansare</string>
+    <string name="store_game_launch_options_count">%1$d opțiuni de lansare</string>
+    <string name="shortcut_launch_option_args">Argumentele opțiunii de lansare: %1$s</string>
     <string name="store_game_verify_files">Verifică fișierele</string>
     <string name="store_game_verify_started">Se verifică %1$s — verifică fila Descărcări</string>
     <string name="store_game_steam_options">Opțiuni Steam</string>

@@ -113,6 +113,10 @@
     <string name="store_game_update_check_failed">Échec de la vérification des mises à jour</string>
     <string name="store_game_update">Mettre à jour</string>
     <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_launch_options">Options de lancement</string>
+    <string name="store_game_launch_option_failed">Impossible d\'enregistrer l\'option de lancement</string>
+    <string name="store_game_launch_options_count">%1$d options de lancement</string>
+    <string name="shortcut_launch_option_args">Arguments de l\'option de lancement : %1$s</string>
     <string name="store_game_verify_files">Vérifier les fichiers</string>
     <string name="store_game_verify_started">Vérification de %1$s — consultez l\'onglet Téléchargements</string>
     <string name="store_game_steam_options">Options Steam</string>

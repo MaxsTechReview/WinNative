@@ -113,6 +113,10 @@
     <string name="store_game_update_check_failed">Controllo aggiornamenti non riuscito</string>
     <string name="store_game_update">Aggiorna</string>
     <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_launch_options">Opzioni di avvio</string>
+    <string name="store_game_launch_option_failed">Impossibile salvare l\'opzione di avvio</string>
+    <string name="store_game_launch_options_count">%1$d opzioni di avvio</string>
+    <string name="shortcut_launch_option_args">Argomenti dell\'opzione di avvio: %1$s</string>
     <string name="store_game_verify_files">Verifica file</string>
     <string name="store_game_verify_started">Verifica di %1$s — controlla la scheda Download</string>
     <string name="store_game_steam_options">Opzioni Steam</string>

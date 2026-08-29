@@ -117,6 +117,10 @@
     <string name="store_game_update_check_failed">ตรวจสอบการอัปเดตไม่สำเร็จ</string>
     <string name="store_game_update">อัปเดต</string>
     <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_launch_options">ตัวเลือกการเปิดเกม</string>
+    <string name="store_game_launch_option_failed">ไม่สามารถบันทึกตัวเลือกการเปิดเกมได้</string>
+    <string name="store_game_launch_options_count">ตัวเลือกการเปิดเกม %1$d รายการ</string>
+    <string name="shortcut_launch_option_args">อาร์กิวเมนต์ของตัวเลือกการเปิดเกม: %1$s</string>
     <string name="store_game_verify_files">ตรวจสอบไฟล์</string>
     <string name="store_game_verify_started">กำลังตรวจสอบ %1$s — ดูที่แท็บดาวน์โหลด</string>
     <string name="store_game_steam_options">ตัวเลือก Steam</string>

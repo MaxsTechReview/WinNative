@@ -31,6 +31,26 @@ object SteamLaunchOptions {
     @JvmStatic
     fun parseEnvVars(execArgs: String?): Map<String, String> = parse(execArgs).env
 
+    /**
+     * Splices a launch option's own args (`launch_exe_args`) into the user's custom args,
+     * honoring the `%command%` placeholder so wrappers like `FOO=1 %command%` keep working.
+     */
+    @JvmStatic
+    fun combineSteamLaunchArgs(
+        selectedArgs: String?,
+        customArgs: String?,
+    ): String {
+        val selected = selectedArgs.orEmpty().trim()
+        val custom = customArgs.orEmpty().trim()
+        if (selected.isEmpty()) return custom
+        if (custom.isEmpty()) return selected
+        return if (custom.contains(COMMAND)) {
+            custom.replace(COMMAND, "$COMMAND $selected")
+        } else {
+            "$selected $custom"
+        }
+    }
+
     private fun tokenize(s: String): List<String> {
         val out = ArrayList<String>()
         val sb = StringBuilder()

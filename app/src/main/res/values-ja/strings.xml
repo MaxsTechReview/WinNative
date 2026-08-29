@@ -117,6 +117,10 @@
     <string name="store_game_update_check_failed">更新の確認に失敗しました</string>
     <string name="store_game_update">更新</string>
     <string name="store_game_workshop">ワークショップ</string>
+    <string name="store_game_launch_options">起動オプション</string>
+    <string name="store_game_launch_option_failed">起動オプションを保存できませんでした</string>
+    <string name="store_game_launch_options_count">%1$d件の起動オプション</string>
+    <string name="shortcut_launch_option_args">起動オプションの引数: %1$s</string>
     <string name="store_game_verify_files">ファイルを検証</string>
     <string name="store_game_verify_started">%1$s を検証中 — ダウンロードタブを確認してください</string>
     <string name="store_game_steam_options">Steamオプション</string>

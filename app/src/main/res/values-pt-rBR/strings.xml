@@ -113,6 +113,10 @@
     <string name="store_game_update_check_failed">Falha ao verificar atualização</string>
     <string name="store_game_update">Atualizar</string>
     <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_launch_options">Opções de inicialização</string>
+    <string name="store_game_launch_option_failed">Não foi possível salvar a opção de inicialização</string>
+    <string name="store_game_launch_options_count">%1$d opções de inicialização</string>
+    <string name="shortcut_launch_option_args">Argumentos da opção de inicialização: %1$s</string>
     <string name="store_game_verify_files">Verificar arquivos</string>
     <string name="store_game_verify_started">Verificando %1$s — confira a aba Downloads</string>
     <string name="store_game_steam_options">Opções do Steam</string>

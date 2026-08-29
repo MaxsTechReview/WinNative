@@ -113,6 +113,10 @@
     <string name="store_game_update_check_failed">更新检查失败</string>
     <string name="store_game_update">更新</string>
     <string name="store_game_workshop">创意工坊</string>
+    <string name="store_game_launch_options">启动选项</string>
+    <string name="store_game_launch_option_failed">无法保存启动选项</string>
+    <string name="store_game_launch_options_count">%1$d 个启动选项</string>
+    <string name="shortcut_launch_option_args">启动选项参数：%1$s</string>
     <string name="store_game_verify_files">验证文件</string>
     <string name="store_game_verify_started">正在验证 %1$s — 请查看下载标签页</string>
     <string name="store_game_steam_options">Steam 选项</string>

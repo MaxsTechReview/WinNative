@@ -117,6 +117,10 @@
     <string name="store_game_update_check_failed">Päivitysten tarkistus epäonnistui</string>
     <string name="store_game_update">Päivitä</string>
     <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_launch_options">Käynnistysasetukset</string>
+    <string name="store_game_launch_option_failed">Käynnistysasetuksen tallentaminen epäonnistui</string>
+    <string name="store_game_launch_options_count">%1$d käynnistysasetusta</string>
+    <string name="shortcut_launch_option_args">Käynnistysasetuksen argumentit: %1$s</string>
     <string name="store_game_verify_files">Tarkista tiedostot</string>
     <string name="store_game_verify_started">Tarkistetaan %1$s — katso Lataukset-välilehteä</string>
     <string name="store_game_steam_options">Steam-asetukset</string>

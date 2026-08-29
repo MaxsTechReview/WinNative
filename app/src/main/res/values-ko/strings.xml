@@ -113,6 +113,10 @@
     <string name="store_game_update_check_failed">업데이트 확인 실패</string>
     <string name="store_game_update">업데이트</string>
     <string name="store_game_workshop">창작마당</string>
+    <string name="store_game_launch_options">실행 옵션</string>
+    <string name="store_game_launch_option_failed">실행 옵션을 저장하지 못했습니다</string>
+    <string name="store_game_launch_options_count">실행 옵션 %1$d개</string>
+    <string name="shortcut_launch_option_args">실행 옵션 인수: %1$s</string>
     <string name="store_game_verify_files">파일 확인</string>
     <string name="store_game_verify_started">%1$s 확인 중 — 다운로드 탭을 확인하세요</string>
     <string name="store_game_steam_options">Steam 옵션</string>

@@ -448,14 +448,20 @@ static int count_game_processes(const char* exeName) {
 // real Steam UI/reaper under Wine to consume the request). Safe vs AlreadyRunning
 // because the clean-shutdown arm reaps the CM session on exit. Logs the "game
 // process started pid=" marker WnLauncherStatusTailer treats as launch-complete.
-static bool create_process_game(const char* gameExe, const char* exeName) {
+static bool create_process_game(const char* gameExe, const char* exeName,
+                                const char* extraArgs) {
     char cwd[MAX_PATH];
     snprintf(cwd, sizeof(cwd), "%s", gameExe);
     char* slash = strrchr(cwd, '\\');
     if (slash) *slash = '\0'; else cwd[0] = '\0';
 
-    char cmd[MAX_PATH + 8];
-    snprintf(cmd, sizeof(cmd), "\"%s\"", gameExe);
+    // Steam appends the localconfig args only when IT launches the game, so the
+    // fallback must carry the picked entry + custom args (argv[2..]) itself.
+    char cmd[2048];
+    if (extraArgs && *extraArgs)
+        snprintf(cmd, sizeof(cmd), "\"%s\" %s", gameExe, extraArgs);
+    else
+        snprintf(cmd, sizeof(cmd), "\"%s\"", gameExe);
 
     STARTUPINFOA si;
     memset(&si, 0, sizeof(si));
@@ -473,7 +479,8 @@ static bool create_process_game(const char* gameExe, const char* exeName) {
         return false;
     }
     log_line("[wn-launcher] game process started pid=%lu via CreateProcess "
-             "fallback (\"%s\")", (unsigned long) pi.dwProcessId, exeName);
+             "fallback (\"%s\") args=[%s]", (unsigned long) pi.dwProcessId, exeName,
+             extraArgs ? extraArgs : "");
     if (pi.hThread) CloseHandle(pi.hThread);
     if (pi.hProcess) CloseHandle(pi.hProcess);
     return true;
@@ -920,6 +927,18 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    // argv[2..] are the picked-entry + custom game args (appended Android-side); only the
+    // CreateProcess fallback needs them — the LaunchApp path gets them from Steam via localconfig.
+    std::string fallbackArgs;
+    for (int i = 2; i < argc; ++i) {
+        if (!fallbackArgs.empty()) fallbackArgs += ' ';
+        if (strchr(argv[i], ' ') != nullptr) {
+            fallbackArgs += '"'; fallbackArgs += argv[i]; fallbackArgs += '"';
+        } else {
+            fallbackArgs += argv[i];
+        }
+    }
+
     const char* kSteamDir = "C:\\Program Files (x86)\\Steam";
     SetDllDirectoryA(kSteamDir);
     SetCurrentDirectoryA(kSteamDir);
@@ -1328,6 +1347,22 @@ int main(int argc, char** argv) {
                 appMgr_vt[kVtAppMgr_LaunchApp / 8];
             uint64_t gameId = (uint64_t)(appId & 0xFFFFFFu);
 
+            // config.launch key of the picker-selected entry (0 = default). Steam launches that
+            // entry with its own args; the user's custom args ride localconfig LaunchOptions, which
+            // Steam appends to the command line itself.
+            const char* launchOptEnv = getenv("WN_STEAM_LAUNCH_OPTION");
+            uint32_t uLaunchOption = 0;
+            if (launchOptEnv && launchOptEnv[0] != '\0') {
+                char* end = NULL;
+                unsigned long parsed = strtoul(launchOptEnv, &end, 10);
+                if (end != launchOptEnv && *end == '\0' && parsed <= 0xFFFF) {
+                    uLaunchOption = (uint32_t) parsed;
+                } else {
+                    // Env is user-editable; garbage (incl. "-1" → huge) must not silently launch the default.
+                    log_line("[wn-steam-launcher] ignoring invalid WN_STEAM_LAUNCH_OPTION=\"%s\"", launchOptEnv);
+                }
+            }
+
             // RefreshAppInfo() slot — re-primes appinfo between MissingConfig retries.
             void* refreshAppInfoP = appMgr_vt[kVtAppMgr_RefreshAppInfo / 8];
 
@@ -1335,7 +1370,7 @@ int main(int argc, char** argv) {
             // the 35s watchdog.
             const int kMaxLaunchAttempts = 5;
             for (int attempt = 1; attempt <= kMaxLaunchAttempts && !launchedViaApp; ++attempt) {
-                uint64_t apiCall = launchApp(appMgr, &gameId, 0, 300, "");
+                uint64_t apiCall = launchApp(appMgr, &gameId, uLaunchOption, 300, "");
                 log_line("[wn-launcher] IClientAppManager.LaunchApp(appId=%u) "
                          "attempt=%d/%d -> HSteamAPICall=0x%llx", appId,
                          attempt, kMaxLaunchAttempts,
@@ -1520,12 +1555,19 @@ int main(int argc, char** argv) {
         if (directExe) {
             log_line("[wn-launcher] direct-exe mode: launching user-selected \"%s\" via "
                      "CreateProcess (Steam LaunchApp skipped)", exeName);
+            launchedViaFallback = create_process_game(gameExe, exeName, fallbackArgs.c_str());
+        } else if (count_game_processes(exeName) > 0) {
+            // A slow LaunchApp spawn appeared after we stopped waiting — it already has
+            // Steam's args; don't double-launch it via CreateProcess.
+            log_line("[wn-launcher] \"%s\" appeared late via LaunchApp — not falling back",
+                     exeName);
+            launchedViaApp = true;
         } else {
             log_line("[wn-launcher] LaunchApp dispatched but \"%s\" never appeared "
                      "— falling back to CreateProcess (%s)",
                      exeName, launchFailureReason);
+            launchedViaFallback = create_process_game(gameExe, exeName, fallbackArgs.c_str());
         }
-        launchedViaFallback = create_process_game(gameExe, exeName);
     }
 
     if (launchedViaApp || launchedViaFallback) {

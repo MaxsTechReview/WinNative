@@ -113,6 +113,10 @@
     <string name="store_game_update_check_failed">Nie udało się sprawdzić aktualizacji</string>
     <string name="store_game_update">Aktualizuj</string>
     <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_launch_options">Opcje uruchamiania</string>
+    <string name="store_game_launch_option_failed">Nie udało się zapisać opcji uruchamiania</string>
+    <string name="store_game_launch_options_count">Opcje uruchamiania: %1$d</string>
+    <string name="shortcut_launch_option_args">Argumenty opcji uruchamiania: %1$s</string>
     <string name="store_game_verify_files">Zweryfikuj pliki</string>
     <string name="store_game_verify_started">Weryfikowanie %1$s — sprawdź kartę Pobrane</string>
     <string name="store_game_steam_options">Opcje Steam</string>

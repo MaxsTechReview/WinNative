@@ -195,10 +195,12 @@ fun WnKeyValue.generateSteamApp(): SteamApp =
                 launch =
                     this["config"]["launch"].children.map {
                         LaunchInfo(
+                            launchId = it.name?.trim()?.toIntOrNull() ?: -1,
                             executable = it["executable"].value?.replace('\\', '/').orEmpty(),
                             workingDir = it["workingdir"].value?.replace('\\', '/').orEmpty(),
                             description = it["description"].value.orEmpty(),
                             type = it["type"].value.orEmpty(),
+                            arguments = it["arguments"].value.orEmpty(),
                             configOS = OS.from(it["config"]["oslist"].value),
                             configArch = OSArch.from(it["config"]["osarch"].value),
                         )

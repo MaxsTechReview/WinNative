@@ -113,6 +113,10 @@
     <string name="store_game_update_check_failed">Не вдалося перевірити оновлення</string>
     <string name="store_game_update">Оновити</string>
     <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_launch_options">Параметри запуску</string>
+    <string name="store_game_launch_option_failed">Не вдалося зберегти параметр запуску</string>
+    <string name="store_game_launch_options_count">Параметрів запуску: %1$d</string>
+    <string name="shortcut_launch_option_args">Аргументи параметра запуску: %1$s</string>
     <string name="store_game_verify_files">Перевірити файли</string>
     <string name="store_game_verify_started">Перевірка %1$s — дивіться вкладку Завантаження</string>
     <string name="store_game_steam_options">Параметри Steam</string>

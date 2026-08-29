@@ -113,6 +113,10 @@
     <string name="store_game_update_check_failed">Error al comprobar actualizaciones</string>
     <string name="store_game_update">Actualizar</string>
     <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_launch_options">Opciones de lanzamiento</string>
+    <string name="store_game_launch_option_failed">No se pudo guardar la opción de lanzamiento</string>
+    <string name="store_game_launch_options_count">%1$d opciones de lanzamiento</string>
+    <string name="shortcut_launch_option_args">Argumentos de la opción de lanzamiento: %1$s</string>
     <string name="store_game_verify_files">Verificar archivos</string>
     <string name="store_game_verify_started">Verificando %1$s — revisa la pestaña Descargas</string>
     <string name="store_game_steam_options">Opciones de Steam</string>

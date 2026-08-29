@@ -52,6 +52,7 @@ import com.winlator.cmod.feature.settings.GraphicsDriverConfigUtils
 import com.winlator.cmod.feature.settings.WineD3DConfigUtils
 import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.feature.stores.steam.events.AndroidEvent
+import com.winlator.cmod.feature.stores.steam.service.SteamService
 import com.winlator.cmod.runtime.compat.box64.Box64Preset
 import com.winlator.cmod.runtime.compat.box64.Box64PresetManager
 import com.winlator.cmod.runtime.container.Container
@@ -374,6 +375,18 @@ class ShortcutSettingsComposeDialog private constructor(
         state.name.value = shortcut.getExtra("custom_name", shortcut.name).ifBlank { shortcut.name }
         state.launchExePath.value = resolveInitialLaunchExePath()
         state.launchExeDisplayPath.value = resolveLaunchExeDisplayPath(state.launchExePath.value)
+        // Hint shows the args the active launch option appends: the explicit pick immediately, then
+        // (for an untouched Steam shortcut) the default entry's own args resolved from appinfo, so it
+        // reflects what Steam already applies rather than showing blank.
+        state.launchOptionArgs.value = shortcut.getExtra("launch_option_args")
+        if (shortcut.getExtra("game_source") == "STEAM") {
+            shortcut.getExtra("app_id").toIntOrNull()?.let { appId ->
+                CoroutineScope(Dispatchers.IO).launch {
+                    val active = SteamService.getSelectedLaunchOption(context, appId)?.second
+                    withContext(Dispatchers.Main) { state.launchOptionArgs.value = active.orEmpty() }
+                }
+            }
+        }
         syncLibraryArtworkState()
 
         val inputType = Integer.parseInt(
@@ -1267,6 +1280,14 @@ class ShortcutSettingsComposeDialog private constructor(
             // Launch EXE path
             val launchExePath = normalizeLaunchExeForShortcut(state.launchExePath.value)
             if (launchExePath.isNotEmpty()) {
+                val storedExePath = SteamService.normalizeRelativeExe(shortcut.getExtra("launch_exe_path"))
+                // A manual exe CHANGE turns the Steam launch option off ("" marker, not key removal).
+                // Normalized compare: appinfo '\'/case variants of the same exe must not false-trigger.
+                if (!SteamService.normalizeRelativeExe(launchExePath).equals(storedExePath, ignoreCase = true)) {
+                    shortcut.putExtra("launch_exe_args", null)
+                    shortcut.putExtra("launch_option_exe", "")
+                    shortcut.putExtra("launch_option_args", null)
+                }
                 shortcut.putExtra("launch_exe_path", launchExePath)
                 val gameSource = shortcut.getExtra("game_source", "")
                 if (gameSource == "CUSTOM") {

@@ -113,6 +113,10 @@
     <string name="store_game_update_check_failed">更新檢查失敗</string>
     <string name="store_game_update">更新</string>
     <string name="store_game_workshop">工作坊</string>
+    <string name="store_game_launch_options">啟動選項</string>
+    <string name="store_game_launch_option_failed">無法儲存啟動選項</string>
+    <string name="store_game_launch_options_count">%1$d 個啟動選項</string>
+    <string name="shortcut_launch_option_args">啟動選項參數：%1$s</string>
     <string name="store_game_verify_files">驗證檔案</string>
     <string name="store_game_verify_started">正在驗證 %1$s — 請查看下載分頁</string>
     <string name="store_game_steam_options">Steam 選項</string>

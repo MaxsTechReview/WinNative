@@ -117,6 +117,10 @@
     <string name="store_game_update_check_failed">Uppdateringskontroll misslyckades</string>
     <string name="store_game_update">Uppdatera</string>
     <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_launch_options">Startalternativ</string>
+    <string name="store_game_launch_option_failed">Det gick inte att spara startalternativet</string>
+    <string name="store_game_launch_options_count">%1$d startalternativ</string>
+    <string name="shortcut_launch_option_args">Argument för startalternativ: %1$s</string>
     <string name="store_game_verify_files">Verifiera filer</string>
     <string name="store_game_verify_started">Verifierar %1$s — kontrollera fliken Nedladdningar</string>
     <string name="store_game_steam_options">Steam-alternativ</string>

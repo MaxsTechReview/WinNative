@@ -117,6 +117,10 @@
     <string name="store_game_update_check_failed">Güncelleme denetimi başarısız</string>
     <string name="store_game_update">Güncelle</string>
     <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_launch_options">Başlatma Seçenekleri</string>
+    <string name="store_game_launch_option_failed">Başlatma seçeneği kaydedilemedi</string>
+    <string name="store_game_launch_options_count">%1$d başlatma seçeneği</string>
+    <string name="shortcut_launch_option_args">Başlatma seçeneği argümanları: %1$s</string>
     <string name="store_game_verify_files">Dosyaları Doğrula</string>
     <string name="store_game_verify_started">%1$s doğrulanıyor — İndirilenler sekmesini denetleyin</string>
     <string name="store_game_steam_options">Steam seçenekleri</string>

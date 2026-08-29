@@ -117,6 +117,10 @@
     <string name="store_game_update_check_failed">Oppdateringssjekk mislyktes</string>
     <string name="store_game_update">Oppdater</string>
     <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_launch_options">Oppstartsalternativer</string>
+    <string name="store_game_launch_option_failed">Kunne ikke lagre oppstartsalternativet</string>
+    <string name="store_game_launch_options_count">%1$d oppstartsalternativer</string>
+    <string name="shortcut_launch_option_args">Argumenter for oppstartsalternativ: %1$s</string>
     <string name="store_game_verify_files">Bekreft filer</string>
     <string name="store_game_verify_started">Bekrefter %1$s — sjekk Nedlastinger-fanen</string>
     <string name="store_game_steam_options">Steam-alternativer</string>

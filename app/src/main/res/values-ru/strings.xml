@@ -116,6 +116,10 @@
     <string name="store_game_update_check_failed">Не удалось проверить обновления</string>
     <string name="store_game_update">Обновить</string>
     <string name="store_game_workshop">Мастерская</string>
+    <string name="store_game_launch_options">Параметры запуска</string>
+    <string name="store_game_launch_option_failed">Не удалось сохранить параметр запуска</string>
+    <string name="store_game_launch_options_count">Параметров запуска: %1$d</string>
+    <string name="shortcut_launch_option_args">Аргументы параметра запуска: %1$s</string>
     <string name="store_game_verify_files">Проверить файлы</string>
     <string name="store_game_verify_started">Проверка %1$s — смотрите вкладку «Загрузки».</string>
     <string name="store_game_steam_options">Параметры Steam</string>

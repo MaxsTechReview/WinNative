@@ -1491,10 +1491,6 @@ object SteamUtils {
     }
 
     /**
-     * Updates localconfig.vdf with the container's LaunchOptions for the given appId,
-     * and updates UserConfig/MountedConfig language in the ACF manifest.
-     */
-    /**
      * Disables Steam Cloud sync for a single app entry inside the parsed localconfig.vdf.
      *
      * Background: in Real Steam mode, Steam's launch pipeline calls AutoCloud on every launch.
@@ -1522,39 +1518,53 @@ object SteamUtils {
         }
     }
 
+    // Per-process native state, like the pushed command line — re-push on warm launches too.
+    @JvmStatic
+    fun pushAppFamilyShared(appId: String) {
+        val appIdInt = appId.toIntOrNull() ?: 0
+        val familyShared: Boolean =
+            if (appIdInt <= 0) {
+                false
+            } else {
+                val license = SteamService.getPkgInfoOf(appIdInt)
+                val selfAcct = PrefManager.steamUserAccountId
+                val owners   = license?.ownerAccountId.orEmpty()
+                when {
+                    owners.isEmpty()         -> false
+                    owners.contains(selfAcct) -> false  // direct
+                    owners.any { it in SteamService.familyMembers } -> true
+                    else                     -> false
+                }
+            }
+        com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient
+            .setAppFamilyShared(familyShared)
+        if (familyShared) {
+            Timber.i("Bound app $appId is family-shared (owner outside self)")
+        }
+    }
+
+    /**
+     * Writes the custom launch args into localconfig.vdf LaunchOptions — Steam appends them to the
+     * game's command line itself when it launches the entry — and updates UserConfig/MountedConfig
+     * language in the ACF manifest.
+     */
     @JvmStatic
     fun updateOrModifyLocalConfig(
         imageFs: ImageFs,
         container: Container,
         appId: String,
         steamUserId64: String,
+        // Custom args only — the picked entry's own args reach the game via the launch-option index.
+        exeCommandLine: String = container.execArgs,
     ) {
         try {
-            val exeCommandLine = container.execArgs
+            // Clean game args only — env is stripped (env goes through the container env).
+            val launchOptionsValue = SteamLaunchOptions.gameArgs(exeCommandLine)
 
             com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient
-                .setLaunchCommandLine(exeCommandLine)
+                .setLaunchCommandLine(launchOptionsValue)
 
-            val appIdInt = appId.toIntOrNull() ?: 0
-            val familyShared: Boolean =
-                if (appIdInt <= 0) {
-                    false
-                } else {
-                    val license = SteamService.getPkgInfoOf(appIdInt)
-                    val selfAcct = PrefManager.steamUserAccountId
-                    val owners   = license?.ownerAccountId.orEmpty()
-                    when {
-                        owners.isEmpty()         -> false
-                        owners.contains(selfAcct) -> false  // direct
-                        owners.any { it in SteamService.familyMembers } -> true
-                        else                     -> false
-                    }
-                }
-            com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient
-                .setAppFamilyShared(familyShared)
-            if (familyShared) {
-                Timber.i("Bound app $appId is family-shared (owner outside self)")
-            }
+            pushAppFamilyShared(appId)
 
             val steamPath = File(imageFs.wineprefix, "drive_c/Program Files (x86)/Steam")
             val userDataPath = File(steamPath, "userdata/$steamUserId64")
@@ -1571,9 +1581,9 @@ object SteamUtils {
                         val app = vdfData["Software"]["Valve"]["Steam"]["apps"][appId]
                         val option = app.children.firstOrNull { it.name == "LaunchOptions" }
                         if (option != null) {
-                            option.value = exeCommandLine.orEmpty()
+                            option.value = launchOptionsValue
                         } else {
-                            app.children.add(KeyValue("LaunchOptions", exeCommandLine))
+                            app.children.add(KeyValue("LaunchOptions", launchOptionsValue))
                         }
                         disableSteamCloudForApp(app)
                         vdfData.saveToFile(localConfigFile, false)
@@ -1581,7 +1591,7 @@ object SteamUtils {
                 }
             } else {
                 val vdfData = KeyValue("UserLocalConfigStore")
-                val option = KeyValue("LaunchOptions", exeCommandLine)
+                val option = KeyValue("LaunchOptions", launchOptionsValue)
                 val software = KeyValue("Software")
                 val valve = KeyValue("Valve")
                 val steam = KeyValue("Steam")

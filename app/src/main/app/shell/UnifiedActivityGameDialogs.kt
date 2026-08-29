@@ -1698,6 +1698,9 @@ internal fun UnifiedActivity.LibraryGameDetailDialog(
     val isEpic = app.id >= 2000000000
     val isGog = gogGame != null
     val epicId = if (isEpic) app.id - 2000000000 else 0
+    val isSteamLibraryGame = !isCustom && !isEpic && !isGog
+
+    val launchOptionsState = rememberSteamLaunchOptionsState(app.id, enabled = isSteamLibraryGame)
 
     val libraryDownloadRecords by com.winlator.cmod.app.service.download.DownloadCoordinator.records.collectAsState(
         initial = com.winlator.cmod.app.service.download.DownloadCoordinator.snapshotRecords(),
@@ -2657,6 +2660,8 @@ internal fun UnifiedActivity.LibraryGameDetailDialog(
                                     (!isEpic || epicGame?.isInstalled == true) &&
                                     (!isGog || gogGame?.isInstalled == true),
                                 showWorkshop = !isCustom && !isEpic && !isGog,
+                                showLaunchOptions = launchOptionsState.options.size >= 2,
+                                onLaunchOptions = launchOptionsState::show,
                                 areSteamActionsEnabled =
                                     when {
                                         isEpic -> !hasBlockingEpicDownloadForLibrary
@@ -3163,6 +3168,8 @@ internal fun UnifiedActivity.LibraryGameDetailDialog(
                     onDismissRequest = { showWorkshopDialog = false },
                 )
             }
+
+            SteamLaunchOptionsDialogHost(app.id, app.name, launchOptionsState)
         }
     }
 }

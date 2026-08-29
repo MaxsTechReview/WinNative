@@ -113,6 +113,10 @@
     <string name="store_game_update_check_failed">Kunne ikke tjekke for opdatering</string>
     <string name="store_game_update">Opdater</string>
     <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_launch_options">Startindstillinger</string>
+    <string name="store_game_launch_option_failed">Kunne ikke gemme startindstillingen</string>
+    <string name="store_game_launch_options_count">%1$d startindstillinger</string>
+    <string name="shortcut_launch_option_args">Startindstillingens argumenter: %1$s</string>
     <string name="store_game_verify_files">Bekræft filer</string>
     <string name="store_game_verify_started">Bekræfter %1$s — se fanen Downloads</string>
     <string name="store_game_steam_options">Steam-indstillinger</string>

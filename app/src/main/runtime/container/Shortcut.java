@@ -12,7 +12,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -32,6 +34,28 @@ public class Shortcut {
 
   private static final String COVER_ART_DIR =
       "app_data/cover_arts/"; // Removed leading "/" to keep it relative
+
+  /**
+   * Extras-only parse of a .desktop file's [Extra Data] section; keep in sync with the
+   * constructor's section handling. Never throws, so a corrupt file can't abort callers' scans.
+   */
+  public static Map<String, String> parseExtras(File desktopFile) {
+    Map<String, String> extras = new LinkedHashMap<>();
+    String section = "";
+    for (String line : FileUtils.readLines(desktopFile)) {
+      line = line.trim();
+      if (line.isEmpty() || line.startsWith("#")) continue;
+      if (line.startsWith("[")) {
+        int end = line.indexOf("]");
+        section = end > 0 ? line.substring(1, end) : "";
+      } else if (section.equals("Extra Data")) {
+        int index = line.indexOf("=");
+        if (index <= 0) continue;
+        extras.put(line.substring(0, index), line.substring(index + 1));
+      }
+    }
+    return extras;
+  }
 
   public Shortcut(Container container, File file) {
     this.container = container;

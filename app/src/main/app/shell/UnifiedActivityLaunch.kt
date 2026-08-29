@@ -270,10 +270,9 @@ internal fun UnifiedActivity.launchSteamGame(
             return@launch
         }
 
-        val shortcut =
-            containerManager.loadShortcuts().find {
-                it.getExtra("game_source") == "STEAM" && it.getExtra("app_id") == app.id.toString()
-            }
+        // Shared resolver: same canonical shortcut the picker writes to (and no
+        // per-shortcut icon decode the way loadShortcuts() does).
+        val shortcut = SteamService.locateSteamShortcut(context, app.id, containerManager)
         val detectedLaunchExecutable = SteamService.getInstalledExe(app.id)
 
         if (shortcut != null) {

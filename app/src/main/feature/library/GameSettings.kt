@@ -399,6 +399,9 @@ class GameSettingsStateHolder {
     val name = mutableStateOf("")
     val launchExePath = mutableStateOf("")
     val launchExeDisplayPath = mutableStateOf("")
+
+    // Read-only: args the selected Steam launch option appends at launch (display only).
+    val launchOptionArgs = mutableStateOf("")
     val containerEntries = mutableStateOf<List<String>>(emptyList())
     val selectedContainer = mutableIntStateOf(0)
     val screenSizeEntries = mutableStateOf<List<String>>(emptyList())
@@ -5222,6 +5225,15 @@ private fun AdvancedSection(
                     state.execArgs.value = if (current.isBlank()) arg
                     else "$current $arg"
                 }
+            )
+        }
+
+        if (state.launchOptionArgs.value.isNotBlank()) {
+            Spacer(Modifier.height(SettingTightGap))
+            Text(
+                stringResource(R.string.shortcut_launch_option_args, state.launchOptionArgs.value),
+                color = TextDim,
+                fontSize = 10.sp
             )
         }
 

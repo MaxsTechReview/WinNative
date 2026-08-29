@@ -116,6 +116,10 @@
     <string name="store_game_update_check_failed">अपडेट जाँच विफल रही</string>
     <string name="store_game_update">अपडेट</string>
     <string name="store_game_workshop">वर्कशॉप</string>
+    <string name="store_game_launch_options">लॉन्च विकल्प</string>
+    <string name="store_game_launch_option_failed">लॉन्च विकल्प सहेजा नहीं जा सका</string>
+    <string name="store_game_launch_options_count">%1$d लॉन्च विकल्प</string>
+    <string name="shortcut_launch_option_args">लॉन्च विकल्प के आर्गुमेंट: %1$s</string>
     <string name="store_game_verify_files">फ़ाइलें सत्यापित करें</string>
     <string name="store_game_verify_started">%1$s का सत्यापन - डाउनलोड टैब की जाँच करें</string>
     <string name="store_game_steam_options">Steam विकल्प</string>

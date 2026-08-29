@@ -57,6 +57,7 @@ import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.RocketLaunch
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.SystemUpdate
@@ -155,6 +156,8 @@ internal fun StoreGameDetailScreen(
     showWorkshop: Boolean = false,
     showVerifyFiles: Boolean = false,
     areSteamActionsEnabled: Boolean = true,
+    showLaunchOptions: Boolean = false,
+    onLaunchOptions: () -> Unit = {},
     dlcs: List<StoreDlcItem> = emptyList(),
     selectedDlcIds: Set<Int> = emptySet(),
     isDlcSelectionEnabled: Boolean = true,
@@ -202,7 +205,9 @@ internal fun StoreGameDetailScreen(
         val showUpdateCta = updateCheckAvailable && isUpdateAvailable
         val verifyFilesAvailable = showVerifyFiles && isInstalled
         val workshopAvailable = showWorkshop && isInstalled
-        val sourceMenuEnabled = updateCheckAvailable || verifyFilesAvailable || workshopAvailable
+        val launchOptionsAvailable = showLaunchOptions && isInstalled
+        val sourceMenuEnabled =
+            updateCheckAvailable || verifyFilesAvailable || workshopAvailable || launchOptionsAvailable
         val showDlcCard = dlcs.isNotEmpty()
         val showActionColumn =
             showDownloadCta || showUpdateCta ||
@@ -313,6 +318,7 @@ internal fun StoreGameDetailScreen(
                 showCheckForUpdate = updateCheckAvailable,
                 showVerifyFiles = verifyFilesAvailable,
                 showWorkshop = workshopAvailable,
+                showLaunchOptions = launchOptionsAvailable,
                 isCheckingForUpdate = isCheckingForUpdate,
                 areSteamActionsEnabled = areSteamActionsEnabled,
                 isUpdateCheckEnabled =
@@ -323,6 +329,7 @@ internal fun StoreGameDetailScreen(
                 onVerifyFiles = onVerifyFiles,
                 onCheckForUpdate = onCheckForUpdate,
                 onWorkshop = onWorkshop,
+                onLaunchOptions = onLaunchOptions,
             )
         }
 
@@ -824,12 +831,14 @@ private fun StoreSourceTag(
     showCheckForUpdate: Boolean = false,
     showVerifyFiles: Boolean = false,
     showWorkshop: Boolean = false,
+    showLaunchOptions: Boolean = false,
     isCheckingForUpdate: Boolean = false,
     areSteamActionsEnabled: Boolean = true,
     isUpdateCheckEnabled: Boolean = true,
     onVerifyFiles: () -> Unit = {},
     onCheckForUpdate: () -> Unit = {},
     onWorkshop: () -> Unit = {},
+    onLaunchOptions: () -> Unit = {},
 ) {
     var anchorHeightPx by remember { mutableIntStateOf(0) }
     Box {
@@ -912,6 +921,13 @@ private fun StoreSourceTag(
                             label = stringResource(R.string.store_game_workshop),
                             enabled = areSteamActionsEnabled,
                         ) { onMenuOpenChange(false); onWorkshop() }
+                    }
+                    if (showLaunchOptions) {
+                        StoreSourceMenuItem(
+                            icon = Icons.Outlined.RocketLaunch,
+                            label = stringResource(R.string.store_game_launch_options),
+                            enabled = areSteamActionsEnabled,
+                        ) { onMenuOpenChange(false); onLaunchOptions() }
                     }
                 }
             }

@@ -113,6 +113,10 @@
     <string name="store_game_update_check_failed">Update-Prüfung fehlgeschlagen</string>
     <string name="store_game_update">Aktualisieren</string>
     <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_launch_options">Startoptionen</string>
+    <string name="store_game_launch_option_failed">Startoption konnte nicht gespeichert werden</string>
+    <string name="store_game_launch_options_count">%1$d Startoptionen</string>
+    <string name="shortcut_launch_option_args">Argumente der Startoption: %1$s</string>
     <string name="store_game_verify_files">Dateien prüfen</string>
     <string name="store_game_verify_started">%1$s wird geprüft — siehe Downloads-Tab</string>
     <string name="store_game_steam_options">Steam-Optionen</string>
