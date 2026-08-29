@@ -130,6 +130,11 @@
     <string name="store_game_update_failed_notice">Update Failed</string>
     <string name="store_game_update_check_failed_notice">Update Check Failed</string>
     <string name="store_game_download_already_active">This game is already downloading. Cancel the current download before adding DLC.</string>
+    <string name="store_game_branch_label">Version</string>
+    <string name="store_game_branch_public">Default (public)</string>
+    <string name="store_game_branch_build">Build %1$s</string>
+    <string name="store_game_branch_changed">Version set to %1$s. Download to apply it.</string>
+    <string name="store_game_branch_switch_installed">Version set to %1$s. Check for Update to switch the installed files.</string>
     <string name="common_ui_select">Select</string>
     <string name="common_ui_storage_roots">Storage Roots</string>
     <string name="common_ui_browse_local_folders_directly">Browse local folders directly</string>
@@ -2550,4 +2555,15 @@ Installed path:
     <string name="retro_gs_hdd_import">Import HDD Image</string>
     <string name="retro_gs_hdd_remove_short">Remove</string>
     <string name="retro_scr_none">None</string>
+    <string name="update_available_title">Update Available</string>
+    <string name="update_action_update">Update</string>
+    <string name="update_ignore_until_next">Ignore until next update</string>
+    <string name="update_no_notes">No release notes were published for this build.</string>
+    <string name="update_apk_notice">This update changes the app itself, so Android will ask you to confirm the install. Your games, containers and settings are kept.</string>
+    <string name="update_up_to_date">WinNative is up to date.</string>
+    <string name="update_unsupported_build">In-app updates are only offered on official signed releases.</string>
+    <string name="settings_general_update_channel">Update Channel</string>
+    <string name="settings_general_update_channel_summary">Official ships tested releases. Development ships early builds.</string>
+    <string name="update_channel_official">Official</string>
+    <string name="update_channel_development">Development</string>
 </resources>

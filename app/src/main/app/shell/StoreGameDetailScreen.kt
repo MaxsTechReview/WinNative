@@ -48,6 +48,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.FactCheck
 import androidx.compose.material.icons.outlined.ArrowDropDown
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.Construction
 import androidx.compose.material.icons.outlined.Delete
@@ -56,6 +57,7 @@ import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Storage
@@ -119,6 +121,13 @@ internal data class StoreDlcItem(
     val isInstalled: Boolean = false,
 )
 
+internal data class StoreBranchOption(
+    val id: String,
+    val label: String,
+    val buildId: Long = 0L,
+    val isInstalled: Boolean = false,
+)
+
 private val StoreBlack = Color.Black
 private val StoreCard = Color(0xFF12121B)
 private val StoreAccent = Color(0xFF1A9FFF)
@@ -158,6 +167,10 @@ internal fun StoreGameDetailScreen(
     dlcs: List<StoreDlcItem> = emptyList(),
     selectedDlcIds: Set<Int> = emptySet(),
     isDlcSelectionEnabled: Boolean = true,
+    branches: List<StoreBranchOption> = emptyList(),
+    selectedBranchId: String = "",
+    isBranchSelectionEnabled: Boolean = true,
+    onSelectBranch: (String) -> Unit = {},
     onBack: () -> Unit,
     onInstall: () -> Unit = {},
     onCheckForUpdate: () -> Unit = {},
@@ -177,15 +190,33 @@ internal fun StoreGameDetailScreen(
 
     val mainRegistry = remember { PaneNavRegistry() }
     val menuRegistry = remember { PaneNavRegistry() }
+    val branchRegistry = remember { PaneNavRegistry() }
+    val topBranchRegistry = remember { PaneNavRegistry() }
     var sourceMenuOpen by remember { mutableStateOf(false) }
+    var branchMenuOpen by remember { mutableStateOf(false) }
+    var topBranchMenuOpen by remember { mutableStateOf(false) }
 
     StoreScreenCutoutMode()
 
     CompositionLocalProvider(LocalPaneNav provides mainRegistry) {
         DialogPaneNav(
             paneNavHandlers(
-                onDismiss = { if (sourceMenuOpen) sourceMenuOpen = false else onBack() },
-            ) { if (sourceMenuOpen) menuRegistry else mainRegistry },
+                onDismiss = {
+                    when {
+                        sourceMenuOpen -> sourceMenuOpen = false
+                        topBranchMenuOpen -> topBranchMenuOpen = false
+                        branchMenuOpen -> branchMenuOpen = false
+                        else -> onBack()
+                    }
+                },
+            ) {
+                when {
+                    sourceMenuOpen -> menuRegistry
+                    topBranchMenuOpen -> topBranchRegistry
+                    branchMenuOpen -> branchRegistry
+                    else -> mainRegistry
+                }
+            },
         )
         Box(Modifier.fillMaxSize()) {
         val edgePadding = 22.dp
@@ -204,6 +235,7 @@ internal fun StoreGameDetailScreen(
         val workshopAvailable = showWorkshop && isInstalled
         val sourceMenuEnabled = updateCheckAvailable || verifyFilesAvailable || workshopAvailable
         val showDlcCard = dlcs.isNotEmpty()
+        val showBranchPicker = branches.size > 1
         val showActionColumn =
             showDownloadCta || showUpdateCta ||
                 (showCloudSync || showUninstall)
@@ -304,6 +336,21 @@ internal fun StoreGameDetailScreen(
                 )
             }
             Spacer(Modifier.weight(1f))
+            if (showBranchPicker) {
+                StoreBranchTag(
+                    branches = branches,
+                    selectedBranchId = selectedBranchId,
+                    enabled = !isLoading && isBranchSelectionEnabled,
+                    expanded = topBranchMenuOpen,
+                    onExpandedChange = { open ->
+                        if (open) sourceMenuOpen = false
+                        topBranchMenuOpen = open
+                    },
+                    menuRegistry = topBranchRegistry,
+                    onSelectBranch = onSelectBranch,
+                )
+                Spacer(Modifier.width(8.dp))
+            }
             StoreSourceTag(
                 sourceLabel = sourceLabel,
                 menuEnabled = sourceMenuEnabled,
@@ -524,6 +571,19 @@ internal fun StoreGameDetailScreen(
                                         navCol = 2,
                                     )
                                 }
+                            }
+
+                            if (showBranchPicker && showDownloadCta) {
+                                StoreBranchPicker(
+                                    branches = branches,
+                                    selectedBranchId = selectedBranchId,
+                                    enabled = !isLoading && isBranchSelectionEnabled,
+                                    expanded = branchMenuOpen,
+                                    onExpandedChange = { branchMenuOpen = it },
+                                    menuRegistry = branchRegistry,
+                                    onSelectBranch = onSelectBranch,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
                             }
 
                             if (showDownloadCta) {
@@ -915,6 +975,330 @@ private fun StoreSourceTag(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun StoreBranchTag(
+    branches: List<StoreBranchOption>,
+    selectedBranchId: String,
+    enabled: Boolean,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    menuRegistry: PaneNavRegistry?,
+    onSelectBranch: (String) -> Unit,
+) {
+    val selected =
+        branches.firstOrNull { it.id.equals(selectedBranchId, ignoreCase = true) }
+            ?: branches.firstOrNull()
+            ?: return
+    val contentColor = if (enabled) StoreTextPrimary else StoreTextPrimary.copy(alpha = 0.45f)
+    var anchorHeightPx by remember { mutableIntStateOf(0) }
+
+    Box {
+        Surface(
+            color = Color.White.copy(alpha = 0.1f),
+            shape = RoundedCornerShape(8.dp),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+            modifier =
+                Modifier
+                    .onSizeChanged { anchorHeightPx = it.height }
+                    .then(
+                        if (enabled) {
+                            Modifier
+                                .paneNavItem(
+                                    cornerRadius = 8.dp,
+                                    onActivate = { onExpandedChange(!expanded) },
+                                    navRow = 0,
+                                    navCol = 2,
+                                ).clickable { onExpandedChange(!expanded) }
+                        } else {
+                            Modifier
+                        },
+                    ),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(
+                    Icons.Outlined.Layers,
+                    contentDescription = null,
+                    tint = if (enabled) StoreAccentGlow else StoreTextSecondary,
+                    modifier = Modifier.size(14.dp),
+                )
+                Text(
+                    selected.id.uppercase(),
+                    color = contentColor,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 132.dp),
+                )
+                if (enabled) {
+                    Icon(
+                        Icons.Outlined.ArrowDropDown,
+                        contentDescription = stringResource(R.string.store_game_branch_label),
+                        tint = contentColor,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+        }
+
+        if (enabled) {
+            val gapPx = with(LocalDensity.current) { 6.dp.roundToPx() }
+            StoreSourceActionPopup(
+                expanded = expanded,
+                onDismissRequest = { onExpandedChange(false) },
+                offset = IntOffset(0, anchorHeightPx + gapPx),
+            ) {
+                CompositionLocalProvider(LocalPaneNav provides menuRegistry) {
+                    Column(
+                        modifier =
+                            Modifier
+                                .widthIn(min = 172.dp, max = 240.dp)
+                                .heightIn(max = 320.dp)
+                                .verticalScroll(rememberScrollState()),
+                    ) {
+                        branches.forEach { branch ->
+                            StoreBranchMenuItem(
+                                branch = branch,
+                                isSelected = branch.id.equals(selected.id, ignoreCase = true),
+                            ) {
+                                onExpandedChange(false)
+                                if (!branch.id.equals(selected.id, ignoreCase = true)) {
+                                    onSelectBranch(branch.id)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StoreBranchPicker(
+    branches: List<StoreBranchOption>,
+    selectedBranchId: String,
+    enabled: Boolean,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    menuRegistry: PaneNavRegistry?,
+    onSelectBranch: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val selected =
+        branches.firstOrNull { it.id.equals(selectedBranchId, ignoreCase = true) }
+            ?: branches.firstOrNull()
+            ?: return
+    val contentColor = if (enabled) StoreTextPrimary else StoreTextPrimary.copy(alpha = 0.45f)
+    var anchorHeightPx by remember { mutableIntStateOf(0) }
+
+    Box(modifier) {
+        Surface(
+            color = StoreBlack.copy(alpha = 0.44f),
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.11f)),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .onSizeChanged { anchorHeightPx = it.height }
+                    .then(
+                        if (enabled) {
+                            Modifier
+                                .paneNavItem(
+                                    cornerRadius = 12.dp,
+                                    onActivate = { onExpandedChange(!expanded) },
+                                    navRow = 1,
+                                    navCol = 5,
+                                ).clickable { onExpandedChange(!expanded) }
+                        } else {
+                            Modifier
+                        },
+                    ),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                Icon(
+                    Icons.Outlined.Layers,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = if (enabled) StoreAccentGlow else StoreTextSecondary,
+                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(1.dp),
+                ) {
+                    Text(
+                        stringResource(R.string.store_game_branch_label).uppercase(),
+                        color = StoreTextSecondary,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        selected.label,
+                        color = contentColor,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Icon(
+                    Icons.Outlined.ArrowDropDown,
+                    contentDescription = stringResource(R.string.store_game_branch_label),
+                    tint = contentColor,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
+
+        if (enabled) {
+            val gapPx = with(LocalDensity.current) { 6.dp.roundToPx() }
+            StoreBranchPopup(
+                expanded = expanded,
+                onDismissRequest = { onExpandedChange(false) },
+                offset = IntOffset(0, -(anchorHeightPx + gapPx)),
+            ) {
+                CompositionLocalProvider(LocalPaneNav provides menuRegistry) {
+                    branches.forEach { branch ->
+                        StoreBranchMenuItem(
+                            branch = branch,
+                            isSelected = branch.id.equals(selected.id, ignoreCase = true),
+                        ) {
+                            onExpandedChange(false)
+                            if (!branch.id.equals(selected.id, ignoreCase = true)) {
+                                onSelectBranch(branch.id)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StoreBranchPopup(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    offset: IntOffset,
+    content: @Composable () -> Unit,
+) {
+    val transitionState = remember { MutableTransitionState(false) }
+    transitionState.targetState = expanded
+    if (!transitionState.currentState && !transitionState.targetState) return
+
+    Popup(
+        alignment = Alignment.BottomStart,
+        offset = offset,
+        onDismissRequest = onDismissRequest,
+        properties = PopupProperties(focusable = false),
+    ) {
+        AnimatedVisibility(
+            visibleState = transitionState,
+            enter =
+                fadeIn(animationSpec = tween(durationMillis = 90)) +
+                    scaleIn(
+                        animationSpec =
+                            spring(
+                                dampingRatio = 0.78f,
+                                stiffness = Spring.StiffnessMediumLow,
+                            ),
+                        initialScale = 0.88f,
+                        transformOrigin = TransformOrigin(0f, 1f),
+                    ),
+            exit =
+                fadeOut(animationSpec = tween(durationMillis = 80)) +
+                    scaleOut(
+                        animationSpec = tween(durationMillis = 110),
+                        targetScale = 0.92f,
+                        transformOrigin = TransformOrigin(0f, 1f),
+                    ),
+        ) {
+            Surface(
+                color = StoreBlack.copy(alpha = 0.88f),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f)),
+                tonalElevation = 0.dp,
+                shadowElevation = 16.dp,
+            ) {
+                Column(
+                    modifier =
+                        Modifier
+                            .widthIn(min = 208.dp, max = 320.dp)
+                            .heightIn(max = 260.dp)
+                            .verticalScroll(rememberScrollState()),
+                ) {
+                    content()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StoreBranchMenuItem(
+    branch: StoreBranchOption,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .paneNavItem(cornerRadius = 8.dp, onActivate = onClick)
+                .clickable(onClick = onClick)
+                .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(
+            if (isSelected) Icons.Outlined.CheckCircle else Icons.Outlined.Layers,
+            contentDescription = null,
+            tint = if (isSelected) StoreAccentGlow else Color.White.copy(alpha = 0.55f),
+            modifier = Modifier.size(16.dp),
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(1.dp),
+        ) {
+            Text(
+                branch.label,
+                color = if (isSelected) StoreTextPrimary else Color.White.copy(alpha = 0.86f),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (branch.buildId > 0L) {
+                Text(
+                    stringResource(R.string.store_game_branch_build, branch.buildId.toString()),
+                    color = StoreTextSecondary,
+                    fontSize = 10.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        if (branch.isInstalled) {
+            Icon(
+                Icons.Outlined.Storage,
+                contentDescription = null,
+                tint = StoreTextSecondary,
+                modifier = Modifier.size(14.dp),
+            )
         }
     }
 }

@@ -157,7 +157,7 @@ import com.winlator.cmod.app.PluviaApp
 import com.winlator.cmod.app.db.PluviaDatabase
 import com.winlator.cmod.app.service.DownloadService
 import com.winlator.cmod.app.service.download.DownloadCoordinator
-import com.winlator.cmod.app.update.UpdateChecker
+import com.winlator.cmod.app.update.UpdateService
 import com.winlator.cmod.feature.settings.InputControlsFragment
 import com.winlator.cmod.feature.settings.SettingsFocusZone
 import com.winlator.cmod.feature.settings.SettingsHost
@@ -198,7 +198,12 @@ import com.winlator.cmod.feature.stores.steam.data.SteamApp
 import com.winlator.cmod.feature.stores.steam.enums.DownloadPhase
 import com.winlator.cmod.feature.stores.steam.events.AndroidEvent
 import com.winlator.cmod.feature.stores.steam.events.EventDispatcher
+import com.winlator.cmod.feature.stores.steam.service.STEAM_DEFAULT_BRANCH
 import com.winlator.cmod.feature.stores.steam.service.SteamService
+import com.winlator.cmod.feature.stores.steam.service.getInstalledBranch
+import com.winlator.cmod.feature.stores.steam.service.getSelectableBranches
+import com.winlator.cmod.feature.stores.steam.service.getSelectedBranch
+import com.winlator.cmod.feature.stores.steam.service.setSelectedBranch
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager
 import com.winlator.cmod.feature.stores.steam.utils.getAvatarURL
 import com.winlator.cmod.feature.sync.CloudSyncHelper
@@ -1699,6 +1704,37 @@ internal fun UnifiedActivity.LibraryGameDetailDialog(
     val isGog = gogGame != null
     val epicId = if (isEpic) app.id - 2000000000 else 0
 
+    var steamBranches by remember(app.id) { mutableStateOf<List<StoreBranchOption>>(emptyList()) }
+    var selectedSteamBranch by remember(app.id) { mutableStateOf(STEAM_DEFAULT_BRANCH) }
+    var steamBranchRefreshKey by remember(app.id) { mutableStateOf(0) }
+    val publicBranchLabel = stringResource(R.string.store_game_branch_public)
+
+    LaunchedEffect(app.id, isCustom, isEpic, isGog, steamBranchRefreshKey) {
+        if (isCustom || isEpic || isGog) {
+            steamBranches = emptyList()
+            return@LaunchedEffect
+        }
+        val loaded =
+            withContext(Dispatchers.IO) {
+                val installedBranch = SteamService.getInstalledBranch(app.id)
+                SteamService.getSelectableBranches(app.id).map { branch ->
+                    StoreBranchOption(
+                        id = branch.name,
+                        label =
+                            if (branch.name.equals(STEAM_DEFAULT_BRANCH, ignoreCase = true)) {
+                                publicBranchLabel
+                            } else {
+                                branch.name
+                            },
+                        buildId = branch.buildId,
+                        isInstalled = branch.name.equals(installedBranch, ignoreCase = true),
+                    )
+                } to SteamService.getSelectedBranch(app.id)
+            }
+        steamBranches = loaded.first
+        selectedSteamBranch = loaded.second
+    }
+
     val libraryDownloadRecords by com.winlator.cmod.app.service.download.DownloadCoordinator.records.collectAsState(
         initial = com.winlator.cmod.app.service.download.DownloadCoordinator.snapshotRecords(),
     )
@@ -2701,6 +2737,24 @@ internal fun UnifiedActivity.LibraryGameDetailDialog(
                                     }
                                 },
                                 onWorkshop = { if (!isEpic && !isGog && !isCustom) showWorkshopDialog = true },
+                                branches = steamBranches,
+                                selectedBranchId = selectedSteamBranch,
+                                isBranchSelectionEnabled = !hasBlockingSteamDownloadForLibrary,
+                                onSelectBranch = { branchId ->
+                                    selectedSteamBranch = branchId
+                                    val label = steamBranches.firstOrNull { it.id == branchId }?.label ?: branchId
+                                    scope.launch {
+                                        withContext(Dispatchers.IO) {
+                                            SteamService.setSelectedBranch(app.id, branchId)
+                                        }
+                                        steamBranchRefreshKey++
+                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                            context,
+                                            context.getString(R.string.store_game_branch_switch_installed, label),
+                                            android.widget.Toast.LENGTH_SHORT,
+                                        )
+                                    }
+                                },
                             )
 
                             when (heroPopup) {

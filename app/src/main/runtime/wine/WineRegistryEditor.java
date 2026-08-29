@@ -235,6 +235,19 @@ public class WineRegistryEditor implements Closeable {
     return success ? unescape(new String(buffer)) : null;
   }
 
+  private boolean isValueUnchanged(Location valueLocation, String value) {
+    if (valueLocation.length() != value.length()) return false;
+    char[] existing = new char[valueLocation.length()];
+    try (BufferedReader reader =
+        new BufferedReader(new FileReader(cloneFile), StreamUtils.BUFFER_SIZE)) {
+      reader.skip(valueLocation.start);
+      if (reader.read(existing) != existing.length) return false;
+    } catch (IOException e) {
+      return false;
+    }
+    return value.contentEquals(new String(existing));
+  }
+
   private void setRawValue(String key, String name, String value) {
     resetLastParentKeyPositionIfNeed(key);
 
@@ -250,6 +263,8 @@ public class WineRegistryEditor implements Closeable {
     }
 
     Location valueLocation = getValueLocation(keyLocation, name);
+    if (valueLocation != null && value != null && isValueUnchanged(valueLocation, value)) return;
+
     char[] buffer = new char[StreamUtils.BUFFER_SIZE];
     boolean success = false;
 

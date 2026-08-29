@@ -139,6 +139,11 @@ def appVersionName = providers.gradleProperty("VERSION_NAME")
         .orElse(providers.environmentVariable("VERSION_NAME"))
         .getOrElse("Nightly")
 
+def appVersionCode = providers.gradleProperty("VERSION_CODE")
+        .orElse(providers.environmentVariable("VERSION_CODE"))
+        .map { Integer.parseInt(it.trim()) }
+        .getOrElse(2)
+
 def coldClientVersionFile = rootProject.file("tools/gbe_fork.version")
 def coldClientVersion = coldClientVersionFile.exists() ? coldClientVersionFile.text.trim() : "unknown"
 
@@ -150,8 +155,9 @@ android {
         applicationId "com.winnative.cmod"
         minSdk 26
         targetSdk 28
-        versionCode 2
+        versionCode appVersionCode
         versionName appVersionName
+        testInstrumentationRunner "com.winlator.cmod.StoreUiTestRunner"
 
         externalNativeBuild {
             cmake {
@@ -239,6 +245,11 @@ android {
         }
     }
 
+    applicationVariants.configureEach { variant ->
+        def names = android.productFlavors.collect { it.name }.join(",")
+        variant.buildConfigField "String", "KNOWN_FLAVORS", "\"${names}\""
+    }
+
     ndkVersion '27.3.13750724'
 
     externalNativeBuild {
@@ -283,6 +294,12 @@ android {
                     'src/main/engine'
             ]
         }
+        test {
+            java.srcDirs = ['src/test/kotlin']
+        }
+        androidTest {
+            java.srcDirs = ['src/androidTest/kotlin']
+        }
     }
 
     applicationVariants.configureEach { variant ->
@@ -301,6 +318,14 @@ android {
 
 dependencies {
     // debugImplementation "com.squareup.leakcanary:leakcanary-android:2.14"
+
+    testImplementation 'junit:junit:4.13.2'
+
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation 'androidx.test:runner:1.6.2'
+    androidTestImplementation platform(libs.composeBom)
+    androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
+    debugImplementation 'androidx.compose.ui:ui-test-manifest'
 
     implementation libs.okhttp
     implementation libs.okhttpDnsOverHttps

@@ -27,7 +27,8 @@ import androidx.preference.PreferenceManager
 import com.winlator.cmod.R
 import com.winlator.cmod.app.config.SettingsConfig
 import com.winlator.cmod.app.shell.UnifiedActivity
-import com.winlator.cmod.app.update.UpdateChecker
+import com.winlator.cmod.app.update.UpdateChannel
+import com.winlator.cmod.app.update.UpdateService
 import com.winlator.cmod.feature.shortcuts.FrontendExporter
 import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.runtime.audio.midi.MidiManager
@@ -89,24 +90,30 @@ class OtherSettingsFragment : Fragment() {
                         onCheckForUpdatesChanged = { checked ->
                             preferences.edit { putBoolean("check_for_updates", checked) }
                             if (checked) {
-                                UpdateChecker.startBackgroundLoop(ctx)
+                                UpdateService.startHourlyLoop(ctx)
                             } else {
-                                UpdateChecker.stopBackgroundLoop()
-                                UpdateChecker.cancelPostGameCheck()
+                                UpdateService.stopHourlyLoop()
+                                UpdateService.cancelPostGameCheck()
                             }
                             refresh()
                         },
                         onCheckForUpdatesNow = {
-                            val started = UpdateChecker.checkForUpdateManual(ctx)
-                            if (started) {
+                            val started = UpdateService.checkNow(ctx, manual = true)
+                            if (!UpdateService.isSupported(ctx)) {
+                                WinToast.show(ctx, R.string.update_unsupported_build)
+                            } else if (started) {
                                 WinToast.show(ctx, R.string.settings_other_checking_for_updates)
                             } else {
-                                val seconds = UpdateChecker.manualCheckCooldownSeconds()
+                                val seconds = UpdateService.manualCheckCooldownSeconds()
                                 WinToast.show(
                                     ctx,
                                     getString(R.string.settings_other_update_check_cooldown, seconds),
                                 )
                             }
+                        },
+                        onUpdateChannelSelected = { index ->
+                            UpdateService.setChannel(ctx, UpdateChannel.entries[index])
+                            refresh()
                         },
                         onLanguageSelected = { index ->
                             val currentIndex =
@@ -224,7 +231,8 @@ class OtherSettingsFragment : Fragment() {
 
         uiState =
             OtherSettingsState(
-                checkForUpdates = preferences.getBoolean("check_for_updates", false),
+                checkForUpdates = preferences.getBoolean("check_for_updates", true),
+                updateChannelIndex = UpdateChannel.entries.indexOf(UpdateService.channel(ctx)),
                 languageLabels = languageLabels,
                 languageIndex = languageIndex,
                 soundFontFiles = soundFontFiles,

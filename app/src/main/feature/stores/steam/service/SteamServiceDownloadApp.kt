@@ -201,12 +201,15 @@ internal fun SteamService.Companion.downloadApp(
         return null
     }
 
+    val branch = getSelectedBranch(appId)
+    Timber.i("Steam download branch for appId=$appId resolved to '$branch'")
+
     // Delegate to the full depot-level downloadApp overload
     return downloadApp(
         appId = appId,
         downloadableDepots = downloadableDepots,
         userSelectedDlcAppIds = effectiveDlcAppIds,
-        branch = "public",
+        branch = branch,
         includeInstalledDepots = includeInstalledDepots,
         enableVerify = enableVerify,
         allowPersistedProgress = allowPersistedProgress,

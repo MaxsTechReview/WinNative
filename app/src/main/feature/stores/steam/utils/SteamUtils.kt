@@ -6,7 +6,10 @@ import com.winlator.cmod.feature.stores.steam.data.DepotInfo
 import com.winlator.cmod.feature.stores.steam.data.ManifestInfo
 import com.winlator.cmod.feature.stores.steam.enums.PathType
 import com.winlator.cmod.feature.stores.steam.enums.SpecialGameSaveMapping
+import com.winlator.cmod.feature.stores.steam.service.SteamBranchSelection
 import com.winlator.cmod.feature.stores.steam.service.SteamService
+import com.winlator.cmod.feature.stores.steam.service.getInstalledBuildId
+import com.winlator.cmod.feature.stores.steam.service.readInstalledDepotManifestIds
 import com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.getAppDirName
 import com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.getAppInfoOf
 import com.winlator.cmod.feature.stores.steam.utils.FileUtils
@@ -816,6 +819,7 @@ object SteamUtils {
         installedDepotIds: Set<Int>,
         installedDlcAppIds: Set<Int>,
         language: String,
+        onDiskManifestIds: Map<Int, Long> = emptyMap(),
     ): LinkedHashMap<Int, ManifestInfo> {
         val allKnownDepots = linkedMapOf<Int, DepotInfo>()
         appInfo.depots.forEach { (depotId, depot) -> allKnownDepots[depotId] = depot }
@@ -850,7 +854,13 @@ object SteamUtils {
                     )
             if (!shouldInclude) return@forEach
 
-            resolveManifestForBranch(depotInfo, branch)?.takeIf { it.gid != 0L }?.let { manifest ->
+            val manifest =
+                SteamBranchSelection.installedManifest(
+                    resolved = resolveManifestForBranch(depotInfo, branch)?.takeIf { it.gid != 0L },
+                    onDiskManifestId = onDiskManifestIds[depotId],
+                    branch = branch,
+                )
+            if (manifest != null) {
                 installedDepots[depotId] = manifest
             }
         }
@@ -886,7 +896,7 @@ object SteamUtils {
                 return
             }
             val gameName = SteamService.getAppDirName(appInfo).ifBlank { gameDir.name }
-            val sizeOnDisk = calculateDirectorySize(gameDir)
+            val sizeOnDisk = installSizeOnDisk(context, steamAppId, gameDir)
             val selectedBranch = SteamService.resolveSelectedBetaName(steamAppId).ifBlank { "public" }
             val ownerSteamId = PrefManager.steamUserSteamId64.takeIf { it > 0L }?.toString() ?: "0"
 
@@ -907,9 +917,11 @@ object SteamUtils {
                 }
             }
 
-            val buildId = appInfo.branches[selectedBranch]?.buildId ?: appInfo.branches["public"]?.buildId ?: 0L
+            val latestBuildId = appInfo.branches[selectedBranch]?.buildId ?: appInfo.branches["public"]?.buildId ?: 0L
+            val buildId = SteamService.getInstalledBuildId(steamAppId).takeIf { it > 0L } ?: latestBuildId
             val installedDepotIds = SteamService.getInstalledDepotsOf(steamAppId).orEmpty().toSet()
             val installedDlcAppIds = SteamService.getInstalledDlcDepotsOf(steamAppId).orEmpty().toSet()
+            val onDiskManifestIds = SteamService.readInstalledDepotManifestIds(gameDir.absolutePath)
             val installedDepots =
                 collectInstalledDepotManifests(
                     steamAppId = steamAppId,
@@ -918,7 +930,14 @@ object SteamUtils {
                     installedDepotIds = installedDepotIds,
                     installedDlcAppIds = installedDlcAppIds,
                     language = language,
+                    onDiskManifestIds = onDiskManifestIds,
                 )
+            if (buildId != latestBuildId) {
+                Timber.i(
+                    "ACF manifest for appId=$steamAppId reports installed buildId=$buildId on branch " +
+                        "'$selectedBranch'; the current build for that branch is $latestBuildId",
+                )
+            }
 
             // Compute total download and stage sizes from resolved depots
             val totalBytesToDownload = installedDepots.values.sumOf { it.download }
@@ -1190,6 +1209,105 @@ object SteamUtils {
         if (input == null) return ""
         return input.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
     }
+
+    private const val INSTALL_SCAN_PREFS = "steam_install_size_cache"
+
+    class InstallScan(
+        @JvmField val sizeOnDisk: Long,
+        @JvmField val hasSteamApiOrig: Boolean,
+    )
+
+    private val installScanMemo = java.util.concurrent.ConcurrentHashMap<String, Pair<String, InstallScan>>()
+
+    private fun installScanKey(appId: Int, gameDir: File) = "$appId:${gameDir.absolutePath}"
+
+    private fun installScanSignature(appId: Int, gameDir: File): String {
+        val branch = SteamService.resolveSelectedBetaName(appId).ifBlank { "public" }
+        val appInfo = getAppInfoOf(appId)
+        val buildId =
+            appInfo?.branches?.get(branch)?.buildId
+                ?: appInfo?.branches?.get("public")?.buildId
+                ?: 0L
+        val depots = SteamService.getInstalledDepotsOf(appId).orEmpty().sorted().joinToString(",")
+        val dlc = SteamService.getInstalledDlcDepotsOf(appId).orEmpty().sorted().joinToString(",")
+        return "$buildId|${gameDir.lastModified()}|$depots|$dlc"
+    }
+
+    @JvmStatic
+    fun invalidateInstallScan(
+        context: Context,
+        appId: Int,
+        gameDir: File?,
+    ) {
+        if (gameDir == null) return
+        val cacheKey = installScanKey(appId, gameDir)
+        installScanMemo.remove(cacheKey)
+        context.getSharedPreferences(INSTALL_SCAN_PREFS, Context.MODE_PRIVATE)
+            .edit().remove(cacheKey).apply()
+        Timber.i("invalidateInstallScan($cacheKey)")
+    }
+
+    @JvmStatic
+    fun scanInstall(
+        context: Context,
+        appId: Int,
+        gameDir: File?,
+    ): InstallScan {
+        if (gameDir == null || !gameDir.isDirectory) return InstallScan(0L, false)
+
+        val cacheKey = installScanKey(appId, gameDir)
+        val signature = installScanSignature(appId, gameDir)
+
+        installScanMemo[cacheKey]?.let { (cachedSignature, cachedScan) ->
+            if (cachedSignature == signature) return cachedScan
+        }
+
+        val prefs = context.getSharedPreferences(INSTALL_SCAN_PREFS, Context.MODE_PRIVATE)
+        prefs.getString(cacheKey, null)?.let { stored ->
+            val parts = stored.split('#')
+            if (parts.size == 3) {
+                val storedSize = parts[1].toLongOrNull()
+                if (parts[0] == signature && storedSize != null) {
+                    val scan = InstallScan(storedSize, parts[2].toBoolean())
+                    installScanMemo[cacheKey] = signature to scan
+                    Timber.i("scanInstall($cacheKey): cache hit, no directory walk")
+                    return scan
+                }
+            }
+        }
+
+        val started = System.currentTimeMillis()
+        var size = 0L
+        var hasOrig = false
+        try {
+            gameDir.walkTopDown().forEach { file ->
+                if (file.isFile) {
+                    size += file.length()
+                    val name = file.name.lowercase()
+                    if (name == "steam_api.dll.orig" || name == "steam_api64.dll.orig") hasOrig = true
+                }
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "scanInstall($cacheKey) failed; not caching")
+            return InstallScan(size, true)
+        }
+        Timber.i(
+            "scanInstall($cacheKey): walked in ${System.currentTimeMillis() - started}ms " +
+                "-> $size bytes, hasSteamApiOrig=$hasOrig",
+        )
+
+        val scan = InstallScan(size, hasOrig)
+        installScanMemo[cacheKey] = signature to scan
+        prefs.edit().putString(cacheKey, "$signature#$size#$hasOrig").apply()
+        return scan
+    }
+
+    @JvmStatic
+    fun installSizeOnDisk(
+        context: Context,
+        appId: Int,
+        gameDir: File?,
+    ): Long = scanInstall(context, appId, gameDir).sizeOnDisk
 
     private fun calculateDirectorySize(directory: File): Long {
         if (!directory.exists() || !directory.isDirectory) {
