@@ -330,6 +330,12 @@ object PrefManager {
             setString("gog_download_folder", value)
         }
 
+    var gogCurrentAccountId: String
+        get() = getString("gog_account_id", "")
+        set(value) {
+            setString("gog_account_id", value)
+        }
+
     var chatServiceEnabled: Boolean
         get() = getBoolean("chat_service_enabled", true)
         set(value) {

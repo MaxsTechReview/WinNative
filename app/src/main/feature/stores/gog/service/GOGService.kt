@@ -18,6 +18,7 @@ import com.winlator.cmod.feature.stores.steam.enums.Marker
 import com.winlator.cmod.feature.stores.steam.events.AndroidEvent
 import com.winlator.cmod.feature.stores.steam.utils.ContainerUtils
 import com.winlator.cmod.feature.stores.steam.utils.MarkerUtils
+import com.winlator.cmod.feature.stores.steam.utils.PrefManager
 import com.winlator.cmod.feature.sync.google.GameSaveBackupManager.BackupResult
 import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.runtime.system.SessionKeepAliveService
@@ -430,6 +431,12 @@ class GOGService : Service() {
 
         fun clearStoredCredentials(context: Context): Boolean = GOGAuthManager.clearStoredCredentials(context)
 
+        fun switchAccount(userId: String) {
+            val instance = getInstance() ?: return
+            val context = instance.applicationContext
+            PrefManager.gogCurrentAccountId = userId
+            CoroutineScope(Dispatchers.IO).launch { instance.gogManager.refreshLibrary(context) }
+        }
         // Clears credentials, removes non-installed games, and stops the service.
         suspend fun logout(context: Context): Result<Unit> {
             return withContext(Dispatchers.IO) {
@@ -451,7 +458,14 @@ class GOGService : Service() {
                     instance.gogManager.deleteAllNonInstalledGames()
                     Timber.i("[GOGService] All non-installed GOG games removed from database")
 
-                    stop()
+                    val accounts = GOGAuthManager.getAccounts(context)
+                    if (!accounts.isNullOrEmpty()) {
+                        PrefManager.gogCurrentAccountId = accounts.entries.last().key
+                        instance.gogManager.refreshLibrary(context)
+                    } else {
+                        PrefManager.gogCurrentAccountId = ""
+                        stop()
+                    }
 
                     Timber.i("[GOGService] Logout completed successfully")
                     Result.success(Unit)

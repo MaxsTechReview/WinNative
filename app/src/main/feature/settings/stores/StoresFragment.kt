@@ -51,7 +51,10 @@ class StoresFragment : Fragment() {
                     CoroutineScope(Dispatchers.Main).launch {
                         val authResult = GOGAuthManager.authenticateWithCode(requireContext(), code)
                         if (authResult.isSuccess) {
-                            GOGService.start(requireContext())
+                            if (!GOGService.isRunning)
+                                GOGService.start(requireContext())
+                            else
+                                GOGService.refreshLibrary(requireContext())
                         }
                         refresh()
                     }
@@ -115,6 +118,7 @@ class StoresFragment : Fragment() {
                         ),
                 ) {
                     StoresScreen(
+                        context = context,
                         state = storeState,
                         serverOptions = serverOptions,
                         onSteamSignIn = { steamLoginLauncher.launch(Intent(requireContext(), SteamLoginActivity::class.java)) },

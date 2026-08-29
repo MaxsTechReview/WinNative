@@ -7,12 +7,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import timber.log.Timber
 import java.io.File
+import kotlinx.coroutines.runBlocking
+import com.winlator.cmod.feature.stores.steam.utils.PrefManager
 
 /**
  * Manages GOG authentication and account operations.
@@ -32,7 +31,67 @@ object GOGAuthManager {
     @JvmField
     internal var tokenUrl: String = "https://auth.gog.com/token"
 
-    fun getAuthConfigPath(context: Context): String = "${context.filesDir}/gog_auth.json"
+    fun updataAuthConfigFile(context: Context) {
+        val oldAuth =  File("${context.filesDir}/gog_auth.json")
+        if (!oldAuth.isFile) return
+        val oldAuthContent = oldAuth.readText()
+        val oldAuthJson = JSONObject(oldAuthContent)
+        if (!oldAuthJson.has(GOGConstants.GOG_CLIENT_ID)) return
+        val credentialsJson = oldAuthJson.getJSONObject(GOGConstants.GOG_CLIENT_ID)
+        val userId = credentialsJson.optString("user_id")
+        val accessToken = credentialsJson.optString("access_token")
+        if (accessToken.isEmpty() || userId.isEmpty()) return
+        val username = runBlocking { getAccountUsername(accessToken) }
+        credentialsJson.put("username", username)
+        PrefManager.gogCurrentAccountId = userId
+        val newAuthPath = File("${context.filesDir}/gog_auth/gog_auth_${userId}.json")
+        newAuthPath.writeText(oldAuthJson.toString())
+        oldAuth.delete()
+    }
+
+    fun getAuthConfigPath(context: Context): String {
+        val gogAuthDirectory = "${context.filesDir}/gog_auth"
+        val profiles = File(gogAuthDirectory)
+        if (!profiles.isDirectory)
+            profiles.mkdirs()
+        updataAuthConfigFile(context)
+        val profile = PrefManager.gogCurrentAccountId
+        if (profile.isEmpty()) {
+            val accounts = runBlocking { getAccounts(context) }
+            if (!accounts.isNullOrEmpty()) {
+                PrefManager.gogCurrentAccountId = accounts.entries.last().key
+            }
+        }
+        return "${context.filesDir}/gog_auth/gog_auth_${profile}.json"
+    }
+
+
+    fun getAccounts(context: Context): Map<String, String>? {
+         val accountsDirectory = File("${context.filesDir}/gog_auth/")
+         if (!accountsDirectory.isDirectory) return null
+         val accountFiles = accountsDirectory.listFiles() ?: return null
+         val results = mutableMapOf<String, String>()
+
+         accountFiles.forEach { file ->
+             val authContent = file.readText()
+             val authJson = JSONObject(authContent)
+             if (!authJson.has(GOGConstants.GOG_CLIENT_ID)) return@forEach
+             val credentialsJson = authJson.getJSONObject(GOGConstants.GOG_CLIENT_ID)
+             val userId = credentialsJson.optString("user_id")
+             var username = credentialsJson.optString("username")
+             if (userId.isEmpty()) return@forEach
+             if (username.isEmpty()) {
+                 val accessToken = credentialsJson.optString("access_token")
+                 username = runBlocking { getAccountUsername(accessToken) ?: "GOG User" }
+                 if (username != "GOG User") {
+                     credentialsJson.put("username", username)
+                     file.writeText(authJson.toString())
+                 }
+            }
+            results[userId] = username
+        }
+        return results.toMap()
+    }
 
     fun hasStoredCredentials(context: Context): Boolean {
         val authFile = File(getAuthConfigPath(context))
@@ -60,17 +119,6 @@ object GOGAuthManager {
             if (actualCode.isEmpty()) {
                 return Result.failure(Exception("Invalid authorization URL: no code parameter found"))
             }
-
-            val authConfigPath = getAuthConfigPath(context)
-
-            // Create auth config directory
-            val authFile = File(authConfigPath)
-            val authDir = authFile.parentFile
-            if (authDir != null && !authDir.exists()) {
-                authDir.mkdirs()
-                Timber.tag("GOG").d("Created auth config directory: ${authDir.absolutePath}")
-            }
-
             // Exchange authorization code for tokens
             Timber.tag("GOG").d("Exchanging authorization code for tokens...")
 
@@ -139,6 +187,7 @@ object GOGAuthManager {
                     put(
                         GOGConstants.GOG_CLIENT_ID,
                         JSONObject().apply {
+                            put("username", getAccountUsername(accessToken) ?: "ERROR")
                             put("access_token", accessToken)
                             put("refresh_token", refreshToken)
                             put("user_id", userId)
@@ -148,12 +197,14 @@ object GOGAuthManager {
                     )
                 }
 
+            PrefManager.gogCurrentAccountId = userId
+            val authConfigPath = getAuthConfigPath(context)
+            val authFile = File(authConfigPath)
             withContext(Dispatchers.IO) {
                 authFile.writeText(authData.toString(2))
             }
             updateLoginStatus(context)
             Timber.tag("GOG").i("GOG authentication successful for user: $userId")
-
             Result.success(credentials)
         } catch (e: Exception) {
             val errorMessage = e.message ?: e.javaClass.simpleName
@@ -215,6 +266,34 @@ object GOGAuthManager {
         }
     }
 
+    suspend fun getAccountUsername(accessToken: String): String? {
+        val url = "https://embed.gog.com/userData.json"
+
+        val request =
+            okhttp3.Request
+                .Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer ${accessToken}")
+                .addHeader("User-Agent", "WinNative/1.0")
+                .get()
+                .build()
+
+        withContext(Dispatchers.IO) {
+            Net.http.newCall(request).execute()
+        }.use { response ->
+            if (!response.isSuccessful) {
+                val errorBody = response.body?.string() ?: "Unknown error"
+                Timber.tag("GOG")
+                    .e("Failed to get game token: HTTP ${response.code} - $errorBody")
+                return null
+            }
+            val responseBody =
+                response.body?.string() ?: return null
+            val json = JSONObject(responseBody)
+            return json.optString("username")
+        }
+    }
+
     /**
      * Get game-specific credentials using the game's clientId and clientSecret.
      * This exchanges the Galaxy app's refresh token for a game-specific access token.
@@ -238,6 +317,7 @@ object GOGAuthManager {
             // Read auth file
             val authContent = withContext(Dispatchers.IO) { authFile.readText() }
             val authJson = JSONObject(authContent)
+            val username = authJson.optString("username", "GOG User")
 
             if (authJson.has(clientId)) {
                 val gameCredentials = authJson.getJSONObject(clientId)
@@ -306,6 +386,7 @@ object GOGAuthManager {
 
                     // Store the new game-specific credentials
                     json.put("loginTime", System.currentTimeMillis() / 1000.0)
+                    authJson.put("username", username)
                     authJson.put(clientId, json)
 
                     // Write updated auth file
@@ -369,7 +450,8 @@ object GOGAuthManager {
                 } else {
                     true
                 }
-            updateLoginStatus(context)
+            if (runBlocking { getAccounts(context) }?.isEmpty() ?: true)
+                updateLoginStatus(context)
             result
         } catch (e: Exception) {
             Timber.tag("GOG").e(e, "Failed to clear GOG credentials")
