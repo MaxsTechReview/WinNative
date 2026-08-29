@@ -293,6 +293,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
     private boolean rendererWindowPresented;
     private Runnable editInputControlsCallback;
     private Shortcut shortcut;
+    private volatile String appliedSteamClientVisibility = null;
     private boolean launchedFromPinnedShortcut = false;
     private String graphicsDriver = Container.DEFAULT_GRAPHICS_DRIVER;
     private String zinkMode = Container.DEFAULT_ZINK_MODE;
@@ -6580,6 +6581,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 }
 
                 MarkerUtils.INSTANCE.addMarker(gameInstallPath, Marker.STEAM_COLDCLIENT_USED);
+                com.winlator.cmod.feature.stores.steam.utils.SteamUtils
+                        .invalidateInstallScan(this, appId, gameDir);
             } else if (isBionicSteamEnabledForShortcut()) {
                 MarkerUtils.INSTANCE.removeMarker(gameInstallPath, Marker.STEAM_DLL_REPLACED);
                 MarkerUtils.INSTANCE.removeMarker(gameInstallPath, Marker.STEAM_COLDCLIENT_USED);
@@ -6610,11 +6613,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 }
 
                 if (wnPlanWActive) {
-                    restoreSteamApiDlls(gameDir);
+                    if (com.winlator.cmod.feature.stores.steam.utils.SteamUtils
+                            .scanInstall(this, appId, gameDir).hasSteamApiOrig) {
+                        restoreSteamApiDlls(gameDir);
+                        com.winlator.cmod.feature.stores.steam.utils.SteamUtils
+                                .invalidateInstallScan(this, appId, gameDir);
+                    } else {
+                        Log.d("XServerDisplayActivity",
+                                "Steam Launcher: install has no steam_api .orig backups — skipping restore walk");
+                    }
                 } else {
                     int steampipeSwapped = com.winlator.cmod.feature.stores.steam.wnsteam
                             .WnSteamAssetsInstaller.INSTANCE
                             .installSteampipeBridgeIntoApp(this, gameDir);
+                    com.winlator.cmod.feature.stores.steam.utils.SteamUtils
+                            .invalidateInstallScan(this, appId, gameDir);
                     Log.d("XServerDisplayActivity",
                             "Bionic Steam: " + steampipeSwapped
                             + " steam_api*.dll(s) replaced with steampipe bridge");
@@ -6844,15 +6857,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 exclusiveXInput = extra.equals("1");
             }
         }
-        WineUtils.setJoystickRegistryKeys(container, dinputEnabled, exclusiveXInput);
-        WineUtils.ensureWinebusConfig(container);
-
         if (shortcut != null)
             startupSelection = getShortcutSetting("startupSelection", String.valueOf(container.getStartupSelection()));
         else
             startupSelection = String.valueOf(container.getStartupSelection());
 
-        WineUtils.changeServicesStatus(container, startupSelection);
+        if (WineUtils.applyLaunchRegistryPolicy(
+                container, startupSelection, dinputEnabled, exclusiveXInput, firstTimeBoot)) {
+            containerDataChanged = true;
+        }
         if (!startupSelection.equals(container.getExtra("startupSelection"))) {
             container.putExtra("startupSelection", startupSelection);
             containerDataChanged = true;
@@ -7396,26 +7409,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                                 }
                                 envVars.put("WN_STEAM_BUILD_ID", String.valueOf(buildId));
 
-                                // Compute sizeOnDisk recursively from game directory (match Kotlin
-                                // calculateDirectorySize); null-guard listFiles() so a transient I/O
-                                // error never NPEs and silently drops all depot data.
                                 String gameInstallPath = resolveSteamGameInstallPath(bsAppId);
-                                long sizeOnDisk = 0L;
-                                if (gameInstallPath != null) {
-                                    java.util.ArrayDeque<java.io.File> stack = new java.util.ArrayDeque<>();
-                                    stack.push(new java.io.File(gameInstallPath));
-                                    while (!stack.isEmpty()) {
-                                        java.io.File cur = stack.pop();
-                                        if (cur.isDirectory()) {
-                                            java.io.File[] children = cur.listFiles();
-                                            if (children != null) {
-                                                for (java.io.File c : children) stack.push(c);
-                                            }
-                                        } else if (cur.isFile()) {
-                                            sizeOnDisk += cur.length();
-                                        }
-                                    }
-                                }
+                                long sizeOnDisk = com.winlator.cmod.feature.stores.steam.utils
+                                        .SteamUtils.installSizeOnDisk(this, bsAppId,
+                                                gameInstallPath != null ? new java.io.File(gameInstallPath) : null);
                                 envVars.put("WN_STEAM_SIZE_ON_DISK", String.valueOf(sizeOnDisk));
 
                                 // Collect installed depot IDs and DLC app IDs (same as Kotlin collectInstalledDepotManifests)
@@ -10893,6 +10890,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
 
     private void setSteamClientVisibility(boolean visible, boolean coldClientMode) {
         if (container == null) return;
+        String requested = container.id + ":" + visible + ":" + coldClientMode;
+        if (requested.equals(appliedSteamClientVisibility)) {
+            Log.d("XServerDisplayActivity",
+                    "Steam client visibility already applied this session (" + requested + "), skipping");
+            return;
+        }
+        appliedSteamClientVisibility = requested;
         updateSteamDirectoryVisibility(visible, coldClientMode);
         updateSteamRegistryVisibility(visible);
     }

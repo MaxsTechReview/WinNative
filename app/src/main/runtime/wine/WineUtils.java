@@ -1392,6 +1392,40 @@ public abstract class WineUtils {
     }
   }
 
+  private static final int LAUNCH_REGISTRY_POLICY_VERSION = 1;
+
+  private static final String LAUNCH_REGISTRY_POLICY_EXTRA = "launchRegistryPolicy";
+
+  public static boolean applyLaunchRegistryPolicy(
+      Container container,
+      String startupSelection,
+      boolean dinputEnabled,
+      boolean exclusiveXInput,
+      boolean force) {
+    if (container == null) return false;
+
+    String stamp =
+        LAUNCH_REGISTRY_POLICY_VERSION
+            + "|"
+            + startupSelection
+            + "|"
+            + (dinputEnabled ? 1 : 0)
+            + "|"
+            + (exclusiveXInput ? 1 : 0);
+
+    if (!force && stamp.equals(container.getExtra(LAUNCH_REGISTRY_POLICY_EXTRA))) {
+      Log.d("ContainerLaunch", "applyLaunchRegistryPolicy: unchanged (" + stamp + "), skipping");
+      return false;
+    }
+
+    setJoystickRegistryKeys(container, dinputEnabled, exclusiveXInput);
+    ensureWinebusConfig(container);
+    changeServicesStatus(container, startupSelection);
+    container.putExtra(LAUNCH_REGISTRY_POLICY_EXTRA, stamp);
+    Log.d("ContainerLaunch", "applyLaunchRegistryPolicy: applied (" + stamp + " force=" + force + ")");
+    return true;
+  }
+
   public static void changeServicesStatus(Container container, String startupSelection) {
     String[] services = {
       "BITS:3",
