@@ -35,7 +35,10 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,6 +47,8 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.FactCheck
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.SaveAlt
 import androidx.compose.material.icons.outlined.Construction
@@ -173,6 +178,10 @@ internal fun LibraryGameLaunchScreen(
     onVerifyFiles: () -> Unit = {},
     onCheckForUpdate: () -> Unit = {},
     onWorkshop: () -> Unit = {},
+    branches: List<StoreBranchOption> = emptyList(),
+    selectedBranchId: String = "",
+    isBranchSelectionEnabled: Boolean = true,
+    onSelectBranch: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     var uninstallMenuOpen by remember { mutableStateOf(false) }
@@ -298,6 +307,15 @@ internal fun LibraryGameLaunchScreen(
                 )
             }
             Spacer(Modifier.weight(1f))
+            if (branches.size > 1) {
+                LaunchBranchTag(
+                    branches = branches,
+                    selectedBranchId = selectedBranchId,
+                    enabled = isBranchSelectionEnabled,
+                    onSelectBranch = onSelectBranch,
+                )
+                Spacer(Modifier.width(8.dp))
+            }
             SourceTag(
                 sourceLabel = sourceLabel,
                 menuEnabled = steamMenuEnabled,
@@ -979,6 +997,132 @@ private fun SourceTag(
                         label = stringResource(R.string.retro_cheats_title),
                         enabled = cheatsEnabled,
                     ) { menuOpen = false; onCheats() }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LaunchBranchTag(
+    branches: List<StoreBranchOption>,
+    selectedBranchId: String,
+    enabled: Boolean,
+    onSelectBranch: (String) -> Unit,
+) {
+    val selected =
+        branches.firstOrNull { it.id.equals(selectedBranchId, ignoreCase = true) }
+            ?: branches.firstOrNull()
+            ?: return
+    var menuOpen by remember { mutableStateOf(false) }
+    var anchorHeightPx by remember { mutableStateOf(0) }
+    val contentColor = if (enabled) LaunchTextPrimary else LaunchTextPrimary.copy(alpha = 0.45f)
+
+    Box {
+        Surface(
+            color = Color.White.copy(alpha = 0.1f),
+            shape = RoundedCornerShape(8.dp),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+            modifier =
+                Modifier
+                    .onSizeChanged { anchorHeightPx = it.height }
+                    .then(if (enabled) Modifier.clickable { menuOpen = true } else Modifier),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(
+                    Icons.Outlined.Layers,
+                    contentDescription = null,
+                    tint = if (enabled) LaunchAccentGlow else LaunchTextSecondary,
+                    modifier = Modifier.size(14.dp),
+                )
+                Text(
+                    selected.id.uppercase(),
+                    color = contentColor,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 132.dp),
+                )
+                if (enabled) {
+                    Icon(
+                        Icons.Outlined.ArrowDropDown,
+                        contentDescription = stringResource(R.string.store_game_branch_label),
+                        tint = contentColor,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+        }
+        if (enabled) {
+            val gapPx = with(LocalDensity.current) { 6.dp.roundToPx() }
+            LaunchSourceActionPopup(
+                expanded = menuOpen,
+                onDismissRequest = { menuOpen = false },
+                offset = IntOffset(0, anchorHeightPx + gapPx),
+            ) {
+                Column(
+                    modifier =
+                        Modifier
+                            .widthIn(min = 172.dp, max = 240.dp)
+                            .heightIn(max = 320.dp)
+                            .verticalScroll(rememberScrollState()),
+                ) {
+                    branches.forEach { branch ->
+                        val isSelected = branch.id.equals(selected.id, ignoreCase = true)
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        menuOpen = false
+                                        if (!isSelected) onSelectBranch(branch.id)
+                                    }.padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Icon(
+                                if (isSelected) Icons.Outlined.CheckCircle else Icons.Outlined.Layers,
+                                contentDescription = null,
+                                tint = if (isSelected) LaunchAccentGlow else Color.White.copy(alpha = 0.55f),
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(1.dp),
+                            ) {
+                                Text(
+                                    branch.label,
+                                    color = if (isSelected) LaunchTextPrimary else Color.White.copy(alpha = 0.86f),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                if (branch.buildId > 0L) {
+                                    Text(
+                                        stringResource(R.string.store_game_branch_build, branch.buildId.toString()),
+                                        color = LaunchTextSecondary,
+                                        fontSize = 10.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+                            if (branch.isInstalled) {
+                                Icon(
+                                    Icons.Outlined.Storage,
+                                    contentDescription = null,
+                                    tint = LaunchTextSecondary,
+                                    modifier = Modifier.size(14.dp),
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
