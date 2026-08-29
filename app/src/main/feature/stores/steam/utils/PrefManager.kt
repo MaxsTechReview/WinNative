@@ -366,6 +366,45 @@ object PrefManager {
             setBoolean("chat_stay_running_on_exit", value)
         }
 
+    fun getSelectedBranch(appId: Int): String = getString("steam_selected_branch_$appId", "")
+
+    fun setSelectedBranch(
+        appId: Int,
+        branch: String,
+    ) {
+        if (branch.isBlank()) {
+            requirePrefs().edit().remove("steam_selected_branch_$appId").apply()
+        } else {
+            setString("steam_selected_branch_$appId", branch)
+        }
+    }
+
+    fun getInstalledBranch(appId: Int): String = getString("steam_installed_branch_$appId", "")
+
+    fun setInstalledBranch(
+        appId: Int,
+        branch: String,
+    ) {
+        setString("steam_installed_branch_$appId", branch.ifBlank { "public" })
+    }
+
+    fun getInstalledBuildId(appId: Int): Long = getLong("steam_installed_build_id_$appId", 0L)
+
+    fun setInstalledBuildId(
+        appId: Int,
+        buildId: Long,
+    ) {
+        setLong("steam_installed_build_id_$appId", buildId.coerceAtLeast(0L))
+    }
+
+    fun clearInstalledBranchState(appId: Int) {
+        requirePrefs()
+            .edit()
+            .remove("steam_installed_branch_$appId")
+            .remove("steam_installed_build_id_$appId")
+            .apply()
+    }
+
     fun clearAuthTokens() {
         requirePrefs().edit().apply {
             remove("user_name")

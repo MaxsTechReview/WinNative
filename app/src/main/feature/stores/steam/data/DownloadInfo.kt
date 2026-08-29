@@ -35,6 +35,9 @@ class DownloadInfo(
     @Volatile var isDeleting: Boolean = false
 
     @Volatile var isCancelling: Boolean = false
+
+    /** Steam branch the depots in this job were resolved against; recorded as the installed branch on completion. */
+    @Volatile var branch: String = "public"
     private var downloadJob: Job? = null
     private val downloadProgressListeners = CopyOnWriteArrayList<((Float) -> Unit)>()
     private val progresses: Array<Float> = Array(jobCount) { 0f }

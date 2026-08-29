@@ -19,6 +19,7 @@ import com.winlator.cmod.app.service.NetworkMonitor
 import com.winlator.cmod.app.service.download.DownloadCoordinator
 import com.winlator.cmod.feature.shortcuts.LibraryShortcutUtils
 import com.winlator.cmod.feature.stores.steam.data.AppInfo
+import com.winlator.cmod.feature.stores.steam.data.BranchInfo
 import com.winlator.cmod.feature.stores.steam.data.CachedLicense
 import com.winlator.cmod.feature.stores.steam.data.DepotInfo
 import com.winlator.cmod.feature.stores.steam.data.DownloadFailedException
@@ -165,6 +166,63 @@ import kotlin.io.path.pathString
 import kotlin.time.Duration.Companion.seconds
 
 // Depot/manifest resolution + size calculation, split out of SteamService.kt (behavior-identical).
+
+internal const val STEAM_DEFAULT_BRANCH = SteamBranchSelection.DEFAULT_BRANCH
+
+internal fun SteamService.Companion.getSelectableBranches(appId: Int): List<BranchInfo> =
+    SteamBranchSelection.selectableBranches(getAppInfoOf(appId)?.branches.orEmpty())
+
+internal fun SteamService.Companion.getSelectedBranch(appId: Int): String {
+    if (appId <= 0) return STEAM_DEFAULT_BRANCH
+    val stored = runCatching { PrefManager.getSelectedBranch(appId) }.getOrDefault("")
+    val branches = getAppInfoOf(appId)?.branches.orEmpty()
+    val resolved = SteamBranchSelection.resolveBranch(stored, branches)
+    if (stored.isNotBlank() && !resolved.equals(stored.trim(), ignoreCase = true)) {
+        Timber.w(
+            "Steam branch '${stored.trim()}' is not selectable for appId=$appId " +
+                "(missing or password protected); falling back to $resolved",
+        )
+    }
+    return resolved
+}
+
+internal fun SteamService.Companion.setSelectedBranch(
+    appId: Int,
+    branch: String,
+) {
+    if (appId <= 0) return
+    val normalized = branch.trim()
+    val persisted = if (normalized.isBlank() || normalized.equals(STEAM_DEFAULT_BRANCH, ignoreCase = true)) "" else normalized
+    runCatching { PrefManager.setSelectedBranch(appId, persisted) }
+        .onFailure { Timber.w(it, "Could not persist Steam branch selection for appId=$appId") }
+}
+
+internal fun SteamService.Companion.getInstalledBranch(appId: Int): String =
+    runCatching { PrefManager.getInstalledBranch(appId) }
+        .getOrDefault("")
+        .ifBlank { STEAM_DEFAULT_BRANCH }
+
+internal fun SteamService.Companion.getInstalledBuildId(appId: Int): Long =
+    runCatching { PrefManager.getInstalledBuildId(appId) }.getOrDefault(0L)
+
+internal fun SteamService.Companion.branchBuildId(
+    appId: Int,
+    branch: String,
+): Long = SteamBranchSelection.buildIdForBranch(getAppInfoOf(appId)?.branches.orEmpty(), branch)
+
+internal fun SteamService.Companion.recordInstalledBranch(
+    appId: Int,
+    branch: String,
+) {
+    if (appId <= 0) return
+    val resolved = branch.ifBlank { STEAM_DEFAULT_BRANCH }
+    val buildId = branchBuildId(appId, resolved)
+    runCatching {
+        PrefManager.setInstalledBranch(appId, resolved)
+        PrefManager.setInstalledBuildId(appId, buildId)
+    }.onFailure { Timber.w(it, "Could not record installed Steam branch for appId=$appId") }
+    Timber.i("Recorded installed Steam branch appId=$appId branch=$resolved buildId=$buildId")
+}
 
 internal fun SteamService.Companion.getEntitledDepotIds(packageId: Int): Set<Int>? {
     if (packageId == INVALID_PKG_ID) return null

@@ -612,6 +612,7 @@ internal fun SteamService.Companion.downloadApp(
                     mainAppDepots = preSnapshotMainAppDepots,
                     dlcAppDepots = dlcAppDepots,
                     userSelectedDlcAppIds = userSelectedDlcAppIds,
+                    branch = branch,
                 )
             MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
             return info
@@ -773,6 +774,7 @@ internal fun SteamService.Companion.downloadApp(
         }
         val info =
             DownloadInfo(selectedDepots.size, appId, downloadingAppIds).also { di ->
+                di.branch = branch
                 di.setPersistencePath(appDirPath)
                 di.setTotalExpectedBytes(totalBytes)
                 di.setDisplayTotalExpectedBytes(selectedDisplayDownloadBytes)
@@ -786,6 +788,7 @@ internal fun SteamService.Companion.downloadApp(
 
     val info =
         DownloadInfo(selectedDepots.size, appId, downloadingAppIds).also { di ->
+            di.branch = branch
             di.setPersistencePath(appDirPath)
 
             // Set weights for each depot based on manifest sizes
