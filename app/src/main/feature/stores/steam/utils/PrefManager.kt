@@ -301,7 +301,14 @@ object PrefManager {
         }
 
     var steamUseChinaCdn: Boolean
-        get() = getBoolean("steam_use_china_cdn", false)
+        get() {
+            val prefs = requirePrefs()
+            return if (prefs.contains("steam_use_china_cdn")) {
+                prefs.getBoolean("steam_use_china_cdn", false)
+            } else {
+                com.winlator.cmod.shared.io.DownloadSource.isChineseLocale()
+            }
+        }
         set(value) {
             setBoolean("steam_use_china_cdn", value)
         }
