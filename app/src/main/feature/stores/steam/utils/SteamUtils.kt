@@ -6,7 +6,10 @@ import com.winlator.cmod.feature.stores.steam.data.DepotInfo
 import com.winlator.cmod.feature.stores.steam.data.ManifestInfo
 import com.winlator.cmod.feature.stores.steam.enums.PathType
 import com.winlator.cmod.feature.stores.steam.enums.SpecialGameSaveMapping
+import com.winlator.cmod.feature.stores.steam.service.SteamBranchSelection
 import com.winlator.cmod.feature.stores.steam.service.SteamService
+import com.winlator.cmod.feature.stores.steam.service.getInstalledBuildId
+import com.winlator.cmod.feature.stores.steam.service.readInstalledDepotManifestIds
 import com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.getAppDirName
 import com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.getAppInfoOf
 import com.winlator.cmod.feature.stores.steam.utils.FileUtils
@@ -816,6 +819,7 @@ object SteamUtils {
         installedDepotIds: Set<Int>,
         installedDlcAppIds: Set<Int>,
         language: String,
+        onDiskManifestIds: Map<Int, Long> = emptyMap(),
     ): LinkedHashMap<Int, ManifestInfo> {
         val allKnownDepots = linkedMapOf<Int, DepotInfo>()
         appInfo.depots.forEach { (depotId, depot) -> allKnownDepots[depotId] = depot }
@@ -850,7 +854,13 @@ object SteamUtils {
                     )
             if (!shouldInclude) return@forEach
 
-            resolveManifestForBranch(depotInfo, branch)?.takeIf { it.gid != 0L }?.let { manifest ->
+            val manifest =
+                SteamBranchSelection.installedManifest(
+                    resolved = resolveManifestForBranch(depotInfo, branch)?.takeIf { it.gid != 0L },
+                    onDiskManifestId = onDiskManifestIds[depotId],
+                    branch = branch,
+                )
+            if (manifest != null) {
                 installedDepots[depotId] = manifest
             }
         }
@@ -901,9 +911,11 @@ object SteamUtils {
                 }
             }
 
-            val buildId = appInfo.branches[selectedBranch]?.buildId ?: appInfo.branches["public"]?.buildId ?: 0L
+            val latestBuildId = appInfo.branches[selectedBranch]?.buildId ?: appInfo.branches["public"]?.buildId ?: 0L
+            val buildId = SteamService.getInstalledBuildId(steamAppId).takeIf { it > 0L } ?: latestBuildId
             val installedDepotIds = SteamService.getInstalledDepotsOf(steamAppId).orEmpty().toSet()
             val installedDlcAppIds = SteamService.getInstalledDlcDepotsOf(steamAppId).orEmpty().toSet()
+            val onDiskManifestIds = SteamService.readInstalledDepotManifestIds(gameDir.absolutePath)
             val installedDepots =
                 collectInstalledDepotManifests(
                     steamAppId = steamAppId,
@@ -912,7 +924,14 @@ object SteamUtils {
                     installedDepotIds = installedDepotIds,
                     installedDlcAppIds = installedDlcAppIds,
                     language = language,
+                    onDiskManifestIds = onDiskManifestIds,
                 )
+            if (buildId != latestBuildId) {
+                Timber.i(
+                    "ACF manifest for appId=$steamAppId reports installed buildId=$buildId on branch " +
+                        "'$selectedBranch'; the current build for that branch is $latestBuildId",
+                )
+            }
 
             // Compute total download and stage sizes from resolved depots
             val totalBytesToDownload = installedDepots.values.sumOf { it.download }

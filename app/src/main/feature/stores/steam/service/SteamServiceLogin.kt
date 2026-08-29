@@ -334,16 +334,24 @@ internal fun SteamService.Companion.installWnLogonObserver(session: WnSteamSessi
             val nameIds  = mutableListOf<Int>()
             val nameStrs = mutableListOf<String>()
             var buildIdsPushed = 0
+            var staleBuildIdsPinned = 0
             var sourcePackagesPushed = 0
             for (a in snap.ownedApps) {
                 if (a.name.isNotEmpty()) {
                     nameIds.add(a.id)
                     nameStrs.add(a.name)
                 }
-                if (a.buildId > 0) {
+                // The snapshot carries the branch's newest build; reporting that for a game whose
+                // files are older makes the title think it is running an out-of-date install.
+                val installedBuildId = getInstalledBuildId(a.id)
+                val reportedBuildId = if (installedBuildId > 0L) installedBuildId else a.buildId.toLong()
+                if (reportedBuildId > 0L) {
                     com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient
-                        .setAppBuildId(a.id, a.buildId)
+                        .setAppBuildId(a.id, reportedBuildId.coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
                     ++buildIdsPushed
+                    if (installedBuildId > 0L && installedBuildId != a.buildId.toLong()) {
+                        ++staleBuildIdsPinned
+                    }
                 }
                 if (a.sourcePackageIds.isNotEmpty()) {
                     com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient
@@ -359,6 +367,7 @@ internal fun SteamService.Companion.installWnLogonObserver(session: WnSteamSessi
             if (nameIds.isNotEmpty() || buildIdsPushed > 0 || sourcePackagesPushed > 0) {
                 Timber.d("WnLibrary mirror → libsteamclient.so: " +
                     "names=${nameIds.size} buildIds=$buildIdsPushed " +
+                    "installedBuildIdsPinned=$staleBuildIdsPinned " +
                     "sourcePackages=$sourcePackagesPushed")
             }
         }

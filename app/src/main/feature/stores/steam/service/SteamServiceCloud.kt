@@ -170,10 +170,29 @@ internal fun SteamService.Companion.resolvePreferredLaunchBuildId(
 ): Int {
     val buildId =
         app?.branches?.get(branch)?.buildId
-            ?: app?.branches?.get("public")?.buildId
+            ?: app?.branches?.get(STEAM_DEFAULT_BRANCH)?.buildId
             ?: app?.branches?.values?.firstOrNull()?.buildId
             ?: 0L
     return buildId.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
+}
+
+/**
+ * Build id of the content actually on disk. Falls back to the branch's current build id only for
+ * installs made before the installed build id was recorded, so a stale install is never reported
+ * to a game as if it were the newest build.
+ */
+internal fun SteamService.Companion.resolveInstalledBuildId(
+    appId: Int,
+    branch: String,
+): Int {
+    val buildId =
+        SteamBranchSelection.installedBuildId(
+            recorded = getInstalledBuildId(appId),
+            branches = getAppInfoOf(appId)?.branches.orEmpty(),
+            branch = branch,
+        )
+    if (buildId > 0L) return buildId.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
+    return resolvePreferredLaunchBuildId(getAppInfoOf(appId), branch)
 }
 
 internal fun SteamService.Companion.resolvePreferredLaunchDepotIds(
@@ -231,7 +250,7 @@ internal suspend fun SteamService.Companion.primeLibSteamClientLaunchState(
     }
     libSteamClient.seedFromPrefManager(ctx)
 
-    val manifestBranch = selectedBranch.ifBlank { "public" }
+    val manifestBranch = selectedBranch.ifBlank { STEAM_DEFAULT_BRANCH }
     val app = withContext(Dispatchers.IO) { svc.appDao.findApp(appId) }
     val rawInstalledApp = withContext(Dispatchers.IO) { svc.appInfoDao.getInstalledApp(appId) }
     val ownedIds = withContext(Dispatchers.IO) { svc.appDao.getAllAppIds() }
@@ -260,7 +279,7 @@ internal suspend fun SteamService.Companion.primeLibSteamClientLaunchState(
         libSteamClient.setAppInstallDir(appId, installDir)
     }
 
-    val buildId = resolvePreferredLaunchBuildId(app, manifestBranch)
+    val buildId = resolveInstalledBuildId(appId, manifestBranch)
     if (buildId > 0) {
         libSteamClient.setAppBuildId(appId, buildId)
     }

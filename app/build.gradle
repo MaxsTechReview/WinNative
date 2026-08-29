@@ -157,6 +157,7 @@ android {
         targetSdk 28
         versionCode appVersionCode
         versionName appVersionName
+        testInstrumentationRunner "com.winlator.cmod.StoreUiTestRunner"
 
         externalNativeBuild {
             cmake {
@@ -293,6 +294,12 @@ android {
                     'src/main/engine'
             ]
         }
+        test {
+            java.srcDirs = ['src/test/kotlin']
+        }
+        androidTest {
+            java.srcDirs = ['src/androidTest/kotlin']
+        }
     }
 
     applicationVariants.configureEach { variant ->
@@ -311,6 +318,14 @@ android {
 
 dependencies {
     // debugImplementation "com.squareup.leakcanary:leakcanary-android:2.14"
+
+    testImplementation 'junit:junit:4.13.2'
+
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation 'androidx.test:runner:1.6.2'
+    androidTestImplementation platform(libs.composeBom)
+    androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
+    debugImplementation 'androidx.compose.ui:ui-test-manifest'
 
     implementation libs.okhttp
     implementation libs.okhttpDnsOverHttps

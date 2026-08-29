@@ -171,6 +171,7 @@ internal fun SteamService.Companion.finalizeSnapshotResumeAsComplete(
     mainAppDepots: Map<Int, DepotInfo>,
     dlcAppDepots: Map<Int, DepotInfo>,
     userSelectedDlcAppIds: List<Int>,
+    branch: String = STEAM_DEFAULT_BRANCH,
 ): DownloadInfo {
     val downloadingAppIds = CopyOnWriteArrayList<Int>()
     val calculatedDlcAppIds = CopyOnWriteArrayList<Int>()
@@ -191,6 +192,7 @@ internal fun SteamService.Companion.finalizeSnapshotResumeAsComplete(
     }
 
     val info = DownloadInfo(1, appId, downloadingAppIds)
+    info.branch = branch
     info.setPersistencePath(appDirPath)
     info.updateStatus(DownloadPhase.COMPLETE)
     info.setProgress(1f)
@@ -473,6 +475,7 @@ internal suspend fun SteamService.Companion.completeAppDownload(
                         "(disk full / permissions?). Game files are on disk but next launch may re-validate.",
                 )
             }
+            recordInstalledBranch(downloadInfo.gameId, downloadInfo.branch)
             runCatching { MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER) }
             runCatching { MarkerUtils.removeMarker(appDirPath, Marker.STEAM_DLL_REPLACED) }
             runCatching { MarkerUtils.removeMarker(appDirPath, Marker.STEAM_COLDCLIENT_USED) }
