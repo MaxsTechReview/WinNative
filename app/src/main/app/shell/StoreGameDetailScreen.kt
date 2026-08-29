@@ -191,8 +191,10 @@ internal fun StoreGameDetailScreen(
     val mainRegistry = remember { PaneNavRegistry() }
     val menuRegistry = remember { PaneNavRegistry() }
     val branchRegistry = remember { PaneNavRegistry() }
+    val topBranchRegistry = remember { PaneNavRegistry() }
     var sourceMenuOpen by remember { mutableStateOf(false) }
     var branchMenuOpen by remember { mutableStateOf(false) }
+    var topBranchMenuOpen by remember { mutableStateOf(false) }
 
     StoreScreenCutoutMode()
 
@@ -202,6 +204,7 @@ internal fun StoreGameDetailScreen(
                 onDismiss = {
                     when {
                         sourceMenuOpen -> sourceMenuOpen = false
+                        topBranchMenuOpen -> topBranchMenuOpen = false
                         branchMenuOpen -> branchMenuOpen = false
                         else -> onBack()
                     }
@@ -209,6 +212,7 @@ internal fun StoreGameDetailScreen(
             ) {
                 when {
                     sourceMenuOpen -> menuRegistry
+                    topBranchMenuOpen -> topBranchRegistry
                     branchMenuOpen -> branchRegistry
                     else -> mainRegistry
                 }
@@ -233,7 +237,7 @@ internal fun StoreGameDetailScreen(
         val showDlcCard = dlcs.isNotEmpty()
         val showBranchPicker = branches.size > 1
         val showActionColumn =
-            showDownloadCta || showUpdateCta || showBranchPicker ||
+            showDownloadCta || showUpdateCta ||
                 (showCloudSync || showUninstall)
 
         if (heroImageUrl != null) {
@@ -332,6 +336,21 @@ internal fun StoreGameDetailScreen(
                 )
             }
             Spacer(Modifier.weight(1f))
+            if (showBranchPicker) {
+                StoreBranchTag(
+                    branches = branches,
+                    selectedBranchId = selectedBranchId,
+                    enabled = !isLoading && isBranchSelectionEnabled,
+                    expanded = topBranchMenuOpen,
+                    onExpandedChange = { open ->
+                        if (open) sourceMenuOpen = false
+                        topBranchMenuOpen = open
+                    },
+                    menuRegistry = topBranchRegistry,
+                    onSelectBranch = onSelectBranch,
+                )
+                Spacer(Modifier.width(8.dp))
+            }
             StoreSourceTag(
                 sourceLabel = sourceLabel,
                 menuEnabled = sourceMenuEnabled,
@@ -554,7 +573,7 @@ internal fun StoreGameDetailScreen(
                                 }
                             }
 
-                            if (showBranchPicker) {
+                            if (showBranchPicker && showDownloadCta) {
                                 StoreBranchPicker(
                                     branches = branches,
                                     selectedBranchId = selectedBranchId,
@@ -953,6 +972,109 @@ private fun StoreSourceTag(
                             label = stringResource(R.string.store_game_workshop),
                             enabled = areSteamActionsEnabled,
                         ) { onMenuOpenChange(false); onWorkshop() }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StoreBranchTag(
+    branches: List<StoreBranchOption>,
+    selectedBranchId: String,
+    enabled: Boolean,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    menuRegistry: PaneNavRegistry?,
+    onSelectBranch: (String) -> Unit,
+) {
+    val selected =
+        branches.firstOrNull { it.id.equals(selectedBranchId, ignoreCase = true) }
+            ?: branches.firstOrNull()
+            ?: return
+    val contentColor = if (enabled) StoreTextPrimary else StoreTextPrimary.copy(alpha = 0.45f)
+    var anchorHeightPx by remember { mutableIntStateOf(0) }
+
+    Box {
+        Surface(
+            color = Color.White.copy(alpha = 0.1f),
+            shape = RoundedCornerShape(8.dp),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+            modifier =
+                Modifier
+                    .onSizeChanged { anchorHeightPx = it.height }
+                    .then(
+                        if (enabled) {
+                            Modifier
+                                .paneNavItem(
+                                    cornerRadius = 8.dp,
+                                    onActivate = { onExpandedChange(!expanded) },
+                                    navRow = 0,
+                                    navCol = 2,
+                                ).clickable { onExpandedChange(!expanded) }
+                        } else {
+                            Modifier
+                        },
+                    ),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(
+                    Icons.Outlined.Layers,
+                    contentDescription = null,
+                    tint = if (enabled) StoreAccentGlow else StoreTextSecondary,
+                    modifier = Modifier.size(14.dp),
+                )
+                Text(
+                    selected.id.uppercase(),
+                    color = contentColor,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 132.dp),
+                )
+                if (enabled) {
+                    Icon(
+                        Icons.Outlined.ArrowDropDown,
+                        contentDescription = stringResource(R.string.store_game_branch_label),
+                        tint = contentColor,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+        }
+
+        if (enabled) {
+            val gapPx = with(LocalDensity.current) { 6.dp.roundToPx() }
+            StoreSourceActionPopup(
+                expanded = expanded,
+                onDismissRequest = { onExpandedChange(false) },
+                offset = IntOffset(0, anchorHeightPx + gapPx),
+            ) {
+                CompositionLocalProvider(LocalPaneNav provides menuRegistry) {
+                    Column(
+                        modifier =
+                            Modifier
+                                .widthIn(min = 172.dp, max = 240.dp)
+                                .heightIn(max = 320.dp)
+                                .verticalScroll(rememberScrollState()),
+                    ) {
+                        branches.forEach { branch ->
+                            StoreBranchMenuItem(
+                                branch = branch,
+                                isSelected = branch.id.equals(selected.id, ignoreCase = true),
+                            ) {
+                                onExpandedChange(false)
+                                if (!branch.id.equals(selected.id, ignoreCase = true)) {
+                                    onSelectBranch(branch.id)
+                                }
+                            }
+                        }
                     }
                 }
             }

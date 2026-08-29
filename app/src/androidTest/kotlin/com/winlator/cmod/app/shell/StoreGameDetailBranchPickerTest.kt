@@ -27,6 +27,7 @@ class StoreGameDetailBranchPickerTest {
     private fun setScreen(
         branchOptions: List<StoreBranchOption>,
         selectedBranchId: String = "public",
+        isInstalled: Boolean = false,
         onSelectBranch: (String) -> Unit = {},
     ) {
         composeRule.setContent {
@@ -36,13 +37,14 @@ class StoreGameDetailBranchPickerTest {
                 sourceLabel = "Steam",
                 heroImageUrl = null,
                 isLoading = false,
-                isInstalled = false,
+                isInstalled = isInstalled,
                 installPathDisplay = "/storage/emulated/0/WinNative",
                 downloadSize = 1_000_000L,
                 installSize = 2_000_000L,
                 availableBytes = 900_000_000L,
                 isInstallEnabled = true,
                 customPathLabel = "Custom",
+                showUpdateCheck = true,
                 branches = branchOptions,
                 selectedBranchId = selectedBranchId,
                 onSelectBranch = onSelectBranch,
@@ -122,6 +124,44 @@ class StoreGameDetailBranchPickerTest {
         setScreen(branchOptions = branches.take(1))
 
         composeRule.onNodeWithText("VERSION", useUnmergedTree = true).assertDoesNotExist()
+        composeRule.onNodeWithText("PUBLIC", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun branchTagSitsBetweenTheBackButtonAndTheSourceTag() {
+        setScreen(branchOptions = branches)
+
+        val tag = composeRule.onNodeWithText("PUBLIC", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val source = composeRule.onNodeWithText("STEAM", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+
+        assert(tag.right <= source.left) {
+            "branch tag (right=${tag.right}) should sit left of the Steam tag (left=${source.left})"
+        }
+        assert(tag.top < downloadButtonBounds().top) {
+            "branch tag should be in the top bar, not the action column"
+        }
+    }
+
+    @Test
+    fun branchTagStaysAvailableForAnInstalledGameWithNoDownloadCta() {
+        setScreen(branchOptions = branches, isInstalled = true)
+
+        composeRule.onNodeWithText("PUBLIC", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithText("Download", useUnmergedTree = true).assertDoesNotExist()
+        composeRule.onNodeWithText("VERSION", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun choosingABranchFromTheTagReportsTheSelection() {
+        var chosen: String? = null
+        setScreen(branchOptions = branches, isInstalled = true, onSelectBranch = { chosen = it })
+
+        composeRule.onNodeWithText("PUBLIC", useUnmergedTree = true).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("beta", useUnmergedTree = true).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals("beta", chosen)
     }
 
     @Test
