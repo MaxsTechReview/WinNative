@@ -215,6 +215,27 @@ final class XServerDisplayUtils {
         return name;
     }
 
+    private static final String[] ARCH_TAGS = { "_win64", "_win32", "_x64", "_x86", "_64", "_32" };
+
+    static String preferLauncherExe(String relativeExe, String gameInstallPath) {
+        if (relativeExe == null || relativeExe.isEmpty()
+                || gameInstallPath == null || gameInstallPath.isEmpty()) return relativeExe;
+        String normalized = relativeExe.replace('\\', '/');
+        int slash = normalized.lastIndexOf('/');
+        String dir = slash >= 0 ? normalized.substring(0, slash + 1) : "";
+        String base = slash >= 0 ? normalized.substring(slash + 1) : normalized;
+        if (!base.toLowerCase(java.util.Locale.ROOT).endsWith(".exe")) return relativeExe;
+        String stem = base.substring(0, base.length() - 4);
+        for (String tag : ARCH_TAGS) {
+            if (!stem.toLowerCase(java.util.Locale.ROOT).endsWith(tag)) continue;
+            String launcher = stem.substring(0, stem.length() - tag.length()) + ".exe";
+            String candidate = dir + launcher;
+            if (new java.io.File(gameInstallPath, candidate).isFile()) return candidate;
+            break;
+        }
+        return relativeExe;
+    }
+
     static boolean sameExeFamily(String a, String b) {
         String baseA = exeBaseName(a);
         String baseB = exeBaseName(b);

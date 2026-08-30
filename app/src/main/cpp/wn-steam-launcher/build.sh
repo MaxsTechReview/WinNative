@@ -36,3 +36,22 @@ OUT_FILE="../../assets/wnsteam/bionic/steam.exe"
 
 echo "Built: $OUT_FILE  ($(stat -c '%s' "$OUT_FILE") bytes)"
 file "$OUT_FILE"
+
+CXX32="${CXX32:-i686-w64-mingw32-g++-posix}"
+STRIP32="${STRIP32:-i686-w64-mingw32-strip}"
+OUT_FILE32="../../assets/wnsteam/bionic/steam32.exe"
+
+if command -v "$CXX32" >/dev/null 2>&1; then
+    "$CXX32" -std=c++17 -O2 -Wall -Wextra -Wno-unused-parameter \
+        -static -static-libgcc -static-libstdc++ \
+        -Wl,--subsystem,windows \
+        -I. \
+        -o "$OUT_FILE32" \
+        src/main.cpp clean_shutdown.cpp \
+        -ladvapi32 -lkernel32 -luser32
+    "$STRIP32" "$OUT_FILE32"
+    echo "Built: $OUT_FILE32  ($(stat -c '%s' "$OUT_FILE32") bytes)"
+    file "$OUT_FILE32"
+else
+    echo "SKIPPED 32-bit build: $CXX32 not installed"
+fi

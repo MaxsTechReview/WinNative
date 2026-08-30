@@ -36,10 +36,10 @@ int g_cs_hUser = 0;
 int g_cs_hPipe = 0;
 unsigned int g_cs_appId = 0;
 
-constexpr int kVtEngine_GetIClientRemoteStorage = 0xC0;
-constexpr int kVtRS_GetSyncState        = 0x240;
-constexpr int kVtRS_BeginAppSync        = 0x270;
-constexpr int kVtRS_IsAppSyncInProgress = 0x278;
+constexpr int kVtEngine_GetIClientRemoteStorage = 24;
+constexpr int kVtRS_GetSyncState        = 72;
+constexpr int kVtRS_BeginAppSync        = 78;
+constexpr int kVtRS_IsAppSyncInProgress = 79;
 
 bool cs_is_exec_ptr(void* p) {
     if (!p) return false;
@@ -438,7 +438,7 @@ extern "C" int wn_launcher_cloud_sync(void* engine, int hUser, int hPipe,
                                       unsigned int appId, int cmd, int flags, int timeoutMs) {
     if (!engine || appId == 0) return -1;
     void** engine_vt = *reinterpret_cast<void***>(engine);
-    void* getRsP = engine_vt[kVtEngine_GetIClientRemoteStorage / 8];
+    void* getRsP = engine_vt[kVtEngine_GetIClientRemoteStorage];
     if (!cs_is_exec_ptr(getRsP)) {
         wn_log("[wn-launcher] cloud: GetIClientRemoteStorage slot not executable — skipping sync");
         return -1;
@@ -450,9 +450,9 @@ extern "C" int wn_launcher_cloud_sync(void* engine, int hUser, int hPipe,
         return -1;
     }
     void** rs_vt = *reinterpret_cast<void***>(rs);
-    void* beginP  = rs_vt[kVtRS_BeginAppSync / 8];
-    void* inProgP = rs_vt[kVtRS_IsAppSyncInProgress / 8];
-    void* stateP  = rs_vt[kVtRS_GetSyncState / 8];
+    void* beginP  = rs_vt[kVtRS_BeginAppSync];
+    void* inProgP = rs_vt[kVtRS_IsAppSyncInProgress];
+    void* stateP  = rs_vt[kVtRS_GetSyncState];
     if (!cs_is_exec_ptr(beginP) || !cs_is_exec_ptr(inProgP) || !cs_is_exec_ptr(stateP)) {
         wn_log("[wn-launcher] cloud: RemoteStorage slot(s) not executable — skipping sync");
         return -1;

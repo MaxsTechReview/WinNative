@@ -411,7 +411,12 @@ object WnSteamAssetsInstaller {
         val dst = File(steamDir, "steam.exe")
         File(steamDir, "wn-steam-launcher.exe").let { if (it.exists()) it.delete() }
 
-        val apkId = apkStamp(context)
+        val marker32 = File(context.filesDir, ".wn_steam_agent_32")
+        val use32 = marker32.isFile ||
+            com.winlator.cmod.feature.stores.steam.utils.PrefManager.wnSteamAgent32
+        val agentAsset = if (use32) "$ASSET_DIR/bionic/steam32.exe" else "$ASSET_DIR/bionic/steam.exe"
+        val archTag = if (use32) "x86" else "x86_64"
+        val apkId = apkStamp(context) + ":" + archTag
         val stageStamp = File(steamDir, ".wn-planw-launcher.stamp")
         val staged = !stampStale(stageStamp, apkId) && dst.isFile && dst.length() > 0
         val ok: Boolean
@@ -422,11 +427,11 @@ object WnSteamAssetsInstaller {
         } else {
             if (dst.exists()) { try { dst.delete() } catch (_: Exception) {} }
             ok = try {
-                context.assets.open("$ASSET_DIR/bionic/steam.exe").use { input ->
+                context.assets.open(agentAsset).use { input ->
                     dst.outputStream().use { output -> input.copyTo(output) }
                 }
-                Timber.tag(TAG).i("planW: installed steam.exe (%d bytes) at %s",
-                    dst.length(), dst.absolutePath)
+                Timber.tag(TAG).i("planW: installed steam.exe from %s (%s, %d bytes) at %s",
+                    agentAsset, archTag, dst.length(), dst.absolutePath)
                 true
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "planW: failed to install steam.exe")

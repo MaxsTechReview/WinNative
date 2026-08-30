@@ -32,33 +32,39 @@
 #define WN_THISCALL
 #endif
 
-static const int kVtEngine_GetIClientUser   = 0x40;  // IClientEngine slot 8
-static const int kVtUser_LogOn              = 0x08;  // slot  1: EResult LogOn(uint64 steamID)
-static const int kVtUser_BLoggedOn          = 0x20;  // slot  4: bool BLoggedOn()
-static const int kVtUser_GetSteamID         = 0x50;  // slot 10: CSteamID& GetSteamID(CSteamID& out)
-static const int kVtUser_BHasCachedCreds    = 0x188; // slot 49: bool BHasCachedCredentials(const char*)
-static const int kVtUser_SetLoginToken      = 0x1C0; // slot 56: EResult SetLoginToken(const char* token, const char* account)
-static const int kVtUser_BIsSubscribedApp   = 0x5A8; // bool BIsSubscribedApp(AppId_t)
-static const int kVtUser_BUpdateAppOwnershipTicket = 0x228; // bool(AppId_t, bool bOnlyIfStale, bool bIsDepot)
-static const int kVtUser_GetAppOwnershipTicketLength = 0x338; // uint32(AppId_t)
+#ifdef __i386__
+static const char* const kSteamClientDll = "steamclient.dll";
+#else
+static const char* const kSteamClientDll = "steamclient64.dll";
+#endif
+
+static const int kVtEngine_GetIClientUser   = 8;  // IClientEngine slot 8
+static const int kVtUser_LogOn              = 1;  // slot  1: EResult LogOn(uint64 steamID)
+static const int kVtUser_BLoggedOn          = 4;  // slot  4: bool BLoggedOn()
+static const int kVtUser_GetSteamID         = 10;  // slot 10: CSteamID& GetSteamID(CSteamID& out)
+static const int kVtUser_BHasCachedCreds    = 49; // slot 49: bool BHasCachedCredentials(const char*)
+static const int kVtUser_SetLoginToken      = 56; // slot 56: EResult SetLoginToken(const char* token, const char* account)
+static const int kVtUser_BIsSubscribedApp   = 181; // bool BIsSubscribedApp(AppId_t)
+static const int kVtUser_BUpdateAppOwnershipTicket = 69; // bool(AppId_t, bool bOnlyIfStale, bool bIsDepot)
+static const int kVtUser_GetAppOwnershipTicketLength = 103; // uint32(AppId_t)
 
 static const int kOwnershipWaitMsDefault = 20000;
 static const int kTicketWaitMsDefault = 15000;
 static const int kAppInfoWaitMsDefault   = 8000;
 static const int kAppInfoWaitMsAfterMiss = 1500;
 
-static const int kVtEngine_GetIClientAppManager = 0x158; // IClientEngine slot 43
-static const int kVtAppMgr_LaunchApp            = 0x10;  // IClientAppManager slot 2
-static const int kVtAppMgr_RefreshAppInfo       = 0x298; // void RefreshAppInfo()
-static const int kVtAppMgr_GetAppInstallState   = 0x20;  // int  GetAppInstallState(AppId_t)
+static const int kVtEngine_GetIClientAppManager = 43; // IClientEngine slot 43
+static const int kVtAppMgr_LaunchApp            = 2;  // IClientAppManager slot 2
+static const int kVtAppMgr_RefreshAppInfo       = 83; // void RefreshAppInfo()
+static const int kVtAppMgr_GetAppInstallState   = 4;  // int  GetAppInstallState(AppId_t)
 
-static const int kVtEngine_GetIClientApps       = 0x88;  // slot 17: IClientApps*(hUser, hPipe)
-static const int kVtApps_RequestAppInfoUpdate   = 0x38;  // slot 7:  bool(AppId_t* ids, int n)
+static const int kVtEngine_GetIClientApps       = 17;  // slot 17: IClientApps*(hUser, hPipe)
+static const int kVtApps_RequestAppInfoUpdate   = 7;  // slot 7:  bool(AppId_t* ids, int n)
 
-static const int kVtEngine_GetIClientUtils       = 0x70;  // slot 14: IClientUtils*(HSteamPipe)
-static const int kVtUtils_IsAPICallCompleted     = 0xB0;  // slot 22: bool(apiCall, *pbFailed)
-static const int kVtUtils_GetAPICallFailureReason = 0xB8; // slot 23: int(apiCall)  ESteamAPICallFailure
-static const int kVtUtils_GetAPICallResult       = 0xC0;  // slot 24: bool(apiCall, pCb, cubCb, iCbExpected, *pbFailed)
+static const int kVtEngine_GetIClientUtils       = 14;  // slot 14: IClientUtils*(HSteamPipe)
+static const int kVtUtils_IsAPICallCompleted     = 22;  // slot 22: bool(apiCall, *pbFailed)
+static const int kVtUtils_GetAPICallFailureReason = 23; // slot 23: int(apiCall)  ESteamAPICallFailure
+static const int kVtUtils_GetAPICallResult       = 24;  // slot 24: bool(apiCall, pCb, cubCb, iCbExpected, *pbFailed)
 
 static const int kLaunchAppResultCallbackId    = 0x13610B;
 static const int kLaunchAppResultSize          = 0x20C;
@@ -78,6 +84,8 @@ static void open_log(void) {
     g_logFile = fopen("C:\\wn-launcher.log", "w");
     if (g_logFile) setvbuf(g_logFile, NULL, _IONBF, 0);
 }
+
+static void log_line(const char* fmt, ...) __attribute__((format(gnu_printf, 1, 2)));
 
 static void log_line(const char* fmt, ...) {
     char buf[1024];
@@ -444,6 +452,62 @@ static void stage_app_manifest(uint32_t appId, const char* gameExe) {
 
 static bool is_exec_ptr(void* p);
 
+static void log_iface_vtable(const char* name, void* iface) {
+    if (!iface) { log_line("[wn-launcher] ifacevt: %s = NULL", name); return; }
+    MEMORY_BASIC_INFORMATION mbi;
+    if (VirtualQuery(iface, &mbi, sizeof(mbi)) == 0 || mbi.State != MEM_COMMIT) {
+        log_line("[wn-launcher] ifacevt: %s = %p (unreadable)", name, iface); return;
+    }
+    void** vt = *(void***) iface;
+    char mod[MAX_PATH] = {0};
+    HMODULE m = NULL;
+    if (vt && GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
+                                 | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                                 (LPCSTR) vt, &m)) {
+        GetModuleFileNameA(m, mod, sizeof(mod));
+    }
+    log_line("[wn-launcher] ifacevt: %s iface=%p vtable=%p base=%p vt_rva=0x%tx mod=%s",
+             name, iface, (void*) vt, (void*) m,
+             (ptrdiff_t) ((char*) vt - (char*) m), mod[0] ? mod : "?");
+}
+
+static bool interface_looks_valid(void* iface, int probeSlot) {
+    if (!iface) return false;
+    MEMORY_BASIC_INFORMATION mbi;
+    if (VirtualQuery(iface, &mbi, sizeof(mbi)) == 0 || mbi.State != MEM_COMMIT) return false;
+    void** vt = *(void***) iface;
+    if (!vt) return false;
+    if (VirtualQuery(vt, &mbi, sizeof(mbi)) == 0 || mbi.State != MEM_COMMIT) return false;
+    return is_exec_ptr(vt[0]) && is_exec_ptr(vt[probeSlot]);
+}
+
+static void dump_engine_vtable(void* engine, int count) {
+    if (!engine) return;
+    void** vt = *(void***) engine;
+    MEMORY_BASIC_INFORMATION mbi;
+    if (!vt || VirtualQuery(vt, &mbi, sizeof(mbi)) == 0 || mbi.State != MEM_COMMIT) {
+        log_line("[wn-launcher] enginevt: vtable pointer %p unreadable", (void*) vt);
+        return;
+    }
+    log_line("[wn-launcher] enginevt: engine=%p vtable=%p ptrsize=%d",
+             engine, (void*) vt, (int) sizeof(void*));
+    for (int i = 0; i < count; ++i) {
+        void* fn = vt[i];
+        if (!is_exec_ptr(fn)) continue;
+        char mod[MAX_PATH] = {0};
+        HMODULE m = NULL;
+        if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
+                               | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                               (LPCSTR) fn, &m)) {
+            GetModuleFileNameA(m, mod, sizeof(mod));
+        }
+        const char* base = strrchr(mod, '\\');
+        base = base ? base + 1 : mod;
+        log_line("[wn-launcher] enginevt: [%d] off=0x%X fn=%p mod=%s",
+                 i, (unsigned) (i * sizeof(void*)), fn, base[0] ? base : "?");
+    }
+}
+
 static bool file_contains_valve_company(const std::filesystem::path& p) {
     static const char kNeedle[] =
         "V\0a\0l\0v\0e\0 \0C\0o\0r\0p\0o\0r\0a\0t\0i\0o\0n\0";
@@ -541,6 +605,15 @@ static void verify_game_steam_api(const char* gameRootDir) {
              apis.size(), emulated, restored);
 }
 
+static int env_int_signed(const char* name, int fallback) {
+    const char* v = getenv(name);
+    if (!v || !*v) return fallback;
+    char* end = NULL;
+    long n = strtol(v, &end, 0);
+    if (end == v) return fallback;
+    return (int) n;
+}
+
 static int env_int(const char* name, int fallback) {
     const char* v = getenv(name);
     if (!v || !*v) return fallback;
@@ -552,25 +625,45 @@ static void sync_app_ownership(void* engine, int hUser, int pipe, uint32_t appId
                                Steam_BGetCallback_fn bGetCallback,
                                Steam_FreeLastCallback_fn freeLastCallback) {
     if (!engine || appId == 0) return;
+    log_line("[wn-launcher] ownership: entry appId=%u hUser=%d pipe=%d", appId, hUser, pipe);
 
     void** engine_vt = *(void***) engine;
-    typedef void* (WN_THISCALL *GetIClientUserFn)(void* self, int hUser, int hPipe, const char*);
-    void* getUserP = engine_vt[kVtEngine_GetIClientUser / 8];
+    typedef void* (WN_THISCALL *GetIClientUserFn)(void* self, int hUser, int hPipe);
+    void* getUserP = engine_vt[kVtEngine_GetIClientUser];
     if (!is_exec_ptr(getUserP)) {
         log_line("[wn-launcher] ownership: GetIClientUser slot not executable — skipping license wait");
         return;
     }
-    void* iuser = ((GetIClientUserFn) getUserP)(engine, hUser, pipe,
-                                                "CLIENTUSER_INTERFACE_VERSION001");
-    log_line("[wn-launcher] ownership: IClientUser=%p (BIsSubscribedApp slot 0x%x)",
+    {
+        char mod[MAX_PATH] = {0};
+        HMODULE m = NULL;
+        if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
+                               | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                               (LPCSTR) getUserP, &m)) {
+            GetModuleFileNameA(m, mod, sizeof(mod));
+        }
+        log_line("[wn-launcher] ownership: engine slot %d fn=%p base=%p rva=0x%tx mod=%s",
+                 kVtEngine_GetIClientUser, getUserP, (void*) m,
+                 (ptrdiff_t) ((char*) getUserP - (char*) m), mod[0] ? mod : "?");
+    }
+    void* iuser = ((GetIClientUserFn) getUserP)(engine, hUser, pipe);
+    log_line("[wn-launcher] ownership: IClientUser=%p (BIsSubscribedApp index %d)",
              iuser, kVtUser_BIsSubscribedApp);
+    log_iface_vtable("IClientUser", iuser);
     if (!iuser) {
         log_line("[wn-launcher] ownership: no IClientUser — skipping license wait");
         return;
     }
+    if (!interface_looks_valid(iuser, kVtUser_BIsSubscribedApp)) {
+        log_line("[wn-launcher] ownership: IClientUser=%p FAILED validation — engine slot %d did "
+                 "not return a usable interface for this client build; dumping the engine vtable",
+                 iuser, kVtEngine_GetIClientUser);
+        dump_engine_vtable(engine, 64);
+        return;
+    }
     void** user_vt = *(void***) iuser;
 
-    void* subscribedP = user_vt[kVtUser_BIsSubscribedApp / 8];
+    void* subscribedP = user_vt[kVtUser_BIsSubscribedApp];
     if (!is_exec_ptr(subscribedP)) {
         log_line("[wn-launcher] ownership: BIsSubscribedApp(appId=%u) initial -> -1 "
                  "(slot-unavailable) — proceeding without the license wait", appId);
@@ -600,12 +693,14 @@ static void sync_app_ownership(void* engine, int hUser, int pipe, uint32_t appId
                                   "checks may see stale data");
 
     const long ticketSlot =
-        env_int("WN_STEAM_OWNERSHIP_SLOT", kVtUser_BUpdateAppOwnershipTicket);
-    void* lengthP = user_vt[kVtUser_GetAppOwnershipTicketLength / 8];
-    void* ticketP = (ticketSlot > 0 && (ticketSlot & 7) == 0) ? user_vt[ticketSlot / 8] : NULL;
+        env_int("WN_STEAM_OWNERSHIP_SLOT",
+                kVtUser_BUpdateAppOwnershipTicket * (int) sizeof(void*));
+    void* lengthP = user_vt[kVtUser_GetAppOwnershipTicketLength];
+    void* ticketP = (ticketSlot > 0 && (ticketSlot % (long) sizeof(void*)) == 0)
+        ? user_vt[ticketSlot / (long) sizeof(void*)] : NULL;
     typedef uint32_t (WN_THISCALL *GetTicketLengthFn)(void* self, uint32_t app);
     typedef bool (WN_THISCALL *UpdateOwnershipTicketFn)(void* self, uint32_t app,
-                                                        bool onlyIfStale, bool isDepot);
+                                                        bool onlyIfStale);
 
     if (!is_exec_ptr(lengthP)) {
         log_line("[wn-launcher] ownership: GetAppOwnershipTicketLength slot 0x%x not "
@@ -624,7 +719,7 @@ static void sync_app_ownership(void* engine, int hUser, int pipe, uint32_t appId
                  ticketSlot);
         return;
     }
-    bool rc = ((UpdateOwnershipTicketFn) ticketP)(iuser, appId, false, false);
+    bool rc = ((UpdateOwnershipTicketFn) ticketP)(iuser, appId, false);
     log_line("[wn-launcher] ownership: BUpdateAppOwnershipTicket[slot 0x%lx](appId=%u) -> %d",
              ticketSlot, appId, rc ? 1 : 0);
 
@@ -683,8 +778,11 @@ static void log_game_process_modules(unsigned long pid) {
         if (snap == INVALID_HANDLE_VALUE) Sleep(200);
     }
     if (snap == INVALID_HANDLE_VALUE) {
-        log_line("[wn-launcher] gamemodules: snapshot of pid=%lu failed GLE=%lu",
-                 pid, GetLastError());
+        DWORD gle = GetLastError();
+        log_line("[wn-launcher] gamemodules: snapshot of pid=%lu failed GLE=%lu%s",
+                 pid, gle,
+                 gle == 299 ? " (ERROR_PARTIAL_COPY — a 32-bit agent cannot enumerate a "
+                              "64-bit game's modules; diagnostic only)" : "");
         return;
     }
     MODULEENTRY32 me;
@@ -885,6 +983,17 @@ static LONG WINAPI launcher_unhandled_filter(EXCEPTION_POINTERS* info) {
 
     if (info->ContextRecord) {
         const CONTEXT* c = info->ContextRecord;
+#ifdef __i386__
+        log_line("[wn-launcher] UEF: ctx Eip=%lx Esp=%lx Ebp=%lx",
+                 (unsigned long) c->Eip, (unsigned long) c->Esp,
+                 (unsigned long) c->Ebp);
+        log_line("[wn-launcher] UEF: ctx Eax=%lx Ecx=%lx Edx=%lx Ebx=%lx",
+                 (unsigned long) c->Eax, (unsigned long) c->Ecx,
+                 (unsigned long) c->Edx, (unsigned long) c->Ebx);
+        log_line("[wn-launcher] UEF: ctx Esi=%lx Edi=%lx",
+                 (unsigned long) c->Esi, (unsigned long) c->Edi);
+        const uintptr_t* sp = (const uintptr_t*) c->Esp;
+#else
         log_line("[wn-launcher] UEF: ctx Rip=%llx Rsp=%llx Rbp=%llx",
                  (unsigned long long) c->Rip,
                  (unsigned long long) c->Rsp,
@@ -895,7 +1004,8 @@ static LONG WINAPI launcher_unhandled_filter(EXCEPTION_POINTERS* info) {
         log_line("[wn-launcher] UEF: ctx Rsi=%llx Rdi=%llx R8=%llx R9=%llx",
                  (unsigned long long) c->Rsi, (unsigned long long) c->Rdi,
                  (unsigned long long) c->R8,  (unsigned long long) c->R9);
-        const uint64_t* sp = (const uint64_t*) c->Rsp;
+        const uintptr_t* sp = (const uintptr_t*) c->Rsp;
+#endif
         MEMORY_BASIC_INFORMATION smbi;
         if (sp && VirtualQuery((LPCVOID) sp, &smbi, sizeof(smbi))
             && smbi.State == MEM_COMMIT) {
@@ -912,18 +1022,49 @@ static LONG WINAPI launcher_unhandled_filter(EXCEPTION_POINTERS* info) {
     return EXCEPTION_EXECUTE_HANDLER;
 }
 
-static bool start_steam_client_service(void) {
-    const char* kSvcName       = "Steam Client Service";
-    const char* kSvcExe        = "C:\\Program Files (x86)\\Steam\\bin\\steamservice.exe";
-    const char* kSvcBinPath    = "\"C:\\Program Files (x86)\\Steam\\bin\\steamservice.exe\" /RunAsService";
+static void log_steam_named_pipes(const char* when) {
+    WIN32_FIND_DATAA fd;
+    HANDLE h = FindFirstFileA("\\\\.\\pipe\\*", &fd);
+    if (h == INVALID_HANDLE_VALUE) {
+        log_line("[wn-launcher] pipes(%s): enumeration unavailable GLE=%lu",
+                 when, GetLastError());
+        return;
+    }
+    int total = 0, steamish = 0;
+    do {
+        total++;
+        char lower[MAX_PATH];
+        snprintf(lower, sizeof(lower), "%s", fd.cFileName);
+        for (char* p = lower; *p; ++p) *p = (char) tolower((unsigned char) *p);
+        if (strstr(lower, "steam") || strstr(lower, "valve")) {
+            steamish++;
+            log_line("[wn-launcher] pipes(%s): %s", when, fd.cFileName);
+        }
+    } while (FindNextFileA(h, &fd));
+    FindClose(h);
+    log_line("[wn-launcher] pipes(%s): total=%d steam-related=%d", when, total, steamish);
+}
 
-    DWORD attr = GetFileAttributesA(kSvcExe);
-    if (attr == INVALID_FILE_ATTRIBUTES || (attr & FILE_ATTRIBUTE_DIRECTORY)) {
-        log_line("[wn-launcher] steamservice: binary not present at %s — "
+static bool start_steam_client_service(void) {
+    const char* kSvcName = "Steam Client Service";
+    static const char* const kSvcExeCandidates[] = {
+        "C:\\Program Files (x86)\\Steam\\bin\\steamservice.exe",
+        "C:\\Program Files (x86)\\Common Files\\Steam\\steamservice.exe",
+    };
+    const char* kSvcExe = NULL;
+    for (const char* cand : kSvcExeCandidates) {
+        DWORD a = GetFileAttributesA(cand);
+        if (a != INVALID_FILE_ATTRIBUTES && !(a & FILE_ATTRIBUTE_DIRECTORY)) { kSvcExe = cand; break; }
+    }
+    if (!kSvcExe) {
+        log_line("[wn-launcher] steamservice: binary not present at %s or %s — "
                  "LaunchApp's IPC queue will have no peer; will use "
-                 "CreateProcess fallback", kSvcExe);
+                 "CreateProcess fallback", kSvcExeCandidates[0], kSvcExeCandidates[1]);
         return false;
     }
+    char svcBinPathBuf[MAX_PATH + 32];
+    snprintf(svcBinPathBuf, sizeof(svcBinPathBuf), "\"%s\" /RunAsService", kSvcExe);
+    const char* kSvcBinPath = svcBinPathBuf;
     log_line("[wn-launcher] steamservice: found %s", kSvcExe);
 
     SC_HANDLE scm = OpenSCManagerA(NULL, NULL, SC_MANAGER_ALL_ACCESS);
@@ -961,6 +1102,35 @@ static bool start_steam_client_service(void) {
         }
     }
 
+    {
+        BYTE cfgBuf[8192];
+        DWORD needed = 0;
+        LPQUERY_SERVICE_CONFIGA cfg = (LPQUERY_SERVICE_CONFIGA) cfgBuf;
+        if (QueryServiceConfigA(svc, cfg, sizeof(cfgBuf), &needed)
+            && cfg->lpBinaryPathName
+            && _stricmp(cfg->lpBinaryPathName, kSvcBinPath) != 0) {
+            log_line("[wn-launcher] steamservice: registered path \"%s\" differs from "
+                     "\"%s\" — reconfiguring", cfg->lpBinaryPathName, kSvcBinPath);
+            SERVICE_STATUS st;
+            memset(&st, 0, sizeof(st));
+            QueryServiceStatus(svc, &st);
+            if (st.dwCurrentState != SERVICE_STOPPED) {
+                ControlService(svc, SERVICE_CONTROL_STOP, &st);
+                for (int i = 0; i < 25; ++i) {
+                    if (!QueryServiceStatus(svc, &st)) break;
+                    if (st.dwCurrentState == SERVICE_STOPPED) break;
+                    Sleep(200);
+                }
+            }
+            if (!ChangeServiceConfigA(svc, SERVICE_NO_CHANGE, SERVICE_NO_CHANGE,
+                                      SERVICE_NO_CHANGE, kSvcBinPath, NULL, NULL,
+                                      NULL, NULL, NULL, NULL)) {
+                log_line("[wn-launcher] steamservice: ChangeServiceConfig failed GLE=%lu",
+                         GetLastError());
+            }
+        }
+    }
+
     SERVICE_STATUS status;
     memset(&status, 0, sizeof(status));
     QueryServiceStatus(svc, &status);
@@ -970,11 +1140,9 @@ static bool start_steam_client_service(void) {
         if (!StartServiceA(svc, 0, NULL)) {
             DWORD err = GetLastError();
             if (err != ERROR_SERVICE_ALREADY_RUNNING) {
-                log_line("[wn-launcher] steamservice: StartService failed GLE=%lu",
-                         err);
-                CloseServiceHandle(svc);
-                CloseServiceHandle(scm);
-                return false;
+                log_line("[wn-launcher] steamservice: StartService failed GLE=%lu", err);
+                memset(&status, 0, sizeof(status));
+                QueryServiceStatus(svc, &status);
             }
         }
         int waited = 0;
@@ -987,11 +1155,50 @@ static bool start_steam_client_service(void) {
         }
         log_line("[wn-launcher] steamservice: post-start state=%lu after %dms",
                  status.dwCurrentState, waited);
+        if (status.dwCurrentState != SERVICE_RUNNING
+            && _stricmp(kSvcExe, kSvcExeCandidates[0]) == 0) {
+            DWORD altAttr = GetFileAttributesA(kSvcExeCandidates[1]);
+            if (altAttr != INVALID_FILE_ATTRIBUTES && !(altAttr & FILE_ATTRIBUTE_DIRECTORY)) {
+                char altBin[MAX_PATH + 32];
+                snprintf(altBin, sizeof(altBin), "\"%s\" /RunAsService", kSvcExeCandidates[1]);
+                log_line("[wn-launcher] steamservice: canonical path did not start — "
+                         "reconfiguring to %s and retrying", kSvcExeCandidates[1]);
+                if (ChangeServiceConfigA(svc, SERVICE_NO_CHANGE, SERVICE_NO_CHANGE,
+                                         SERVICE_NO_CHANGE, altBin, NULL, NULL,
+                                         NULL, NULL, NULL, NULL)
+                    && (StartServiceA(svc, 0, NULL)
+                        || GetLastError() == ERROR_SERVICE_ALREADY_RUNNING)) {
+                    int w2 = 0;
+                    while (w2 < 30000) {
+                        if (!QueryServiceStatus(svc, &status)) break;
+                        if (status.dwCurrentState == SERVICE_RUNNING ||
+                            status.dwCurrentState == SERVICE_STOPPED) break;
+                        Sleep(200);
+                        w2 += 200;
+                    }
+                    log_line("[wn-launcher] steamservice: fallback post-start state=%lu "
+                             "after %dms", status.dwCurrentState, w2);
+                } else {
+                    log_line("[wn-launcher] steamservice: fallback start failed GLE=%lu",
+                             GetLastError());
+                }
+            }
+        }
+        if (status.dwCurrentState != SERVICE_RUNNING) {
+            if (DeleteService(svc)) {
+                log_line("[wn-launcher] steamservice: service is wedged — deregistered so the "
+                         "next launch recreates it cleanly");
+            } else {
+                log_line("[wn-launcher] steamservice: DeleteService failed GLE=%lu",
+                         GetLastError());
+            }
+        }
     }
 
     bool running = (status.dwCurrentState == SERVICE_RUNNING);
     CloseServiceHandle(svc);
     CloseServiceHandle(scm);
+    log_steam_named_pipes("post-service-start");
     return running;
 }
 
@@ -1315,12 +1522,21 @@ int main(int argc, char** argv) {
     seed_active_process_registry(GetCurrentProcessId(), (uint32_t)(steamId & 0xFFFFFFFFu));
     stage_app_manifest(appId, gameExe);
 
+#ifdef __i386__
+    const char* preloadDlls[] = {
+        "tier0_s.dll",
+        "vstdlib_s.dll",
+        "crashhandler.dll",
+        "steamservice.dll",
+    };
+#else
     const char* preloadDlls[] = {
         "tier0_s64.dll",
         "vstdlib_s64.dll",
         "crashhandler64.dll",
         "steamservice.dll",
     };
+#endif
     for (const char* dll : preloadDlls) {
         char path[MAX_PATH];
         snprintf(path, sizeof(path), "%s\\%s", kSteamDir, dll);
@@ -1340,7 +1556,7 @@ int main(int argc, char** argv) {
 
     char steamclientPath[MAX_PATH];
     snprintf(steamclientPath, sizeof(steamclientPath),
-             "%s\\steamclient64.dll", kSteamDir);
+             "%s\\%s", kSteamDir, kSteamClientDll);
 
     struct LoadAttempt { DWORD flags; const char* desc; };
     const LoadAttempt attempts[] = {
@@ -1359,9 +1575,9 @@ int main(int argc, char** argv) {
     for (int i = 0; i < kAttempts && !lsc; i++) {
         lsc = LoadLibraryExA(steamclientPath, NULL, attempts[i].flags);
         if (lsc) {
-            log_line("[wn-launcher] steamclient64.dll loaded at %p "
+            log_line("[wn-launcher] %s loaded at %p "
                      "(strategy %d/%d: %s)",
-                     lsc, i + 1, kAttempts, attempts[i].desc);
+                     kSteamClientDll, lsc, i + 1, kAttempts, attempts[i].desc);
             break;
         }
         lastErr = GetLastError();
@@ -1379,15 +1595,15 @@ int main(int argc, char** argv) {
             if (!lsc) lastErr = GetLastError();
         }
         if (lsc) {
-            log_line("[wn-launcher] steamclient64.dll loaded at %p "
-                     "(retry round %d)", lsc, round + 1);
+            log_line("[wn-launcher] %s loaded at %p "
+                     "(retry round %d)", kSteamClientDll, lsc, round + 1);
         }
     }
     if (!lsc) {
         lsc = LoadLibraryA(steamclientPath);
         if (lsc) {
-            log_line("[wn-launcher] steamclient64.dll loaded at %p "
-                     "(plain LoadLibraryA)", lsc);
+            log_line("[wn-launcher] %s loaded at %p "
+                     "(plain LoadLibraryA)", kSteamClientDll, lsc);
         } else {
             lastErr = GetLastError();
         }
@@ -1460,32 +1676,32 @@ int main(int argc, char** argv) {
 
     if (user && *user && token && *token && steamId != 0) {
         void** engine_vt = *(void***) engine;
-        typedef void* (WN_THISCALL *GetIClientUserFn)(void* self, int hUser, int hPipe, const char*);
+        typedef void* (WN_THISCALL *GetIClientUserFn)(void* self, int hUser, int hPipe);
         GetIClientUserFn getIClientUser = (GetIClientUserFn)
-            engine_vt[kVtEngine_GetIClientUser / 8];
-        void* iuser = getIClientUser(engine, hUser, pipe, "CLIENTUSER_INTERFACE_VERSION001");
+            engine_vt[kVtEngine_GetIClientUser];
+        void* iuser = getIClientUser(engine, hUser, pipe);
         log_line("[wn-launcher] IClientEngine.GetIClientUser -> %p", iuser);
         if (iuser) {
             void** iuser_vt = *(void***) iuser;
-            if (is_exec_ptr(iuser_vt[kVtUser_BHasCachedCreds / 8])) {
+            if (is_exec_ptr(iuser_vt[kVtUser_BHasCachedCreds])) {
                 typedef bool (WN_THISCALL *HasCachedCredsFn)(void* self, const char*);
                 HasCachedCredsFn hasCachedCreds = (HasCachedCredsFn)
-                    iuser_vt[kVtUser_BHasCachedCreds / 8];
+                    iuser_vt[kVtUser_BHasCachedCreds];
                 bool cached = hasCachedCreds(iuser, user);
                 log_line("[wn-launcher] BHasCachedCredentials(%s) -> %d", user, cached ? 1 : 0);
             }
-            if (is_exec_ptr(iuser_vt[kVtUser_SetLoginToken / 8])) {
+            if (is_exec_ptr(iuser_vt[kVtUser_SetLoginToken])) {
                 typedef int (WN_THISCALL *SetLoginTokenFn)(void* self, const char* token,
                                                const char* account);
                 SetLoginTokenFn setLoginToken = (SetLoginTokenFn)
-                    iuser_vt[kVtUser_SetLoginToken / 8];
+                    iuser_vt[kVtUser_SetLoginToken];
                 int tokRc = setLoginToken(iuser, token, user);
                 log_line("[wn-launcher] SetLoginToken(tokenLen=%d, account=%s) -> %d",
                          (int) strlen(token), user, tokRc);
 
                 typedef void* (WN_THISCALL *GetSteamIDFn)(void* self, void* outBuf);
                 GetSteamIDFn getSteamID = (GetSteamIDFn)
-                    iuser_vt[kVtUser_GetSteamID / 8];
+                    iuser_vt[kVtUser_GetSteamID];
                 uint64_t outSid = 0;
                 void* sidRet = getSteamID(iuser, &outSid);
                 uint64_t logonSid = outSid;
@@ -1501,7 +1717,7 @@ int main(int argc, char** argv) {
                 }
 
                 typedef int (WN_THISCALL *LogOnFn)(void* self, uint64_t steamID);
-                LogOnFn logOn = (LogOnFn) iuser_vt[kVtUser_LogOn / 8];
+                LogOnFn logOn = (LogOnFn) iuser_vt[kVtUser_LogOn];
                 int logonRc = logOn(iuser, logonSid);
                 log_line("[wn-launcher] LogOn(%llu) -> EResult=%d "
                          "(1=OK 5=InvalidPassword 15=AccessDenied 16=Timeout 84=RateLimit)",
@@ -1590,12 +1806,13 @@ int main(int argc, char** argv) {
         void** engine_vt = *(void***) engine;
         typedef void* (WN_THISCALL *GetIClientAppsFn)(void* self, int hUser, int hPipe);
         GetIClientAppsFn getApps = (GetIClientAppsFn)
-            engine_vt[kVtEngine_GetIClientApps / 8];
+            engine_vt[kVtEngine_GetIClientApps];
         void* iApps = getApps(engine, hUser, pipe);
         log_line("[wn-launcher] IClientEngine.GetIClientApps -> %p", iApps);
+        log_iface_vtable("IClientApps", iApps);
         if (iApps) {
             void** apps_vt = *(void***) iApps;
-            void* reqP = apps_vt[kVtApps_RequestAppInfoUpdate / 8];
+            void* reqP = apps_vt[kVtApps_RequestAppInfoUpdate];
             if (!is_exec_ptr(reqP)) {
                 log_line("[wn-launcher] RequestAppInfoUpdate slot not executable — "
                          "skipping appinfo refresh");
@@ -1650,22 +1867,27 @@ int main(int argc, char** argv) {
     if (loggedOn && engine && appId != 0) {
         void** engine_vt = *(void***) engine;
         typedef void* (WN_THISCALL *GetIfaceFn)(void* self, int hUser, int hPipe);
-        void* appMgr = ((GetIfaceFn) engine_vt[kVtEngine_GetIClientAppManager / 8])
+        void* appMgr = ((GetIfaceFn) engine_vt[kVtEngine_GetIClientAppManager])
                            (engine, hUser, pipe);
         log_line("[wn-launcher] readiness: IClientAppManager=%p", appMgr);
+        log_iface_vtable("IClientAppManager", appMgr);
 
         if (appMgr) {
             void** am_vt = *(void***) appMgr;
-            void* refreshP = am_vt[kVtAppMgr_RefreshAppInfo / 8];
-            void* stateP   = am_vt[kVtAppMgr_GetAppInstallState / 8];
+            void* refreshP = am_vt[kVtAppMgr_RefreshAppInfo];
+            void* stateP   = am_vt[kVtAppMgr_GetAppInstallState];
+            log_line("[wn-launcher] readiness: refreshP=%p stateP=%p (indices %d/%d)",
+                     refreshP, stateP, kVtAppMgr_RefreshAppInfo, kVtAppMgr_GetAppInstallState);
             if (skipAppInfo) {
                 log_line("[wn-launcher] RefreshAppInfo() skipped (WN_STEAM_SKIP_APPINFO set)");
             } else if (is_exec_ptr(refreshP)) {
+                log_line("[wn-launcher] readiness: calling RefreshAppInfo()");
                 typedef void (WN_THISCALL *RefreshAppInfoFn)(void* self);
                 ((RefreshAppInfoFn) refreshP)(appMgr);
                 log_line("[wn-launcher] RefreshAppInfo() called");
             }
             if (is_exec_ptr(stateP)) {
+                log_line("[wn-launcher] readiness: calling GetAppInstallState(%u)", appId);
                 typedef int (WN_THISCALL *GetAppInstallStateFn)(void* self, uint32_t app);
                 GetAppInstallStateFn getInstallState = (GetAppInstallStateFn) stateP;
                 // 2s — stage_app_manifest already wrote StateFlags=4, so this
@@ -1695,10 +1917,15 @@ int main(int argc, char** argv) {
 
     // Pull cloud saves + set the teardown cloud context now, so the exit upload
     // has a baseline to diff.
+#ifdef __i386__
+    log_line("[wn-launcher] cloud: skipped on the 32-bit client (RemoteStorage vtable "
+             "indices are unverified for this build)");
+#else
     if (loggedOn && engine && appId != 0) {
         wn_launcher_set_cloud_context(engine, hUser, pipe, appId);
         wn_launcher_cloud_sync(engine, hUser, pipe, appId, 1, 0, 15000);
     }
+#endif
 
     bool launchedViaApp = false;
     bool launchedViaFallback = false;
@@ -1717,29 +1944,60 @@ int main(int argc, char** argv) {
         void** engine_vt = *(void***) engine;
         typedef void* (WN_THISCALL *GetIClientAppManagerFn)(void* self, int hUser, int hPipe);
         GetIClientAppManagerFn getAppMgr = (GetIClientAppManagerFn)
-            engine_vt[kVtEngine_GetIClientAppManager / 8];
+            engine_vt[kVtEngine_GetIClientAppManager];
         void* appMgr = getAppMgr(engine, hUser, pipe);
         log_line("[wn-launcher] IClientEngine.GetIClientAppManager -> %p", appMgr);
         if (appMgr) {
             void** appMgr_vt = *(void***) appMgr;
+#ifdef __i386__
+            typedef uint64_t (WN_THISCALL *LaunchAppFn)(void* self, uint64_t gameId,
+                                            uint32_t uLaunchOption,
+                                            uint32_t eLaunchSource,
+                                            const char* pszUserArgs);
+#else
             typedef uint64_t (WN_THISCALL *LaunchAppFn)(void* self, void* pGameId,
                                             uint32_t uLaunchOption,
                                             uint32_t eLaunchSource,
                                             const char* pszUserArgs);
+#endif
             LaunchAppFn launchApp = (LaunchAppFn)
-                appMgr_vt[kVtAppMgr_LaunchApp / 8];
+                appMgr_vt[kVtAppMgr_LaunchApp];
             uint64_t gameId = (uint64_t)(appId & 0xFFFFFFu);
 
             // RefreshAppInfo() slot — re-primes appinfo between MissingConfig retries.
-            void* refreshAppInfoP = appMgr_vt[kVtAppMgr_RefreshAppInfo / 8];
+            void* refreshAppInfoP = appMgr_vt[kVtAppMgr_RefreshAppInfo];
 
             const int kMaxLaunchAttempts = 5;
             const int kSecureAppearSeconds = 120;
+            const int kEAppUpdateErrorLaunchOptionMissing = 22;
+            int launchOptions[8];
+            int launchOptionCount = 0;
+            const int preferredOption = env_int_signed("WN_STEAM_LAUNCH_OPTION", 0);
+            launchOptions[launchOptionCount++] = preferredOption < 0 ? 0 : preferredOption;
+            for (int cand = 0; cand <= 6 && launchOptionCount < 8; ++cand) {
+                bool dup = false;
+                for (int k = 0; k < launchOptionCount; ++k) {
+                    if (launchOptions[k] == cand) { dup = true; break; }
+                }
+                if (!dup) launchOptions[launchOptionCount++] = cand;
+            }
+            int launchOptionIndex = 0;
+            log_line("[wn-launcher] LaunchApp: preferred launch option %d (from %s)",
+                     launchOptions[0],
+                     getenv("WN_STEAM_LAUNCH_OPTION") ? "WN_STEAM_LAUNCH_OPTION" : "default");
             const int kErrorAppearSeconds = 30;
             for (int attempt = 1; attempt <= kMaxLaunchAttempts && !launchedViaApp; ++attempt) {
-                uint64_t apiCall = launchApp(appMgr, &gameId, 0, 300, "");
-                log_line("[wn-launcher] IClientAppManager.LaunchApp(appId=%u) "
-                         "attempt=%d/%d -> HSteamAPICall=0x%llx", appId,
+                const int launchOption = launchOptions[launchOptionIndex];
+                const char* userArgsEnv = getenv("WN_STEAM_USER_ARGS");
+                const char* userArgs = (userArgsEnv && *userArgsEnv) ? userArgsEnv : "";
+#ifdef __i386__
+                uint64_t apiCall = launchApp(appMgr, gameId, (uint32_t) launchOption, 300, userArgs);
+#else
+                uint64_t apiCall = launchApp(appMgr, &gameId, (uint32_t) launchOption, 300, userArgs);
+#endif
+                log_line("[wn-launcher] IClientAppManager.LaunchApp(appId=%u launchOption=%d "
+                         "userArgs=\"%s\") attempt=%d/%d -> HSteamAPICall=0x%llx",
+                         appId, launchOption, userArgs,
                          attempt, kMaxLaunchAttempts,
                          (unsigned long long) apiCall);
 
@@ -1747,14 +2005,14 @@ int main(int argc, char** argv) {
             if (apiCall != 0) {
                 typedef void* (WN_THISCALL *GetIClientUtilsFn)(void* self, int hPipe);
                 GetIClientUtilsFn getUtils = (GetIClientUtilsFn)
-                    engine_vt[kVtEngine_GetIClientUtils / 8];
+                    engine_vt[kVtEngine_GetIClientUtils];
                 void* utils = getUtils(engine, pipe);
                 log_line("[wn-launcher] IClientEngine.GetIClientUtils -> %p", utils);
                 if (utils) {
                     void** utils_vt = *(void***) utils;
-                    void* isCompletedP = utils_vt[kVtUtils_IsAPICallCompleted / 8];
-                    void* getResultP   = utils_vt[kVtUtils_GetAPICallResult / 8];
-                    void* getReasonP   = utils_vt[kVtUtils_GetAPICallFailureReason / 8];
+                    void* isCompletedP = utils_vt[kVtUtils_IsAPICallCompleted];
+                    void* getResultP   = utils_vt[kVtUtils_GetAPICallResult];
+                    void* getReasonP   = utils_vt[kVtUtils_GetAPICallFailureReason];
                     log_line("[wn-launcher] utils vt IsAPICallCompleted=%p "
                              "GetAPICallFailureReason=%p GetAPICallResult=%p",
                              isCompletedP, getReasonP, getResultP);
@@ -1863,6 +2121,14 @@ int main(int argc, char** argv) {
                     }
                     Sleep(100);
                 }
+            } else if (eAppError == kEAppUpdateErrorLaunchOptionMissing
+                       && launchOptionIndex + 1 < launchOptionCount) {
+                launchOptionIndex++;
+                log_line("[wn-launcher] LaunchApp attempt %d/%d: \"%s\" never appeared — "
+                         "Steam has no entry for launch option %d; retrying LaunchApp with "
+                         "launch option %d", attempt, kMaxLaunchAttempts, exeName,
+                         launchOptions[launchOptionIndex - 1], launchOptions[launchOptionIndex]);
+                Sleep(300);
             } else if (eAppError > 0) {
                 log_line("[wn-launcher] LaunchApp attempt %d/%d: \"%s\" reported "
                          "EAppUpdateError=%d%s; not retryable in-process — waiting "

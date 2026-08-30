@@ -308,6 +308,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
     private final EnvVars envVars = new EnvVars();
     // True when the chosen launch exe differs from Steam's configured entry: launcher skips Steam LaunchApp and CreateProcess'es the selected exe directly. Recomputed per launch.
     private boolean wnSteamDirectExeOverride = false;
+    private int wnSteamLaunchOption = -1;
+    private String wnSteamUserArgs = "";
     private boolean firstTimeBoot = false;
     private SharedPreferences preferences;
     private boolean isMouseDisabled = false;
@@ -7531,6 +7533,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                             Log.w("XServerDisplayActivity",
                                     "Steam Launcher: Could not query depot data", depotIgnored);
                         }
+                        if (wnSteamLaunchOption >= 0) {
+                            envVars.put("WN_STEAM_LAUNCH_OPTION", String.valueOf(wnSteamLaunchOption));
+                        }
+                        if (wnSteamUserArgs != null && !wnSteamUserArgs.isEmpty()) {
+                            envVars.put("WN_STEAM_USER_ARGS", wnSteamUserArgs);
+                            Log.i("XServerDisplayActivity",
+                                    "Steam Launcher: passing user launch options to LaunchApp: "
+                                    + wnSteamUserArgs);
+                        }
                         if (wnSteamDirectExeOverride) {
                             envVars.put("WN_STEAM_DIRECT_EXE", "1");
                             Log.i("XServerDisplayActivity",
@@ -9302,9 +9313,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 int appId = Integer.parseInt(shortcut.getExtra("app_id"));
                 // Reset per launch; set below once the launch exe is resolved.
                 wnSteamDirectExeOverride = false;
+                wnSteamLaunchOption = -1;
+                wnSteamUserArgs = "";
                 String steamExtraArgs = appendSteamJoinConnect(
                         com.winlator.cmod.feature.stores.steam.utils.SteamLaunchOptions
                                 .gameArgs(shortcut.getSettingExtra("execArgs", container.getExecArgs())));
+                wnSteamUserArgs = (steamExtraArgs != null) ? steamExtraArgs.trim() : "";
                 steamExtraArgs = (steamExtraArgs != null && !steamExtraArgs.isEmpty()) ? " " + steamExtraArgs : "";
 
                 boolean useColdClient = parseBoolean(getShortcutSetting("useColdClient", container.isUseColdClient() ? "1" : "0"));
@@ -9359,8 +9373,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                             ? canonicalDirName
                             : onDiskDirName;
                     String relativeExe = resolveRelativeGameExe(appId, gameInstPath);
+                    String launcherExe = XServerDisplayUtils.preferLauncherExe(relativeExe, gameInstPath);
+                    if (!launcherExe.equals(relativeExe)) {
+                        Log.i("XServerDisplayActivity",
+                                "Steam Launcher: watch exe '" + relativeExe + "' -> launcher '"
+                                + launcherExe + "' (Steam spawns the launcher; the arch exe is its child)");
+                        relativeExe = launcherExe;
+                    }
                     // If the resolved exe isn't Steam's configured launch entry the user overrode it; tell the launcher to skip LaunchApp and start the selected exe directly.
                     wnSteamDirectExeOverride = isUserOverriddenSteamExe(appId, relativeExe);
+                    wnSteamLaunchOption = com.winlator.cmod.feature.stores.steam.utils
+                            .SteamUtils.steamLaunchOptionFor(appId, relativeExe);
+                    Log.i("XServerDisplayActivity",
+                            "Steam Launcher: launch option for appId=" + appId + " exe='"
+                            + relativeExe + "' -> " + wnSteamLaunchOption);
 
                     if (!relativeExe.isEmpty() && !gameDirName.isEmpty()) {
                         String steamGameExe = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\"
