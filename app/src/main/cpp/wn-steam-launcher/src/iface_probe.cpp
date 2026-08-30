@@ -45,6 +45,76 @@ static const char* const kInterfaces[] = {
     "STEAMMATCHMAKING_INTERFACE_VERSION009",
 };
 
+typedef int (*Flat_GetHSteamUser_t)(void*);
+typedef bool (*Flat_BLoggedOn_t)(void*);
+typedef unsigned long long (*Flat_GetSteamID_t)(void*);
+typedef unsigned int (*Flat_GetAuthSessionTicket_t)(void*, void*, int, unsigned int*, void*);
+typedef int (*Flat_GetEncryptedAppTicket_t)(void*, void*, int, unsigned int*);
+typedef int (*Flat_GetAppBuildId_t)(void*);
+typedef bool (*Flat_BIsSubscribed_t)(void*);
+
+static void probe_auth_ticket(HMODULE api, void* user, void* apps) {
+    Flat_GetHSteamUser_t fGetUser =
+        (Flat_GetHSteamUser_t) GetProcAddress(api, "SteamAPI_ISteamUser_GetHSteamUser");
+    Flat_BLoggedOn_t fLoggedOn =
+        (Flat_BLoggedOn_t) GetProcAddress(api, "SteamAPI_ISteamUser_BLoggedOn");
+    Flat_GetSteamID_t fSteamId =
+        (Flat_GetSteamID_t) GetProcAddress(api, "SteamAPI_ISteamUser_GetSteamID");
+    Flat_GetAuthSessionTicket_t fTicket =
+        (Flat_GetAuthSessionTicket_t) GetProcAddress(api, "SteamAPI_ISteamUser_GetAuthSessionTicket");
+    Flat_GetEncryptedAppTicket_t fEnc =
+        (Flat_GetEncryptedAppTicket_t) GetProcAddress(api, "SteamAPI_ISteamUser_GetEncryptedAppTicket");
+    Flat_GetAppBuildId_t fBuildId =
+        (Flat_GetAppBuildId_t) GetProcAddress(api, "SteamAPI_ISteamApps_GetAppBuildId");
+    Flat_BIsSubscribed_t fSubscribed =
+        (Flat_BIsSubscribed_t) GetProcAddress(api, "SteamAPI_ISteamApps_BIsSubscribed");
+
+    if (apps && fBuildId) {
+        plog("[wn-probe] version: ISteamApps::GetAppBuildId() = %d", fBuildId(apps));
+    }
+    if (apps && fSubscribed) {
+        plog("[wn-probe] version: ISteamApps::BIsSubscribed() = %d", fSubscribed(apps) ? 1 : 0);
+    }
+
+    if (!user) {
+        plog("[wn-probe] auth: no ISteamUser — cannot test the ticket the game presents");
+        return;
+    }
+    if (!fGetUser || !fLoggedOn || !fSteamId || !fTicket) {
+        plog("[wn-probe] auth: flat exports missing (GetHSteamUser=%p BLoggedOn=%p "
+             "GetSteamID=%p GetAuthSessionTicket=%p)",
+             (void*) fGetUser, (void*) fLoggedOn, (void*) fSteamId, (void*) fTicket);
+        return;
+    }
+
+    plog("[wn-probe] auth anchors: GetHSteamUser=%d BLoggedOn=%d GetSteamID=%llu",
+         fGetUser(user), fLoggedOn(user) ? 1 : 0, fSteamId(user));
+
+    unsigned char ticket[2048];
+    memset(ticket, 0, sizeof(ticket));
+    unsigned int cb = 0;
+    unsigned int h = fTicket(user, ticket, (int) sizeof(ticket), &cb, nullptr);
+    plog("[wn-probe] auth: GetAuthSessionTicket -> handle=%u length=%u", h, cb);
+    if (h == 0 || cb == 0) {
+        plog("[wn-probe] auth: *** NO TICKET ISSUED *** — the game cannot authenticate "
+             "to its own backend with this session");
+    } else {
+        char hex[97];
+        unsigned int n = cb < 32 ? cb : 32;
+        for (unsigned int i = 0; i < n; ++i) snprintf(hex + i * 3, 4, "%02x ", ticket[i]);
+        hex[n * 3] = '\0';
+        plog("[wn-probe] auth: ticket first %u bytes: %s", n, hex);
+    }
+
+    if (fEnc) {
+        unsigned char enc[2048];
+        memset(enc, 0, sizeof(enc));
+        unsigned int cbEnc = 0;
+        int rc = fEnc(user, enc, (int) sizeof(enc), &cbEnc);
+        plog("[wn-probe] auth: GetEncryptedAppTicket -> rc=%d length=%u", rc, cbEnc);
+    }
+}
+
 int main(int argc, char** argv) {
     const char* gameDir = (argc > 1) ? argv[1] : "";
     const char* appId = (argc > 2) ? argv[2] : "";
@@ -126,6 +196,10 @@ int main(int argc, char** argv) {
              kInterfaces[i], p ? "SERVED" : "*** NULL ***", p);
     }
     plog("[wn-probe] summary: served=%d missing=%d", served, missing);
+
+    probe_auth_ticket(api,
+                      findIface(hUser, "SteamUser023"),
+                      findIface(hUser, "STEAMAPPS_INTERFACE_VERSION008"));
 
     if (shutdown) shutdown();
     plog("[wn-probe] done");
