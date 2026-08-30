@@ -66,6 +66,7 @@ static const int kBlockedAnswerWaitMs = 120000;
 static const int kVtEngine_GetIClientAppManager = 43; // IClientEngine slot 43
 static const int kVtAppMgr_LaunchApp            = 2;  // IClientAppManager slot 2
 static const int kVtAppMgr_ShutdownApp          = 3;
+static const int kVtAppMgr_BIsAppUpToDate       = 21;
 static const int kVtAppMgr_GetAppInstallState   = 4;  // int  GetAppInstallState(AppId_t)
 
 static const int kVtEngine_GetIClientApps       = 17;  // slot 17: IClientApps*(hUser, hPipe)
@@ -2157,6 +2158,17 @@ int main(int argc, char** argv) {
                          appId, st,
                          (st & 4) ? "FullyInstalled"
                                   : "NOT installed — LaunchApp may no-op");
+            }
+            void* upToDateP = am_vt[kVtAppMgr_BIsAppUpToDate];
+            if (is_exec_ptr(upToDateP)) {
+                typedef bool (WN_THISCALL *BIsAppUpToDateFn)(void* self, uint32_t app);
+                bool upToDate = ((BIsAppUpToDateFn) upToDateP)(appMgr, appId);
+                log_line("[wn-launcher] BIsAppUpToDate(appId=%u) = %d (%s)",
+                         appId, upToDate ? 1 : 0,
+                         upToDate ? "installed build is current"
+                                  : "Steam considers this install OUT OF DATE");
+            } else {
+                log_line("[wn-launcher] BIsAppUpToDate slot not executable — skipping");
             }
         }
     }
