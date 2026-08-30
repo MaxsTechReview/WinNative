@@ -71,9 +71,11 @@ private val DrawerWidth = 300.dp
 private val DrawerStartPadding = 6.dp
 private val DrawerVerticalPadding = 6.dp
 private const val DrawerSettleAnimationMs = 200
-// 0.3f: dragging out ~1/3 of the drawer now keeps it open (was 0.4f), so a slightly
-// short swipe settles open instead of snapping back.
-private const val DrawerOpenSettleThreshold = 0.3f
+// Dragging out any visible amount of the drawer keeps it open. The settle check is
+// drawerProgress >= this, and progress = draggedPx / drawerWidthPx (~300dp), so 0 means
+// “as soon as the gesture was claimed (past the open trigger) it stays open”; a positive
+// value would again bounce back for anything dragged less than threshold × width.
+private const val DrawerOpenSettleThreshold = 0f
 private const val DrawerCloseSettleThreshold = 0.65f
 private val DrawerSettleAnimationSpec =
     tween<Float>(

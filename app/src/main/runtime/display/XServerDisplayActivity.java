@@ -1555,9 +1555,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                // Back closes overlay → pane → drawer, and NEVER opens the drawer. With
-                // nothing open, defer to the default back behavior (exit/minimize) by
-                // temporarily disabling this callback and re-dispatching.
+                // Back only closes overlay → pane → drawer. With nothing open it is
+                // swallowed entirely: never opens the drawer and never exits the
+                // container while a game is running.
                 if (drawerStateHolder != null && drawerStateHolder.consumeOverlayBack()) {
                     return;
                 }
@@ -1567,11 +1567,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 }
                 if (drawerStateHolder != null && drawerStateHolder.isDrawerOpen()) {
                     closeDrawerMenu();
-                    return;
                 }
-                setEnabled(false);
-                getOnBackPressedDispatcher().onBackPressed();
-                setEnabled(true);
             }
         });
 
