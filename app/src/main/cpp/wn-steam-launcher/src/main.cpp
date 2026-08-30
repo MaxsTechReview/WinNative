@@ -323,6 +323,33 @@ static void stage_app_manifest(uint32_t appId, const char* gameExe) {
     std::string nameEsc = vdf_escape(appName);
     std::string installdirEsc = vdf_escape(installdir);
     std::string languageEsc = vdf_escape(language);
+    const bool minimalAcf =
+        GetFileAttributesA("C:\\wn-minimal-acf.on") != INVALID_FILE_ATTRIBUTES;
+    if (minimalAcf) {
+        log_line("[wn-launcher] app manifest: minimal shape (SteamLite parity) — "
+                 "no buildid, empty InstalledDepots");
+        fprintf(f,
+                "\"AppState\"\n"
+                "{\n"
+                "\t\"appid\"\t\t\"%u\"\n"
+                "\t\"universe\"\t\t\"1\"\n"
+                "\t\"LauncherPath\"\t\t\"C:\\\\Program Files (x86)\\\\Steam\\\\steam.exe\"\n"
+                "\t\"name\"\t\t\"%s\"\n"
+                "\t\"StateFlags\"\t\t\"4\"\n"
+                "\t\"installdir\"\t\t\"%s\"\n"
+                "\t\"LastOwner\"\t\t\"%s\"\n"
+                "\t\"InstalledDepots\"\n\t{\n\t}\n"
+                "\t\"UserConfig\"\n\t{\n\t\t\"language\"\t\t\"%s\"\n\t}\n"
+                "\t\"MountedConfig\"\n\t{\n\t\t\"language\"\t\t\"%s\"\n\t}\n"
+                "}\n",
+                appId, nameEsc.c_str(), installdirEsc.c_str(),
+                (owner && *owner) ? owner : "0",
+                languageEsc.c_str(), languageEsc.c_str());
+        fclose(f);
+        log_line("[wn-launcher] app manifest staged (minimal): %s (installdir=\"%s\")",
+                 acf, installdirEsc.c_str());
+        return;
+    }
     fprintf(f,
             "\"AppState\"\n"
             "{\n"

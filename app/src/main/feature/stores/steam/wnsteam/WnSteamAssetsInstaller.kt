@@ -466,7 +466,83 @@ object WnSteamAssetsInstaller {
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "planW: CA bundle stage failed")
         }
+        applyControllerPassthrough(steamDir)
         return ok
+    }
+
+    private val OVERLAY_DLLS = arrayOf("GameOverlayRenderer.dll", "GameOverlayRenderer64.dll")
+
+    private val STEAM_INPUT_KEYS = arrayOf(
+        "SteamController_XBoxSupport",
+        "SteamController_GenericGamepadSupport",
+        "SteamController_PSSupport",
+        "SteamController_SwitchSupport",
+    )
+
+    private fun applyControllerPassthrough(steamDir: File) {
+        try {
+            for (dll in OVERLAY_DLLS) {
+                val f = File(steamDir, dll)
+                if (f.isFile && f.delete()) {
+                    Timber.tag(TAG).i("passthrough: removed %s", dll)
+                }
+            }
+            val localConfig = resolveLocalConfig(steamDir)
+            if (localConfig == null) {
+                Timber.tag(TAG).w("passthrough: no localconfig.vdf resolvable — Steam Input keys skipped")
+            } else {
+                disableSteamControllerSupport(localConfig)
+            }
+        } catch (t: Throwable) {
+            Timber.tag(TAG).w("passthrough: apply failed (non-fatal): %s", t.message ?: "")
+        }
+    }
+
+    private fun resolveLocalConfig(steamDir: File): File? {
+        val userdata = File(steamDir, "userdata")
+        val users = userdata.listFiles() ?: return null
+        for (u in users) {
+            val cfg = File(u, "config/localconfig.vdf")
+            if (cfg.isFile) return cfg
+        }
+        return null
+    }
+
+    private fun disableSteamControllerSupport(localConfig: File) {
+        try {
+            val original = localConfig.readText()
+            if (!original.contains("UserLocalConfigStore")) {
+                Timber.tag(TAG).w("passthrough: %s root is not UserLocalConfigStore — left untouched",
+                    localConfig.name)
+                return
+            }
+            var text = original
+            var changed = false
+            for (key in STEAM_INPUT_KEYS) {
+                val rx = Regex("(\"" + Regex.escape(key) + "\"\\s*)\"[^\"]*\"")
+                if (rx.containsMatchIn(text)) {
+                    val replaced = rx.replace(text) { m -> m.groupValues[1] + "\"0\"" }
+                    if (replaced != text) { text = replaced; changed = true }
+                } else {
+                    val sys = Regex("(\"system\"\\s*\\r?\\n\\s*\\{\\s*\\r?\\n)")
+                    val m = sys.find(text)
+                    if (m != null) {
+                        text = text.substring(0, m.range.last + 1) +
+                            "\t\t\t\"" + key + "\"\t\t\"0\"\n" +
+                            text.substring(m.range.last + 1)
+                        changed = true
+                    }
+                }
+            }
+            if (changed) {
+                localConfig.writeText(text)
+                Timber.tag(TAG).i("passthrough: Steam Input keys disabled in %s", localConfig.absolutePath)
+            } else {
+                Timber.tag(TAG).i("passthrough: Steam Input keys already disabled")
+            }
+        } catch (e: Exception) {
+            Timber.tag(TAG).w("passthrough: localconfig edit failed (non-fatal): %s", e.message ?: "")
+        }
     }
 
     private fun stageBridgeLibsteamclient(context: Context, imageFs: ImageFs): Boolean {
