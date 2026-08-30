@@ -175,6 +175,65 @@ static void import_debug_ca() {
     free(buf);
 }
 
+static void probe_ane_dlls(const char* gameDir) {
+    static const char* const kAnes[][2] = {
+        { "DnaManager", "DnaManager.dll" },
+        { "SteamAir", "SteamAir.dll" },
+        { "DesktopExtension", "DesktopExtension.dll" },
+        { "RawData", "RawData.dll" },
+        { "MultiKeyboard", "MultiKeyboard.dll" },
+        { "SoundEngineExtension", "SoundEngineExtension.dll" },
+        { "WindowsExtensionWrapper", "FrameFixDLL.dll" },
+        { "EpicAir", "EpicAir.dll" },
+    };
+    const int n = (int) (sizeof(kAnes) / sizeof(kAnes[0]));
+    plog("[wn-probe] ---- ANE LoadLibrary probe (%d extensions) ----", n);
+    char airDir[MAX_PATH];
+    snprintf(airDir, sizeof(airDir), "%s\\Adobe AIR\\Versions\\1.0", gameDir);
+    char airDll[MAX_PATH];
+    snprintf(airDll, sizeof(airDll), "%s\\Adobe AIR.dll", airDir);
+    SetDllDirectoryA(airDir);
+    HMODULE air = LoadLibraryExA(airDll, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+    plog("[wn-probe] Adobe AIR.dll %s (GLE=%lu) path=%s",
+         air ? "LOADED" : "FAILED", (unsigned long) GetLastError(), airDll);
+    for (int i = 0; i < n; ++i) {
+        char path[MAX_PATH];
+        snprintf(path, sizeof(path),
+                 "%s\\META-INF\\AIR\\extensions\\%s\\META-INF\\ANE\\Windows-x86-64\\%s",
+                 gameDir, kAnes[i][0], kAnes[i][1]);
+        DWORD attr = GetFileAttributesA(path);
+        if (attr == INVALID_FILE_ATTRIBUTES) {
+            plog("[wn-probe] ANE %-24s MISSING on disk (%s)", kAnes[i][0], path);
+            continue;
+        }
+        HMODULE h = LoadLibraryExA(path, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+        if (h) {
+            void* init = (void*) GetProcAddress(h, "DnaInitializer");
+            plog("[wn-probe] ANE %-24s LOADED ok%s", kAnes[i][0],
+                 init ? " (DnaInitializer present)" : "");
+            FreeLibrary(h);
+        } else {
+            plog("[wn-probe] ANE %-24s LoadLibrary FAILED GLE=%lu", kAnes[i][0],
+                 (unsigned long) GetLastError());
+        }
+    }
+    static const char* const kDeps[] = {
+        "msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll", "ucrtbase.dll",
+        "api-ms-win-crt-runtime-l1-1-0.dll", "api-ms-win-crt-string-l1-1-0.dll",
+        "api-ms-win-crt-stdio-l1-1-0.dll", "api-ms-win-crt-heap-l1-1-0.dll",
+        "api-ms-win-crt-convert-l1-1-0.dll", "iphlpapi.dll", "ws2_32.dll",
+        "setupapi.dll", "ole32.dll", "oleaut32.dll", "shell32.dll",
+    };
+    const int m = (int) (sizeof(kDeps) / sizeof(kDeps[0]));
+    plog("[wn-probe] ---- dependency probe (%d dlls) ----", m);
+    for (int i = 0; i < m; ++i) {
+        HMODULE h = LoadLibraryA(kDeps[i]);
+        if (h) { plog("[wn-probe] dep %-38s ok", kDeps[i]); FreeLibrary(h); }
+        else plog("[wn-probe] dep %-38s MISSING GLE=%lu", kDeps[i],
+                  (unsigned long) GetLastError());
+    }
+}
+
 int main(int argc, char** argv) {
     const char* gameDir = (argc > 1) ? argv[1] : "";
     const char* appId = (argc > 2) ? argv[2] : "";
@@ -183,6 +242,7 @@ int main(int argc, char** argv) {
     g_log = fopen(logPath, "w");
     import_debug_ca();
     plog("[wn-probe] start gameDir=\"%s\" appId=%s", gameDir, appId);
+    probe_ane_dlls(gameDir);
 
     if (appId && appId[0]) {
         SetEnvironmentVariableA("SteamAppId", appId);
