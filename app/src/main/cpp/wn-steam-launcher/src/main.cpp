@@ -53,9 +53,19 @@ static const int kTicketWaitMsDefault = 15000;
 static const int kAppInfoWaitMsDefault   = 8000;
 static const int kAppInfoWaitMsAfterMiss = 1500;
 
+static const int kVtUser_NumGamesRunning          = 131;
+static const int kVtUser_GetRunningGameID         = 132;
+static const int kVtUser_GetRunningGamePID        = 133;
+static const int kVtUser_BIsOtherSessionPlaying   = 220;
+static const int kVtUser_BKickOtherPlayingSession = 221;
+
+static const int kEAppUpdateErrorApplicationRunning  = 16;
+static const int kEAppUpdateErrorOtherSessionPlaying = 35;
+static const int kBlockedAnswerWaitMs = 120000;
+
 static const int kVtEngine_GetIClientAppManager = 43; // IClientEngine slot 43
 static const int kVtAppMgr_LaunchApp            = 2;  // IClientAppManager slot 2
-static const int kVtAppMgr_RefreshAppInfo       = 83; // void RefreshAppInfo()
+static const int kVtAppMgr_ShutdownApp          = 3;
 static const int kVtAppMgr_GetAppInstallState   = 4;  // int  GetAppInstallState(AppId_t)
 
 static const int kVtEngine_GetIClientApps       = 17;  // slot 17: IClientApps*(hUser, hPipe)
@@ -646,6 +656,187 @@ static int env_int(const char* name, int fallback) {
     if (!v || !*v) return fallback;
     long n = strtol(v, NULL, 0);
     return (n > 0) ? (int) n : fallback;
+}
+
+static const char* const kEAppUpdateErrorNames[] = {
+    "No Error", "Unspecified Error", "Paused", "Canceled", "Suspended",
+    "No subscription", "No connection", "Connection timeout", "Missing decryption key",
+    "Missing configuration", "Disk read failure", "Disk write failure",
+    "Not enough disk space", "Corrupt game files", "Waiting for disk",
+    "Invalid install path", "Application running", "Dependency failure", "Not installed",
+    "Update required", "Still busy", "No connection to content servers",
+    "Invalid application configuration", "Invalid content configuration",
+    "Manifest unavailable", "Not released", "Region restricted", "Corrupt depot cache",
+    "Missing executable", "Invalid platform", "Invalid file system",
+    "Corrupt update files", "Download disabled", "Shared library locked",
+    "Purchase pending", "Other session playing", "Corrupt download", "Corrupt disk",
+    "Missing file permissions", "File locked", "Content unavailable",
+    "Requires 64bit operating system", "Missing update files", "Not enough disk quota",
+    "Site License locked", "Parental control blocked", "Create process failed",
+    "Steam client out of date", "Allowed playtime exceeded", "Corrupt file signature",
+    "Missing game files", "Compat tool failed", "Install path removed",
+    "Invalid backup path", "Invalid Passcode", "Self updating",
+    "Allowed playtime exceeded", "Blocked arguments",
+};
+
+static const char* eapp_update_error_name(int e) {
+    const int count = (int) (sizeof(kEAppUpdateErrorNames) / sizeof(kEAppUpdateErrorNames[0]));
+    if (e < 0 || e >= count) return "unknown";
+    return kEAppUpdateErrorNames[e];
+}
+
+static const char* const kBlockedRequestPath = "C:\\wn-steam-blocked.txt";
+static const char* const kBlockedAnswerPath  = "C:\\wn-steam-blocked-answer.txt";
+
+static uint32_t query_running_game(void* user, uint32_t* pidOut, int* countOut) {
+    if (pidOut) *pidOut = 0;
+    if (countOut) *countOut = 0;
+    if (!user) return 0;
+    void** vt = *(void***) user;
+    void* numP = vt[kVtUser_NumGamesRunning];
+    void* idP  = vt[kVtUser_GetRunningGameID];
+    if (!is_exec_ptr(numP) || !is_exec_ptr(idP)) {
+        log_line("[wn-launcher] blocked-check: running-game slots not executable");
+        return 0;
+    }
+    typedef int (WN_THISCALL *NumGamesRunningFn)(void* self);
+    typedef uint64_t* (WN_THISCALL *GetRunningGameIDFn)(void* self, uint64_t* out, int index);
+    int n = ((NumGamesRunningFn) numP)(user);
+    if (countOut) *countOut = n;
+    if (n <= 0) return 0;
+    uint64_t gameId = 0;
+    ((GetRunningGameIDFn) idP)(user, &gameId, 0);
+    uint32_t appId = (uint32_t) (gameId & 0xFFFFFFull);
+    uint32_t pid = 0;
+    void* pidP = vt[kVtUser_GetRunningGamePID];
+    if (is_exec_ptr(pidP)) {
+        typedef int (WN_THISCALL *GetRunningGamePIDFn)(void* self, int index);
+        int rc = ((GetRunningGamePIDFn) pidP)(user, 0);
+        if (rc > 0) pid = (uint32_t) rc;
+    }
+    if (pidOut) *pidOut = pid;
+    log_line("[wn-launcher] blocked-check: NumGamesRunning=%d gameID=0x%llx appId=%u pid=%u",
+             n, (unsigned long long) gameId, appId, pid);
+    return appId;
+}
+
+static bool query_other_session(void* user, uint32_t* appIdOut) {
+    if (appIdOut) *appIdOut = 0;
+    if (!user) return false;
+    void** vt = *(void***) user;
+    void* p = vt[kVtUser_BIsOtherSessionPlaying];
+    if (!is_exec_ptr(p)) return false;
+    typedef bool (WN_THISCALL *BIsOtherSessionPlayingFn)(void* self, uint32_t* out);
+    uint32_t appId = 0;
+    bool blocked = ((BIsOtherSessionPlayingFn) p)(user, &appId);
+    if (appIdOut) *appIdOut = appId;
+    if (blocked) {
+        log_line("[wn-launcher] blocked-check: BIsOtherSessionPlaying=1 appId=%u", appId);
+    }
+    return blocked;
+}
+
+static void write_blocked_request(const char* kind, uint32_t blockingAppId,
+                                  uint32_t targetAppId, uint32_t pid) {
+    DeleteFileA(kBlockedAnswerPath);
+    FILE* f = fopen(kBlockedRequestPath, "wb");
+    if (f) {
+        fprintf(f, "kind=%s\nblocking=%u\ntarget=%u\npid=%u\n",
+                kind, blockingAppId, targetAppId, pid);
+        fclose(f);
+    }
+    log_line("[wn-launcher] BLOCKED: kind=%s blocking=%u target=%u pid=%u",
+             kind, blockingAppId, targetAppId, pid);
+}
+
+static bool wait_blocked_answer(int timeoutMs, Steam_BGetCallback_fn bGetCallback,
+                                Steam_FreeLastCallback_fn freeLastCallback, int pipe) {
+    const int stepMs = 100;
+    for (int waited = 0; waited < timeoutMs; waited += stepMs) {
+        if (bGetCallback && freeLastCallback) {
+            char cb[64];
+            while (bGetCallback(pipe, cb)) freeLastCallback(pipe);
+        }
+        FILE* f = fopen(kBlockedAnswerPath, "rb");
+        if (f) {
+            char buf[32] = {0};
+            size_t got = fread(buf, 1, sizeof(buf) - 1, f);
+            fclose(f);
+            buf[got] = '\0';
+            for (char* p = buf; *p; ++p) {
+                if (*p == '\r' || *p == '\n') { *p = '\0'; break; }
+            }
+            DeleteFileA(kBlockedAnswerPath);
+            DeleteFileA(kBlockedRequestPath);
+            log_line("[wn-launcher] BLOCKED: answer=\"%s\"", buf);
+            return strcmp(buf, "stop") == 0;
+        }
+        Sleep(stepMs);
+    }
+    DeleteFileA(kBlockedRequestPath);
+    log_line("[wn-launcher] BLOCKED: no answer within %dms", timeoutMs);
+    return false;
+}
+
+static bool clear_running_game(void* engine, void* user, void* appMgr, uint32_t blockingAppId,
+                               Steam_BGetCallback_fn bGetCallback,
+                               Steam_FreeLastCallback_fn freeLastCallback, int pipe) {
+    (void) engine;
+    if (appMgr && blockingAppId != 0) {
+        void** amVt = *(void***) appMgr;
+        void* shutdownP = amVt[kVtAppMgr_ShutdownApp];
+        if (is_exec_ptr(shutdownP)) {
+            typedef void (WN_THISCALL *ShutdownAppFn)(void* self, uint32_t appId, bool bForce);
+            ((ShutdownAppFn) shutdownP)(appMgr, blockingAppId, true);
+            log_line("[wn-launcher] BLOCKED: IClientAppManager.ShutdownApp(%u, force) dispatched",
+                     blockingAppId);
+        } else {
+            log_line("[wn-launcher] BLOCKED: ShutdownApp slot not executable");
+        }
+    }
+    for (int waited = 0; waited < 15000; waited += 200) {
+        if (bGetCallback && freeLastCallback) {
+            char cb[64];
+            while (bGetCallback(pipe, cb)) freeLastCallback(pipe);
+        }
+        int count = 0;
+        query_running_game(user, NULL, &count);
+        if (count <= 0) {
+            log_line("[wn-launcher] BLOCKED: running-game registration cleared after %dms", waited);
+            return true;
+        }
+        Sleep(200);
+    }
+    log_line("[wn-launcher] BLOCKED: running-game registration still set after 15000ms");
+    return false;
+}
+
+static bool clear_other_session(void* user, Steam_BGetCallback_fn bGetCallback,
+                                Steam_FreeLastCallback_fn freeLastCallback, int pipe) {
+    if (!user) return false;
+    void** vt = *(void***) user;
+    void* p = vt[kVtUser_BKickOtherPlayingSession];
+    if (!is_exec_ptr(p)) {
+        log_line("[wn-launcher] BLOCKED: BKickOtherPlayingSession slot not executable");
+        return false;
+    }
+    typedef bool (WN_THISCALL *BKickOtherPlayingSessionFn)(void* self);
+    bool rc = ((BKickOtherPlayingSessionFn) p)(user);
+    log_line("[wn-launcher] BLOCKED: BKickOtherPlayingSession() -> %d", rc ? 1 : 0);
+    for (int waited = 0; waited < 15000; waited += 200) {
+        if (bGetCallback && freeLastCallback) {
+            char cb[64];
+            while (bGetCallback(pipe, cb)) freeLastCallback(pipe);
+        }
+        uint32_t blocking = 0;
+        if (!query_other_session(user, &blocking)) {
+            log_line("[wn-launcher] BLOCKED: other session cleared after %dms", waited);
+            return true;
+        }
+        Sleep(200);
+    }
+    log_line("[wn-launcher] BLOCKED: other session still playing after 15000ms");
+    return false;
 }
 
 static void run_iface_probe(const char* gameRootDir, uint32_t appId) {
@@ -1943,18 +2134,9 @@ int main(int argc, char** argv) {
 
         if (appMgr) {
             void** am_vt = *(void***) appMgr;
-            void* refreshP = am_vt[kVtAppMgr_RefreshAppInfo];
             void* stateP   = am_vt[kVtAppMgr_GetAppInstallState];
-            log_line("[wn-launcher] readiness: refreshP=%p stateP=%p (indices %d/%d)",
-                     refreshP, stateP, kVtAppMgr_RefreshAppInfo, kVtAppMgr_GetAppInstallState);
-            if (skipAppInfo) {
-                log_line("[wn-launcher] RefreshAppInfo() skipped (WN_STEAM_SKIP_APPINFO set)");
-            } else if (is_exec_ptr(refreshP)) {
-                log_line("[wn-launcher] readiness: calling RefreshAppInfo()");
-                typedef void (WN_THISCALL *RefreshAppInfoFn)(void* self);
-                ((RefreshAppInfoFn) refreshP)(appMgr);
-                log_line("[wn-launcher] RefreshAppInfo() called");
-            }
+            log_line("[wn-launcher] readiness: stateP=%p (index %d)",
+                     stateP, kVtAppMgr_GetAppInstallState);
             if (is_exec_ptr(stateP)) {
                 log_line("[wn-launcher] readiness: calling GetAppInstallState(%u)", appId);
                 typedef int (WN_THISCALL *GetAppInstallStateFn)(void* self, uint32_t app);
@@ -1997,6 +2179,7 @@ int main(int argc, char** argv) {
 #endif
 
     bool launchedViaApp = false;
+    bool blockedAbort = false;
     bool launchedViaFallback = false;
     const char* launchFailureReason = "LaunchApp path unavailable";
 
@@ -2033,8 +2216,11 @@ int main(int argc, char** argv) {
                 appMgr_vt[kVtAppMgr_LaunchApp];
             uint64_t gameId = (uint64_t)(appId & 0xFFFFFFu);
 
-            // RefreshAppInfo() slot — re-primes appinfo between MissingConfig retries.
-            void* refreshAppInfoP = appMgr_vt[kVtAppMgr_RefreshAppInfo];
+            typedef void* (WN_THISCALL *GetIfaceFn2)(void* self, int hUser, int hPipe);
+            void* retryApps = ((GetIfaceFn2) engine_vt[kVtEngine_GetIClientApps])
+                                  (engine, hUser, pipe);
+            void* requestAppInfoP = retryApps
+                ? (*(void***) retryApps)[kVtApps_RequestAppInfoUpdate] : NULL;
 
             const int kMaxLaunchAttempts = 5;
             const int kSecureAppearSeconds = 120;
@@ -2042,6 +2228,43 @@ int main(int argc, char** argv) {
             int launchOptions[8];
             int launchOptionCount = 0;
             run_iface_probe(gameRootDir, appId);
+
+            void* blockUser = ((GetIfaceFn2) engine_vt[kVtEngine_GetIClientUser])
+                                  (engine, hUser, pipe);
+            {
+                uint32_t blockingPid = 0;
+                int runningCount = 0;
+                uint32_t blockingAppId =
+                    query_running_game(blockUser, &blockingPid, &runningCount);
+                uint32_t otherAppId = 0;
+                if (runningCount > 0) {
+                    write_blocked_request("running", blockingAppId, appId, blockingPid);
+                    if (wait_blocked_answer(kBlockedAnswerWaitMs, bGetCallback,
+                                            freeLastCallback, pipe)) {
+                        if (!clear_running_game(engine, blockUser, appMgr, blockingAppId,
+                                                bGetCallback, freeLastCallback, pipe)) {
+                            launchFailureReason =
+                                "Steam kept the previous game registered";
+                        }
+                    } else {
+                        launchFailureReason = "user declined to stop the running game";
+                        blockedAbort = true;
+                    }
+                } else if (query_other_session(blockUser, &otherAppId)) {
+                    write_blocked_request("othersession", otherAppId, appId, 0);
+                    if (wait_blocked_answer(kBlockedAnswerWaitMs, bGetCallback,
+                                            freeLastCallback, pipe)) {
+                        if (!clear_other_session(blockUser, bGetCallback,
+                                                 freeLastCallback, pipe)) {
+                            launchFailureReason = "the other Steam session kept playing";
+                        }
+                    } else {
+                        launchFailureReason = "user declined to stop the other Steam session";
+                        blockedAbort = true;
+                    }
+                }
+            }
+
             const int preferredOption = env_int_signed("WN_STEAM_LAUNCH_OPTION", 0);
             launchOptions[launchOptionCount++] = preferredOption < 0 ? 0 : preferredOption;
             for (int cand = 0; cand <= 6 && launchOptionCount < 8; ++cand) {
@@ -2056,7 +2279,9 @@ int main(int argc, char** argv) {
                      launchOptions[0],
                      getenv("WN_STEAM_LAUNCH_OPTION") ? "WN_STEAM_LAUNCH_OPTION" : "default");
             const int kErrorAppearSeconds = 30;
-            for (int attempt = 1; attempt <= kMaxLaunchAttempts && !launchedViaApp; ++attempt) {
+            for (int attempt = 1;
+                 attempt <= kMaxLaunchAttempts && !launchedViaApp && !blockedAbort;
+                 ++attempt) {
                 const int launchOption = launchOptions[launchOptionIndex];
                 const char* userArgsEnv = getenv("WN_STEAM_USER_ARGS");
                 const char* userArgs = (userArgsEnv && *userArgsEnv) ? userArgsEnv : "";
@@ -2134,13 +2359,9 @@ int main(int argc, char** argv) {
                                                   &resFailed);
                             eAppError = *(int*)(buf + kLaunchResultErrorOffset);
                             log_line("[wn-launcher] LaunchApp poll: COMPLETED in %dms "
-                                     "got=%d resFailed=%d EAppUpdateError=%d "
-                                     "(0=NoError 1=Unspecified 2=Paused 3=Cancelled "
-                                     "4=Suspended 5=NoSubscription 6=NoConnection "
-                                     "7=Timeout 8=MissingKey 9=MissingConfig "
-                                     "0xE=AppLocked 0xF=OtherSessionPlaying "
-                                     "0x10=AlreadyRunning 0x21=33 0x23=35 0x2D=45)",
-                                     waited, got ? 1 : 0, resFailed ? 1 : 0, eAppError);
+                                     "got=%d resFailed=%d EAppUpdateError=%d (%s)",
+                                     waited, got ? 1 : 0, resFailed ? 1 : 0, eAppError,
+                                     eapp_update_error_name(eAppError));
                             char hex[3 * 32 + 1];
                             int hp = 0;
                             for (int i = 0; i < 32; ++i) {
@@ -2176,9 +2397,14 @@ int main(int argc, char** argv) {
             if (eAppError == 9 /* MissingConfig */) {
                 // appinfo not landed — re-prime, settle, retry fast (nothing launched).
                 // "never appeared … retrying" wording disarms the Android watchdog.
-                if (is_exec_ptr(refreshAppInfoP)) {
-                    typedef void (WN_THISCALL *RefreshAppInfoFn)(void* self);
-                    ((RefreshAppInfoFn) refreshAppInfoP)(appMgr);
+                if (retryApps && is_exec_ptr(requestAppInfoP)) {
+                    typedef bool (WN_THISCALL *RequestAppInfoUpdateFn)(void* self,
+                                                       uint32_t* appIds, int count);
+                    uint32_t retryIds[1] = { appId };
+                    bool retryRc = ((RequestAppInfoUpdateFn) requestAppInfoP)
+                                       (retryApps, retryIds, 1);
+                    log_line("[wn-launcher] MissingConfig: RequestAppInfoUpdate(appId=%u) -> %d",
+                             appId, retryRc ? 1 : 0);
                 }
                 log_line("[wn-launcher] LaunchApp attempt %d/%d: \"%s\" never "
                          "appeared — MissingConfig (appinfo not ready); refreshed "
@@ -2199,19 +2425,52 @@ int main(int argc, char** argv) {
                          "launch option %d", attempt, kMaxLaunchAttempts, exeName,
                          launchOptions[launchOptionIndex - 1], launchOptions[launchOptionIndex]);
                 Sleep(300);
+            } else if (eAppError == kEAppUpdateErrorApplicationRunning
+                       || eAppError == kEAppUpdateErrorOtherSessionPlaying) {
+                const bool other = (eAppError == kEAppUpdateErrorOtherSessionPlaying);
+                uint32_t blockingPid = 0;
+                int runningCount = 0;
+                uint32_t blockingAppId = 0;
+                if (other) {
+                    query_other_session(blockUser, &blockingAppId);
+                } else {
+                    blockingAppId = query_running_game(blockUser, &blockingPid, &runningCount);
+                }
+                log_line("[wn-launcher] LaunchApp attempt %d/%d: \"%s\" refused with "
+                         "EAppUpdateError=%d (%s) — blocking appId=%u; asking the user",
+                         attempt, kMaxLaunchAttempts, exeName, eAppError,
+                         other ? "Other session playing" : "Application running",
+                         blockingAppId);
+                write_blocked_request(other ? "othersession" : "running",
+                                      blockingAppId, appId, blockingPid);
+                if (!wait_blocked_answer(kBlockedAnswerWaitMs, bGetCallback,
+                                         freeLastCallback, pipe)) {
+                    launchFailureReason = other
+                        ? "user declined to stop the other Steam session"
+                        : "user declined to stop the running game";
+                    blockedAbort = true;
+                    break;
+                }
+                const bool cleared = other
+                    ? clear_other_session(blockUser, bGetCallback, freeLastCallback, pipe)
+                    : clear_running_game(engine, blockUser, appMgr, blockingAppId,
+                                         bGetCallback, freeLastCallback, pipe);
+                if (!cleared) {
+                    launchFailureReason = other
+                        ? "the other Steam session kept playing"
+                        : "Steam kept the previous game registered";
+                    blockedAbort = true;
+                    break;
+                }
+                log_line("[wn-launcher] BLOCKED: cleared — retrying LaunchApp");
+                continue;
             } else if (eAppError > 0) {
                 log_line("[wn-launcher] LaunchApp attempt %d/%d: \"%s\" reported "
-                         "EAppUpdateError=%d%s; not retryable in-process — waiting "
+                         "EAppUpdateError=%d (%s); not retryable in-process — waiting "
                          "%ds to see whether Steam started it anyway",
                          attempt, kMaxLaunchAttempts, exeName, eAppError,
-                         eAppError == 0x10
-                             ? " (AlreadyRunning — prior session's games-played "
-                               "registration still live server-side)"
-                             : "",
-                         kErrorAppearSeconds);
-                launchFailureReason = (eAppError == 0x10)
-                    ? "LaunchApp returned AlreadyRunning (stale server session)"
-                    : "LaunchApp returned a non-NoError EAppUpdateError";
+                         eapp_update_error_name(eAppError), kErrorAppearSeconds);
+                launchFailureReason = "LaunchApp returned a non-NoError EAppUpdateError";
                 launchedViaApp = wait_for_game_process(
                     exeName, kErrorAppearSeconds, "post-error grace",
                     bGetCallback, freeLastCallback, pipe);
@@ -2250,8 +2509,14 @@ int main(int argc, char** argv) {
                  "this launch; skipping the insecure CreateProcess fallback", exeName);
     }
 
+    if (blockedAbort && !launchedViaApp) {
+        log_line("[wn-launcher] BLOCKED: not starting \"%s\" insecurely — Steam still has a "
+                 "game registered and the launch was not unblocked (%s)",
+                 exeName, launchFailureReason);
+    }
+
     // LaunchApp didn't bring the game up — start it directly; the "dispatched/never appeared/falling back" log markers disarm WnLauncherStatusTailer's post-dispatch watchdog.
-    if (!launchedViaApp) {
+    if (!launchedViaApp && !blockedAbort) {
         if (directExe) {
             log_line("[wn-launcher] direct-exe mode: launching user-selected \"%s\" via "
                      "CreateProcess (Steam LaunchApp skipped)", exeName);

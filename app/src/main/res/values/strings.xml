@@ -1602,6 +1602,14 @@ Installed path:
     <string name="preloader_steam_launcher_failed_restaging">Steam Launcher failed — re-staging assets</string>
     <string name="preloader_steam_launcher_start_failed">Steam Launcher could not start. Re-staging — please relaunch</string>
     <string name="preloader_steam_launcher_game_never_started">Steam Launcher reached the game but it never started</string>
+    <string name="steam_blocked_title">Steam is still playing a game</string>
+    <string name="steam_blocked_running_message">Steam still has %1$s registered as running from an earlier session, so it will not start %2$s.\n\nStop it and continue?</string>
+    <string name="steam_blocked_same_game_message">Steam still has %1$s registered as running from an earlier session, so it will not start it again.\n\nStop it and continue?</string>
+    <string name="steam_blocked_other_session_message">Your Steam account is playing %1$s in another session, so %2$s cannot start.\n\nStop the other session and continue?</string>
+    <string name="steam_blocked_confirm">Stop and continue</string>
+    <string name="steam_blocked_unknown_game">another game</string>
+    <string name="steam_blocked_declined">Launch cancelled — Steam is still playing another game</string>
+    <string name="steam_blocked_waiting">Waiting for Steam to stop the other game…</string>
     <string name="preloader_setup_environment">Setting up environment</string>
     <string name="preloader_retrying_steam_client_download">Retrying Steam client download</string>
     <string name="preloader_installing_mono">Installing Wine Mono v%1$s</string>

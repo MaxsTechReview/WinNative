@@ -4034,6 +4034,82 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         wnLauncherStatusTailer = null;
     }
 
+    private String steamAppNameForId(Container container, int appId) {
+        if (container == null || appId <= 0) return null;
+        File acf = new File(container.getRootDir(),
+                ".wine/drive_c/Program Files (x86)/Steam/steamapps/appmanifest_" + appId + ".acf");
+        if (!acf.isFile()) return null;
+        try (java.io.BufferedReader r = new java.io.BufferedReader(new java.io.FileReader(acf))) {
+            String line;
+            while ((line = r.readLine()) != null) {
+                String trimmed = line.trim();
+                if (!trimmed.startsWith("\"name\"")) continue;
+                int first = trimmed.indexOf('"', 6);
+                if (first < 0) continue;
+                int second = trimmed.indexOf('"', first + 1);
+                if (second < 0) continue;
+                String name = trimmed.substring(first + 1, second).trim();
+                if (!name.isEmpty()) return name;
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    private void writeSteamBlockedAnswer(Container container, String answer) {
+        File out = new File(container.getRootDir(), ".wine/drive_c/wn-steam-blocked-answer.txt");
+        try (java.io.FileOutputStream fos = new java.io.FileOutputStream(out, false)) {
+            fos.write(answer.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            fos.flush();
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity",
+                    "Steam Launcher: failed to write blocked answer: " + e.getMessage());
+        }
+    }
+
+    private void showSteamBlockedDialog(Container container, String targetName,
+                                        String kind, int blockingAppId) {
+        String blockingName = steamAppNameForId(container, blockingAppId);
+        if (blockingName == null || blockingName.isEmpty()) {
+            blockingName = getString(R.string.steam_blocked_unknown_game);
+        }
+        boolean other = "othersession".equals(kind);
+        boolean sameGame = !other && blockingName.equalsIgnoreCase(targetName);
+        String message = sameGame
+                ? getString(R.string.steam_blocked_same_game_message, blockingName)
+                : getString(other
+                                ? R.string.steam_blocked_other_session_message
+                                : R.string.steam_blocked_running_message,
+                        blockingName, targetName);
+        Log.i("XServerDisplayActivity",
+                "Steam Launcher: launch blocked (" + kind + ") by appId=" + blockingAppId
+                        + " \"" + blockingName + "\"");
+        Runnable onConfirm = () -> {
+            writeSteamBlockedAnswer(container, "stop");
+            if (preloaderDialog != null) {
+                preloaderDialog.setStepOnUiThread(getString(R.string.steam_blocked_waiting));
+            }
+        };
+        Runnable onCancel = () -> {
+            writeSteamBlockedAnswer(container, "cancel");
+            stopWnLauncherStatusTailer();
+            WinToast.show(this, getString(R.string.steam_blocked_declined));
+            if (preloaderDialog != null) preloaderDialog.closeWithDelay(0L);
+            exit();
+        };
+        boolean shown = com.winlator.cmod.shared.ui.dialog.WinNativeComposeDialogs
+                .showSteamSessionBlocked(this, getString(R.string.steam_blocked_title), message,
+                        getString(R.string.steam_blocked_confirm), onConfirm, onCancel);
+        if (!shown) {
+            com.winlator.cmod.shared.ui.dialog.ContentDialog dialog =
+                    new com.winlator.cmod.shared.ui.dialog.ContentDialog(this);
+            dialog.setTitle(getString(R.string.steam_blocked_title));
+            dialog.setMessage(message);
+            dialog.setOnConfirmCallback(onConfirm);
+            dialog.setOnCancelCallback(onCancel);
+            dialog.show();
+        }
+    }
+
     private void resetWnLauncherLog(File launcherLog) {
         if (launcherLog == null) return;
         try {
@@ -7634,6 +7710,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                                     if (preloaderDialog != null) preloaderDialog.closeWithDelay(0L);
                                     exit();
                                 });
+                                return kotlin.Unit.INSTANCE;
+                            },
+                            (kind, blockingAppId, pid) -> {
+                                showSteamBlockedDialog(container, gameName, kind, blockingAppId);
                                 return kotlin.Unit.INSTANCE;
                             });
                 wnLauncherStatusTailer.start();

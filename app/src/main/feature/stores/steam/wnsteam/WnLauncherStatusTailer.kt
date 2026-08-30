@@ -16,6 +16,7 @@ class WnLauncherStatusTailer(
     private val onPhase: (phaseText: String) -> Unit,
     private val onLaunchComplete: (() -> Unit)? = null,
     private val onLaunchFailed: ((reason: String) -> Unit)? = null,
+    private val onBlocked: ((kind: String, blockingAppId: Int, pid: Int) -> Unit)? = null,
 ) {
     private val running = AtomicBoolean(false)
     private val appContext = context.applicationContext
@@ -109,6 +110,15 @@ class WnLauncherStatusTailer(
 
     private fun consumeLine(line: String) {
         if (!line.contains("[wn-launcher]")) return
+        if (line.contains("BLOCKED: kind=")) {
+            val kind = field(line, "kind=") ?: return
+            val blocking = field(line, "blocking=")?.toIntOrNull() ?: 0
+            val pid = field(line, "pid=")?.toIntOrNull() ?: 0
+            android.util.Log.w(TAG, "launch blocked: kind=$kind blocking=$blocking pid=$pid")
+            launchAppDispatchedAt = 0L
+            main.post { onBlocked?.invoke(kind, blocking, pid) }
+            return
+        }
         val isWatchingForExit = line.contains("watching \"") && line.contains("for exit")
         val isTerminal = (line.contains("is running") && line.contains("LaunchApp"))
                 || isWatchingForExit
@@ -143,6 +153,14 @@ class WnLauncherStatusTailer(
             android.util.Log.w(TAG, "LaunchApp exhausted retries — launcher will try CreateProcess fallback (UI stays on Launching)")
             launchAppDispatchedAt = 0L
         }
+    }
+
+    private fun field(line: String, key: String): String? {
+        val i = line.indexOf(key)
+        if (i < 0) return null
+        val rest = line.substring(i + key.length)
+        val end = rest.indexOfFirst { it == ' ' || it == '\t' }
+        return if (end < 0) rest.trim() else rest.substring(0, end).trim()
     }
 
     private fun watchdogTick() {
