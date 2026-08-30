@@ -343,6 +343,7 @@ private fun XServerDisplayHost(
             }
 
             // Closed, the sheet sits flush on the edge and its rounded corners leak a hairline.
+            val openRight = stateHolder.openSide == com.winlator.cmod.runtime.display.DrawerSide.RIGHT
             if (drawerContentComposed) {
                 ModalDrawerSheet(
                     drawerShape = RoundedCornerShape(20.dp),
@@ -353,14 +354,18 @@ private fun XServerDisplayHost(
                     modifier =
                         Modifier
                             .zIndex(2f)
-                            .padding(start = DrawerStartPadding, top = drawerTopInset, bottom = DrawerVerticalPadding)
+                            .then(if (openRight) Modifier.align(Alignment.CenterEnd) else Modifier)
+                            .padding(
+                                start = if (openRight) 0.dp else DrawerStartPadding,
+                                end = if (openRight) DrawerStartPadding else 0.dp,
+                                top = drawerTopInset,
+                                bottom = DrawerVerticalPadding,
+                            )
                             .fillMaxHeight()
                             .width(scaledDrawerWidth)
                             .offset {
-                                androidx.compose.ui.unit.IntOffset(
-                                    drawerOffsetPx.roundToInt(),
-                                    0,
-                                )
+                                val dx = drawerOffsetPx.roundToInt()
+                                androidx.compose.ui.unit.IntOffset(if (openRight) -dx else dx, 0)
                             },
                 ) {
                     XServerDrawerContent(
@@ -371,6 +376,10 @@ private fun XServerDisplayHost(
                         onOpenPaneChange = { stateHolder.setOpenPaneAndNotify(it) },
                         listener = listener,
                         onDismiss = { stateHolder.closeDrawer() },
+                        openSide = stateHolder.openSide,
+                        onDrawerLayoutChanged = { newItems ->
+                            stateHolder.state = stateHolder.state.copy(items = newItems)
+                        },
                         revealCards = drawerEngaged,
                         menuNavRegion = stateHolder.menuNavRegion,
                         menuNavIndex = stateHolder.menuNavIndex,
