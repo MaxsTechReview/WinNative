@@ -181,7 +181,7 @@ final class XServerDisplayUtils {
         return normalized.trim();
     }
 
-    private static final int EXE_STEM_MIN_LENGTH = 3;
+    private static final int EXE_STEM_MIN_LENGTH = 2;
 
     private static final String[] EXE_HANDOFF_SUFFIXES = {
         ".original", ".unpacked",

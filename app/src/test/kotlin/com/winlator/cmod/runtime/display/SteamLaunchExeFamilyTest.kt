@@ -23,6 +23,21 @@ class SteamLaunchExeFamilyTest {
     }
 
     @Test
+    fun stemCollapsesArchSuffixOnTwoLetterNames() {
+        assertEquals("tf", XServerDisplayUtils.exeStem("tf_win64.exe"))
+        assertEquals("tf", XServerDisplayUtils.exeStem("tf.exe"))
+        assertTrue(XServerDisplayUtils.sameExeFamily("tf_win64.exe", "tf.exe"))
+    }
+
+    @Test
+    fun stemDoesNotEatNamesThatAreOnlyAnArchTag() {
+        assertEquals("x64", XServerDisplayUtils.exeStem("x64.exe"))
+        assertEquals("32", XServerDisplayUtils.exeStem("32.exe"))
+        assertEquals("game", XServerDisplayUtils.exeStem("game.exe"))
+        assertEquals("launcher", XServerDisplayUtils.exeStem("launcher.exe"))
+    }
+
+    @Test
     fun stemHandlesPathsAndSeparators() {
         assertEquals(
             "foobar",

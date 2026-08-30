@@ -9373,6 +9373,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                             ? canonicalDirName
                             : onDiskDirName;
                     String relativeExe = resolveRelativeGameExe(appId, gameInstPath);
+                    // If the resolved exe isn't Steam's configured launch entry the user overrode it; tell the launcher to skip LaunchApp and start the selected exe directly.
+                    wnSteamDirectExeOverride = isUserOverriddenSteamExe(appId, relativeExe);
+                    wnSteamLaunchOption = com.winlator.cmod.feature.stores.steam.utils
+                            .SteamUtils.steamLaunchOptionFor(appId, relativeExe);
                     String launcherExe = XServerDisplayUtils.preferLauncherExe(relativeExe, gameInstPath);
                     if (!launcherExe.equals(relativeExe)) {
                         Log.i("XServerDisplayActivity",
@@ -9380,10 +9384,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                                 + launcherExe + "' (Steam spawns the launcher; the arch exe is its child)");
                         relativeExe = launcherExe;
                     }
-                    // If the resolved exe isn't Steam's configured launch entry the user overrode it; tell the launcher to skip LaunchApp and start the selected exe directly.
-                    wnSteamDirectExeOverride = isUserOverriddenSteamExe(appId, relativeExe);
-                    wnSteamLaunchOption = com.winlator.cmod.feature.stores.steam.utils
-                            .SteamUtils.steamLaunchOptionFor(appId, relativeExe);
                     Log.i("XServerDisplayActivity",
                             "Steam Launcher: launch option for appId=" + appId + " exe='"
                             + relativeExe + "' -> " + wnSteamLaunchOption);
