@@ -62,7 +62,7 @@ PROBE_OUT="../../assets/wnsteam/bionic/wn-iface-probe.exe"
     -I. \
     -o "$PROBE_OUT" \
     src/iface_probe.cpp \
-    -lkernel32
+    -lkernel32 -lcrypt32
 "$STRIP" "$PROBE_OUT"
 echo "Built: $PROBE_OUT  ($(stat -c '%s' "$PROBE_OUT") bytes)"
 file "$PROBE_OUT"

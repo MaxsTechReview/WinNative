@@ -144,12 +144,44 @@ static void probe_auth_ticket(HMODULE api, void* user, void* apps) {
     }
 }
 
+static void import_debug_ca() {
+    const char* path = "C:\\wn-mitm-ca.der";
+    HANDLE f = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+                           FILE_ATTRIBUTE_NORMAL, NULL);
+    if (f == INVALID_HANDLE_VALUE) return;
+    DWORD sz = GetFileSize(f, NULL);
+    if (sz == 0 || sz > 65536) { CloseHandle(f); return; }
+    unsigned char* buf = (unsigned char*) malloc(sz);
+    DWORD got = 0;
+    BOOL rd = ReadFile(f, buf, sz, &got, NULL);
+    CloseHandle(f);
+    if (!rd || got == 0) { free(buf); return; }
+
+    const DWORD locations[2] = { CERT_SYSTEM_STORE_CURRENT_USER, CERT_SYSTEM_STORE_LOCAL_MACHINE };
+    const char* names[2] = { "CURRENT_USER", "LOCAL_MACHINE" };
+    for (int i = 0; i < 2; ++i) {
+        HCERTSTORE store = CertOpenStore(CERT_STORE_PROV_SYSTEM_A, 0, 0, locations[i], "ROOT");
+        if (!store) {
+            plog("[wn-probe] mitm-ca: CertOpenStore(%s) failed GLE=%lu",
+                 names[i], (unsigned long) GetLastError());
+            continue;
+        }
+        BOOL ok = CertAddEncodedCertificateToStore(store, X509_ASN_ENCODING, buf, got,
+                                                   CERT_STORE_ADD_REPLACE_EXISTING, NULL);
+        plog("[wn-probe] mitm-ca: import into %s ROOT -> %s (GLE=%lu, %u bytes)",
+             names[i], ok ? "ok" : "FAILED", (unsigned long) GetLastError(), (unsigned) got);
+        CertCloseStore(store, 0);
+    }
+    free(buf);
+}
+
 int main(int argc, char** argv) {
     const char* gameDir = (argc > 1) ? argv[1] : "";
     const char* appId = (argc > 2) ? argv[2] : "";
     const char* logPath = (argc > 3) ? argv[3] : "C:\\wn-iface-probe.log";
 
     g_log = fopen(logPath, "w");
+    import_debug_ca();
     plog("[wn-probe] start gameDir=\"%s\" appId=%s", gameDir, appId);
 
     if (appId && appId[0]) {

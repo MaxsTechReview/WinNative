@@ -1836,7 +1836,6 @@ int main(int argc, char** argv) {
         sync_app_ownership(engine, hUser, pipe, appId, bGetCallback, freeLastCallback);
     }
 
-    run_iface_probe(gameRootDir, appId);
 
     const char* skipAppInfoEnv = getenv("WN_STEAM_SKIP_APPINFO");
     const bool skipAppInfo = skipAppInfoEnv && skipAppInfoEnv[0] != '\0';
@@ -2015,6 +2014,7 @@ int main(int argc, char** argv) {
             const int kEAppUpdateErrorLaunchOptionMissing = 22;
             int launchOptions[8];
             int launchOptionCount = 0;
+            run_iface_probe(gameRootDir, appId);
             const int preferredOption = env_int_signed("WN_STEAM_LAUNCH_OPTION", 0);
             launchOptions[launchOptionCount++] = preferredOption < 0 ? 0 : preferredOption;
             for (int cand = 0; cand <= 6 && launchOptionCount < 8; ++cand) {
