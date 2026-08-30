@@ -2256,7 +2256,14 @@ private fun DrawerLayoutDialog(
                                 selected = side == option,
                                 onClick = { sides = sides + (item.itemId to option) },
                             )
-                            Text(option.name.take(1), fontSize = 11.sp)
+                            Text(
+                                when (option) {
+                                    DrawerSide.LEFT -> "←"
+                                    DrawerSide.RIGHT -> "→"
+                                    DrawerSide.BOTH -> "↔"
+                                },
+                                fontSize = 14.sp,
+                            )
                             Spacer(Modifier.width(4.dp))
                         }
                     }

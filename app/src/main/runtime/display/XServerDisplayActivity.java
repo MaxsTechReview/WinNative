@@ -1565,9 +1565,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
             final int edgePx = (int) (XServerDisplayHostKt.XSERVER_DRAWER_EDGE_SWIPE_DP * getResources().getDisplayMetrics().density);
             final Runnable applyExclusion = () -> {
                 if (gestureExclusionView.getHeight() <= 0) return;
-                gestureExclusionView.setSystemGestureExclusionRects(
-                        java.util.Collections.singletonList(
-                                new android.graphics.Rect(0, 0, edgePx, gestureExclusionView.getHeight())));
+                int height = gestureExclusionView.getHeight();
+                int width = gestureExclusionView.getWidth();
+                java.util.ArrayList<android.graphics.Rect> rects = new java.util.ArrayList<>();
+                rects.add(new android.graphics.Rect(0, 0, edgePx, height));
+                if (width > 0) {
+                    rects.add(new android.graphics.Rect(width - edgePx, 0, width, height));
+                }
+                gestureExclusionView.setSystemGestureExclusionRects(rects);
             };
             gestureExclusionView.post(applyExclusion);
             gestureExclusionView.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or_, ob) -> applyExclusion.run());

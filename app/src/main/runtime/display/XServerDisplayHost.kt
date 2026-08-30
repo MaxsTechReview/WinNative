@@ -56,7 +56,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-const val XSERVER_DRAWER_EDGE_SWIPE_DP = 35
+const val XSERVER_DRAWER_EDGE_SWIPE_DP = 12
 
 // Horizontal swipe distance to open the drawer; shared with XServerDisplayActivity.
 const val XSERVER_DRAWER_OPEN_TRIGGER_DP = 32
@@ -343,7 +343,18 @@ private fun XServerDisplayHost(
             }
 
             // Closed, the sheet sits flush on the edge and its rounded corners leak a hairline.
-            val openRight = stateHolder.openSide == com.winlator.cmod.runtime.display.DrawerSide.RIGHT
+            var lastSide by remember {
+                androidx.compose.runtime.mutableStateOf<com.winlator.cmod.runtime.display.DrawerSide?>(
+                    null,
+                )
+            }
+            LaunchedEffect(stateHolder.openSide) {
+                if (stateHolder.openSide != null) {
+                    lastSide = stateHolder.openSide
+                }
+            }
+            val openRight =
+                (stateHolder.openSide ?: lastSide) == com.winlator.cmod.runtime.display.DrawerSide.RIGHT
             if (drawerContentComposed) {
                 ModalDrawerSheet(
                     drawerShape = RoundedCornerShape(20.dp),
