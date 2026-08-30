@@ -397,7 +397,9 @@ private fun XServerDisplayHost(
                             .fillMaxHeight()
                             .width(scaledDrawerWidth)
                             .offset {
-                                val dx = drawerOffsetPx.roundToInt()
+                                val effective =
+                                    if (stateHolder.isDrawerOpen) drawerOffsetPx else drawerClosedOffset
+                                val dx = effective.roundToInt()
                                 androidx.compose.ui.unit.IntOffset(if (openRight) -dx else dx, 0)
                             },
                 ) {

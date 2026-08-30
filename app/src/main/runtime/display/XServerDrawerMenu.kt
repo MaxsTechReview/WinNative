@@ -2257,6 +2257,33 @@ private fun DrawerLayoutDialog(
     val context = androidx.compose.ui.platform.LocalContext.current
     var menuSides by remember { mutableStateOf(items.associate { it.itemId to it.side }) }
     var paneMap by remember { mutableStateOf(paneSides.toMutableMap()) }
+    var activeTab by remember { mutableStateOf(0) }
+
+    @Composable
+    fun sideRow(title: String, current: DrawerSide, onPick: (DrawerSide) -> Unit) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(text = title, fontSize = 13.sp, modifier = Modifier.weight(1f))
+            DrawerSide.entries.forEach { option ->
+                androidx.compose.material3.RadioButton(
+                    selected = current == option,
+                    onClick = { onPick(option) },
+                )
+                Text(
+                    when (option) {
+                        DrawerSide.LEFT -> "\u2190"
+                        DrawerSide.RIGHT -> "\u2192"
+                        DrawerSide.BOTH -> "\u2194"
+                    },
+                    fontSize = 14.sp,
+                )
+                Spacer(Modifier.width(4.dp))
+            }
+        }
+    }
+
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         androidx.compose.material3.Surface(
             shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
@@ -2275,59 +2302,32 @@ private fun DrawerLayoutDialog(
                     fontWeight = FontWeight.Bold,
                 )
                 Spacer(Modifier.height(10.dp))
-
-                Text(
-                    text = stringResource(R.string.session_drawer_layout_items),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-
-                @Composable
-                fun sideRow(title: String, current: DrawerSide, onPick: (DrawerSide) -> Unit) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = title,
-                            fontSize = 13.sp,
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    listOf(
+                        stringResource(R.string.session_drawer_layout_items),
+                        stringResource(R.string.session_drawer_layout_tabs),
+                    ).forEachIndexed { index, label ->
+                        androidx.compose.material3.FilterChip(
+                            selected = activeTab == index,
+                            onClick = { activeTab = index },
+                            label = { Text(label) },
                             modifier = Modifier.weight(1f),
                         )
-                        DrawerSide.entries.forEach { option ->
-                            androidx.compose.material3.RadioButton(
-                                selected = current == option,
-                                onClick = { onPick(option) },
-                            )
-                            Text(
-                                when (option) {
-                                    DrawerSide.LEFT -> "←"
-                                    DrawerSide.RIGHT -> "→"
-                                    DrawerSide.BOTH -> "↔"
-                                },
-                                fontSize = 14.sp,
-                            )
-                            Spacer(Modifier.width(4.dp))
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+
+                if (activeTab == 0) {
+                    items.forEach { item ->
+                        sideRow(item.title, menuSides[item.itemId] ?: DrawerSide.LEFT) {
+                            menuSides = menuSides + (item.itemId to it)
                         }
                     }
-                }
-
-                items.forEach { item ->
-                    sideRow(item.title, menuSides[item.itemId] ?: DrawerSide.LEFT) {
-                        menuSides = menuSides + (item.itemId to it)
-                    }
-                }
-
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    text = stringResource(R.string.session_drawer_layout_tabs),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-                RAIL_PANES.forEach { spec ->
-                    val visible = items.any { it.itemId == spec.itemId }
-                    if (visible) {
-                        val label = runCatching { context.getString(spec.labelRes) }.getOrNull()
-                            ?: spec.pane?.name ?: ""
+                } else {
+                    RAIL_PANES.forEach { spec ->
+                        val label =
+                            runCatching { context.getString(spec.labelRes) }.getOrNull()
+                                ?: spec.pane?.name ?: ""
                         sideRow(label, paneMap[spec.itemId] ?: DrawerSide.LEFT) {
                             paneMap[spec.itemId] = it
                         }
@@ -2351,6 +2351,7 @@ private fun DrawerLayoutDialog(
         }
     }
 }
+
 
 @Composable
 private fun ActionCard(
