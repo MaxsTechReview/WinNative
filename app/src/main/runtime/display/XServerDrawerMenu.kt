@@ -599,6 +599,7 @@ data class RecordUiConfig(
 
 data class XServerDrawerState(
     val items: List<XServerDrawerItem>,
+    val paneSides: Map<Int, DrawerSide> = emptyMap(),
     val hudTransparency: Float = 1.0f,
     val hudBackgroundAlphaEnabled: Boolean = false,
     val hudBackgroundTransparency: Float = 1.0f,
@@ -1402,10 +1403,12 @@ fun buildXServerDrawerState(
 
     val itemSideMap = loadDrawerItemSides(context)
     val finalItems = items.map { it.copy(side = itemSideMap[it.itemId] ?: DrawerSide.LEFT) }
+    val paneSides = loadDrawerPaneSides(context)
 
     return XServerDrawerState(
         recordConfig = recordConfig,
         items = finalItems,
+        paneSides = paneSides,
         hudTransparency = hudTransparency,
         hudBackgroundAlphaEnabled = hudBackgroundAlphaEnabled,
         hudBackgroundTransparency = hudBackgroundTransparency,
@@ -1639,7 +1642,7 @@ internal fun XServerDrawerContent(
     listener: XServerDrawerActionListener,
     onDismiss: () -> Unit,
     openSide: DrawerSide? = null,
-    onDrawerLayoutChanged: (List<XServerDrawerItem>) -> Unit = {},
+    onDrawerLayoutChanged: (List<XServerDrawerItem>, Map<Int, DrawerSide>) -> Unit = { _, _ -> },
     revealCards: Boolean = true,
     menuNavRegion: Int = 0,
     menuNavIndex: Int = 0,
@@ -1696,6 +1699,8 @@ internal fun XServerDrawerContent(
                             TopRail(
                                 state = state,
                                 openPane = openPane,
+                                openSide = openSide,
+                                paneSides = state.paneSides,
                                 onTabClick = { spec ->
                                     onOpenPaneChange(if (openPane == spec.pane) null else spec.pane)
                                 },
@@ -1817,6 +1822,8 @@ private data class RailTileBounds(val offsetX: Float, val width: Float, val heig
 private fun TopRail(
     state: XServerDrawerState,
     openPane: DrawerPane?,
+    openSide: DrawerSide? = null,
+    paneSides: Map<Int, DrawerSide> = emptyMap(),
     onTabClick: (RailPaneSpec) -> Unit,
     onMenuClick: () -> Unit,
     region: Int = 0,
@@ -1828,7 +1835,13 @@ private fun TopRail(
 ) {
     val paneScale = LocalPaneScale.current
     val density = LocalDensity.current
-    val activeSpecs = RAIL_PANES.filter { spec -> state.items.any { it.itemId == spec.itemId } }
+    val activeSpecs =
+        RAIL_PANES.filter { spec ->
+            state.items.any { it.itemId == spec.itemId } &&
+                (openSide == null ||
+                    (paneSides[spec.itemId] ?: DrawerSide.LEFT) == openSide ||
+                    (paneSides[spec.itemId] ?: DrawerSide.LEFT) == DrawerSide.BOTH)
+        }
 
     val tabCount = activeSpecs.size + 1
     LaunchedEffect(tabCount) { onSetNavCount(tabCount) }
@@ -2070,7 +2083,7 @@ private fun ActionCardGrid(
     listener: XServerDrawerActionListener,
     cardsRevealed: Boolean,
     openSide: DrawerSide? = null,
-    onDrawerLayoutChanged: (List<XServerDrawerItem>) -> Unit = {},
+    onDrawerLayoutChanged: (List<XServerDrawerItem>, Map<Int, DrawerSide>) -> Unit = { _, _ -> },
     onOpenTaskManager: () -> Unit,
     onOpenLogs: () -> Unit,
     onOpenTouch: () -> Unit,
@@ -2176,19 +2189,25 @@ private fun ActionCardGrid(
                         it.itemId !in PINNED_BOTTOM_ITEM_IDS &&
                         it.itemId != R.id.main_menu_drawer_layout
                 },
+            paneSides = state.paneSides,
             onDismiss = { showDrawerLayout = false },
-            onApply = { sides ->
+            onApply = { menuSides, paneSides ->
                 androidx.preference.PreferenceManager.getDefaultSharedPreferences(gridContext)
                     .edit()
                     .putString(
                         "drawer_item_sides",
-                        sides.entries.joinToString(",") { "${it.key}:${it.value.name}" },
+                        menuSides.entries.joinToString(",") { "${it.key}:${it.value.name}" },
+                    )
+                    .putString(
+                        "drawer_pane_sides",
+                        paneSides.entries.joinToString(",") { "${it.key}:${it.value.name}" },
                     )
                     .apply()
                 onDrawerLayoutChanged(
                     state.items.map { item ->
-                        sides[item.itemId]?.let { item.copy(side = it) } ?: item
+                        menuSides[item.itemId]?.let { item.copy(side = it) } ?: item
                     },
+                    paneSides,
                 )
                 showDrawerLayout = false
             },
@@ -2202,7 +2221,20 @@ private fun loadDrawerItemSides(context: android.content.Context): Map<Int, Draw
             .getString("drawer_item_sides", "")
             .orEmpty()
     if (raw.isBlank()) return emptyMap()
-    return raw.split(",").mapNotNull { seg ->
+    return parseDrawerSides(raw)
+}
+
+private fun loadDrawerPaneSides(context: android.content.Context): Map<Int, DrawerSide> {
+    val raw =
+        androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
+            .getString("drawer_pane_sides", "")
+            .orEmpty()
+    if (raw.isBlank()) return emptyMap()
+    return parseDrawerSides(raw)
+}
+
+private fun parseDrawerSides(raw: String): Map<Int, DrawerSide> =
+    raw.split(",").mapNotNull { seg ->
         val parts = seg.split(":")
         val id = parts.getOrNull(0)?.toIntOrNull() ?: return@mapNotNull null
         val side =
@@ -2213,15 +2245,18 @@ private fun loadDrawerItemSides(context: android.content.Context): Map<Int, Draw
             }
         id to side
     }.toMap()
-}
+
 
 @Composable
 private fun DrawerLayoutDialog(
     items: List<XServerDrawerItem>,
+    paneSides: Map<Int, DrawerSide> = emptyMap(),
     onDismiss: () -> Unit,
-    onApply: (Map<Int, DrawerSide>) -> Unit,
+    onApply: (Map<Int, DrawerSide>, Map<Int, DrawerSide>) -> Unit,
 ) {
-    var sides by remember { mutableStateOf(items.associate { it.itemId to it.side }) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var menuSides by remember { mutableStateOf(items.associate { it.itemId to it.side }) }
+    var paneMap by remember { mutableStateOf(paneSides.toMutableMap()) }
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         androidx.compose.material3.Surface(
             shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
@@ -2240,21 +2275,28 @@ private fun DrawerLayoutDialog(
                     fontWeight = FontWeight.Bold,
                 )
                 Spacer(Modifier.height(10.dp))
-                items.forEach { item ->
+
+                Text(
+                    text = stringResource(R.string.session_drawer_layout_items),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+
+                @Composable
+                fun sideRow(title: String, current: DrawerSide, onPick: (DrawerSide) -> Unit) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = item.title,
+                            text = title,
                             fontSize = 13.sp,
                             modifier = Modifier.weight(1f),
                         )
-                        val side = sides[item.itemId] ?: DrawerSide.LEFT
                         DrawerSide.entries.forEach { option ->
                             androidx.compose.material3.RadioButton(
-                                selected = side == option,
-                                onClick = { sides = sides + (item.itemId to option) },
+                                selected = current == option,
+                                onClick = { onPick(option) },
                             )
                             Text(
                                 when (option) {
@@ -2268,6 +2310,30 @@ private fun DrawerLayoutDialog(
                         }
                     }
                 }
+
+                items.forEach { item ->
+                    sideRow(item.title, menuSides[item.itemId] ?: DrawerSide.LEFT) {
+                        menuSides = menuSides + (item.itemId to it)
+                    }
+                }
+
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = stringResource(R.string.session_drawer_layout_tabs),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                RAIL_PANES.forEach { spec ->
+                    val visible = items.any { it.itemId == spec.itemId }
+                    if (visible) {
+                        val label = runCatching { context.getString(spec.labelRes) }.getOrNull()
+                            ?: spec.pane?.name ?: ""
+                        sideRow(label, paneMap[spec.itemId] ?: DrawerSide.LEFT) {
+                            paneMap[spec.itemId] = it
+                        }
+                    }
+                }
+
                 Spacer(Modifier.height(12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -2277,7 +2343,7 @@ private fun DrawerLayoutDialog(
                         Text(stringResource(R.string.common_ui_cancel))
                     }
                     Spacer(Modifier.width(8.dp))
-                    androidx.compose.material3.Button(onClick = { onApply(sides) }) {
+                    androidx.compose.material3.Button(onClick = { onApply(menuSides, paneMap) }) {
                         Text(stringResource(R.string.common_ui_ok))
                     }
                 }

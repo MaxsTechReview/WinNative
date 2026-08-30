@@ -118,6 +118,10 @@ private fun XServerDisplayHost(
     val animationScope = rememberCoroutineScope()
     val density = LocalDensity.current
     val viewConfiguration = LocalViewConfiguration.current
+    val screenWidthPx =
+        with(density) {
+            androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp.toPx()
+        }
     val closedFallbackPx = with(density) { -(DrawerWidth + DrawerStartPadding).toPx() }
     var drawerOffsetPx by remember { mutableFloatStateOf(closedFallbackPx) }
     var drawerWidthPx by remember { mutableFloatStateOf(0f) }
@@ -128,6 +132,16 @@ private fun XServerDisplayHost(
             closedFallbackPx
         }
     val drawerOpenOffset = 0f
+    var lastSide by remember {
+        androidx.compose.runtime.mutableStateOf<com.winlator.cmod.runtime.display.DrawerSide?>(
+            null,
+        )
+    }
+    LaunchedEffect(stateHolder.openSide) {
+        if (stateHolder.openSide != null) {
+            lastSide = stateHolder.openSide
+        }
+    }
     // "Engaged" = on or sliding onto the screen; drives the card-reveal animation (the content itself is always composed).
     val drawerEngaged = drawerWidthPx <= 0f ||
         drawerOffsetPx > drawerClosedOffset + 1f ||
@@ -150,7 +164,6 @@ private fun XServerDisplayHost(
     }
 
     LaunchedEffect(stateHolder.isDrawerOpen, drawerWidthPx) {
-        if (drawerWidthPx <= 0f) return@LaunchedEffect
         val target = if (stateHolder.isDrawerOpen) drawerOpenOffset else drawerClosedOffset
         if (drawerOffsetPx != target) {
             callbacks.onDrawerSlide()
@@ -191,17 +204,30 @@ private fun XServerDisplayHost(
 
                             val edgeWidthPx = XSERVER_DRAWER_EDGE_SWIPE_DP.dp.toPx()
                             val openTriggerPx = XSERVER_DRAWER_OPEN_TRIGGER_DP.dp.toPx()
+                            val drawerOpen = stateHolder.isDrawerOpen
+                            val sheetAtRight =
+                                (stateHolder.openSide ?: lastSide) ==
+                                    com.winlator.cmod.runtime.display.DrawerSide.RIGHT
+                            val sheetLeftPx = screenWidthPx - drawerWidthPx
                             val canStartFromHere =
-                                if (stateHolder.isDrawerOpen) {
-                                    down.position.x >= drawerWidthPx &&
-                                        down.position.x <= drawerWidthPx + edgeWidthPx
+                                if (drawerOpen) {
+                                    if (sheetAtRight) {
+                                        down.position.x >= sheetLeftPx - edgeWidthPx &&
+                                            down.position.x <= sheetLeftPx
+                                    } else {
+                                        down.position.x >= drawerWidthPx &&
+                                            down.position.x <= drawerWidthPx + edgeWidthPx
+                                    }
                                 } else {
-                                    down.position.x <= edgeWidthPx
+                                    down.position.x <= edgeWidthPx ||
+                                        down.position.x >= screenWidthPx - edgeWidthPx
                                 }
                             if (!canStartFromHere) {
-                                if (stateHolder.isDrawerOpen && down.position.x > drawerWidthPx
-                                    && !callbacks.isControllerConnected()) {
-                                    stateHolder.closeDrawer()
+                                if (drawerOpen && !callbacks.isControllerConnected()) {
+                                    val outside =
+                                        if (sheetAtRight) down.position.x < sheetLeftPx
+                                        else down.position.x > drawerWidthPx
+                                    if (outside) stateHolder.closeDrawer()
                                 }
                                 return@awaitEachGesture
                             }
@@ -228,10 +254,16 @@ private fun XServerDisplayHost(
                                     }
                                     val horizontalDragClaimed =
                                         if (stateHolder.isDrawerOpen) {
-                                            totalDx < -viewConfiguration.touchSlop && abs(totalDx) > abs(totalDy)
+                                            val closeDx = if (sheetAtRight) totalDx > 0f else totalDx < 0f
+                                            abs(totalDx) > viewConfiguration.touchSlop &&
+                                                abs(totalDx) > abs(totalDy) &&
+                                                closeDx
                                         } else {
-                                            totalDx > openTriggerPx &&
-                                                totalDx > abs(totalDy) * XSERVER_DRAWER_OPEN_HORIZONTAL_RATIO
+                                            val openDx = if (sheetAtRight) totalDx < 0f else totalDx > 0f
+                                            abs(totalDx) > openTriggerPx &&
+                                                abs(totalDx) >
+                                                    abs(totalDy) * XSERVER_DRAWER_OPEN_HORIZONTAL_RATIO &&
+                                                openDx
                                         }
                                     if (horizontalDragClaimed) {
                                         gestureClaimed = true
@@ -343,16 +375,6 @@ private fun XServerDisplayHost(
             }
 
             // Closed, the sheet sits flush on the edge and its rounded corners leak a hairline.
-            var lastSide by remember {
-                androidx.compose.runtime.mutableStateOf<com.winlator.cmod.runtime.display.DrawerSide?>(
-                    null,
-                )
-            }
-            LaunchedEffect(stateHolder.openSide) {
-                if (stateHolder.openSide != null) {
-                    lastSide = stateHolder.openSide
-                }
-            }
             val openRight =
                 (stateHolder.openSide ?: lastSide) == com.winlator.cmod.runtime.display.DrawerSide.RIGHT
             if (drawerContentComposed) {
@@ -388,8 +410,9 @@ private fun XServerDisplayHost(
                         listener = listener,
                         onDismiss = { stateHolder.closeDrawer() },
                         openSide = stateHolder.openSide,
-                        onDrawerLayoutChanged = { newItems ->
-                            stateHolder.state = stateHolder.state.copy(items = newItems)
+                        onDrawerLayoutChanged = { newItems, newPaneSides ->
+                            stateHolder.state =
+                                stateHolder.state.copy(items = newItems, paneSides = newPaneSides)
                         },
                         revealCards = drawerEngaged,
                         menuNavRegion = stateHolder.menuNavRegion,
