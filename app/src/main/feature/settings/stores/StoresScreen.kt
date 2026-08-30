@@ -78,6 +78,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.winlator.cmod.R
+import com.winlator.cmod.shared.theme.WinNativeDanger
+import com.winlator.cmod.shared.theme.WinNativeOutline
+import com.winlator.cmod.shared.theme.WinNativeTextPrimary
+import com.winlator.cmod.shared.theme.WinNativeTextSecondary
+import com.winlator.cmod.shared.ui.dialog.WinNativeDialogButton
+import com.winlator.cmod.shared.ui.dialog.WinNativeDialogShell
 import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
 import com.winlator.cmod.shared.ui.nav.LocalPaneNav
 import com.winlator.cmod.shared.ui.nav.paneNavItem
@@ -112,6 +118,9 @@ data class StoreState(
     val gogFolder: String = "",
     val containerLanguageLabels: List<String> = emptyList(),
     val containerLanguageIndex: Int = 0,
+    val isUbisoftInstalled: Boolean = false,
+    val ubisoftBusy: Boolean = false,
+    val ubisoftStatus: String = "",
 )
 
 @Composable
@@ -124,6 +133,8 @@ fun StoresScreen(
     onEpicSignOut: () -> Unit,
     onGogSignIn: () -> Unit,
     onGogSignOut: () -> Unit,
+    onUbisoftInstall: () -> Unit,
+    onUbisoftUninstall: () -> Unit,
     onSharedFolderChanged: (Boolean) -> Unit,
     onDownloadSpeedChanged: (Int) -> Unit,
     onDownloadServerChanged: (Int) -> Unit,
@@ -187,6 +198,20 @@ fun StoresScreen(
                 isLoggedIn = state.isGogLoggedIn,
                 onSignIn = onGogSignIn,
                 onSignOut = onGogSignOut,
+            )
+
+            SectionLabel(
+                stringResource(R.string.stores_accounts_ubisoft_integration_title),
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            UbisoftStoreCard(
+                name = stringResource(R.string.stores_accounts_ubisoft_integration_title),
+                accentColor = Color(0xFF148EFF),
+                isInstalled = state.isUbisoftInstalled,
+                isBusy = state.ubisoftBusy,
+                statusText = state.ubisoftStatus,
+                onDownload = onUbisoftInstall,
+                onUninstall = onUbisoftUninstall,
             )
 
             SectionLabel(stringResource(R.string.stores_accounts_download_settings), modifier = Modifier.padding(top = 8.dp))
@@ -478,6 +503,173 @@ private fun StoreCard(
                 label = if (isLoggedIn) stringResource(R.string.common_ui_sign_out) else stringResource(R.string.common_ui_sign_in),
                 textColor = if (isLoggedIn) DangerRed else accentColor,
                 onClick = if (isLoggedIn) ({ showSignOutDialog = true }) else onSignIn,
+            )
+        }
+    }
+}
+
+// Ubisoft Connect card: Download when the client isn't installed, Sign In once it is.
+@Composable
+private fun UbisoftStoreCard(
+    name: String,
+    accentColor: Color,
+    isInstalled: Boolean,
+    isBusy: Boolean,
+    statusText: String,
+    onDownload: () -> Unit,
+    onUninstall: () -> Unit,
+) {
+    var showUninstallDialog by remember { mutableStateOf(false) }
+    if (showUninstallDialog) {
+        UninstallConfirmDialog(
+            onConfirm = onUninstall,
+            onDismiss = { showUninstallDialog = false },
+        )
+    }
+    Box(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(14.dp)),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(11.dp))
+                        .background(IconBoxBg),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Gamepad,
+                    contentDescription = name,
+                    tint = accentColor,
+                    modifier = Modifier.size(21.dp),
+                )
+            }
+
+            Spacer(Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = name,
+                    color = TextPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (!isBusy) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isInstalled) StatusGreen else TextSecondary.copy(alpha = 0.4f),
+                                    ),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    Text(
+                        text =
+                            when {
+                                isBusy -> statusText.ifEmpty { stringResource(R.string.stores_accounts_ubisoft_working) }
+                                isInstalled -> stringResource(R.string.stores_accounts_ubisoft_installed)
+                                else -> stringResource(R.string.stores_accounts_ubisoft_not_installed)
+                            },
+                        color = if (isInstalled && !isBusy) StatusGreen else TextSecondary,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+
+            if (isBusy) {
+                Box(
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF222232))
+                            .border(1.dp, TextSecondary.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp, vertical = 7.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = stringResource(R.string.stores_accounts_ubisoft_working),
+                        color = TextSecondary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            } else if (isInstalled) {
+                ActionButton(
+                    label = stringResource(R.string.stores_accounts_ubisoft_uninstall),
+                    textColor = DangerRed,
+                    onClick = { showUninstallDialog = true },
+                )
+            } else {
+                ActionButton(
+                    label = stringResource(R.string.stores_accounts_ubisoft_download),
+                    textColor = accentColor,
+                    onClick = onDownload,
+                )
+            }
+        }
+    }
+}
+
+// Ubisoft Connect uninstall confirmation — uses the app's standard dialog shell + buttons so it
+// matches every other confirm dialog in the app (WinNativeComposeDialogs.showConfirm style).
+@Composable
+private fun UninstallConfirmDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    WinNativeDialogShell(onDismiss = onDismiss) {
+        Text(
+            text = stringResource(R.string.stores_accounts_ubisoft_uninstall_confirm),
+            color = WinNativeTextSecondary,
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
+        )
+        Spacer(Modifier.height(16.dp))
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(WinNativeOutline),
+        )
+        Spacer(Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
+        ) {
+            WinNativeDialogButton(
+                label = stringResource(R.string.common_ui_cancel),
+                textColor = WinNativeTextPrimary,
+                onClick = onDismiss,
+            )
+            WinNativeDialogButton(
+                label = stringResource(R.string.stores_accounts_ubisoft_uninstall),
+                textColor = WinNativeDanger,
+                backgroundColor = WinNativeDanger.copy(alpha = 0.12f),
+                borderColor = WinNativeDanger.copy(alpha = 0.3f),
+                onClick = {
+                    onConfirm()
+                    onDismiss()
+                },
             )
         }
     }
