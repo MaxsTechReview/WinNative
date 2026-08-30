@@ -868,6 +868,16 @@ object SteamUtils {
     }
 
     @JvmStatic
+    fun installedDepotManifestIds(steamAppId: Int): Map<Int, Long> =
+        runCatching {
+            SteamService.readInstalledDepotManifestIds(SteamService.getAppDirPath(steamAppId))
+        }.getOrDefault(emptyMap())
+
+    @JvmStatic
+    fun installedBuildId(steamAppId: Int): Long =
+        runCatching { SteamService.getInstalledBuildId(steamAppId) }.getOrDefault(0L)
+
+    @JvmStatic
     @JvmOverloads
     fun createAppManifest(
         context: Context,

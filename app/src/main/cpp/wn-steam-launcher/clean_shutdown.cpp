@@ -29,6 +29,7 @@ int g_pipe = 0;
 int g_user = 0;
 char g_log_path[MAX_PATH] = {0};
 char g_game_exe[260] = {0};
+char g_game_dir[MAX_PATH] = {0};
 
 void* g_cs_engine = nullptr;
 int g_cs_hUser = 0;
@@ -50,6 +51,54 @@ bool cs_is_exec_ptr(void* p) {
            x == PAGE_EXECUTE_READWRITE || x == PAGE_EXECUTE_WRITECOPY;
 }
 
+#ifndef PROCESS_QUERY_LIMITED_INFORMATION
+#define PROCESS_QUERY_LIMITED_INFORMATION 0x1000
+#endif
+
+using QueryFullProcessImageNameA_fn = BOOL (WINAPI*)(HANDLE, DWORD, LPSTR, PDWORD);
+
+bool process_image_path(DWORD pid, char* out, DWORD outSize) {
+    static QueryFullProcessImageNameA_fn queryImageName = nullptr;
+    static bool resolved = false;
+    if (!resolved) {
+        resolved = true;
+        HMODULE k32 = ::GetModuleHandleA("kernel32.dll");
+        if (k32) {
+            queryImageName = reinterpret_cast<QueryFullProcessImageNameA_fn>(
+                ::GetProcAddress(k32, "QueryFullProcessImageNameA"));
+        }
+    }
+    if (!queryImageName) return false;
+    HANDLE h = ::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (!h) h = ::OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid);
+    if (!h) return false;
+    DWORD size = outSize;
+    BOOL ok = queryImageName(h, 0, out, &size);
+    ::CloseHandle(h);
+    return ok != FALSE && out[0] != '\0';
+}
+
+constexpr size_t kMinGameDirPrefixLength = 8;
+
+bool path_under_game_dir(const char* path) {
+    if (!g_game_dir[0] || !path || !path[0]) return false;
+    size_t n = std::strlen(g_game_dir);
+    if (n < kMinGameDirPrefixLength) return false;
+    if (::_strnicmp(path, g_game_dir, n) != 0) return false;
+    char next = path[n];
+    return next == '\\' || next == '/';
+}
+
+bool process_belongs_to_game(DWORD pid, const char* procName, const char* exeName) {
+    if (pid == 0 || pid == ::GetCurrentProcessId()) return false;
+    if (wn_game_image_matches(procName, exeName)) return true;
+    if (!g_game_dir[0]) return false;
+    char path[MAX_PATH];
+    path[0] = '\0';
+    if (!process_image_path(pid, path, MAX_PATH)) return false;
+    return path_under_game_dir(path);
+}
+
 int kill_processes_by_name(const char* exeName) {
     if (!exeName || !exeName[0]) return 0;
     HANDLE snap = ::CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -59,7 +108,7 @@ int kill_processes_by_name(const char* exeName) {
     int killed = 0;
     if (::Process32First(snap, &pe)) {
         do {
-            if (wn_game_image_matches(pe.szExeFile, exeName)) {
+            if (process_belongs_to_game(pe.th32ProcessID, pe.szExeFile, exeName)) {
                 HANDLE h = ::OpenProcess(PROCESS_TERMINATE, FALSE, pe.th32ProcessID);
                 if (h) {
                     if (::TerminateProcess(h, 0)) killed++;
@@ -81,7 +130,7 @@ int count_processes_by_name(const char* exeName) {
     int n = 0;
     if (::Process32First(snap, &pe)) {
         do {
-            if (wn_game_image_matches(pe.szExeFile, exeName)) n++;
+            if (process_belongs_to_game(pe.th32ProcessID, pe.szExeFile, exeName)) n++;
         } while (::Process32Next(snap, &pe));
     }
     ::CloseHandle(snap);
@@ -110,7 +159,7 @@ int graceful_close_game(const char* exeName) {
         pe.dwSize = sizeof(pe);
         if (::Process32First(snap, &pe)) {
             do {
-                if (wn_game_image_matches(pe.szExeFile, exeName)) {
+                if (process_belongs_to_game(pe.th32ProcessID, pe.szExeFile, exeName)) {
                     g_close_pids.push_back(pe.th32ProcessID);
                 }
             } while (::Process32Next(snap, &pe));
@@ -283,6 +332,53 @@ extern "C" void wn_launcher_set_game_exe(const char* exeName) {
     } else {
         g_game_exe[0] = '\0';
     }
+}
+
+extern "C" void wn_launcher_set_game_dir(const char* dirPath) {
+    if (!dirPath || !dirPath[0]) {
+        g_game_dir[0] = '\0';
+        return;
+    }
+    std::snprintf(g_game_dir, sizeof(g_game_dir), "%s", dirPath);
+    size_t n = std::strlen(g_game_dir);
+    while (n > 0 && (g_game_dir[n - 1] == '\\' || g_game_dir[n - 1] == '/')) {
+        g_game_dir[--n] = '\0';
+    }
+}
+
+extern "C" int wn_launcher_count_game_processes(void) {
+    if (!g_game_exe[0] && !g_game_dir[0]) return 0;
+    HANDLE snap = ::CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snap == INVALID_HANDLE_VALUE) return -1;
+    PROCESSENTRY32 pe;
+    pe.dwSize = sizeof(pe);
+    int n = 0;
+    if (::Process32First(snap, &pe)) {
+        do {
+            if (process_belongs_to_game(pe.th32ProcessID, pe.szExeFile, g_game_exe)) n++;
+        } while (::Process32Next(snap, &pe));
+    }
+    ::CloseHandle(snap);
+    return n;
+}
+
+extern "C" unsigned long wn_launcher_first_game_pid(void) {
+    if (!g_game_exe[0] && !g_game_dir[0]) return 0;
+    HANDLE snap = ::CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snap == INVALID_HANDLE_VALUE) return 0;
+    PROCESSENTRY32 pe;
+    pe.dwSize = sizeof(pe);
+    DWORD found = 0;
+    if (::Process32First(snap, &pe)) {
+        do {
+            if (process_belongs_to_game(pe.th32ProcessID, pe.szExeFile, g_game_exe)) {
+                found = pe.th32ProcessID;
+                break;
+            }
+        } while (::Process32Next(snap, &pe));
+    }
+    ::CloseHandle(snap);
+    return (unsigned long) found;
 }
 
 extern "C" void wn_launcher_arm_clean_shutdown(void* hSteamClient, int pipe,

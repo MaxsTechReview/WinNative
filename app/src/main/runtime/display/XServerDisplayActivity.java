@@ -7396,19 +7396,27 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                                     .resolveSelectedBetaName(bsAppId);
                                 if (branch == null || branch.isEmpty()) branch = "public";
 
-                                // Resolve buildId from branch info
                                 java.util.Map<String, com.winlator.cmod.feature.stores.steam.data.BranchInfo> branches =
                                     depotAppInfo.getBranches();
-                                long buildId = 0L;
-                                if (branches != null) {
-                                    com.winlator.cmod.feature.stores.steam.data.BranchInfo branchInfo = branches.get(branch);
-                                    if (branchInfo != null) {
-                                        buildId = branchInfo.getBuildId();
-                                    } else if (branches.containsKey("public")) {
-                                        buildId = branches.get("public").getBuildId();
-                                    }
+                                if (branches == null) branches = java.util.Collections.emptyMap();
+                                long recordedBuildId = com.winlator.cmod.feature.stores.steam.utils
+                                        .SteamUtils.installedBuildId(bsAppId);
+                                long latestBuildId = com.winlator.cmod.feature.stores.steam.service
+                                        .SteamBranchSelection.INSTANCE.buildIdForBranch(branches, branch);
+                                long buildId = com.winlator.cmod.feature.stores.steam.service
+                                        .SteamBranchSelection.INSTANCE.installedBuildId(
+                                                recordedBuildId, branches, branch);
+                                if (buildId != latestBuildId) {
+                                    Log.i("XServerDisplayActivity",
+                                            "Steam Launcher: appId=" + bsAppId + " branch='" + branch
+                                            + "' installed buildId=" + buildId
+                                            + " differs from the published " + latestBuildId
+                                            + " — reporting the installed build to Steam");
                                 }
                                 envVars.put("WN_STEAM_BUILD_ID", String.valueOf(buildId));
+                                java.util.Map<Integer, Long> onDiskManifestIds =
+                                        com.winlator.cmod.feature.stores.steam.utils.SteamUtils
+                                                .installedDepotManifestIds(bsAppId);
 
                                 String gameInstallPath = resolveSteamGameInstallPath(bsAppId);
                                 long sizeOnDisk = com.winlator.cmod.feature.stores.steam.utils
@@ -7482,9 +7490,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                                     java.util.Map<String, com.winlator.cmod.feature.stores.steam.data.ManifestInfo> manifests = di.getManifests();
                                     if (manifests.containsKey(branch)) manifest = manifests.get(branch);
                                     else if (!branch.equals("public") && manifests.containsKey("public")) manifest = manifests.get("public");
-                                    if (manifest != null && manifest.getGid() != 0L) {
+
+                                    if (manifest != null && manifest.getGid() == 0L) manifest = null;
+                                    com.winlator.cmod.feature.stores.steam.data.ManifestInfo installedManifest =
+                                        com.winlator.cmod.feature.stores.steam.service.SteamBranchSelection.INSTANCE
+                                            .installedManifest(manifest, onDiskManifestIds.get(depotId), branch);
+                                    if (installedManifest != null) {
                                         if (depotSb.length() > 0) depotSb.append(",");
-                                        depotSb.append(depotId).append(":").append(manifest.getGid()).append(":").append(manifest.getSize());
+                                        depotSb.append(depotId).append(":")
+                                               .append(installedManifest.getGid()).append(":")
+                                               .append(installedManifest.getSize());
                                         int dlcAppId = di.getDlcAppId();
                                         if (dlcAppId != com.winlator.cmod.feature.stores.steam.service.SteamService.INVALID_APP_ID) {
                                             depotSb.append(":").append(dlcAppId);
@@ -7493,8 +7508,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                                             // when the depot carries no dlcAppId but is itself a tracked DLC.
                                             depotSb.append(":").append(depotId);
                                         }
-                                        totalBytesToDownload += manifest.getDownload();
-                                        totalBytesToStage += manifest.getSize();
+                                        if (manifest != null) {
+                                            totalBytesToDownload += manifest.getDownload();
+                                            totalBytesToStage += manifest.getSize();
+                                        }
                                     }
                                 }
                                 if (depotSb.length() > 0) {
@@ -9870,15 +9887,18 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 .replace(File.separatorChar, '/');
     }
 
-    /** True when the resolved launch exe differs from Steam's configured entry ({@link SteamBridge#getInstalledExe}); the launcher then skips LaunchApp and CreateProcesses the selected exe. False when the entry is unknown, preserving the default LaunchApp path. */
     private boolean isUserOverriddenSteamExe(int appId, String resolvedRelativeExe) {
         if (resolvedRelativeExe == null || resolvedRelativeExe.isEmpty()) return false;
         String steamDefaultExe = SteamBridge.getInstalledExe(appId);
         if (steamDefaultExe == null || steamDefaultExe.isEmpty()) return false;
         String resolved = exeBaseName(resolvedRelativeExe);
         String configured = exeBaseName(steamDefaultExe);
-        return !resolved.isEmpty() && !configured.isEmpty()
-                && !resolved.equalsIgnoreCase(configured);
+        if (resolved.isEmpty() || configured.isEmpty()) return false;
+        if (XServerDisplayUtils.sameExeFamily(resolved, configured)) return false;
+        Log.i("XServerDisplayActivity",
+                "Steam Launcher: resolved exe '" + resolved + "' is not in the family of Steam's "
+                + "configured entry '" + configured + "' — treating as a user override");
+        return true;
     }
 
     private String resolveRelativeGameExe(int appId, String gameInstPath) {

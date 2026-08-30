@@ -180,4 +180,48 @@ final class XServerDisplayUtils {
         if (slash >= 0) normalized = normalized.substring(slash + 1);
         return normalized.trim();
     }
+
+    private static final int EXE_STEM_MIN_LENGTH = 3;
+
+    private static final String[] EXE_HANDOFF_SUFFIXES = {
+        ".original", ".unpacked",
+        "-win64-shipping", "-win32-shipping", "-shipping",
+        "_win64", "_win32", "-win64", "-win32", "_win", "-win",
+        "_amd64", "-amd64", "_x64", "_x86", "-x64", "-x86",
+        "_64", "_32", "-64", "-32",
+        "_dx12", "_dx11", "_dx9", "-dx12", "-dx11",
+        "_vulkan", "-vulkan", "_opengl", "-opengl",
+        "_launcher", "-launcher", "launcher",
+        "_game", "-game", "game",
+        "_app", "-app",
+        "64", "32",
+    };
+
+    static String exeStem(String path) {
+        String name = exeBaseName(path).toLowerCase(java.util.Locale.ROOT);
+        if (name.endsWith(".exe")) name = name.substring(0, name.length() - 4);
+        boolean stripped = true;
+        while (stripped && !name.isEmpty()) {
+            stripped = false;
+            for (String suffix : EXE_HANDOFF_SUFFIXES) {
+                if (name.length() <= suffix.length()) continue;
+                if (name.length() - suffix.length() < EXE_STEM_MIN_LENGTH) continue;
+                if (!name.endsWith(suffix)) continue;
+                name = name.substring(0, name.length() - suffix.length());
+                stripped = true;
+                break;
+            }
+        }
+        return name;
+    }
+
+    static boolean sameExeFamily(String a, String b) {
+        String baseA = exeBaseName(a);
+        String baseB = exeBaseName(b);
+        if (baseA.isEmpty() || baseB.isEmpty()) return false;
+        if (baseA.equalsIgnoreCase(baseB)) return true;
+        String stemA = exeStem(baseA);
+        String stemB = exeStem(baseB);
+        return !stemA.isEmpty() && stemA.equals(stemB);
+    }
 }

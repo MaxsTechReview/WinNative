@@ -123,6 +123,9 @@ class WnLauncherStatusTailer(
             emitPhase(phase, line)
         }
         if (isLaunchAppDispatched) launchAppDispatchedAt = System.currentTimeMillis()
+        if (line.contains("LaunchApp: still waiting for") && launchAppDispatchedAt != 0L) {
+            launchAppDispatchedAt = System.currentTimeMillis()
+        }
         if (isTerminal) {
             if (launchCompleteSignaled) return
             launchCompleteSignaled = true

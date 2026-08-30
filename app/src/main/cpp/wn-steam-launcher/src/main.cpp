@@ -38,6 +38,14 @@ static const int kVtUser_BLoggedOn          = 0x20;  // slot  4: bool BLoggedOn(
 static const int kVtUser_GetSteamID         = 0x50;  // slot 10: CSteamID& GetSteamID(CSteamID& out)
 static const int kVtUser_BHasCachedCreds    = 0x188; // slot 49: bool BHasCachedCredentials(const char*)
 static const int kVtUser_SetLoginToken      = 0x1C0; // slot 56: EResult SetLoginToken(const char* token, const char* account)
+static const int kVtUser_BIsSubscribedApp   = 0x5A8; // bool BIsSubscribedApp(AppId_t)
+static const int kVtUser_BUpdateAppOwnershipTicket = 0x228; // bool(AppId_t, bool bOnlyIfStale, bool bIsDepot)
+static const int kVtUser_GetAppOwnershipTicketLength = 0x338; // uint32(AppId_t)
+
+static const int kOwnershipWaitMsDefault = 20000;
+static const int kTicketWaitMsDefault = 15000;
+static const int kAppInfoWaitMsDefault   = 8000;
+static const int kAppInfoWaitMsAfterMiss = 1500;
 
 static const int kVtEngine_GetIClientAppManager = 0x158; // IClientEngine slot 43
 static const int kVtAppMgr_LaunchApp            = 0x10;  // IClientAppManager slot 2
@@ -434,28 +442,347 @@ static void stage_app_manifest(uint32_t appId, const char* gameExe) {
              installScriptsEnv && *installScriptsEnv ? installScriptsEnv : "(none)");
 }
 
-// Counts running game processes (matches LaunchApp's canonical name or the literal
-// fallback name via wn_game_image_matches).
-static int count_game_processes(const char* exeName) {
-    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (snap == INVALID_HANDLE_VALUE) return -1;
-    PROCESSENTRY32 pe;
-    pe.dwSize = sizeof(pe);
-    int count = 0;
-    if (Process32First(snap, &pe)) {
-        do {
-            if (wn_game_image_matches(pe.szExeFile, exeName)) count++;
-        } while (Process32Next(snap, &pe));
+static bool is_exec_ptr(void* p);
+
+static bool file_contains_valve_company(const std::filesystem::path& p) {
+    static const char kNeedle[] =
+        "V\0a\0l\0v\0e\0 \0C\0o\0r\0p\0o\0r\0a\0t\0i\0o\0n\0";
+    const size_t needleLen = sizeof(kNeedle) - 1;
+    FILE* f = fopen(p.string().c_str(), "rb");
+    if (!f) return false;
+    std::vector<char> buf(1 << 20);
+    size_t carry = 0;
+    bool found = false;
+    while (!found) {
+        size_t n = fread(buf.data() + carry, 1, buf.size() - carry, f);
+        if (n == 0) break;
+        size_t total = carry + n;
+        for (size_t i = 0; i + needleLen <= total; ++i) {
+            if (memcmp(buf.data() + i, kNeedle, needleLen) == 0) { found = true; break; }
+        }
+        carry = (total >= needleLen - 1) ? needleLen - 1 : total;
+        memmove(buf.data(), buf.data() + (total - carry), carry);
     }
-    CloseHandle(snap);
-    return count;
+    fclose(f);
+    return found;
 }
 
-// Direct launch when LaunchApp dispatches cleanly but never spawns the game (no
-// real Steam UI/reaper under Wine to consume the request). Safe vs AlreadyRunning
-// because the clean-shutdown arm reaps the CM session on exit. Logs the "game
-// process started pid=" marker WnLauncherStatusTailer treats as launch-complete.
+static void verify_game_steam_api(const char* gameRootDir) {
+    if (!gameRootDir || !gameRootDir[0]) return;
+
+    std::vector<std::filesystem::path> apis;
+    try {
+        for (auto it = std::filesystem::recursive_directory_iterator(
+                     gameRootDir, std::filesystem::directory_options::skip_permission_denied);
+             it != std::filesystem::recursive_directory_iterator(); ++it) {
+            if (!it->is_regular_file()) continue;
+            std::string lower = it->path().filename().string();
+            for (char& c : lower) c = (char) tolower((unsigned char) c);
+            if (lower == "steam_api.dll" || lower == "steam_api64.dll") {
+                apis.push_back(it->path());
+            }
+        }
+    } catch (const std::exception& e) {
+        log_line("[wn-launcher] steam_api: scan failed (%s)", e.what());
+        return;
+    }
+
+    int emulated = 0, restored = 0;
+    for (const auto& api : apis) {
+        std::string name = api.filename().string();
+        std::string lower = name;
+        for (char& c : lower) c = (char) tolower((unsigned char) c);
+
+        uintmax_t size = 0;
+        try { size = std::filesystem::file_size(api); } catch (...) {}
+        bool genuine = file_contains_valve_company(api);
+        std::filesystem::path backup = api;
+        backup += ".orig";
+        bool haveBackup = std::filesystem::is_regular_file(backup);
+        uintmax_t backupSize = 0;
+        if (haveBackup) {
+            try { backupSize = std::filesystem::file_size(backup); } catch (...) {}
+        }
+        log_line("[wn-launcher] steam_api: %s size=%llu valve-signed=%d backup=%s%llu",
+                 api.string().c_str(), (unsigned long long) size, genuine ? 1 : 0,
+                 haveBackup ? "yes:" : "none:", (unsigned long long) backupSize);
+
+        if (genuine) continue;
+        emulated++;
+        if (!haveBackup || backupSize == 0) {
+            log_line("[wn-launcher] steam_api: WARNING — \"%s\" is NOT the game's genuine "
+                     "Valve DLL and there is no .orig backup to restore. The game's "
+                     "SteamAPI_Init cannot reach this client, so its online/version "
+                     "handshake will fail. Verify the game files.", name.c_str());
+            continue;
+        }
+        if (!CopyFileA(backup.string().c_str(), api.string().c_str(), FALSE)) {
+            log_line("[wn-launcher] steam_api: restore of \"%s\" from .orig FAILED (GLE=%lu)",
+                     name.c_str(), GetLastError());
+            continue;
+        }
+        restored++;
+        log_line("[wn-launcher] steam_api: restored genuine \"%s\" from .orig backup",
+                 name.c_str());
+
+        std::filesystem::path stub = api.parent_path() /
+            (lower == "steam_api64.dll" ? "steamclient64.dll" : "steamclient.dll");
+        std::error_code sec;
+        if (std::filesystem::is_regular_file(stub, sec)) {
+            uintmax_t stubSize = std::filesystem::file_size(stub, sec);
+            if (!sec && stubSize < 200000 && !file_contains_valve_company(stub)) {
+                std::filesystem::remove(stub, sec);
+                log_line("[wn-launcher] steam_api: removed emulator steamclient stub %s",
+                         stub.string().c_str());
+            }
+        }
+    }
+    log_line("[wn-launcher] steam_api: %zu checked, %d non-genuine, %d restored",
+             apis.size(), emulated, restored);
+}
+
+static int env_int(const char* name, int fallback) {
+    const char* v = getenv(name);
+    if (!v || !*v) return fallback;
+    long n = strtol(v, NULL, 0);
+    return (n > 0) ? (int) n : fallback;
+}
+
+static void sync_app_ownership(void* engine, int hUser, int pipe, uint32_t appId,
+                               Steam_BGetCallback_fn bGetCallback,
+                               Steam_FreeLastCallback_fn freeLastCallback) {
+    if (!engine || appId == 0) return;
+
+    void** engine_vt = *(void***) engine;
+    typedef void* (WN_THISCALL *GetIClientUserFn)(void* self, int hUser, int hPipe, const char*);
+    void* getUserP = engine_vt[kVtEngine_GetIClientUser / 8];
+    if (!is_exec_ptr(getUserP)) {
+        log_line("[wn-launcher] ownership: GetIClientUser slot not executable — skipping license wait");
+        return;
+    }
+    void* iuser = ((GetIClientUserFn) getUserP)(engine, hUser, pipe,
+                                                "CLIENTUSER_INTERFACE_VERSION001");
+    log_line("[wn-launcher] ownership: IClientUser=%p (BIsSubscribedApp slot 0x%x)",
+             iuser, kVtUser_BIsSubscribedApp);
+    if (!iuser) {
+        log_line("[wn-launcher] ownership: no IClientUser — skipping license wait");
+        return;
+    }
+    void** user_vt = *(void***) iuser;
+
+    void* subscribedP = user_vt[kVtUser_BIsSubscribedApp / 8];
+    if (!is_exec_ptr(subscribedP)) {
+        log_line("[wn-launcher] ownership: BIsSubscribedApp(appId=%u) initial -> -1 "
+                 "(slot-unavailable) — proceeding without the license wait", appId);
+        return;
+    }
+    typedef bool (WN_THISCALL *BIsSubscribedAppFn)(void* self, uint32_t app);
+    BIsSubscribedAppFn isSubscribed = (BIsSubscribedAppFn) subscribedP;
+
+    bool owned = isSubscribed(iuser, appId);
+    log_line("[wn-launcher] ownership: BIsSubscribedApp(appId=%u) initial -> %d "
+             "(0=no 1=yes)", appId, owned ? 1 : 0);
+
+    const int waitMs = env_int("WN_STEAM_OWNERSHIP_WAIT_MS", kOwnershipWaitMsDefault);
+    int waited = 0;
+    while (!owned && waited < waitMs) {
+        if (bGetCallback && freeLastCallback) {
+            char cb[64];
+            while (bGetCallback(pipe, cb)) freeLastCallback(pipe);
+        }
+        Sleep(200);
+        waited += 200;
+        owned = isSubscribed(iuser, appId);
+    }
+    log_line("[wn-launcher] ownership: BIsSubscribedApp(appId=%u)=%d after %dms "
+             "(license sync %s)", appId, owned ? 1 : 0, waited,
+             owned ? "complete" : "INCOMPLETE — appinfo and the game's own entitlement "
+                                  "checks may see stale data");
+
+    const long ticketSlot =
+        env_int("WN_STEAM_OWNERSHIP_SLOT", kVtUser_BUpdateAppOwnershipTicket);
+    void* lengthP = user_vt[kVtUser_GetAppOwnershipTicketLength / 8];
+    void* ticketP = (ticketSlot > 0 && (ticketSlot & 7) == 0) ? user_vt[ticketSlot / 8] : NULL;
+    typedef uint32_t (WN_THISCALL *GetTicketLengthFn)(void* self, uint32_t app);
+    typedef bool (WN_THISCALL *UpdateOwnershipTicketFn)(void* self, uint32_t app,
+                                                        bool onlyIfStale, bool isDepot);
+
+    if (!is_exec_ptr(lengthP)) {
+        log_line("[wn-launcher] ownership: GetAppOwnershipTicketLength slot 0x%x not "
+                 "executable — cannot verify the app ownership ticket",
+                 kVtUser_GetAppOwnershipTicketLength);
+        return;
+    }
+    GetTicketLengthFn ticketLength = (GetTicketLengthFn) lengthP;
+    uint32_t before = ticketLength(iuser, appId);
+    log_line("[wn-launcher] ownership: app ownership ticket length before = %u", before);
+    if (before != 0) return;
+
+    if (!ticketP || !is_exec_ptr(ticketP)) {
+        log_line("[wn-launcher] ownership: BUpdateAppOwnershipTicket slot 0x%lx invalid or "
+                 "not executable — the game's GetAuthSessionTicket will have no ticket",
+                 ticketSlot);
+        return;
+    }
+    bool rc = ((UpdateOwnershipTicketFn) ticketP)(iuser, appId, false, false);
+    log_line("[wn-launcher] ownership: BUpdateAppOwnershipTicket[slot 0x%lx](appId=%u) -> %d",
+             ticketSlot, appId, rc ? 1 : 0);
+
+    const int ticketWaitMs = env_int("WN_STEAM_TICKET_WAIT_MS", kTicketWaitMsDefault);
+    int ticketWaited = 0;
+    uint32_t after = ticketLength(iuser, appId);
+    while (after == 0 && ticketWaited < ticketWaitMs) {
+        if (bGetCallback && freeLastCallback) {
+            char cb[64];
+            while (bGetCallback(pipe, cb)) freeLastCallback(pipe);
+        }
+        Sleep(200);
+        ticketWaited += 200;
+        after = ticketLength(iuser, appId);
+    }
+    log_line("[wn-launcher] ownership: app ownership ticket length after = %u (%dms) — %s",
+             after, ticketWaited,
+             after ? "ticket acquired; GetAuthSessionTicket can now produce a signed ticket"
+                   : "STILL EMPTY — the game's GetAuthSessionTicket will fail and its "
+                     "online/version handshake with the publisher will be rejected");
+}
+
+static void log_active_process_registry(const char* when) {
+    HKEY h = NULL;
+    if (RegOpenKeyExA(HKEY_CURRENT_USER, "Software\\Valve\\Steam\\ActiveProcess",
+                      0, KEY_READ, &h) != ERROR_SUCCESS) {
+        log_line("[wn-launcher] activeprocess(%s): key missing", when);
+        return;
+    }
+    DWORD pid = 0, activeUser = 0, universe = 0, sz = sizeof(DWORD), type = 0;
+    RegQueryValueExA(h, "pid", NULL, &type, (LPBYTE) &pid, &sz);
+    sz = sizeof(DWORD);
+    RegQueryValueExA(h, "ActiveUser", NULL, &type, (LPBYTE) &activeUser, &sz);
+    sz = sizeof(DWORD);
+    RegQueryValueExA(h, "Universe", NULL, &type, (LPBYTE) &universe, &sz);
+    char dll64[MAX_PATH] = {0};
+    sz = sizeof(dll64);
+    RegQueryValueExA(h, "SteamClientDll64", NULL, &type, (LPBYTE) dll64, &sz);
+    RegCloseKey(h);
+    log_line("[wn-launcher] activeprocess(%s): pid=%lu ourPid=%lu ActiveUser=%lu "
+             "Universe=%lu SteamClientDll64=%s", when,
+             (unsigned long) pid, (unsigned long) GetCurrentProcessId(),
+             (unsigned long) activeUser, (unsigned long) universe,
+             dll64[0] ? dll64 : "(unset)");
+}
+
+static void log_game_process_modules(unsigned long pid) {
+    if (pid == 0) {
+        log_line("[wn-launcher] gamemodules: no game pid resolved");
+        return;
+    }
+    HANDLE snap = INVALID_HANDLE_VALUE;
+    for (int attempt = 0; attempt < 5 && snap == INVALID_HANDLE_VALUE; ++attempt) {
+        snap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32,
+                                        (DWORD) pid);
+        if (snap == INVALID_HANDLE_VALUE) Sleep(200);
+    }
+    if (snap == INVALID_HANDLE_VALUE) {
+        log_line("[wn-launcher] gamemodules: snapshot of pid=%lu failed GLE=%lu",
+                 pid, GetLastError());
+        return;
+    }
+    MODULEENTRY32 me;
+    me.dwSize = sizeof(me);
+    int total = 0, steamish = 0;
+    std::vector<std::string> allNames;
+    if (Module32First(snap, &me)) {
+        do {
+            total++;
+            if (allNames.size() < 40) allNames.emplace_back(me.szModule);
+            char lower[MAX_PATH];
+            snprintf(lower, sizeof(lower), "%s", me.szModule);
+            for (char* p = lower; *p; ++p) *p = (char) tolower((unsigned char) *p);
+            if (strstr(lower, "steam") || strstr(lower, "gameoverlay")) {
+                steamish++;
+                log_line("[wn-launcher] gamemodules: pid=%lu %s <- %s",
+                         pid, me.szModule, me.szExePath);
+            }
+        } while (Module32Next(snap, &me));
+    }
+    CloseHandle(snap);
+    log_line("[wn-launcher] gamemodules: pid=%lu total=%d steam-related=%d",
+             pid, total, steamish);
+    if (steamish == 0) {
+        std::string joined;
+        for (const auto& n : allNames) {
+            if (!joined.empty()) joined += " ";
+            joined += n;
+        }
+        log_line("[wn-launcher] gamemodules: pid=%lu loaded NO steam module — the game "
+                 "never bound to this client. modules: %s", pid, joined.c_str());
+    }
+}
+
+static void resolve_game_root_dir(const char* gameExe, char* out, size_t outSize) {
+    if (!out || outSize == 0) return;
+    out[0] = '\0';
+    if (!gameExe || !*gameExe) return;
+
+    const char* marker = "\\steamapps\\common\\";
+    size_t mlen = strlen(marker);
+    for (const char* s = gameExe; *s; ++s) {
+        if (_strnicmp(s, marker, mlen) != 0) continue;
+        const char* dirStart = s + mlen;
+        const char* dirEnd = strchr(dirStart, '\\');
+        if (!dirEnd) break;
+        size_t len = (size_t)(dirEnd - gameExe);
+        if (len == 0 || len >= outSize) return;
+        memcpy(out, gameExe, len);
+        out[len] = '\0';
+        return;
+    }
+
+    const char* slash = strrchr(gameExe, '\\');
+    if (!slash || slash == gameExe) return;
+    size_t len = (size_t)(slash - gameExe);
+    if (len >= outSize) return;
+    memcpy(out, gameExe, len);
+    out[len] = '\0';
+}
+
+static bool wait_for_game_process(const char* exeName, int maxSeconds, const char* context,
+                                  Steam_BGetCallback_fn bGetCallback,
+                                  Steam_FreeLastCallback_fn freeLastCallback,
+                                  int pipe) {
+    const int kPollMs = 500;
+    const int kHeartbeatMs = 5000;
+    int elapsed = 0;
+    int sinceHeartbeat = 0;
+    while (elapsed < maxSeconds * 1000) {
+        if (wn_launcher_count_game_processes() > 0) {
+            log_line("[wn-launcher] LaunchApp: \"%s\" is running after %dms (%s)",
+                     exeName, elapsed, context);
+            return true;
+        }
+        if (bGetCallback && freeLastCallback) {
+            char cb[64];
+            while (bGetCallback(pipe, cb)) freeLastCallback(pipe);
+        }
+        Sleep(kPollMs);
+        elapsed += kPollMs;
+        sinceHeartbeat += kPollMs;
+        if (sinceHeartbeat >= kHeartbeatMs) {
+            sinceHeartbeat = 0;
+            log_line("[wn-launcher] LaunchApp: still waiting for \"%s\" to appear "
+                     "(%ds/%ds, %s)", exeName, elapsed / 1000, maxSeconds, context);
+        }
+    }
+    return wn_launcher_count_game_processes() > 0;
+}
+
 static bool create_process_game(const char* gameExe, const char* exeName) {
+    if (wn_launcher_count_game_processes() > 0) {
+        log_line("[wn-launcher] CreateProcess fallback skipped — \"%s\" is already "
+                 "running (Steam owns the launch)", exeName);
+        return true;
+    }
+
     char cwd[MAX_PATH];
     snprintf(cwd, sizeof(cwd), "%s", gameExe);
     char* slash = strrchr(cwd, '\\');
@@ -955,6 +1282,21 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    const char* exeName = strrchr(gameExe, '\\');
+    exeName = exeName ? exeName + 1 : gameExe;
+
+    static char gameRootDir[MAX_PATH];
+    resolve_game_root_dir(gameExe, gameRootDir, sizeof(gameRootDir));
+    wn_launcher_set_game_exe(exeName);
+    wn_launcher_set_game_dir(gameRootDir);
+    {
+        char stem[260];
+        wn_game_exe_stem(exeName, stem, sizeof(stem));
+        log_line("[wn-launcher] game identity: exe=\"%s\" stem=\"%s\" root=\"%s\"",
+                 exeName, stem, gameRootDir[0] ? gameRootDir : "(none)");
+    }
+    verify_game_steam_api(gameRootDir);
+
     const char* kSteamDir = "C:\\Program Files (x86)\\Steam";
     SetDllDirectoryA(kSteamDir);
     SetCurrentDirectoryA(kSteamDir);
@@ -1234,6 +1576,17 @@ int main(int argc, char** argv) {
     }
 
     if (loggedOn && engine && appId != 0) {
+        sync_app_ownership(engine, hUser, pipe, appId, bGetCallback, freeLastCallback);
+    }
+
+    const char* skipAppInfoEnv = getenv("WN_STEAM_SKIP_APPINFO");
+    const bool skipAppInfo = skipAppInfoEnv && skipAppInfoEnv[0] != '\0';
+    if (skipAppInfo) {
+        log_line("[wn-launcher] WN_STEAM_SKIP_APPINFO set — not refreshing appinfo "
+                 "(LaunchApp will use whatever the client already has)");
+    }
+
+    if (loggedOn && engine && appId != 0 && !skipAppInfo) {
         void** engine_vt = *(void***) engine;
         typedef void* (WN_THISCALL *GetIClientAppsFn)(void* self, int hUser, int hPipe);
         GetIClientAppsFn getApps = (GetIClientAppsFn)
@@ -1254,11 +1607,22 @@ int main(int argc, char** argv) {
                 bool reqRc = reqInfo(iApps, appIds, 1);
                 log_line("[wn-launcher] RequestAppInfoUpdate(appId=%u) -> %d",
                          appId, reqRc ? 1 : 0);
-                // 1.5s for PICS appinfo to land (else LaunchApp -> MissingConfig);
-                // short is safe — the dispatch below retries on MissingConfig.
+                char missMarker[MAX_PATH];
+                snprintf(missMarker, sizeof(missMarker),
+                         "C:\\wn-appinfo-miss-%u.txt", appId);
+                const bool missedBefore =
+                    GetFileAttributesA(missMarker) != INVALID_FILE_ATTRIBUTES;
+                const int appInfoWaitMs =
+                    env_int("WN_STEAM_APPINFO_WAIT_MS",
+                            missedBefore ? kAppInfoWaitMsAfterMiss : kAppInfoWaitMsDefault);
+                if (missedBefore) {
+                    log_line("[wn-launcher] appinfo: this app never delivered "
+                             "AppInfoUpdateComplete_t before — waiting only %dms "
+                             "(LaunchApp retries on MissingConfig anyway)", appInfoWaitMs);
+                }
                 bool appInfoDone = false;
                 int  waited = 0;
-                for (int i = 0; i < 15 && !appInfoDone; ++i) {
+                while (!appInfoDone && waited < appInfoWaitMs) {
                     if (bGetCallback && freeLastCallback) {
                         char cb[64];
                         while (bGetCallback(pipe, cb)) {
@@ -1266,10 +1630,19 @@ int main(int argc, char** argv) {
                             freeLastCallback(pipe);
                         }
                     }
-                    if (!appInfoDone) { Sleep(100); waited += 100; }
+                    if (appInfoDone) break;
+                    Sleep(100);
+                    waited += 100;
                 }
                 log_line("[wn-launcher] AppInfoUpdateComplete_t %s after %dms",
                          appInfoDone ? "received" : "NOT received", waited);
+                if (appInfoDone) {
+                    DeleteFileA(missMarker);
+                } else if (!missedBefore) {
+                    HANDLE mh = CreateFileA(missMarker, GENERIC_WRITE, 0, NULL,
+                                            CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+                    if (mh != INVALID_HANDLE_VALUE) CloseHandle(mh);
+                }
             }
         }
     }
@@ -1285,7 +1658,9 @@ int main(int argc, char** argv) {
             void** am_vt = *(void***) appMgr;
             void* refreshP = am_vt[kVtAppMgr_RefreshAppInfo / 8];
             void* stateP   = am_vt[kVtAppMgr_GetAppInstallState / 8];
-            if (is_exec_ptr(refreshP)) {
+            if (skipAppInfo) {
+                log_line("[wn-launcher] RefreshAppInfo() skipped (WN_STEAM_SKIP_APPINFO set)");
+            } else if (is_exec_ptr(refreshP)) {
                 typedef void (WN_THISCALL *RefreshAppInfoFn)(void* self);
                 ((RefreshAppInfoFn) refreshP)(appMgr);
                 log_line("[wn-launcher] RefreshAppInfo() called");
@@ -1317,14 +1692,6 @@ int main(int argc, char** argv) {
 
     bool svcRunning = start_steam_client_service();
     log_line("[wn-launcher] steamservice running: %d", svcRunning ? 1 : 0);
-
-    const char* exeName = strrchr(gameExe, '\\');
-    exeName = exeName ? exeName + 1 : gameExe;
-
-    // Teardown stops the game before logoff — that exit emits games-played([]),
-    // which reaps the session and prevents AlreadyRunning next launch (logoff
-    // alone doesn't clear it).
-    wn_launcher_set_game_exe(exeName);
 
     // Pull cloud saves + set the teardown cloud context now, so the exit upload
     // has a baseline to diff.
@@ -1366,9 +1733,9 @@ int main(int argc, char** argv) {
             // RefreshAppInfo() slot — re-primes appinfo between MissingConfig retries.
             void* refreshAppInfoP = appMgr_vt[kVtAppMgr_RefreshAppInfo / 8];
 
-            // Cold launch may see 1-2 fast MissingConfig(9) retries; 5 stays inside
-            // the 35s watchdog.
             const int kMaxLaunchAttempts = 5;
+            const int kSecureAppearSeconds = 120;
+            const int kErrorAppearSeconds = 30;
             for (int attempt = 1; attempt <= kMaxLaunchAttempts && !launchedViaApp; ++attempt) {
                 uint64_t apiCall = launchApp(appMgr, &gameId, 0, 300, "");
                 log_line("[wn-launcher] IClientAppManager.LaunchApp(appId=%u) "
@@ -1468,8 +1835,12 @@ int main(int argc, char** argv) {
                     Sleep(500);
                 } else {
                     log_line("[wn-launcher] LaunchApp returned a null call handle "
-                             "after %d attempts", kMaxLaunchAttempts);
+                             "after %d attempts — waiting %ds in case the request "
+                             "still landed", kMaxLaunchAttempts, kErrorAppearSeconds);
                     launchFailureReason = "LaunchApp returned a null call handle";
+                    launchedViaApp = wait_for_game_process(
+                        exeName, kErrorAppearSeconds, "null-handle grace",
+                        bGetCallback, freeLastCallback, pipe);
                 }
                 continue;
             }
@@ -1492,51 +1863,38 @@ int main(int argc, char** argv) {
                     }
                     Sleep(100);
                 }
-            } else if (eAppError > 0 /* a real error, e.g. AlreadyRunning(0x10) */) {
-                // Not retryable in-process (AlreadyRunning = prior session's
-                // games-played still live server-side) — go straight to fallback.
-                log_line("[wn-launcher] LaunchApp attempt %d/%d: \"%s\" never "
-                         "appeared — EAppUpdateError=%d%s; not retryable in-process "
-                         "— falling back", attempt, kMaxLaunchAttempts, exeName,
-                         eAppError,
+            } else if (eAppError > 0) {
+                log_line("[wn-launcher] LaunchApp attempt %d/%d: \"%s\" reported "
+                         "EAppUpdateError=%d%s; not retryable in-process — waiting "
+                         "%ds to see whether Steam started it anyway",
+                         attempt, kMaxLaunchAttempts, exeName, eAppError,
                          eAppError == 0x10
                              ? " (AlreadyRunning — prior session's games-played "
                                "registration still live server-side)"
-                             : "");
+                             : "",
+                         kErrorAppearSeconds);
                 launchFailureReason = (eAppError == 0x10)
                     ? "LaunchApp returned AlreadyRunning (stale server session)"
                     : "LaunchApp returned a non-NoError EAppUpdateError";
+                launchedViaApp = wait_for_game_process(
+                    exeName, kErrorAppearSeconds, "post-error grace",
+                    bGetCallback, freeLastCallback, pipe);
                 break;
             } else {
-                // NoError(0)/indeterminate(-1): accepted. Wait WITHOUT re-dispatching
-                // — a second LaunchApp while one is pending cancels the spawn (Wine).
-                const int kGameAppearLoops = 40;  // 40 * 500ms = 20s
                 log_line("[wn-launcher] LaunchApp dispatched (attempt %d/%d, "
                          "EAppUpdateError=%d); waiting up to %ds for \"%s\" to "
                          "appear (committed — no re-dispatch)",
                          attempt, kMaxLaunchAttempts, eAppError,
-                         kGameAppearLoops / 2, exeName);
-                for (int w = 0; w < kGameAppearLoops && !launchedViaApp; ++w) {
-                    if (count_game_processes(exeName) > 0) {
-                        launchedViaApp = true;
-                        break;
-                    }
-                    if (bGetCallback && freeLastCallback) {
-                        char cb[64];
-                        while (bGetCallback(pipe, cb)) freeLastCallback(pipe);
-                    }
-                    Sleep(500);
-                }
-                if (launchedViaApp) {
-                    log_line("[wn-launcher] LaunchApp: \"%s\" is running "
-                             "(attempt %d/%d)", exeName, attempt,
-                             kMaxLaunchAttempts);
-                } else {
+                         kSecureAppearSeconds, exeName);
+                launchedViaApp = wait_for_game_process(
+                    exeName, kSecureAppearSeconds, "secure launch",
+                    bGetCallback, freeLastCallback, pipe);
+                if (!launchedViaApp) {
                     log_line("[wn-launcher] LaunchApp attempt %d/%d: \"%s\" "
                              "accepted (EAppUpdateError=%d) but never spawned in "
                              "%ds — not re-dispatching (would cancel the pending "
                              "launch) — falling back", attempt, kMaxLaunchAttempts,
-                             exeName, eAppError, kGameAppearLoops / 2);
+                             exeName, eAppError, kSecureAppearSeconds);
                     launchFailureReason =
                         "LaunchApp accepted but the game never spawned";
                     break;
@@ -1548,6 +1906,12 @@ int main(int argc, char** argv) {
         }
     } else {
         launchFailureReason = engine ? "appId was 0" : "IClientEngine was null";
+    }
+
+    if (!launchedViaApp && !directExe && wn_launcher_count_game_processes() > 0) {
+        launchedViaApp = true;
+        log_line("[wn-launcher] \"%s\" appeared after the wait window — Steam owns "
+                 "this launch; skipping the insecure CreateProcess fallback", exeName);
     }
 
     // LaunchApp didn't bring the game up — start it directly; the "dispatched/never appeared/falling back" log markers disarm WnLauncherStatusTailer's post-dispatch watchdog.
@@ -1567,6 +1931,16 @@ int main(int argc, char** argv) {
         const char* path = launchedViaApp ? "LaunchApp path"
                                            : "CreateProcess fallback";
         log_line("[wn-launcher] watching \"%s\" for exit (%s)", exeName, path);
+
+        log_active_process_registry("post-launch");
+        for (int i = 0; i < 20; ++i) {
+            if (bGetCallback && freeLastCallback) {
+                char cb[64];
+                while (bGetCallback(pipe, cb)) freeLastCallback(pipe);
+            }
+            Sleep(500);
+        }
+        log_game_process_modules(wn_launcher_first_game_pid());
         // Declare exit after 2 consecutive absent polls (~2s) — tolerates a brief gap.
         int absent = 0;
         while (absent < 2) {
@@ -1575,7 +1949,7 @@ int main(int argc, char** argv) {
                 char cb[64];
                 while (bGetCallback(pipe, cb)) freeLastCallback(pipe);
             }
-            absent = (count_game_processes(exeName) != 0) ? 0 : absent + 1;
+            absent = (wn_launcher_count_game_processes() != 0) ? 0 : absent + 1;
         }
         log_line("[wn-launcher] game \"%s\" exited (%s)", exeName, path);
         if (cleanShutdownArmed) {

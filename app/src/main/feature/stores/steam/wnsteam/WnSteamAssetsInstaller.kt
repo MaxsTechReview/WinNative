@@ -153,11 +153,14 @@ object WnSteamAssetsInstaller {
         val dllFile    = File(binDir, "steamservice.dll")
         val curVdfFile = File(binDir, "service_current_versions.vdf")
         val minVdfFile = File(binDir, "service_minimum_versions.vdf")
+        val commonFilesExe = File(container.rootDir,
+            ".wine/drive_c/Program Files (x86)/Common Files/Steam/steamservice.exe")
         if (!stampStale(stageStamp, apkId)
             && exeFile.isFile && exeFile.length() > 0
             && dllFile.isFile && dllFile.length() > 0
             && curVdfFile.isFile && curVdfFile.length() > 0
-            && minVdfFile.isFile && minVdfFile.length() > 0) {
+            && minVdfFile.isFile && minVdfFile.length() > 0
+            && commonFilesExe.isFile && commonFilesExe.length() > 0) {
             Timber.tag(TAG).d("planW: steamservice bundle already staged (apk=%s) — skipping per-launch copy", apkId)
             return true
         }
@@ -178,13 +181,21 @@ object WnSteamAssetsInstaller {
             }
         }
 
+        val commonFilesDir = File(container.rootDir,
+            ".wine/drive_c/Program Files (x86)/Common Files/Steam").apply { mkdirs() }
+
         return try {
             val exeOk    = stage(exeAsset,    exeFile)
             val dllOk    = stage(dllAsset,    dllFile)
             val curVdfOk = stage(curVdfAsset, curVdfFile)
             val minVdfOk = stage(minVdfAsset, minVdfFile)
-            Timber.tag(TAG).i("planW: steamservice bundle staged exe=%b dll=%b curVdf=%b minVdf=%b",
-                exeOk, dllOk, curVdfOk, minVdfOk)
+            val commonOk = stage(exeAsset,    File(commonFilesDir, "steamservice.exe")) &&
+                stage(dllAsset,    File(commonFilesDir, "steamservice.dll")) &&
+                stage(curVdfAsset, File(commonFilesDir, "service_current_versions.vdf")) &&
+                stage(minVdfAsset, File(commonFilesDir, "service_minimum_versions.vdf"))
+            stage(dllAsset, File(steamDir, "steamservice.dll"))
+            Timber.tag(TAG).i("planW: steamservice bundle staged exe=%b dll=%b curVdf=%b minVdf=%b commonFiles=%b",
+                exeOk, dllOk, curVdfOk, minVdfOk, commonOk)
             // Stamp only when the full bundle is on disk — a partial copy must
             // re-run next launch, never get locked in by a fresh stamp.
             if (exeOk && dllOk && curVdfOk && minVdfOk) {
