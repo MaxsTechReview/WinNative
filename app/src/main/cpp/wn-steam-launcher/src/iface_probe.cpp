@@ -50,6 +50,8 @@ typedef bool (*Flat_BLoggedOn_t)(void*);
 typedef unsigned long long (*Flat_GetSteamID_t)(void*);
 typedef unsigned int (*Flat_GetAuthSessionTicket_t)(void*, void*, int, unsigned int*, void*);
 typedef int (*Flat_GetEncryptedAppTicket_t)(void*, void*, int, unsigned int*);
+typedef unsigned long long (*Flat_RequestEncryptedAppTicket_t)(void*, void*, int);
+typedef void (*RunCallbacks_t)(void);
 typedef int (*Flat_GetAppBuildId_t)(void*);
 typedef bool (*Flat_BIsSubscribed_t)(void*);
 
@@ -106,12 +108,39 @@ static void probe_auth_ticket(HMODULE api, void* user, void* apps) {
         plog("[wn-probe] auth: ticket first %u bytes: %s", n, hex);
     }
 
-    if (fEnc) {
-        unsigned char enc[2048];
-        memset(enc, 0, sizeof(enc));
+    Flat_RequestEncryptedAppTicket_t fReqEnc =
+        (Flat_RequestEncryptedAppTicket_t) GetProcAddress(api, "SteamAPI_ISteamUser_RequestEncryptedAppTicket");
+    RunCallbacks_t fRun = (RunCallbacks_t) GetProcAddress(api, "SteamAPI_RunCallbacks");
+
+    if (fEnc && fReqEnc) {
+        unsigned long long call = fReqEnc(user, nullptr, 0);
+        plog("[wn-probe] auth: RequestEncryptedAppTicket -> HSteamAPICall=%llu", call);
+        unsigned char enc[4096];
         unsigned int cbEnc = 0;
-        int rc = fEnc(user, enc, (int) sizeof(enc), &cbEnc);
-        plog("[wn-probe] auth: GetEncryptedAppTicket -> rc=%d length=%u", rc, cbEnc);
+        int rc = 0;
+        int waited = 0;
+        for (int i = 0; i < 200; ++i) {
+            if (fRun) fRun();
+            Sleep(100);
+            waited += 100;
+            memset(enc, 0, sizeof(enc));
+            cbEnc = 0;
+            rc = fEnc(user, enc, (int) sizeof(enc), &cbEnc);
+            if (rc && cbEnc) break;
+        }
+        plog("[wn-probe] auth: GetEncryptedAppTicket after request -> rc=%d length=%u (%dms)",
+             rc, cbEnc, waited);
+        if (rc && cbEnc) {
+            char hex[97];
+            unsigned int n = cbEnc < 32 ? cbEnc : 32;
+            for (unsigned int i = 0; i < n; ++i) snprintf(hex + i * 3, 4, "%02x ", enc[i]);
+            hex[n * 3] = '\0';
+            plog("[wn-probe] auth: encrypted app ticket first %u bytes: %s", n, hex);
+            plog("[wn-probe] auth: encrypted app ticket OBTAINED — publisher-backend auth works");
+        } else {
+            plog("[wn-probe] auth: *** ENCRYPTED APP TICKET NOT ISSUED *** — this is how a Steam "
+                 "game authenticates to a publisher backend");
+        }
     }
 }
 
