@@ -621,6 +621,47 @@ static int env_int(const char* name, int fallback) {
     return (n > 0) ? (int) n : fallback;
 }
 
+static void run_iface_probe(const char* gameRootDir, uint32_t appId) {
+    if (GetFileAttributesA("C:\\wn-iface-probe.on") == INVALID_FILE_ATTRIBUTES) return;
+    const char* probeExe = "C:\\Program Files (x86)\\Steam\\wn-iface-probe.exe";
+    if (GetFileAttributesA(probeExe) == INVALID_FILE_ATTRIBUTES) {
+        log_line("[wn-launcher] iface-probe: %s not present", probeExe);
+        return;
+    }
+    char cmd[2048];
+    snprintf(cmd, sizeof(cmd), "\"%s\" \"%s\" %u \"C:\\wn-iface-probe.log\"",
+             probeExe, gameRootDir ? gameRootDir : "", (unsigned) appId);
+    STARTUPINFOA si;
+    PROCESS_INFORMATION pi;
+    memset(&si, 0, sizeof(si));
+    si.cb = sizeof(si);
+    memset(&pi, 0, sizeof(pi));
+    log_line("[wn-launcher] iface-probe: launching %s", cmd);
+    if (!CreateProcessA(probeExe, cmd, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+        log_line("[wn-launcher] iface-probe: CreateProcess failed GLE=%lu",
+                 (unsigned long) GetLastError());
+        return;
+    }
+    WaitForSingleObject(pi.hProcess, 25000);
+    DWORD rc = 0;
+    GetExitCodeProcess(pi.hProcess, &rc);
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+    log_line("[wn-launcher] iface-probe: exited rc=%lu", (unsigned long) rc);
+    FILE* f = fopen("C:\\wn-iface-probe.log", "r");
+    if (!f) {
+        log_line("[wn-launcher] iface-probe: no log produced");
+        return;
+    }
+    char line[1024];
+    while (fgets(line, sizeof(line), f)) {
+        size_t n = strlen(line);
+        while (n && (line[n - 1] == '\n' || line[n - 1] == '\r')) line[--n] = '\0';
+        log_line("%s", line);
+    }
+    fclose(f);
+}
+
 static void sync_app_ownership(void* engine, int hUser, int pipe, uint32_t appId,
                                Steam_BGetCallback_fn bGetCallback,
                                Steam_FreeLastCallback_fn freeLastCallback) {
@@ -1794,6 +1835,8 @@ int main(int argc, char** argv) {
     if (loggedOn && engine && appId != 0) {
         sync_app_ownership(engine, hUser, pipe, appId, bGetCallback, freeLastCallback);
     }
+
+    run_iface_probe(gameRootDir, appId);
 
     const char* skipAppInfoEnv = getenv("WN_STEAM_SKIP_APPINFO");
     const bool skipAppInfo = skipAppInfoEnv && skipAppInfoEnv[0] != '\0';

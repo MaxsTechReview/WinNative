@@ -442,6 +442,12 @@ object WnSteamAssetsInstaller {
             }
         }
         try {
+            val probeDst = File(steamDir, "wn-iface-probe.exe")
+            context.assets.open("$ASSET_DIR/bionic/wn-iface-probe.exe").use { input ->
+                probeDst.outputStream().use { output -> input.copyTo(output) }
+            }
+        } catch (_: Exception) {}
+        try {
             val caSrc = File(context.filesDir, "wnsteam_cacert.pem")
             if (caSrc.exists() && caSrc.length() > 0) {
                 val caDst = File(steamDir, "wnsteam_cacert.pem")

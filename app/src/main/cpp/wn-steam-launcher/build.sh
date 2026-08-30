@@ -55,3 +55,14 @@ if command -v "$CXX32" >/dev/null 2>&1; then
 else
     echo "SKIPPED 32-bit build: $CXX32 not installed"
 fi
+
+PROBE_OUT="../../assets/wnsteam/bionic/wn-iface-probe.exe"
+"$CXX" -std=c++17 -O2 -Wall -Wextra -Wno-unused-parameter \
+    -static -static-libgcc -static-libstdc++ \
+    -I. \
+    -o "$PROBE_OUT" \
+    src/iface_probe.cpp \
+    -lkernel32
+"$STRIP" "$PROBE_OUT"
+echo "Built: $PROBE_OUT  ($(stat -c '%s' "$PROBE_OUT") bytes)"
+file "$PROBE_OUT"
