@@ -56,19 +56,24 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-const val XSERVER_DRAWER_EDGE_SWIPE_DP = 12
+const val XSERVER_DRAWER_EDGE_SWIPE_DP = 24
 
 // Horizontal swipe distance to open the drawer; shared with XServerDisplayActivity.
-const val XSERVER_DRAWER_OPEN_TRIGGER_DP = 32
+// 16dp: a short swipe from the edge reliably opens (was 32dp) so you no longer have to
+// drag toward the middle for the drawer to appear.
+const val XSERVER_DRAWER_OPEN_TRIGGER_DP = 16
 
-// Open only on a clearly rightward swipe: dx must exceed this * |dy| (~27deg of horizontal).
-const val XSERVER_DRAWER_OPEN_HORIZONTAL_RATIO = 2f
+// Open only on a clearly horizontal swipe: dx must exceed this * |dy| (~27deg of horizontal).
+// 1.5f: tolerate a slightly diagonal swipe (was 2f) so an imperfect angle doesn't bounce back.
+const val XSERVER_DRAWER_OPEN_HORIZONTAL_RATIO = 1.5f
 
 private val DrawerWidth = 300.dp
 private val DrawerStartPadding = 6.dp
 private val DrawerVerticalPadding = 6.dp
 private const val DrawerSettleAnimationMs = 200
-private const val DrawerOpenSettleThreshold = 0.4f
+// 0.3f: dragging out ~1/3 of the drawer now keeps it open (was 0.4f), so a slightly
+// short swipe settles open instead of snapping back.
+private const val DrawerOpenSettleThreshold = 0.3f
 private const val DrawerCloseSettleThreshold = 0.65f
 private val DrawerSettleAnimationSpec =
     tween<Float>(
@@ -248,7 +253,12 @@ private fun XServerDisplayHost(
                                 totalDy += delta.y
 
                                 if (!gestureClaimed) {
-                                    if (abs(totalDy) > viewConfiguration.touchSlop && abs(totalDy) > abs(totalDx)) {
+                                    // Only an *obviously* vertical drag cancels the gesture; a slightly
+                                    // diagonal swipe (dy up to 2x dx) still counts as horizontal so a
+                                    // not-quite-straight swipe opens instead of bouncing back.
+                                    if (abs(totalDy) > viewConfiguration.touchSlop &&
+                                        abs(totalDy) > abs(totalDx) * 2f
+                                    ) {
                                         cancelledByVerticalDrag = true
                                         break
                                     }

@@ -2256,7 +2256,7 @@ private fun DrawerLayoutDialog(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var menuSides by remember { mutableStateOf(items.associate { it.itemId to it.side }) }
-    var paneMap by remember { mutableStateOf(paneSides.toMutableMap()) }
+    var paneMap by remember { mutableStateOf(paneSides) }
     var activeTab by remember { mutableStateOf(0) }
 
     @Composable
@@ -2329,7 +2329,10 @@ private fun DrawerLayoutDialog(
                             runCatching { context.getString(spec.labelRes) }.getOrNull()
                                 ?: spec.pane?.name ?: ""
                         sideRow(label, paneMap[spec.itemId] ?: DrawerSide.LEFT) {
-                            paneMap[spec.itemId] = it
+                            // Rebuild the map instead of mutating in place: Compose only
+                            // recomposes on a new reference, and in-place mutation of a plain
+                            // MutableMap never re-renders the radio selection.
+                            paneMap = paneMap + (spec.itemId to it)
                         }
                     }
                 }

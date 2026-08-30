@@ -1555,7 +1555,23 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                handleNavigationBackPressed();
+                // Back closes overlay → pane → drawer, and NEVER opens the drawer. With
+                // nothing open, defer to the default back behavior (exit/minimize) by
+                // temporarily disabling this callback and re-dispatching.
+                if (drawerStateHolder != null && drawerStateHolder.consumeOverlayBack()) {
+                    return;
+                }
+                if (drawerStateHolder != null && drawerStateHolder.isPaneOpen()) {
+                    drawerStateHolder.closeOpenPane();
+                    return;
+                }
+                if (drawerStateHolder != null && drawerStateHolder.isDrawerOpen()) {
+                    closeDrawerMenu();
+                    return;
+                }
+                setEnabled(false);
+                getOnBackPressedDispatcher().onBackPressed();
+                setEnabled(true);
             }
         });
 
@@ -4364,18 +4380,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
     }
 
     private void handleNavigationBackPressed() {
-        if (environment != null) {
-            if (drawerStateHolder != null && drawerStateHolder.consumeOverlayBack()) {
-                return;
-            }
-            if (drawerStateHolder != null && drawerStateHolder.isPaneOpen()) {
-                drawerStateHolder.closeOpenPane();
-                return;
-            }
-            if (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen()) {
-                openDrawerMenu();
-            }
-            else closeDrawerMenu();
+        // Back closes overlay → pane → drawer, and NEVER opens the drawer.
+        if (environment == null) return;
+        if (drawerStateHolder != null && drawerStateHolder.consumeOverlayBack()) {
+            return;
+        }
+        if (drawerStateHolder != null && drawerStateHolder.isPaneOpen()) {
+            drawerStateHolder.closeOpenPane();
+            return;
+        }
+        if (drawerStateHolder != null && drawerStateHolder.isDrawerOpen()) {
+            closeDrawerMenu();
         }
     }
 
