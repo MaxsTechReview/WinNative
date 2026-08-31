@@ -1610,6 +1610,7 @@ Installed path:
     <string name="steam_blocked_unknown_game">another game</string>
     <string name="steam_blocked_declined">Launch cancelled — Steam is still playing another game</string>
     <string name="steam_blocked_waiting">Waiting for Steam to stop the other game…</string>
+    <string name="steam_launch_insecure_warning">Steam refused the secure launch — %1$s started without VAC. Online play may be unavailable.</string>
     <string name="preloader_setup_environment">Setting up environment</string>
     <string name="preloader_retrying_steam_client_download">Retrying Steam client download</string>
     <string name="preloader_installing_mono">Installing Wine Mono v%1$s</string>

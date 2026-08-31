@@ -7715,6 +7715,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                             (kind, blockingAppId, pid) -> {
                                 showSteamBlockedDialog(container, gameName, kind, blockingAppId);
                                 return kotlin.Unit.INSTANCE;
+                            },
+                            () -> {
+                                Log.w("XServerDisplayActivity",
+                                        "Steam Launcher: game started via CreateProcess fallback — "
+                                                + "session is NOT VAC-secure");
+                                runOnUiThread(() -> WinToast.show(this,
+                                        getString(R.string.steam_launch_insecure_warning, gameName)));
+                                return kotlin.Unit.INSTANCE;
                             });
                 wnLauncherStatusTailer.start();
                 wnLauncherDrivesDismiss.set(true);

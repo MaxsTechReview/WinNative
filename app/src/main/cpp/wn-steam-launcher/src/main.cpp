@@ -840,12 +840,12 @@ static bool clear_other_session(void* user, Steam_BGetCallback_fn bGetCallback,
     return false;
 }
 
-static void run_iface_probe(const char* gameRootDir, uint32_t appId) {
-    if (GetFileAttributesA("C:\\wn-iface-probe.on") == INVALID_FILE_ATTRIBUTES) return;
+static bool run_iface_probe(const char* gameRootDir, uint32_t appId) {
+    if (GetFileAttributesA("C:\\wn-iface-probe.on") == INVALID_FILE_ATTRIBUTES) return false;
     const char* probeExe = "C:\\Program Files (x86)\\Steam\\wn-iface-probe.exe";
     if (GetFileAttributesA(probeExe) == INVALID_FILE_ATTRIBUTES) {
         log_line("[wn-launcher] iface-probe: %s not present", probeExe);
-        return;
+        return false;
     }
     char cmd[2048];
     snprintf(cmd, sizeof(cmd), "\"%s\" \"%s\" %u \"C:\\wn-iface-probe.log\"",
@@ -859,7 +859,7 @@ static void run_iface_probe(const char* gameRootDir, uint32_t appId) {
     if (!CreateProcessA(probeExe, cmd, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
         log_line("[wn-launcher] iface-probe: CreateProcess failed GLE=%lu",
                  (unsigned long) GetLastError());
-        return;
+        return false;
     }
     WaitForSingleObject(pi.hProcess, 25000);
     DWORD rc = 0;
@@ -870,7 +870,7 @@ static void run_iface_probe(const char* gameRootDir, uint32_t appId) {
     FILE* f = fopen("C:\\wn-iface-probe.log", "r");
     if (!f) {
         log_line("[wn-launcher] iface-probe: no log produced");
-        return;
+        return true;
     }
     char line[1024];
     while (fgets(line, sizeof(line), f)) {
@@ -879,6 +879,7 @@ static void run_iface_probe(const char* gameRootDir, uint32_t appId) {
         log_line("%s", line);
     }
     fclose(f);
+    return true;
 }
 
 static void sync_app_ownership(void* engine, int hUser, int pipe, uint32_t appId,
@@ -2192,6 +2193,7 @@ int main(int argc, char** argv) {
 
     bool launchedViaApp = false;
     bool blockedAbort = false;
+    bool probeOnly = false;
     bool launchedViaFallback = false;
     const char* launchFailureReason = "LaunchApp path unavailable";
 
@@ -2239,7 +2241,14 @@ int main(int argc, char** argv) {
             const int kEAppUpdateErrorLaunchOptionMissing = 22;
             int launchOptions[8];
             int launchOptionCount = 0;
-            run_iface_probe(gameRootDir, appId);
+            probeOnly = run_iface_probe(gameRootDir, appId);
+            if (probeOnly) {
+                log_line("[wn-launcher] iface-probe ran and is now registered with Steam as "
+                         "appId %u, so LaunchApp would be refused with \"Application running\" — "
+                         "skipping the launch entirely. Delete C:\\wn-iface-probe.on for a normal "
+                         "launch.", appId);
+                launchFailureReason = "iface-probe mode (probe holds the app registration)";
+            }
 
             void* blockUser = ((GetIfaceFn2) engine_vt[kVtEngine_GetIClientUser])
                                   (engine, hUser, pipe);
@@ -2292,7 +2301,8 @@ int main(int argc, char** argv) {
                      getenv("WN_STEAM_LAUNCH_OPTION") ? "WN_STEAM_LAUNCH_OPTION" : "default");
             const int kErrorAppearSeconds = 30;
             for (int attempt = 1;
-                 attempt <= kMaxLaunchAttempts && !launchedViaApp && !blockedAbort;
+                 attempt <= kMaxLaunchAttempts && !launchedViaApp && !blockedAbort
+                     && !probeOnly;
                  ++attempt) {
                 const int launchOption = launchOptions[launchOptionIndex];
                 const char* userArgsEnv = getenv("WN_STEAM_USER_ARGS");
@@ -2528,7 +2538,7 @@ int main(int argc, char** argv) {
     }
 
     // LaunchApp didn't bring the game up — start it directly; the "dispatched/never appeared/falling back" log markers disarm WnLauncherStatusTailer's post-dispatch watchdog.
-    if (!launchedViaApp && !blockedAbort) {
+    if (!launchedViaApp && !blockedAbort && !probeOnly) {
         if (directExe) {
             log_line("[wn-launcher] direct-exe mode: launching user-selected \"%s\" via "
                      "CreateProcess (Steam LaunchApp skipped)", exeName);

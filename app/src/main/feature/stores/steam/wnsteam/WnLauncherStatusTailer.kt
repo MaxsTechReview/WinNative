@@ -17,6 +17,7 @@ class WnLauncherStatusTailer(
     private val onLaunchComplete: (() -> Unit)? = null,
     private val onLaunchFailed: ((reason: String) -> Unit)? = null,
     private val onBlocked: ((kind: String, blockingAppId: Int, pid: Int) -> Unit)? = null,
+    private val onInsecureLaunch: (() -> Unit)? = null,
 ) {
     private val running = AtomicBoolean(false)
     private val appContext = context.applicationContext
@@ -26,6 +27,8 @@ class WnLauncherStatusTailer(
     @Volatile private var launchAppDispatchedAt: Long = 0L
     @Volatile private var fileExistedAtStart: Boolean = false
     @Volatile private var launchCompleteSignaled: Boolean = false
+    @Volatile private var directExeMode: Boolean = false
+    @Volatile private var insecureSignaled: Boolean = false
 
     fun start() {
         if (!running.compareAndSet(false, true)) return
@@ -119,10 +122,18 @@ class WnLauncherStatusTailer(
             main.post { onBlocked?.invoke(kind, blocking, pid) }
             return
         }
+        if (line.contains("direct-exe mode:")) directExeMode = true
+        val startedViaFallback = line.contains("game process started pid=")
+                && line.contains("CreateProcess fallback")
+        if (startedViaFallback && !directExeMode && !insecureSignaled) {
+            insecureSignaled = true
+            android.util.Log.w(TAG, "game started via CreateProcess fallback — session is NOT VAC-secure")
+            main.post { onInsecureLaunch?.invoke() }
+        }
         val isWatchingForExit = line.contains("watching \"") && line.contains("for exit")
         val isTerminal = (line.contains("is running") && line.contains("LaunchApp"))
                 || isWatchingForExit
-                || line.contains("game process started pid=")
+                || startedViaFallback
         val isFatal = line.contains("LoadLibrary(") && line.contains("FAILED after all strategies")
         val isLaunchAppDispatched = line.contains("IClientAppManager.LaunchApp(appId=")
         val isCreateProcessFallback = line.contains("LaunchApp dispatched")
