@@ -270,6 +270,8 @@
     <string name="itch_store_controller_not_listed">Not listed</string>
     <string name="itch_store_controller_unsupported">Not supported</string>
     <string name="itch_store_tags">Tags</string>
+    <string name="itch_store_update_none">Up to date</string>
+    <string name="itch_store_update_available">Update available — %1$s</string>
     <string name="itch_facet_all">All</string>
     <string name="itch_facet_owned">Owned</string>
     <string name="itch_facet_popular">Popular</string>

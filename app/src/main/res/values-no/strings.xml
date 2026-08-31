@@ -2597,4 +2597,6 @@ Installert bane:
     <string name="itch_store_controller_unsupported">Støttes ikke</string>
     <string name="itch_store_tags">Tagger</string>
     <string name="itch_facet_gamepad">Spillkontroller</string>
+    <string name="itch_store_update_none">Oppdatert</string>
+    <string name="itch_store_update_available">Oppdatering tilgjengelig — %1$s</string>
 </resources>

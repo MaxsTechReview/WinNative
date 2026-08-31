@@ -2,6 +2,7 @@ package com.winlator.cmod.feature.stores.itch.service
 
 import android.content.Context
 import com.winlator.cmod.feature.stores.itch.data.ItchGame
+import com.winlator.cmod.feature.stores.itch.data.ItchUpload
 import org.json.JSONObject
 import timber.log.Timber
 import java.io.File
@@ -13,7 +14,14 @@ data class ItchInstalledGame(
     val coverUrl: String,
     val installPath: String,
     val executablePath: String,
-)
+    val uploadId: Long = 0L,
+    val uploadVersion: String = "",
+    val uploadedAt: String = "",
+    val uploadSize: Long = 0L,
+) {
+    val buildLabel: String
+        get() = listOf(uploadVersion, uploadedAt).firstOrNull { it.isNotBlank() }.orEmpty()
+}
 
 object ItchLibrary {
     private const val PREFS = "itch_store"
@@ -24,6 +32,7 @@ object ItchLibrary {
         game: ItchGame,
         installPath: String,
         executablePath: String,
+        upload: ItchUpload? = null,
     ) {
         val entries = all(context).associateBy { it.id }.toMutableMap()
         entries[game.id] =
@@ -34,6 +43,10 @@ object ItchLibrary {
                 coverUrl = game.coverUrl,
                 installPath = installPath,
                 executablePath = executablePath,
+                uploadId = upload?.id ?: 0L,
+                uploadVersion = upload?.version.orEmpty(),
+                uploadedAt = upload?.uploadedAt.orEmpty(),
+                uploadSize = upload?.sizeBytes ?: 0L,
             )
         persist(context, entries.values.toList())
     }
@@ -64,6 +77,10 @@ object ItchLibrary {
                     coverUrl = obj.optString("cover"),
                     installPath = obj.optString("path"),
                     executablePath = obj.optString("exe"),
+                    uploadId = obj.optLong("upload"),
+                    uploadVersion = obj.optString("version"),
+                    uploadedAt = obj.optString("uploaded"),
+                    uploadSize = obj.optLong("size"),
                 )
             }
         }.getOrElse {
@@ -96,7 +113,11 @@ object ItchLibrary {
                     .put("url", game.url)
                     .put("cover", game.coverUrl)
                     .put("path", game.installPath)
-                    .put("exe", game.executablePath),
+                    .put("exe", game.executablePath)
+                    .put("upload", game.uploadId)
+                    .put("version", game.uploadVersion)
+                    .put("uploaded", game.uploadedAt)
+                    .put("size", game.uploadSize),
             )
         }
         prefs(context).edit().putString(KEY_INSTALLED, array.toString()).apply()

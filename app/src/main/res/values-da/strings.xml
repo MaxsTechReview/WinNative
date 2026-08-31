@@ -2599,4 +2599,6 @@ Installeret sti:
     <string name="itch_store_controller_unsupported">Understøttes ikke</string>
     <string name="itch_store_tags">Tags</string>
     <string name="itch_facet_gamepad">Gamepad</string>
+    <string name="itch_store_update_none">Opdateret</string>
+    <string name="itch_store_update_available">Opdatering tilgængelig — %1$s</string>
 </resources>

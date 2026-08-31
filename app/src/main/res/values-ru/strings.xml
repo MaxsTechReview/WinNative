@@ -2504,4 +2504,6 @@
     <string name="itch_store_controller_unsupported">Не поддерживается</string>
     <string name="itch_store_tags">Теги</string>
     <string name="itch_facet_gamepad">Геймпад</string>
+    <string name="itch_store_update_none">Актуальная версия</string>
+    <string name="itch_store_update_available">Доступно обновление — %1$s</string>
 </resources>

@@ -2597,4 +2597,6 @@
     <string name="itch_store_controller_unsupported">ไม่รองรับ</string>
     <string name="itch_store_tags">แท็ก</string>
     <string name="itch_facet_gamepad">เกมแพด</string>
+    <string name="itch_store_update_none">เป็นเวอร์ชันล่าสุด</string>
+    <string name="itch_store_update_available">มีอัปเดต — %1$s</string>
 </resources>

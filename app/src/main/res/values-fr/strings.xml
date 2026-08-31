@@ -2598,5 +2598,7 @@ Chemin installé :
     <string name="itch_store_controller_unsupported">Non pris en charge</string>
     <string name="itch_store_tags">Tags</string>
     <string name="itch_facet_gamepad">Manette</string>
+    <string name="itch_store_update_none">À jour</string>
+    <string name="itch_store_update_available">Mise à jour disponible — %1$s</string>
 </resources>
 

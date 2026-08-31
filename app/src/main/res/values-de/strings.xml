@@ -2599,4 +2599,6 @@ Installierter Pfad:
     <string name="itch_store_controller_unsupported">Nicht unterstützt</string>
     <string name="itch_store_tags">Tags</string>
     <string name="itch_facet_gamepad">Gamepad</string>
+    <string name="itch_store_update_none">Aktuell</string>
+    <string name="itch_store_update_available">Update verfügbar — %1$s</string>
 </resources>

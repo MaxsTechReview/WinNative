@@ -2597,4 +2597,6 @@ Installerad sökväg:
     <string name="itch_store_controller_unsupported">Stöds inte</string>
     <string name="itch_store_tags">Taggar</string>
     <string name="itch_facet_gamepad">Handkontroll</string>
+    <string name="itch_store_update_none">Uppdaterad</string>
+    <string name="itch_store_update_available">Uppdatering tillgänglig — %1$s</string>
 </resources>

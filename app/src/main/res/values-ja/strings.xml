@@ -2597,4 +2597,6 @@
     <string name="itch_store_controller_unsupported">非対応</string>
     <string name="itch_store_tags">タグ</string>
     <string name="itch_facet_gamepad">ゲームパッド</string>
+    <string name="itch_store_update_none">最新です</string>
+    <string name="itch_store_update_available">アップデートあり — %1$s</string>
 </resources>

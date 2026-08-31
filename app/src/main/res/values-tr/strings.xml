@@ -2597,4 +2597,6 @@ Yüklü konum:
     <string name="itch_store_controller_unsupported">Desteklenmiyor</string>
     <string name="itch_store_tags">Etiketler</string>
     <string name="itch_facet_gamepad">Gamepad</string>
+    <string name="itch_store_update_none">Güncel</string>
+    <string name="itch_store_update_available">Güncelleme mevcut — %1$s</string>
 </resources>

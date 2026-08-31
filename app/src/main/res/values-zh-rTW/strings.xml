@@ -2597,5 +2597,7 @@
     <string name="itch_store_controller_unsupported">不支援</string>
     <string name="itch_store_tags">標籤</string>
     <string name="itch_facet_gamepad">手把</string>
+    <string name="itch_store_update_none">已是最新</string>
+    <string name="itch_store_update_available">有可用更新 — %1$s</string>
 </resources>
 

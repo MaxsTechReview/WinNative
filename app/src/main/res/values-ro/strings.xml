@@ -2597,5 +2597,7 @@ Cale instalata:
     <string name="itch_store_controller_unsupported">Nu este acceptat</string>
     <string name="itch_store_tags">Etichete</string>
     <string name="itch_facet_gamepad">Gamepad</string>
+    <string name="itch_store_update_none">La zi</string>
+    <string name="itch_store_update_available">Actualizare disponibilă — %1$s</string>
 </resources>
 

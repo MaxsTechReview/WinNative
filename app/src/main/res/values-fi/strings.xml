@@ -2597,4 +2597,6 @@ Asennuspolku:
     <string name="itch_store_controller_unsupported">Ei tuettu</string>
     <string name="itch_store_tags">Tunnisteet</string>
     <string name="itch_facet_gamepad">Peliohjain</string>
+    <string name="itch_store_update_none">Ajan tasalla</string>
+    <string name="itch_store_update_available">Päivitys saatavilla — %1$s</string>
 </resources>

@@ -83,6 +83,7 @@ import com.winlator.cmod.feature.stores.itch.data.ItchBrowseFilter
 import com.winlator.cmod.feature.stores.itch.data.ItchFacet
 import com.winlator.cmod.feature.stores.itch.data.ItchGame
 import com.winlator.cmod.feature.stores.itch.data.ItchGameDetails
+import com.winlator.cmod.feature.stores.itch.data.ItchUpdateInfo
 import com.winlator.cmod.feature.stores.itch.data.ItchUpload
 import com.winlator.cmod.feature.stores.itch.service.ItchCatalog
 import com.winlator.cmod.feature.stores.itch.service.ItchConstants
@@ -633,6 +634,9 @@ internal fun UnifiedActivity.ItchGameDialog(
     var uploadsError by remember(game.id) { mutableStateOf<String?>(null) }
     var selectedUploadId by remember(game.id) { mutableStateOf<Long?>(null) }
     var busy by remember(game.id) { mutableStateOf(false) }
+    var checkingUpdate by remember(game.id) { mutableStateOf(false) }
+    var updateInfo by remember(game.id) { mutableStateOf<ItchUpdateInfo?>(null) }
+    var updateStatus by remember(game.id) { mutableStateOf<String?>(null) }
 
     LaunchedEffect(game.id) {
         try {
@@ -664,6 +668,12 @@ internal fun UnifiedActivity.ItchGameDialog(
                 0L
             }
         }
+    val updateCheckFailed = stringResource(R.string.store_game_update_check_failed)
+    val updateUpToDate = stringResource(R.string.itch_store_update_none)
+    val updateAvailableTemplate = stringResource(R.string.itch_store_update_available)
+    val updateAvailableText: (String) -> String = { label ->
+        if (label.isBlank()) updateAvailableTemplate.format("") else updateAvailableTemplate.format(label)
+    }
     val controllerLabel = stringResource(R.string.itch_store_controller)
     val controllerNotListed = stringResource(R.string.itch_store_controller_not_listed)
     val controllerUnsupported = stringResource(R.string.itch_store_controller_unsupported)
@@ -739,13 +749,60 @@ internal fun UnifiedActivity.ItchGameDialog(
                 showCloudSync = false,
                 showUninstall = installed,
                 uninstallAsPrimaryAction = true,
-                showUpdateCheck = false,
+                showUpdateCheck = installed,
+                isCheckingForUpdate = checkingUpdate,
+                isUpdateAvailable = updateInfo?.available == true,
+                updateDownloadSize = updateInfo?.upload?.sizeBytes ?: 0L,
+                updateStatusText = updateStatus,
+                isUpdateActionEnabled = !busy,
                 showVerifyFiles = false,
                 branches = uploadOptions,
                 selectedBranchId = selectedUploadId?.toString().orEmpty(),
                 isBranchSelectionEnabled = !busy,
                 onSelectBranch = { id -> selectedUploadId = id.toLongOrNull() },
                 onBack = onDismiss,
+                onCheckForUpdate = {
+                    checkingUpdate = true
+                    updateStatus = null
+                    context.runIfOnlineOrToast {
+                        scope.launch {
+                            updateInfo =
+                                try {
+                                    ItchService.checkForUpdate(context, game)
+                                } catch (cancelled: CancellationException) {
+                                    checkingUpdate = false
+                                    throw cancelled
+                                } catch (_: Throwable) {
+                                    null
+                                }
+                            updateStatus =
+                                when {
+                                    updateInfo == null -> updateCheckFailed
+                                    updateInfo?.available == true -> updateAvailableText(updateInfo?.latestLabel.orEmpty())
+                                    else -> updateUpToDate
+                                }
+                            checkingUpdate = false
+                        }
+                    }
+                },
+                onDownloadUpdate = {
+                    val upload = updateInfo?.upload ?: return@StoreGameDetailScreen
+                    busy = true
+                    context.runIfOnlineOrToast {
+                        scope.launch {
+                            ItchService.download(context, game, upload)
+                            WinToast.show(
+                                context,
+                                getString(R.string.itch_store_download_started, game.title),
+                                android.widget.Toast.LENGTH_SHORT,
+                            )
+                            updateInfo = null
+                            updateStatus = null
+                            busy = false
+                            onDismiss()
+                        }
+                    }
+                },
                 onInstall = {
                     val upload = selectedUpload ?: return@StoreGameDetailScreen
                     busy = true

@@ -2534,4 +2534,6 @@
     <string name="itch_store_controller_unsupported">समर्थित नहीं</string>
     <string name="itch_store_tags">टैग</string>
     <string name="itch_facet_gamepad">गेमपैड</string>
+    <string name="itch_store_update_none">अद्यतित</string>
+    <string name="itch_store_update_available">अपडेट उपलब्ध — %1$s</string>
 </resources>

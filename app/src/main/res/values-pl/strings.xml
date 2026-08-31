@@ -2604,5 +2604,7 @@ Zainstalowana ścieżka:
     <string name="itch_store_controller_unsupported">Nieobsługiwany</string>
     <string name="itch_store_tags">Tagi</string>
     <string name="itch_facet_gamepad">Gamepad</string>
+    <string name="itch_store_update_none">Aktualna wersja</string>
+    <string name="itch_store_update_available">Dostępna aktualizacja — %1$s</string>
 </resources>
 

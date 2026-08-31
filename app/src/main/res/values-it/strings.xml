@@ -2598,5 +2598,7 @@ Percorso installato:
     <string name="itch_store_controller_unsupported">Non supportato</string>
     <string name="itch_store_tags">Tag</string>
     <string name="itch_facet_gamepad">Gamepad</string>
+    <string name="itch_store_update_none">Aggiornato</string>
+    <string name="itch_store_update_available">Aggiornamento disponibile — %1$s</string>
 </resources>
 

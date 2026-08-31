@@ -5,6 +5,7 @@ import com.winlator.cmod.app.db.download.DownloadRecord
 import com.winlator.cmod.app.service.download.DownloadCoordinator
 import com.winlator.cmod.feature.stores.itch.data.ItchBrowseFilter
 import com.winlator.cmod.feature.stores.itch.data.ItchGame
+import com.winlator.cmod.feature.stores.itch.data.ItchUpdateInfo
 import com.winlator.cmod.feature.stores.itch.data.ItchGameDetails
 import com.winlator.cmod.feature.stores.itch.data.ItchUpload
 import com.winlator.cmod.feature.stores.steam.data.DownloadInfo
@@ -121,6 +122,34 @@ object ItchService {
     }
 
     fun installedIds(context: Context): Set<Int> = ItchLibrary.installedIds(context)
+
+    suspend fun checkForUpdate(
+        context: Context,
+        game: ItchGame,
+    ): ItchUpdateInfo =
+        withContext(Dispatchers.IO) {
+            val entry = ItchLibrary.find(context, game.id)
+            val uploads = uploads(context, game)
+            val latest =
+                uploads.firstOrNull { it.id == entry?.uploadId && entry.uploadId != 0L }
+                    ?: ItchCatalog.pickWindowsUpload(uploads)
+            if (entry == null || latest == null) {
+                return@withContext ItchUpdateInfo(false, null, "", latest?.buildLabel.orEmpty())
+            }
+            val known = entry.uploadId != 0L || entry.uploadedAt.isNotEmpty()
+            val changed =
+                when {
+                    !known -> true
+                    entry.uploadId != 0L && latest.id != entry.uploadId -> true
+                    entry.uploadedAt.isNotEmpty() && latest.uploadedAt.isNotEmpty() &&
+                        latest.uploadedAt != entry.uploadedAt -> true
+                    entry.uploadVersion.isNotEmpty() && latest.version.isNotEmpty() &&
+                        latest.version != entry.uploadVersion -> true
+                    entry.uploadSize > 0L && latest.sizeBytes > 0L && latest.sizeBytes != entry.uploadSize -> true
+                    else -> false
+                }
+            ItchUpdateInfo(changed, latest.takeIf { changed }, entry.buildLabel, latest.buildLabel)
+        }
 
     fun installedGameId(
         context: Context,

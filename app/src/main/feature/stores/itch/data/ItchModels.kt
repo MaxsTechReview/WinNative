@@ -38,7 +38,18 @@ data class ItchUpload(
     val sizeLabel: String,
     val sizeBytes: Long,
     val version: String,
+    val uploadedAt: String = "",
     val platforms: Set<ItchPlatform>,
+) {
+    val buildLabel: String
+        get() = listOf(version, uploadedAt).firstOrNull { it.isNotBlank() } ?: fileName
+}
+
+data class ItchUpdateInfo(
+    val available: Boolean,
+    val upload: ItchUpload?,
+    val installedLabel: String,
+    val latestLabel: String,
 )
 
 data class ItchInput(

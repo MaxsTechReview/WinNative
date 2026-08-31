@@ -28,6 +28,7 @@ object ItchCatalog {
     private val strongTagRegex = Regex("<strong([^>]*)>")
     private val uploadSizeRegex = Regex("class=\"file_size\"><span>([^<]*)</span>")
     private val uploadVersionRegex = Regex("class=\"version_name\">([^<]*)</span>")
+    private val uploadDateRegex = Regex("class=\"upload_date\">.*?<abbr[^>]*title=\"([^\"]*)\"", RegexOption.DOT_MATCHES_ALL)
     private val downloadForRegex = Regex("title=\"Download for ([^\"]+)\"")
     private val screenshotRegex = Regex("<img[^>]*class=\"screenshot\"[^>]*>")
     private val metaTagRegex = Regex("<meta([^>]*)>")
@@ -183,6 +184,7 @@ object ItchCatalog {
                     sizeLabel = sizeLabel,
                     sizeBytes = parseSize(sizeLabel),
                     version = uploadVersionRegex.find(block)?.groupValues?.get(1)?.let(::decode)?.trim().orEmpty(),
+                    uploadedAt = uploadDateRegex.find(block)?.groupValues?.get(1)?.let(::decode)?.trim().orEmpty(),
                     platforms =
                         downloadForRegex
                             .findAll(block)

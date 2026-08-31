@@ -48,10 +48,13 @@ class ItchDownloadManager(
         game: ItchGame,
         upload: ItchUpload,
     ) {
-        val installPath = ItchConstants.gameInstallPath(context, game.title)
+        val existing = ItchLibrary.find(context, game.id)
+        val installPath =
+            existing?.installPath?.takeIf { it.isNotBlank() }
+                ?: ItchConstants.gameInstallPath(context, game.title)
         pending[game.id] = Request(game, upload, installPath)
         ItchDownloadRequestStore.put(context, game, upload, installPath)
-        ItchLibrary.record(context, game, installPath, "")
+        if (existing == null) ItchLibrary.record(context, game, installPath, "")
         val info =
             activeDownloads.getOrPut(game.id.toString()) {
                 DownloadInfo(jobCount = 1, gameId = game.id, downloadingAppIds = CopyOnWriteArrayList())
@@ -201,10 +204,10 @@ class ItchDownloadManager(
                 com.winlator.cmod.app.shell
                     .addCustomGame(context, game.title, executable.absolutePath, installDir.absolutePath, coverArt)
                 coverArt?.delete()
-                ItchLibrary.record(context, game, installDir.absolutePath, executable.absolutePath)
+                ItchLibrary.record(context, game, installDir.absolutePath, executable.absolutePath, upload)
                 info.updateStatus(DownloadPhase.COMPLETE, context.getString(com.winlator.cmod.R.string.itch_store_status_added))
             } else {
-                ItchLibrary.record(context, game, installDir.absolutePath, "")
+                ItchLibrary.record(context, game, installDir.absolutePath, "", upload)
                 info.updateStatus(DownloadPhase.COMPLETE, context.getString(com.winlator.cmod.R.string.itch_store_status_no_executable))
             }
             info.setActive(false)

@@ -2597,4 +2597,6 @@ Ruta instalada:
     <string name="itch_store_controller_unsupported">No compatible</string>
     <string name="itch_store_tags">Etiquetas</string>
     <string name="itch_facet_gamepad">Control</string>
+    <string name="itch_store_update_none">Actualizado</string>
+    <string name="itch_store_update_available">Actualización disponible — %1$s</string>
 </resources>
