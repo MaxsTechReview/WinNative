@@ -7422,11 +7422,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                     Log.i("XServerDisplayActivity",
                             "Steam Launcher: PROTON_DISABLE_LSTEAMCLIENT=1 "
                             + "(bypass ntdll lsteamclient hooks for Proton 10+)");
-                    envVars.remove("SteamClientService");
-                    Log.i("XServerDisplayActivity",
-                            "Steam Launcher: unset SteamClientService (the bionic bridge's "
-                            + "TCP endpoint) so Valve's client uses its own Steam Service "
-                            + "connection instead of dialling a port nothing serves");
                     String planWUser = com.winlator.cmod.feature.stores.steam.utils
                             .PrefManager.INSTANCE.getUsername();
                     String planWSid  = String.valueOf(com.winlator.cmod.feature.stores.steam.utils
