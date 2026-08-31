@@ -412,8 +412,10 @@ object WnSteamAssetsInstaller {
         File(steamDir, "wn-steam-launcher.exe").let { if (it.exists()) it.delete() }
 
         val marker32 = File(context.filesDir, ".wn_steam_agent_32")
-        val use32 = marker32.isFile ||
-            com.winlator.cmod.feature.stores.steam.utils.PrefManager.wnSteamAgent32
+        val marker64 = File(context.filesDir, ".wn_steam_agent_64")
+        val use32 = !marker64.isFile &&
+            (marker32.isFile ||
+                com.winlator.cmod.feature.stores.steam.utils.PrefManager.wnSteamAgent32)
         val agentAsset = if (use32) "$ASSET_DIR/bionic/steam32.exe" else "$ASSET_DIR/bionic/steam.exe"
         val archTag = if (use32) "x86" else "x86_64"
         val apkId = apkStamp(context) + ":" + archTag

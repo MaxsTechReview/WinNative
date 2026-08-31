@@ -183,7 +183,7 @@ object PrefManager {
 
 
     var wnSteamAgent32: Boolean
-        get() = getBoolean("wn_steam_agent_32", true)
+        get() = getBoolean("wn_steam_agent_32", false)
         set(value) {
             setBoolean("wn_steam_agent_32", value)
         }
