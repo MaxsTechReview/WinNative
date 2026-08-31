@@ -334,6 +334,46 @@ never within one. Any code that keys interfaces by ipc id alone will mis-dispatc
 
 Machine-readable: [`steam-engine-getters.json`](steam-engine-getters.json).
 
+## 7b. The Steam Service is 32-bit only — and that decides the agent's bitness
+
+`steamservice.dll` is **i386, and Valve ships no 64-bit build**. Every copy across every client
+version pulled to this machine (78 files, spanning several client releases) is machine `0x14c`.
+`Steam.dll` and `Steam2.dll` are likewise 32-bit only, while `steamclient` / `tier0_s` / `vstdlib_s`
+each ship both bitnesses.
+
+That asymmetry is the shape of the real product: Valve's client host process (`steam.exe`) is
+**32-bit**. `steamclient64.dll` exists to be loaded into 64-bit *game* processes, which then talk IPC
+back to the 32-bit client. A device log confirms the game does exactly that on its own —
+`gamemodules: pid=484 steamclient64.dll <- C:\Program Files (x86)\Steam\steamclient64.dll`.
+
+**Consequence for the service pipe.** The client reaches the service by loading `steamservice.dll`
+in-process and calling its `CreateInterface`; the channel to the elevated host is a
+`CCrossProcessPipe` (`src/common/processpipe_any.cpp`) — an anonymous pipe with inherited handles,
+created by the client as part of that sequence. It is **not** a named pipe that anything external can
+pre-create or provision. So when the host is 64-bit:
+
+```
+Failed to create Service pipe (GLE 2)            ERROR_FILE_NOT_FOUND
+Failed to connect to Steam Service (GLE 131)
+Failed to load Steam Service (GLE 193)           ERROR_BAD_EXE_FORMAT
+```
+
+and the five service-side interfaces (§7a) are unreachable. Measured, agent bitness is the only
+variable:
+
+| Agent host | `preload steamservice.dll` |
+|---|---|
+| 32-bit | `ok (79420000)` |
+| 64-bit | `FAIL GLE=193` |
+
+**There is no fix that keeps a 64-bit host.** The client host must be 32-bit, which is also what
+Valve ships. `PrefManager.wnSteamAgent32` therefore defaults to `true`; the `.wn_steam_agent_64`
+marker forces the 64-bit agent for experiments and gives up the Steam Service in exchange.
+
+The client also validates a live service by round-tripping a `TestServiceTime` value under
+`Software\Valve\SteamService` *through the service connection* — so that key appearing in the
+prefix is a symptom of the handshake, not something to seed by hand.
+
 ## 8. Defect this map exposed
 
 `kVtAppMgr_RefreshAppInfo = 83` was wrong. `IClientAppManager` slot 83 is **`RefreshLibraryFolders`**,
