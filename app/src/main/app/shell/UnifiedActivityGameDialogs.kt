@@ -191,6 +191,7 @@ import com.winlator.cmod.feature.stores.gog.service.GOGManifestSizes
 import com.winlator.cmod.feature.stores.gog.service.GOGService
 import com.winlator.cmod.feature.stores.gog.service.GOGUpdateInfo
 import com.winlator.cmod.feature.stores.gog.ui.auth.GOGOAuthActivity
+import com.winlator.cmod.feature.stores.itch.service.ItchLibrary
 import com.winlator.cmod.feature.stores.itch.service.ItchService
 import com.winlator.cmod.feature.stores.steam.SteamLoginActivity
 import com.winlator.cmod.feature.stores.steam.data.DepotInfo
@@ -1729,6 +1730,17 @@ internal fun UnifiedActivity.LibraryGameDetailDialog(
                 null
             }
     }
+    val isItchGame = itchGameId != null
+    val itchSourceLabel = if (isItchGame) stringResource(R.string.itch_store_title) else null
+    val itchAuthor =
+        remember(itchGameId) {
+            itchGameId
+                ?.let { ItchLibrary.find(context, it) }
+                ?.url
+                ?.substringAfter("https://")
+                ?.substringBefore(".itch.io")
+                ?.takeIf { it.isNotBlank() }
+        }
 
     var steamBranches by remember(app.id) { mutableStateOf<List<StoreBranchOption>>(emptyList()) }
     var selectedSteamBranch by remember(app.id) { mutableStateOf(STEAM_DEFAULT_BRANCH) }
@@ -1943,7 +1955,7 @@ internal fun UnifiedActivity.LibraryGameDetailDialog(
             }
 
             isCustom -> {
-                stringResource(R.string.library_games_custom_game)
+                itchAuthor ?: stringResource(R.string.library_games_custom_game)
             }
 
             isEpic -> {
@@ -1986,6 +1998,7 @@ internal fun UnifiedActivity.LibraryGameDetailDialog(
                             .fromId(it)
                             ?.badgeLabel
                     }
+                    ?: itchSourceLabel
                     ?: "Custom"
             else -> "Steam"
         }
@@ -2714,18 +2727,25 @@ internal fun UnifiedActivity.LibraryGameDetailDialog(
                                             com.winlator.cmod.feature.retro.RetroAchievementsManager.isHardcorePreferred(context)
                                     ),
                                 onUninstall = uninstallGame,
-                                steamMenuEnabled = !isCustom &&
-                                    (!isEpic || epicGame?.isInstalled == true) &&
-                                    (!isGog || gogGame?.isInstalled == true),
+                                steamMenuEnabled = (isCustom && isItchGame) ||
+                                    (
+                                        !isCustom &&
+                                            (!isEpic || epicGame?.isInstalled == true) &&
+                                            (!isGog || gogGame?.isInstalled == true)
+                                    ),
                                 showVerifyFiles = !isCustom &&
                                     (!isEpic || epicGame?.isInstalled == true) &&
                                     (!isGog || gogGame?.isInstalled == true),
-                                showCheckForUpdate = !isCustom &&
-                                    (!isEpic || epicGame?.isInstalled == true) &&
-                                    (!isGog || gogGame?.isInstalled == true),
+                                showCheckForUpdate = (isCustom && isItchGame) ||
+                                    (
+                                        !isCustom &&
+                                            (!isEpic || epicGame?.isInstalled == true) &&
+                                            (!isGog || gogGame?.isInstalled == true)
+                                    ),
                                 showWorkshop = !isCustom && !isEpic && !isGog,
                                 areSteamActionsEnabled =
                                     when {
+                                        isCustom && isItchGame -> true
                                         isEpic -> !hasBlockingEpicDownloadForLibrary
                                         isGog -> !hasBlockingGogDownloadForLibrary
                                         else -> !hasBlockingSteamDownloadForLibrary
@@ -2762,6 +2782,7 @@ internal fun UnifiedActivity.LibraryGameDetailDialog(
                                 },
                                 onCheckForUpdate = {
                                     when {
+                                        isCustom && isItchGame -> startItchUpdateCheck(itchGameId!!, app.name)
                                         isEpic -> startEpicUpdateCheck(epicId, app.name)
                                         isGog -> startGogUpdateCheck(gogGame!!.id, gogGame.title)
                                         else -> startUpdateCheck(app.id, app.name)

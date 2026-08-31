@@ -151,6 +151,33 @@ object ItchService {
             ItchUpdateInfo(changed, latest.takeIf { changed }, entry.buildLabel, latest.buildLabel)
         }
 
+    suspend fun checkInstalledForUpdate(
+        context: Context,
+        gameId: Int,
+    ): ItchUpdateInfo? {
+        val game = installedGame(context, gameId) ?: return null
+        return checkForUpdate(context, game)
+    }
+
+    fun downloadInstalledUpdate(
+        context: Context,
+        gameId: Int,
+        upload: ItchUpload,
+    ): Boolean {
+        val game = installedGame(context, gameId) ?: return false
+        download(context, game, upload)
+        return true
+    }
+
+    private fun installedGame(
+        context: Context,
+        gameId: Int,
+    ): ItchGame? {
+        val entry = ItchLibrary.find(context, gameId) ?: return null
+        if (entry.url.isBlank()) return null
+        return ItchGame(id = entry.id, title = entry.title, url = entry.url, coverUrl = entry.coverUrl)
+    }
+
     fun installedGameId(
         context: Context,
         installFolder: String,
@@ -187,6 +214,8 @@ object ItchService {
     }
 
     fun getAllDownloads(): Map<String, DownloadInfo> = manager?.activeDownloads?.toMap() ?: emptyMap()
+
+    fun downloadInfo(gameId: Int): DownloadInfo? = manager?.activeDownloads?.get(gameId.toString())
 
     fun pauseDownload(gameId: String) {
         DownloadCoordinator.runOnScope { DownloadCoordinator.pause(DownloadRecord.STORE_ITCH, gameId) }
