@@ -122,6 +122,19 @@ object ItchService {
 
     fun installedIds(context: Context): Set<Int> = ItchLibrary.installedIds(context)
 
+    fun installedGameId(
+        context: Context,
+        installFolder: String,
+        title: String,
+    ): Int? {
+        val entries = ItchLibrary.all(context)
+        val folder = installFolder.trim().trimEnd('/')
+        if (folder.isNotEmpty()) {
+            entries.firstOrNull { it.installPath.trimEnd('/') == folder }?.let { return it.id }
+        }
+        return entries.firstOrNull { it.title.equals(title.trim(), ignoreCase = true) }?.id
+    }
+
     fun uninstall(
         context: Context,
         gameId: Int,
@@ -136,7 +149,11 @@ object ItchService {
             return false
         }
         val removed = runCatching { dir.deleteRecursively() }.getOrDefault(false)
-        if (removed) ItchLibrary.remove(context, gameId)
+        if (removed) {
+            com.winlator.cmod.app.shell
+                .removeCustomGame(context, entry.installPath)
+            ItchLibrary.remove(context, gameId)
+        }
         return removed
     }
 

@@ -1,5 +1,8 @@
 package com.winlator.cmod.feature.stores.itch.data
 
+import androidx.annotation.StringRes
+import com.winlator.cmod.R
+
 enum class ItchPlatform {
     WINDOWS,
     LINUX,
@@ -50,59 +53,63 @@ data class ItchGameDetails(
 
 data class ItchFacet(
     val segment: String,
-    val label: String,
+    @StringRes val labelRes: Int,
     val kind: Kind = Kind.SORT,
 ) {
-    enum class Kind { SORT, GENRE, TAG, OWNED }
+    enum class Kind { ALL, SORT, GENRE, TAG, OWNED }
 
     companion object {
-        val POPULAR = ItchFacet("", "Popular")
-        val OWNED = ItchFacet("owned", "Owned", Kind.OWNED)
+        val ALL = ItchFacet("", R.string.itch_facet_all, Kind.ALL)
+        val OWNED = ItchFacet("owned", R.string.itch_facet_owned, Kind.OWNED)
+        val POPULAR = ItchFacet("", R.string.itch_facet_popular)
 
         private val BROWSABLE =
             listOf(
                 POPULAR,
-                ItchFacet("new-and-popular", "New & Popular"),
-                ItchFacet("newest", "Newest"),
-                ItchFacet("top-rated", "Top Rated"),
-                ItchFacet("top-sellers", "Top Sellers"),
-                ItchFacet("genre-action", "Action", Kind.GENRE),
-                ItchFacet("genre-adventure", "Adventure", Kind.GENRE),
-                ItchFacet("genre-rpg", "RPG", Kind.GENRE),
-                ItchFacet("genre-platformer", "Platformer", Kind.GENRE),
-                ItchFacet("genre-shooter", "Shooter", Kind.GENRE),
-                ItchFacet("genre-puzzle", "Puzzle", Kind.GENRE),
-                ItchFacet("genre-simulation", "Simulation", Kind.GENRE),
-                ItchFacet("genre-strategy", "Strategy", Kind.GENRE),
-                ItchFacet("genre-sports", "Sports", Kind.GENRE),
-                ItchFacet("genre-visual-novel", "Visual Novel", Kind.GENRE),
-                ItchFacet("tag-horror", "Horror", Kind.TAG),
-                ItchFacet("tag-pixel-art", "Pixel Art", Kind.TAG),
-                ItchFacet("tag-2d", "2D", Kind.TAG),
-                ItchFacet("tag-3d", "3D", Kind.TAG),
-                ItchFacet("tag-roguelike", "Roguelike", Kind.TAG),
-                ItchFacet("tag-multiplayer", "Multiplayer", Kind.TAG),
-                ItchFacet("tag-anime", "Anime", Kind.TAG),
-                ItchFacet("tag-retro", "Retro", Kind.TAG),
-                ItchFacet("tag-story-rich", "Story Rich", Kind.TAG),
-                ItchFacet("tag-sandbox", "Sandbox", Kind.TAG),
-                ItchFacet("tag-fangame", "Fangame", Kind.TAG),
+                ItchFacet("new-and-popular", R.string.itch_facet_new_and_popular),
+                ItchFacet("newest", R.string.itch_facet_newest),
+                ItchFacet("top-rated", R.string.itch_facet_top_rated),
+                ItchFacet("top-sellers", R.string.itch_facet_top_sellers),
+                ItchFacet("genre-action", R.string.itch_facet_action, Kind.GENRE),
+                ItchFacet("genre-adventure", R.string.itch_facet_adventure, Kind.GENRE),
+                ItchFacet("genre-rpg", R.string.itch_facet_rpg, Kind.GENRE),
+                ItchFacet("genre-platformer", R.string.itch_facet_platformer, Kind.GENRE),
+                ItchFacet("genre-shooter", R.string.itch_facet_shooter, Kind.GENRE),
+                ItchFacet("genre-puzzle", R.string.itch_facet_puzzle, Kind.GENRE),
+                ItchFacet("genre-simulation", R.string.itch_facet_simulation, Kind.GENRE),
+                ItchFacet("genre-strategy", R.string.itch_facet_strategy, Kind.GENRE),
+                ItchFacet("genre-sports", R.string.itch_facet_sports, Kind.GENRE),
+                ItchFacet("genre-visual-novel", R.string.itch_facet_visual_novel, Kind.GENRE),
+                ItchFacet("tag-horror", R.string.itch_facet_horror, Kind.TAG),
+                ItchFacet("tag-pixel-art", R.string.itch_facet_pixel_art, Kind.TAG),
+                ItchFacet("tag-2d", R.string.itch_facet_2d, Kind.TAG),
+                ItchFacet("tag-3d", R.string.itch_facet_3d, Kind.TAG),
+                ItchFacet("tag-roguelike", R.string.itch_facet_roguelike, Kind.TAG),
+                ItchFacet("tag-multiplayer", R.string.itch_facet_multiplayer, Kind.TAG),
+                ItchFacet("tag-anime", R.string.itch_facet_anime, Kind.TAG),
+                ItchFacet("tag-retro", R.string.itch_facet_retro, Kind.TAG),
+                ItchFacet("tag-story-rich", R.string.itch_facet_story_rich, Kind.TAG),
+                ItchFacet("tag-sandbox", R.string.itch_facet_sandbox, Kind.TAG),
+                ItchFacet("tag-fangame", R.string.itch_facet_fangame, Kind.TAG),
             )
 
-        fun visible(signedIn: Boolean): List<ItchFacet> = if (signedIn) listOf(POPULAR, OWNED) + BROWSABLE.drop(1) else BROWSABLE
+        fun visible(signedIn: Boolean): List<ItchFacet> =
+            if (signedIn) listOf(ALL, OWNED) + BROWSABLE else listOf(ALL) + BROWSABLE
     }
 }
 
 data class ItchBrowseFilter(
-    val facet: ItchFacet = ItchFacet.POPULAR,
+    val facet: ItchFacet = ItchFacet.ALL,
     val windowsOnly: Boolean = true,
 ) {
     val isOwned: Boolean get() = facet.kind == ItchFacet.Kind.OWNED
 
+    val isAll: Boolean get() = facet.kind == ItchFacet.Kind.ALL
+
     fun toPath(): String {
         val segments =
             when (facet.kind) {
-                ItchFacet.Kind.OWNED -> listOf(FREE_SEGMENT)
+                ItchFacet.Kind.OWNED, ItchFacet.Kind.ALL -> listOf(FREE_SEGMENT)
                 ItchFacet.Kind.SORT -> listOf(facet.segment, FREE_SEGMENT)
                 else -> listOf(FREE_SEGMENT, facet.segment)
             }.filter { it.isNotEmpty() }

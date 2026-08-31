@@ -1261,6 +1261,7 @@ internal fun addCustomGame(
     name: String,
     exePath: String,
     gameFolderPath: String,
+    coverArt: java.io.File? = null,
 ) {
     val containerManager = ContainerManager(context)
     val container = SetupWizardActivity.getPreferredGameContainer(context, containerManager)
@@ -1287,7 +1288,10 @@ internal fun addCustomGame(
     val preferences: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
     val extractedArtworkPath =
         try {
-            if (PeIconExtractor.extractAndSave(java.io.File(exePath), iconOutFile)) {
+            if (coverArt != null && coverArt.isFile) {
+                coverArt.copyTo(iconOutFile, overwrite = true)
+                iconOutFile.absolutePath
+            } else if (PeIconExtractor.extractAndSave(java.io.File(exePath), iconOutFile)) {
                 iconOutFile.absolutePath
             } else {
                 null
@@ -1313,11 +1317,28 @@ internal fun addCustomGame(
     com.winlator.cmod.shared.io.FileUtils
         .writeString(shortcutFile, content.toString())
     container.saveData()
-    if (preferences.getBoolean("enable_auto_scraping", false)) {
+    if (coverArt == null && preferences.getBoolean("enable_auto_scraping", false)) {
         CoroutineScope(Dispatchers.IO).launch {
             scrapeCustomGameArtwork(context, name, shortcutUuid, container, shortcutFile)
         }
     }
+}
+
+internal fun removeCustomGame(
+    context: android.content.Context,
+    gameFolderPath: String,
+): Boolean {
+    if (gameFolderPath.isBlank()) return false
+    val target = java.io.File(gameFolderPath).absolutePath.trimEnd('/')
+    val shortcuts = runCatching { ContainerManager(context).loadShortcuts() }.getOrDefault(emptyList())
+    val matches =
+        shortcuts.filter { shortcut ->
+            shortcut.getExtra("game_source") == "CUSTOM" &&
+                shortcut.getExtra("custom_game_folder").trimEnd('/') == target
+        }
+    matches.forEach { LibraryShortcutUtils.deleteShortcutArtifacts(context, it) }
+    if (matches.isNotEmpty()) UnifiedActivity.refreshLibrary()
+    return matches.isNotEmpty()
 }
 
 @Composable

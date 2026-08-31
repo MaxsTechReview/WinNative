@@ -255,6 +255,8 @@ import kotlin.math.roundToInt
 
 // Downloads tab + queue/progress UI + game/workshop managers, split out of UnifiedActivity.kt (behavior-identical).
 
+private const val LIVE_PROGRESS_TICK_MS = 250L
+
 // Downloads Tab
 @Composable
 internal fun UnifiedActivity.DownloadsTab(
@@ -315,6 +317,16 @@ internal fun UnifiedActivity.DownloadsTab(
     LaunchedEffect(syncDownloads) {
         DownloadCoordinator.changes.collect {
             latestSyncDownloads()
+        }
+    }
+
+    val hasLiveTransfer = downloads.any { (_, info) -> info.isActive() }
+
+    LaunchedEffect(hasLiveTransfer) {
+        if (!hasLiveTransfer) return@LaunchedEffect
+        while (true) {
+            delay(LIVE_PROGRESS_TICK_MS)
+            tick++
         }
     }
 

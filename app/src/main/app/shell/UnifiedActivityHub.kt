@@ -871,6 +871,9 @@ internal fun UnifiedActivity.UnifiedHub() {
                 label = "headerOffset",
             )
             LaunchedEffect(activeTabKey) { headerVisible = true }
+            LaunchedEffect(headerVisible, headerCollapsible) {
+                storeHeaderVisible.value = !headerCollapsible || headerVisible
+            }
             val headerScrollConnection =
                 remember(headerCollapsible, headerCollapseTriggerPx) {
                     object : NestedScrollConnection {

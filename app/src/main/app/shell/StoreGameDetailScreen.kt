@@ -154,6 +154,7 @@ internal fun StoreGameDetailScreen(
     showCustomPath: Boolean = true,
     showCloudSync: Boolean = false,
     showUninstall: Boolean = true,
+    uninstallAsPrimaryAction: Boolean = false,
     showUpdateCheck: Boolean = false,
     isCheckingForUpdate: Boolean = false,
     isUpdateAvailable: Boolean = false,
@@ -229,6 +230,7 @@ internal fun StoreGameDetailScreen(
         val horizontalNavInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
         val hasSelectedInstallableDlc = dlcs.any { !it.isInstalled && it.id in selectedDlcIds }
         val showDownloadCta = !isInstalled || hasSelectedInstallableDlc
+        val showUninstallCta = uninstallAsPrimaryAction && showUninstall && isInstalled
         val updateCheckAvailable = showUpdateCheck && isInstalled
         val showUpdateCta = updateCheckAvailable && isUpdateAvailable
         val verifyFilesAvailable = showVerifyFiles && isInstalled
@@ -560,7 +562,7 @@ internal fun StoreGameDetailScreen(
                                         navCol = 1,
                                     )
                                 }
-                                if (showUninstall && isInstalled) {
+                                if (showUninstall && isInstalled && !showUninstallCta) {
                                     StoreIconActionButton(
                                         icon = Icons.Outlined.Delete,
                                         contentDescription = stringResource(R.string.common_ui_uninstall),
@@ -597,6 +599,21 @@ internal fun StoreGameDetailScreen(
                                     isEntry = true,
                                     navRow = 1,
                                     navCol = 4,
+                                )
+                            }
+
+                            if (showUninstallCta) {
+                                StoreCtaButton(
+                                    height = ctaHeight,
+                                    icon = Icons.Outlined.Delete,
+                                    label = stringResource(R.string.common_ui_uninstall),
+                                    enabled = !isLoading,
+                                    loading = false,
+                                    onClick = onUninstall,
+                                    danger = true,
+                                    isEntry = !showDownloadCta,
+                                    navRow = 1,
+                                    navCol = 5,
                                 )
                             }
                         }
@@ -1475,6 +1492,7 @@ private fun StoreCtaButton(
     loading: Boolean,
     onClick: () -> Unit,
     isEntry: Boolean = false,
+    danger: Boolean = false,
     navRow: Int? = null,
     navCol: Int? = null,
 ) {
@@ -1494,11 +1512,19 @@ private fun StoreCtaButton(
     val activeBrush =
         Brush.horizontalGradient(
             colors =
-                listOf(
-                    Color(0xFF00B4D8).copy(alpha = 0.38f),
-                    StoreAccent.copy(alpha = 0.38f),
-                    Color(0xFF7B2FF7).copy(alpha = 0.38f),
-                ),
+                if (danger) {
+                    listOf(
+                        StoreDanger.copy(alpha = 0.30f),
+                        StoreDanger.copy(alpha = 0.44f),
+                        StoreDanger.copy(alpha = 0.30f),
+                    )
+                } else {
+                    listOf(
+                        Color(0xFF00B4D8).copy(alpha = 0.38f),
+                        StoreAccent.copy(alpha = 0.38f),
+                        Color(0xFF7B2FF7).copy(alpha = 0.38f),
+                    )
+                },
         )
     val disabledBrush =
         Brush.horizontalGradient(

@@ -1,5 +1,6 @@
 package com.winlator.cmod.feature.stores.itch
 
+import com.winlator.cmod.R
 import com.winlator.cmod.feature.stores.itch.data.ItchBrowseFilter
 import com.winlator.cmod.feature.stores.itch.data.ItchFacet
 import org.junit.Assert.assertEquals
@@ -35,6 +36,25 @@ class ItchBrowseFilterTest {
             assertTrue("${entry.segment} produced ${segments.size} segments", segments.size <= 2)
             assertTrue("${entry.segment} lost the free filter", "free" in segments)
         }
+    }
+
+    @Test
+    fun allIsTheDefaultFacetAndLeadsTheChipRow() {
+        assertEquals(ItchFacet.ALL, ItchBrowseFilter().facet)
+        assertEquals(ItchFacet.ALL, ItchFacet.visible(false).first())
+        assertEquals(listOf(ItchFacet.ALL, ItchFacet.OWNED, ItchFacet.POPULAR), ItchFacet.visible(true).take(3))
+        assertEquals(
+            listOf(R.string.itch_facet_all, R.string.itch_facet_popular, R.string.itch_facet_new_and_popular),
+            ItchFacet.visible(false).take(3).map { it.labelRes },
+        )
+    }
+
+    @Test
+    fun allBrowsesFreeGamesAndIsDistinctFromPopular() {
+        assertEquals("games/free", ItchBrowseFilter(ItchFacet.ALL).toPath())
+        assertTrue(ItchBrowseFilter(ItchFacet.ALL).isAll)
+        assertFalse(ItchBrowseFilter(ItchFacet.POPULAR).isAll)
+        assertFalse(ItchFacet.ALL == ItchFacet.POPULAR)
     }
 
     @Test

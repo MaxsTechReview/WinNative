@@ -1,7 +1,13 @@
 package com.winlator.cmod.app.shell
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.focusable
@@ -106,7 +112,7 @@ internal fun UnifiedActivity.ItchStoreTab(
     val gridState = rememberLazyGridState()
 
     val games = remember { mutableStateListOf<ItchGame>() }
-    var facet by remember { mutableStateOf(ItchFacet.POPULAR) }
+    var facet by remember { mutableStateOf(ItchFacet.ALL) }
     var windowsOnly by remember { mutableStateOf(true) }
     var page by remember { mutableIntStateOf(1) }
     var loading by remember { mutableStateOf(true) }
@@ -153,10 +159,10 @@ internal fun UnifiedActivity.ItchStoreTab(
             } else {
                 emptyList()
             }
-        if (!signedIn && facet.kind == ItchFacet.Kind.OWNED) facet = ItchFacet.POPULAR
+        if (!signedIn && facet.kind == ItchFacet.Kind.OWNED) facet = ItchFacet.ALL
     }
 
-    LaunchedEffect(reloadKey) {
+    LaunchedEffect(reloadKey, activity?.libraryRefreshSignal) {
         installedIds = withContext(Dispatchers.IO) { ItchService.installedIds(context) }
     }
 
@@ -180,8 +186,9 @@ internal fun UnifiedActivity.ItchStoreTab(
                     isSearching -> visibleIn(ItchService.search(context, query))
                     filter.isOwned -> ownedGames
                     else -> {
-                        val head = if (facet == ItchFacet.POPULAR) ownedGames else emptyList()
-                        head + visibleIn(ItchService.browse(context, filter, 1))
+                        val head = if (filter.isAll) ownedGames else emptyList()
+                        val headIds = head.map { it.id }.toSet()
+                        head + visibleIn(ItchService.browse(context, filter, 1)).filterNot { it.id in headIds }
                     }
                 }
             games.clear()
@@ -244,6 +251,7 @@ internal fun UnifiedActivity.ItchStoreTab(
     }
 
     val isControllerActive = ControllerHelper.isControllerConnected()
+    val accountRowVisible by (activity?.storeHeaderVisible ?: kotlinx.coroutines.flow.MutableStateFlow(true)).collectAsState()
 
     Column(Modifier.fillMaxSize()) {
         ItchHeader(
@@ -253,6 +261,7 @@ internal fun UnifiedActivity.ItchStoreTab(
             signedIn = signedIn,
             userName = userName,
             searching = isSearching,
+            accountRowVisible = accountRowVisible,
             onFacetChange = { facet = it },
             onWindowsOnlyChange = { windowsOnly = it },
             onSignIn = onSignInClick,
@@ -305,11 +314,11 @@ internal fun UnifiedActivity.ItchStoreTab(
 
             else -> {
                 val focusIndex by (activity?.storeFocusIndex ?: kotlinx.coroutines.flow.MutableStateFlow(0)).collectAsState()
-                val focusRequesters = remember(games.size) { List(games.size) { FocusRequester() } }
-                LaunchedEffect(focusIndex, focusRequesters.size) {
-                    if (!isSearching && focusRequesters.isNotEmpty() && focusIndex in focusRequesters.indices) {
+                val focusRequesters = remember { mutableMapOf<Int, FocusRequester>() }
+                LaunchedEffect(focusIndex) {
+                    if (!isSearching && isControllerActive && focusIndex in games.indices) {
                         gridState.animateScrollToItem(focusIndex)
-                        runCatching { focusRequesters[focusIndex].requestFocus() }
+                        runCatching { focusRequesters[focusIndex]?.requestFocus() }
                     }
                 }
                 JoystickGridScroll(gridState, activity?.rightStickScrollState)
@@ -319,15 +328,8 @@ internal fun UnifiedActivity.ItchStoreTab(
                     gridState = gridState,
                     keyOf = { it.id },
                 ) { game, index, rowHeight ->
-                    Box(
-                        Modifier.height(rowHeight).then(
-                            if (index in focusRequesters.indices) {
-                                Modifier.focusRequester(focusRequesters[index])
-                            } else {
-                                Modifier
-                            },
-                        ),
-                    ) {
+                    val requester = remember(index) { focusRequesters.getOrPut(index) { FocusRequester() } }
+                    Box(Modifier.height(rowHeight).focusRequester(requester)) {
                         ItchStoreCapsule(
                             game = game,
                             isInstalled = game.id in installedIds,
@@ -358,73 +360,80 @@ private fun UnifiedActivity.ItchHeader(
     signedIn: Boolean,
     userName: String,
     searching: Boolean,
+    accountRowVisible: Boolean,
     onFacetChange: (ItchFacet) -> Unit,
     onWindowsOnlyChange: (Boolean) -> Unit,
     onSignIn: () -> Unit,
     onSignOut: () -> Unit,
 ) {
     Column(Modifier.fillMaxWidth().tabScreenPadding(top = 6.dp, bottom = 2.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text =
-                    if (signedIn && userName.isNotBlank()) {
-                        stringResource(R.string.itch_store_signed_in_as, userName)
-                    } else if (signedIn) {
-                        stringResource(R.string.itch_store_signed_in)
-                    } else {
-                        stringResource(R.string.itch_store_signed_out_hint)
-                    },
-                color = TextSecondary,
-                fontSize = 11.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            Spacer(Modifier.width(10.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier =
-                    Modifier
-                        .clip(RoundedCornerShape(14.dp))
-                        .border(1.dp, ItchRed.copy(alpha = 0.6f), RoundedCornerShape(14.dp))
-                        .clickable { if (signedIn) onSignOut() else onSignIn() }
-                        .padding(horizontal = 10.dp, vertical = 5.dp),
-            ) {
-                Icon(
-                    if (signedIn) Icons.AutoMirrored.Outlined.Logout else Icons.AutoMirrored.Outlined.Login,
-                    contentDescription = null,
-                    tint = ItchRed,
-                    modifier = Modifier.size(15.dp),
-                )
-                Spacer(Modifier.width(5.dp))
+        AnimatedVisibility(
+            visible = accountRowVisible,
+            enter = expandVertically(tween(220, easing = FastOutSlowInEasing)) + fadeIn(tween(220)),
+            exit = shrinkVertically(tween(220, easing = FastOutSlowInEasing)) + fadeOut(tween(160)),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    stringResource(if (signedIn) R.string.itch_store_sign_out else R.string.itch_store_sign_in_short),
-                    color = ItchRed,
+                    text =
+                        if (signedIn && userName.isNotBlank()) {
+                            stringResource(R.string.itch_store_signed_in_as, userName)
+                        } else if (signedIn) {
+                            stringResource(R.string.itch_store_signed_in)
+                        } else {
+                            stringResource(R.string.itch_store_signed_out_hint)
+                        },
+                    color = TextSecondary,
                     fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(Modifier.width(10.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .border(1.dp, ItchRed.copy(alpha = 0.6f), RoundedCornerShape(14.dp))
+                            .clickable { if (signedIn) onSignOut() else onSignIn() }
+                            .padding(horizontal = 10.dp, vertical = 5.dp),
+                ) {
+                    Icon(
+                        if (signedIn) Icons.AutoMirrored.Outlined.Logout else Icons.AutoMirrored.Outlined.Login,
+                        contentDescription = null,
+                        tint = ItchRed,
+                        modifier = Modifier.size(15.dp),
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    Text(
+                        stringResource(if (signedIn) R.string.itch_store_sign_out else R.string.itch_store_sign_in_short),
+                        color = ItchRed,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    stringResource(R.string.itch_store_windows_only),
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                )
+                Spacer(Modifier.width(4.dp))
+                Switch(
+                    checked = windowsOnly,
+                    onCheckedChange = onWindowsOnlyChange,
+                    colors =
+                        SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = ItchRed,
+                            checkedBorderColor = ItchRed,
+                            uncheckedThumbColor = TextSecondary,
+                            uncheckedTrackColor = CardDark,
+                            uncheckedBorderColor = CardBorder,
+                        ),
                 )
             }
-            Spacer(Modifier.width(10.dp))
-            Text(
-                stringResource(R.string.itch_store_windows_only),
-                color = TextSecondary,
-                fontSize = 11.sp,
-            )
-            Spacer(Modifier.width(4.dp))
-            Switch(
-                checked = windowsOnly,
-                onCheckedChange = onWindowsOnlyChange,
-                colors =
-                    SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = ItchRed,
-                        checkedBorderColor = ItchRed,
-                        uncheckedThumbColor = TextSecondary,
-                        uncheckedTrackColor = CardDark,
-                        uncheckedBorderColor = CardBorder,
-                    ),
-            )
         }
 
         if (!searching) {
@@ -434,7 +443,7 @@ private fun UnifiedActivity.ItchHeader(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 facets.forEach { entry ->
-                    val active = entry.segment == facet.segment
+                    val active = entry == facet
                     Box(
                         modifier =
                             Modifier
@@ -448,7 +457,7 @@ private fun UnifiedActivity.ItchHeader(
                                 .padding(horizontal = 12.dp, vertical = 6.dp),
                     ) {
                         Text(
-                            entry.label,
+                            stringResource(entry.labelRes),
                             color = if (active) TextPrimary else TextSecondary,
                             fontSize = 12.sp,
                             fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
@@ -691,6 +700,7 @@ internal fun UnifiedActivity.ItchGameDialog(
                 showCustomPath = false,
                 showCloudSync = false,
                 showUninstall = installed,
+                uninstallAsPrimaryAction = true,
                 showUpdateCheck = false,
                 showVerifyFiles = false,
                 branches = uploadOptions,

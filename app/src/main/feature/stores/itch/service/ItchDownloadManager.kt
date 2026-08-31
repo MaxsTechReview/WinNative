@@ -21,6 +21,8 @@ import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
+private const val PROGRESS_NOTIFY_INTERVAL_MS = 200L
+
 class ItchDownloadManager(
     private val context: Context,
 ) {
@@ -160,8 +162,9 @@ class ItchDownloadManager(
                         if (read < 0) break
                         output.write(buffer, 0, read)
                         info.updateBytesDownloaded(read.toLong())
+                        info.setProgress(info.getProgress())
                         val now = System.currentTimeMillis()
-                        if (now - lastNotify > 500L) {
+                        if (now - lastNotify > PROGRESS_NOTIFY_INTERVAL_MS) {
                             lastNotify = now
                             val progress = info.getBytesProgress()
                             DownloadCoordinator.updateProgress(
@@ -185,14 +188,19 @@ class ItchDownloadManager(
                     title = game.title,
                     installDir = installDir,
                     payload = payload,
-                    onProgress = { notifyUi(game.id) },
+                    onProgress = { fraction ->
+                        info.setProgress(fraction)
+                        notifyUi(game.id)
+                    },
                     isActive = { info.isActive() },
                 )
 
             val executable = result.executable
             if (executable != null) {
+                val coverArt = downloadCoverArt(game)
                 com.winlator.cmod.app.shell
-                    .addCustomGame(context, game.title, executable.absolutePath, installDir.absolutePath)
+                    .addCustomGame(context, game.title, executable.absolutePath, installDir.absolutePath, coverArt)
+                coverArt?.delete()
                 ItchLibrary.record(context, game, installDir.absolutePath, executable.absolutePath)
                 info.updateStatus(DownloadPhase.COMPLETE, context.getString(com.winlator.cmod.R.string.itch_store_status_added))
             } else {
@@ -204,6 +212,8 @@ class ItchDownloadManager(
             ItchDownloadRequestStore.remove(context, game.id)
             DownloadCoordinator.notifyFinished(DownloadRecord.STORE_ITCH, game.id.toString(), DownloadRecord.STATUS_COMPLETE)
             PluviaApp.events.emit(AndroidEvent.LibraryArtworkChanged)
+            com.winlator.cmod.app.shell.UnifiedActivity
+                .refreshLibrary()
             notifyUi(game.id)
         } catch (cancellation: CancellationException) {
             Timber.i("[Itch] transfer stopped for ${game.title}")
@@ -281,6 +291,24 @@ class ItchDownloadManager(
     fun shutdown() {
         jobs.values.forEach { it.cancel() }
         jobs.clear()
+    }
+
+    private fun downloadCoverArt(game: ItchGame): File? {
+        val url = game.coverUrl
+        if (url.isBlank()) return null
+        return runCatching {
+            val target = File.createTempFile("itch-cover-", ".img", context.cacheDir)
+            ItchWebClient.openStream(context, url, 0L).use { response ->
+                val body = response.body ?: throw IOException("Empty cover art body")
+                target.outputStream().use { output -> body.byteStream().copyTo(output) }
+            }
+            if (target.length() > 0L) {
+                target
+            } else {
+                target.delete()
+                null
+            }
+        }.getOrNull()
     }
 
     private fun notifyUi(gameId: Int) {
