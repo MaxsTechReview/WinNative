@@ -17,6 +17,8 @@ object ItchWebClient {
     private val csrfMetaRegex =
         Regex("<meta[^>]*name=\"csrf_token\"[^>]*value=\"([^\"]+)\"[^>]*>|<meta[^>]*value=\"([^\"]+)\"[^>]*name=\"csrf_token\"[^>]*>")
     private val currentUserRegex = Regex("I\\.current_user\\s*=\\s*(null|\\{)")
+    private val profileAnchorRegex =
+        Regex("<a[^>]*href=\"https://([a-z0-9][a-z0-9_-]*)\\.itch\\.io/?\"[^>]*>(.*?)</a>", RegexOption.DOT_MATCHES_ALL)
 
     @Volatile
     private var client: OkHttpClient? = null
@@ -106,15 +108,11 @@ object ItchWebClient {
     fun isSignedIn(html: String): Boolean = currentUserRegex.find(html)?.groupValues?.get(1) == "{"
 
     fun signedInUserName(html: String): String? {
-        val marker = html.indexOf("I.current_user")
-        if (marker < 0) return null
-        val brace = html.indexOf('{', marker)
-        if (brace < 0 || brace > marker + 40) return null
-        val json = extractJsonObject(html, brace) ?: return null
-        return runCatching {
-            val obj = JSONObject(json)
-            obj.optString("display_name").ifBlank { obj.optString("name") }.ifBlank { obj.optString("username") }
-        }.getOrNull()?.ifBlank { null }
+        val panel = html.indexOf("user_panel_widget")
+        val scope = if (panel >= 0) html.substring(panel, (panel + 4000).coerceAtMost(html.length)) else html
+        val anchor = profileAnchorRegex.find(scope) ?: return null
+        val label = anchor.groupValues[2].replace(Regex("<[^>]*>"), "").trim()
+        return label.ifBlank { anchor.groupValues[1] }.takeUnless { it.isBlank() }
     }
 
     fun extractJsonObject(

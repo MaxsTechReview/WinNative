@@ -54,6 +54,12 @@ object ItchService {
 
     fun userName(context: Context): String = ItchAuthManager.userName(context)
 
+    suspend fun refreshProfile(context: Context): String =
+        withContext(Dispatchers.IO) {
+            ItchAuthManager.refreshProfile(context)
+            ItchAuthManager.userName(context)
+        }
+
     suspend fun signOut(context: Context) =
         withContext(Dispatchers.IO) {
             ItchAuthManager.signOut(context)

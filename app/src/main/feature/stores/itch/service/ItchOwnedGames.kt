@@ -6,11 +6,14 @@ import timber.log.Timber
 
 object ItchOwnedGames {
     private const val PURCHASES_URL = "https://itch.io/my-purchases"
+    private const val ANCHOR_WINDOW = 700
 
-    private val gameLinkRegex = Regex("<a([^>]*href=\"(https://[a-z0-9][a-z0-9_-]*\\.itch\\.io/[a-z0-9][a-z0-9_-]*)[^\"]*\"[^>]*)>(.*?)</a>", RegexOption.DOT_MATCHES_ALL)
+    private val anchorRegex = Regex("<a([^>]*)>(.*?)</a>", RegexOption.DOT_MATCHES_ALL)
+    private val hrefRegex = Regex("href=\"([^\"]*)\"")
+    private val gameUrlRegex = Regex("https://([a-z0-9][a-z0-9_-]*)\\.itch\\.io/([a-z0-9][a-z0-9_.-]*)/?")
+    private val gameIdRegex = Regex("data-game_id=\"(\\d+)\"")
     private val imgRegex = Regex("<img[^>]*>")
     private val srcRegex = Regex("(?:data-lazy_src|src)=\"([^\"]+)\"")
-    private val gameIdRegex = Regex("data-game_id=\"(\\d+)\"")
 
     fun fetch(
         context: Context,
@@ -23,42 +26,63 @@ object ItchOwnedGames {
             return emptyList()
         }
         val cells = ItchCatalog.parseGameCells(html)
-        if (cells.isNotEmpty()) return cells
-        return parseRows(html)
+        val games = cells.ifEmpty { parseRows(html) }
+        Timber.i("[Itch] owned library page %d returned %d games", page, games.size)
+        return games
     }
 
     fun parseRows(html: String): List<ItchGame> {
         val body = html.substringAfter("<div class=\"main\"", html)
+        val markers = gameIdRegex.findAll(body).toList()
         val games = LinkedHashMap<String, ItchGame>()
-        gameLinkRegex.findAll(body).forEach { match ->
-            val url = match.groupValues[2].trimEnd('/')
-            if (url in games) return@forEach
-            val title = ItchCatalog.stripHtml(match.groupValues[3]).trim()
-            if (title.isEmpty() || title.length > 120) return@forEach
-            val slug = url.substringAfterLast('/')
-            if (slug.isEmpty() || slug == "download" || slug == "purchase") return@forEach
-            val context = contextAround(body, match.range.first)
-            games[url] =
-                ItchGame(
-                    id = gameIdRegex.find(context)?.groupValues?.get(1)?.toIntOrNull() ?: syntheticId(url),
-                    title = title,
-                    url = url,
-                    coverUrl = coverNear(context),
-                    author = url.substringAfter("//").substringBefore(".itch.io"),
-                )
+        if (markers.isNotEmpty()) {
+            markers.forEachIndexed { index, marker ->
+                val end = if (index + 1 < markers.size) markers[index + 1].range.first else body.length
+                val block = body.substring(marker.range.first, end)
+                val id = marker.groupValues[1].toIntOrNull() ?: return@forEachIndexed
+                gameIn(block)?.let { game -> games.putIfAbsent(game.url, game.copy(id = id)) }
+            }
+        } else {
+            anchorRegex.findAll(body).forEach { match ->
+                val window =
+                    body.substring(
+                        (match.range.first - ANCHOR_WINDOW).coerceAtLeast(0),
+                        (match.range.last + ANCHOR_WINDOW).coerceAtMost(body.length),
+                    )
+                gameFromAnchor(match.groupValues[1], match.groupValues[2], window)?.let { games.putIfAbsent(it.url, it) }
+            }
         }
         return games.values.toList()
     }
 
-    private fun contextAround(
-        html: String,
-        index: Int,
-    ): String = html.substring((index - 900).coerceAtLeast(0), (index + 900).coerceAtMost(html.length))
+    private fun gameIn(block: String): ItchGame? =
+        anchorRegex
+            .findAll(block)
+            .firstNotNullOfOrNull { gameFromAnchor(it.groupValues[1], it.groupValues[2], block) }
 
-    private fun coverNear(block: String): String {
+    private fun gameFromAnchor(
+        attributes: String,
+        inner: String,
+        coverScope: String,
+    ): ItchGame? {
+        val href = hrefRegex.find(attributes)?.groupValues?.get(1)?.trim() ?: return null
+        val match = gameUrlRegex.matchEntire(href) ?: return null
+        val title = ItchCatalog.stripHtml(inner).trim()
+        if (title.isEmpty() || title.length > 120) return null
+        val url = href.trimEnd('/')
+        return ItchGame(
+            id = syntheticId(url),
+            title = title,
+            url = url,
+            coverUrl = coverIn(coverScope),
+            author = match.groupValues[1],
+        )
+    }
+
+    private fun coverIn(block: String): String {
         val img = imgRegex.findAll(block).firstOrNull { it.value.contains("img.itch.zone") } ?: return ""
         return srcRegex.find(img.value)?.groupValues?.get(1).orEmpty()
     }
 
-    private fun syntheticId(url: String): Int = -(url.hashCode().and(Int.MAX_VALUE) % 1_000_000_000).coerceAtLeast(1)
+    private fun syntheticId(url: String): Int = -((url.hashCode() and Int.MAX_VALUE) % 1_000_000_000 + 1)
 }
