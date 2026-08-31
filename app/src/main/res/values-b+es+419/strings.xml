@@ -2592,4 +2592,9 @@ Ruta instalada:
     <string name="itch_store_error_no_uploads">itch.io no listó archivos descargables</string>
     <string name="itch_store_error_unsupported_archive">%1$s es un archivo RAR — extráelo manualmente desde la carpeta del juego</string>
     <string name="itch_store_error_generic">No se pudo completar la descarga</string>
+    <string name="itch_store_controller">Control</string>
+    <string name="itch_store_controller_not_listed">No indicado</string>
+    <string name="itch_store_controller_unsupported">No compatible</string>
+    <string name="itch_store_tags">Etiquetas</string>
+    <string name="itch_facet_gamepad">Control</string>
 </resources>

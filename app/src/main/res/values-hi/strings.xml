@@ -2529,4 +2529,9 @@
     <string name="itch_store_error_no_uploads">itch.io ने कोई डाउनलोड करने योग्य फ़ाइल सूचीबद्ध नहीं की</string>
     <string name="itch_store_error_unsupported_archive">%1$s एक RAR संग्रह है — इसे गेम फ़ोल्डर से मैन्युअल रूप से निकालें</string>
     <string name="itch_store_error_generic">डाउनलोड पूरा नहीं हो सका</string>
+    <string name="itch_store_controller">कंट्रोलर</string>
+    <string name="itch_store_controller_not_listed">सूचीबद्ध नहीं</string>
+    <string name="itch_store_controller_unsupported">समर्थित नहीं</string>
+    <string name="itch_store_tags">टैग</string>
+    <string name="itch_facet_gamepad">गेमपैड</string>
 </resources>

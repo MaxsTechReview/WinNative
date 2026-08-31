@@ -2592,4 +2592,9 @@
     <string name="itch_store_error_no_uploads">itch.io にダウンロード可能なファイルがありません</string>
     <string name="itch_store_error_unsupported_archive">%1$s は RAR アーカイブです。ゲームフォルダーから手動で展開してください</string>
     <string name="itch_store_error_generic">ダウンロードを完了できませんでした</string>
+    <string name="itch_store_controller">コントローラー</string>
+    <string name="itch_store_controller_not_listed">記載なし</string>
+    <string name="itch_store_controller_unsupported">非対応</string>
+    <string name="itch_store_tags">タグ</string>
+    <string name="itch_facet_gamepad">ゲームパッド</string>
 </resources>

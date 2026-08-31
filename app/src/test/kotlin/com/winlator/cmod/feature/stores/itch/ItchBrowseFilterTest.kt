@@ -12,8 +12,20 @@ class ItchBrowseFilterTest {
     private fun facet(segment: String) = ItchFacet.visible(true).first { it.segment == segment }
 
     @Test
-    fun defaultBrowseIsFreeOnly() {
-        assertEquals("games/free", ItchBrowseFilter().toPath())
+    fun defaultBrowseIsFreeWindowsOnly() {
+        assertEquals("games/free/platform-windows", ItchBrowseFilter().toPath())
+        assertTrue(ItchBrowseFilter().filtersWindowsServerSide)
+        assertEquals("games/free", ItchBrowseFilter(windowsOnly = false).toPath())
+    }
+
+    @Test
+    fun sortedAndTaggedBrowsesDropTheWindowsSegmentToStayUnderTheLimit() {
+        val newest = ItchBrowseFilter(facet("newest"))
+        assertEquals("games/newest/free", newest.toPath())
+        assertFalse(newest.filtersWindowsServerSide)
+        val rpg = ItchBrowseFilter(facet("genre-rpg"))
+        assertEquals("games/free/genre-rpg", rpg.toPath())
+        assertFalse(rpg.filtersWindowsServerSide)
     }
 
     @Test
@@ -51,10 +63,15 @@ class ItchBrowseFilterTest {
 
     @Test
     fun allBrowsesFreeGamesAndIsDistinctFromPopular() {
-        assertEquals("games/free", ItchBrowseFilter(ItchFacet.ALL).toPath())
+        assertEquals("games/free/platform-windows", ItchBrowseFilter(ItchFacet.ALL).toPath())
         assertTrue(ItchBrowseFilter(ItchFacet.ALL).isAll)
         assertFalse(ItchBrowseFilter(ItchFacet.POPULAR).isAll)
         assertFalse(ItchFacet.ALL == ItchFacet.POPULAR)
+    }
+
+    @Test
+    fun gamepadFacetFollowsTheFreeSegment() {
+        assertEquals("games/free/input-gamepad", ItchBrowseFilter(facet("input-gamepad")).toPath())
     }
 
     @Test

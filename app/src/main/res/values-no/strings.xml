@@ -2592,4 +2592,9 @@ Installert bane:
     <string name="itch_store_error_no_uploads">itch.io listet ingen nedlastbare filer</string>
     <string name="itch_store_error_unsupported_archive">%1$s er et RAR-arkiv — pakk det ut manuelt fra spillmappen</string>
     <string name="itch_store_error_generic">Nedlastingen kunne ikke fullføres</string>
+    <string name="itch_store_controller">Kontroller</string>
+    <string name="itch_store_controller_not_listed">Ikke oppgitt</string>
+    <string name="itch_store_controller_unsupported">Støttes ikke</string>
+    <string name="itch_store_tags">Tagger</string>
+    <string name="itch_facet_gamepad">Spillkontroller</string>
 </resources>

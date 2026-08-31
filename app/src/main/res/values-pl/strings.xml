@@ -2599,5 +2599,10 @@ Zainstalowana ścieżka:
     <string name="itch_store_error_no_uploads">itch.io nie wskazał żadnych plików do pobrania</string>
     <string name="itch_store_error_unsupported_archive">%1$s to archiwum RAR — wypakuj je ręcznie z folderu gry</string>
     <string name="itch_store_error_generic">Nie udało się ukończyć pobierania</string>
+    <string name="itch_store_controller">Kontroler</string>
+    <string name="itch_store_controller_not_listed">Nie podano</string>
+    <string name="itch_store_controller_unsupported">Nieobsługiwany</string>
+    <string name="itch_store_tags">Tagi</string>
+    <string name="itch_facet_gamepad">Gamepad</string>
 </resources>
 

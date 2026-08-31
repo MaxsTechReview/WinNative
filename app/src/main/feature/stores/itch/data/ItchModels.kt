@@ -41,22 +41,53 @@ data class ItchUpload(
     val platforms: Set<ItchPlatform>,
 )
 
+data class ItchInput(
+    val slug: String,
+    val label: String,
+) {
+    val isController: Boolean get() = slug in CONTROLLER_SLUGS
+
+    private companion object {
+        val CONTROLLER_SLUGS =
+            setOf(
+                "input-gamepad",
+                "input-x360",
+                "input-playstation",
+                "input-joy-con",
+                "input-joystick",
+                "input-flight-stick",
+                "input-racing-wheel",
+                "input-wiimote",
+                "input-dance-pad",
+                "input-light-gun",
+                "input-motion-controller",
+            )
+    }
+}
+
 data class ItchGameDetails(
     val game: ItchGame,
     val heroImageUrl: String = "",
     val description: String = "",
     val screenshots: List<String> = emptyList(),
     val tags: List<String> = emptyList(),
+    val inputs: List<ItchInput> = emptyList(),
     val infoRows: List<Pair<String, String>> = emptyList(),
     val minPriceCents: Int? = null,
-)
+) {
+    val controllerInputs: List<ItchInput> get() = inputs.filter { it.isController }
+
+    val hasControllerSupport: Boolean get() = controllerInputs.isNotEmpty()
+
+    val inputsKnown: Boolean get() = inputs.isNotEmpty()
+}
 
 data class ItchFacet(
     val segment: String,
     @StringRes val labelRes: Int,
     val kind: Kind = Kind.SORT,
 ) {
-    enum class Kind { ALL, SORT, GENRE, TAG, OWNED }
+    enum class Kind { ALL, SORT, GENRE, TAG, INPUT, OWNED }
 
     companion object {
         val ALL = ItchFacet("", R.string.itch_facet_all, Kind.ALL)
@@ -70,6 +101,7 @@ data class ItchFacet(
                 ItchFacet("newest", R.string.itch_facet_newest),
                 ItchFacet("top-rated", R.string.itch_facet_top_rated),
                 ItchFacet("top-sellers", R.string.itch_facet_top_sellers),
+                ItchFacet("input-gamepad", R.string.itch_facet_gamepad, Kind.INPUT),
                 ItchFacet("genre-action", R.string.itch_facet_action, Kind.GENRE),
                 ItchFacet("genre-adventure", R.string.itch_facet_adventure, Kind.GENRE),
                 ItchFacet("genre-rpg", R.string.itch_facet_rpg, Kind.GENRE),
@@ -106,11 +138,15 @@ data class ItchBrowseFilter(
 
     val isAll: Boolean get() = facet.kind == ItchFacet.Kind.ALL
 
+    val filtersWindowsServerSide: Boolean
+        get() = windowsOnly && facet.segment.isEmpty() && facet.kind != ItchFacet.Kind.OWNED
+
     fun toPath(): String {
         val segments =
-            when (facet.kind) {
-                ItchFacet.Kind.OWNED, ItchFacet.Kind.ALL -> listOf(FREE_SEGMENT)
-                ItchFacet.Kind.SORT -> listOf(facet.segment, FREE_SEGMENT)
+            when {
+                facet.kind == ItchFacet.Kind.OWNED -> listOf(FREE_SEGMENT)
+                facet.segment.isEmpty() -> listOf(FREE_SEGMENT, if (windowsOnly) WINDOWS_SEGMENT else "")
+                facet.kind == ItchFacet.Kind.SORT -> listOf(facet.segment, FREE_SEGMENT)
                 else -> listOf(FREE_SEGMENT, facet.segment)
             }.filter { it.isNotEmpty() }
         return "games/" + segments.joinToString("/")
@@ -118,5 +154,6 @@ data class ItchBrowseFilter(
 
     private companion object {
         const val FREE_SEGMENT = "free"
+        const val WINDOWS_SEGMENT = "platform-windows"
     }
 }

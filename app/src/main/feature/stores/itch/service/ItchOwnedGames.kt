@@ -26,9 +26,24 @@ object ItchOwnedGames {
             return emptyList()
         }
         val cells = ItchCatalog.parseGameCells(html)
-        val games = cells.ifEmpty { parseRows(html) }
-        Timber.i("[Itch] owned library page %d returned %d games", page, games.size)
-        return games
+        val purchased = cells.ifEmpty { parseRows(html) }
+        val filed = filedGames(context, page)
+        val games = LinkedHashMap<String, ItchGame>()
+        (purchased + filed).forEach { game -> games.putIfAbsent(game.url, game) }
+        Timber.i("[Itch] owned page %d: %d purchased, %d filed", page, purchased.size, filed.size)
+        return games.values.toList()
+    }
+
+    private fun filedGames(
+        context: Context,
+        page: Int,
+    ): List<ItchGame> {
+        val collection =
+            ItchCollections
+                .list(context)
+                .firstOrNull { it.title.equals(ItchCollections.DEFAULT_TITLE, ignoreCase = true) }
+                ?: return emptyList()
+        return ItchCollections.games(context, collection, page)
     }
 
     fun parseRows(html: String): List<ItchGame> {

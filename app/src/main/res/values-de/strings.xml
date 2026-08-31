@@ -2594,4 +2594,9 @@ Installierter Pfad:
     <string name="itch_store_error_no_uploads">itch.io hat keine herunterladbaren Dateien aufgeführt</string>
     <string name="itch_store_error_unsupported_archive">%1$s ist ein RAR-Archiv — entpacke es manuell im Spieleordner</string>
     <string name="itch_store_error_generic">Der Download konnte nicht abgeschlossen werden</string>
+    <string name="itch_store_controller">Controller</string>
+    <string name="itch_store_controller_not_listed">Nicht angegeben</string>
+    <string name="itch_store_controller_unsupported">Nicht unterstützt</string>
+    <string name="itch_store_tags">Tags</string>
+    <string name="itch_facet_gamepad">Gamepad</string>
 </resources>

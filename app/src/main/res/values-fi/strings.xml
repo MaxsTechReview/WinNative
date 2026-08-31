@@ -2592,4 +2592,9 @@ Asennuspolku:
     <string name="itch_store_error_no_uploads">itch.io ei listannut ladattavia tiedostoja</string>
     <string name="itch_store_error_unsupported_archive">%1$s on RAR-arkisto — pura se manuaalisesti pelikansiosta</string>
     <string name="itch_store_error_generic">Latausta ei voitu suorittaa loppuun</string>
+    <string name="itch_store_controller">Ohjain</string>
+    <string name="itch_store_controller_not_listed">Ei ilmoitettu</string>
+    <string name="itch_store_controller_unsupported">Ei tuettu</string>
+    <string name="itch_store_tags">Tunnisteet</string>
+    <string name="itch_facet_gamepad">Peliohjain</string>
 </resources>

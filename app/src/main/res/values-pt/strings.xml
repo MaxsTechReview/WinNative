@@ -2592,4 +2592,9 @@ Caminho instalado:
     <string name="itch_store_error_no_uploads">O itch.io não listou ficheiros transferíveis</string>
     <string name="itch_store_error_unsupported_archive">%1$s é um arquivo RAR — extraia-o manualmente a partir da pasta do jogo</string>
     <string name="itch_store_error_generic">Não foi possível concluir a transferência</string>
+    <string name="itch_store_controller">Comando</string>
+    <string name="itch_store_controller_not_listed">Não indicado</string>
+    <string name="itch_store_controller_unsupported">Não suportado</string>
+    <string name="itch_store_tags">Etiquetas</string>
+    <string name="itch_facet_gamepad">Comando</string>
 </resources>

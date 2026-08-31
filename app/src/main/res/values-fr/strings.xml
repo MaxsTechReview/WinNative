@@ -2593,5 +2593,10 @@ Chemin installé :
     <string name="itch_store_error_no_uploads">itch.io n\'a listé aucun fichier téléchargeable</string>
     <string name="itch_store_error_unsupported_archive">%1$s est une archive RAR — extrayez-la manuellement depuis le dossier du jeu</string>
     <string name="itch_store_error_generic">Le téléchargement n\'a pas pu être terminé</string>
+    <string name="itch_store_controller">Manette</string>
+    <string name="itch_store_controller_not_listed">Non indiqué</string>
+    <string name="itch_store_controller_unsupported">Non pris en charge</string>
+    <string name="itch_store_tags">Tags</string>
+    <string name="itch_facet_gamepad">Manette</string>
 </resources>
 

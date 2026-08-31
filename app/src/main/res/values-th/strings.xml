@@ -2592,4 +2592,9 @@
     <string name="itch_store_error_no_uploads">itch.io ไม่ได้แสดงไฟล์ที่ดาวน์โหลดได้</string>
     <string name="itch_store_error_unsupported_archive">%1$s เป็นไฟล์ RAR — โปรดแตกไฟล์เองจากโฟลเดอร์เกม</string>
     <string name="itch_store_error_generic">ไม่สามารถดาวน์โหลดให้เสร็จสมบูรณ์ได้</string>
+    <string name="itch_store_controller">คอนโทรลเลอร์</string>
+    <string name="itch_store_controller_not_listed">ไม่ได้ระบุ</string>
+    <string name="itch_store_controller_unsupported">ไม่รองรับ</string>
+    <string name="itch_store_tags">แท็ก</string>
+    <string name="itch_facet_gamepad">เกมแพด</string>
 </resources>

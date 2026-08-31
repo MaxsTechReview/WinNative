@@ -266,6 +266,10 @@
     <string name="itch_store_signed_in_as">%1$s — free &amp; owned games</string>
     <string name="itch_store_signed_out_hint">Free games — sign in to see games you own</string>
     <string name="itch_store_windows_only">Windows only</string>
+    <string name="itch_store_controller">Controller</string>
+    <string name="itch_store_controller_not_listed">Not listed</string>
+    <string name="itch_store_controller_unsupported">Not supported</string>
+    <string name="itch_store_tags">Tags</string>
     <string name="itch_facet_all">All</string>
     <string name="itch_facet_owned">Owned</string>
     <string name="itch_facet_popular">Popular</string>
@@ -273,6 +277,7 @@
     <string name="itch_facet_newest">Newest</string>
     <string name="itch_facet_top_rated">Top Rated</string>
     <string name="itch_facet_top_sellers">Top Sellers</string>
+    <string name="itch_facet_gamepad">Gamepad</string>
     <string name="itch_facet_action">Action</string>
     <string name="itch_facet_adventure">Adventure</string>
     <string name="itch_facet_rpg">RPG</string>

@@ -208,6 +208,7 @@ class ItchDownloadManager(
                 info.updateStatus(DownloadPhase.COMPLETE, context.getString(com.winlator.cmod.R.string.itch_store_status_no_executable))
             }
             info.setActive(false)
+            ItchCollections.addGame(context, game)
             pending.remove(game.id)
             ItchDownloadRequestStore.remove(context, game.id)
             DownloadCoordinator.notifyFinished(DownloadRecord.STORE_ITCH, game.id.toString(), DownloadRecord.STATUS_COMPLETE)

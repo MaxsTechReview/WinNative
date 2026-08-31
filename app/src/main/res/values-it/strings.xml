@@ -2593,5 +2593,10 @@ Percorso installato:
     <string name="itch_store_error_no_uploads">itch.io non ha elencato file scaricabili</string>
     <string name="itch_store_error_unsupported_archive">%1$s è un archivio RAR — estrailo manualmente dalla cartella del gioco</string>
     <string name="itch_store_error_generic">Impossibile completare il download</string>
+    <string name="itch_store_controller">Controller</string>
+    <string name="itch_store_controller_not_listed">Non indicato</string>
+    <string name="itch_store_controller_unsupported">Non supportato</string>
+    <string name="itch_store_tags">Tag</string>
+    <string name="itch_facet_gamepad">Gamepad</string>
 </resources>
 

@@ -2592,4 +2592,9 @@ Installerad sökväg:
     <string name="itch_store_error_no_uploads">itch.io listade inga nedladdningsbara filer</string>
     <string name="itch_store_error_unsupported_archive">%1$s är ett RAR-arkiv — packa upp det manuellt från spelmappen</string>
     <string name="itch_store_error_generic">Nedladdningen kunde inte slutföras</string>
+    <string name="itch_store_controller">Handkontroll</string>
+    <string name="itch_store_controller_not_listed">Ej angivet</string>
+    <string name="itch_store_controller_unsupported">Stöds inte</string>
+    <string name="itch_store_tags">Taggar</string>
+    <string name="itch_facet_gamepad">Handkontroll</string>
 </resources>

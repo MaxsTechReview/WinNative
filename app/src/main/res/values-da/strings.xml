@@ -2594,4 +2594,9 @@ Installeret sti:
     <string name="itch_store_error_no_uploads">itch.io angav ingen filer, der kan downloades</string>
     <string name="itch_store_error_unsupported_archive">%1$s er et RAR-arkiv — udpak det manuelt fra spilmappen</string>
     <string name="itch_store_error_generic">Downloaden kunne ikke fuldføres</string>
+    <string name="itch_store_controller">Controller</string>
+    <string name="itch_store_controller_not_listed">Ikke angivet</string>
+    <string name="itch_store_controller_unsupported">Understøttes ikke</string>
+    <string name="itch_store_tags">Tags</string>
+    <string name="itch_facet_gamepad">Gamepad</string>
 </resources>

@@ -2592,4 +2592,9 @@ Yüklü konum:
     <string name="itch_store_error_no_uploads">itch.io indirilebilir dosya listelemedi</string>
     <string name="itch_store_error_unsupported_archive">%1$s bir RAR arşivi — oyun klasöründen elle çıkar</string>
     <string name="itch_store_error_generic">İndirme tamamlanamadı</string>
+    <string name="itch_store_controller">Oyun kumandası</string>
+    <string name="itch_store_controller_not_listed">Belirtilmemiş</string>
+    <string name="itch_store_controller_unsupported">Desteklenmiyor</string>
+    <string name="itch_store_tags">Etiketler</string>
+    <string name="itch_facet_gamepad">Gamepad</string>
 </resources>

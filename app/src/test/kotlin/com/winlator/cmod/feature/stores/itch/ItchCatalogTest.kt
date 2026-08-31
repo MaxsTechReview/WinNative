@@ -1,8 +1,11 @@
 package com.winlator.cmod.feature.stores.itch
 
+import com.winlator.cmod.feature.stores.itch.data.ItchGame
+import com.winlator.cmod.feature.stores.itch.data.ItchGameDetails
 import com.winlator.cmod.feature.stores.itch.data.ItchPlatform
 import com.winlator.cmod.feature.stores.itch.service.ItchCatalog
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -123,5 +126,50 @@ class ItchCatalogTest {
         assertEquals(696L * 1024 * 1024, ItchCatalog.parseSize("696 MB"))
         assertEquals((1.1 * 1024 * 1024 * 1024).toLong(), ItchCatalog.parseSize("1.1 GB"))
         assertEquals(0L, ItchCatalog.parseSize(""))
+    }
+
+    private val infoPanel =
+        """
+        <div class="game_info_panel_widget base_widget"><table>
+        <tr><td>Status</td><td>Released</td></tr>
+        <tr><td>Platforms</td><td><a href="https://itch.io/games/platform-windows">Windows</a></td></tr>
+        <tr><td>Genre</td><td><a href="https://itch.io/games/genre-survival">Survival</a></td></tr>
+        <tr><td>Tags</td><td><a href="https://itch.io/games/tag-2d">2D</a>, <a href="https://itch.io/games/tag-horror">Horror</a></td></tr>
+        <tr><td>Inputs</td><td><a href="https://itch.io/games/input-keyboard">Keyboard</a>, <a href="https://itch.io/games/input-gamepad">Gamepad (any)</a></td></tr>
+        </table></div>
+        """.trimIndent()
+
+    private val keyboardOnlyPanel =
+        """
+        <div class="game_info_panel_widget base_widget"><table>
+        <tr><td>Inputs</td><td><a href="https://itch.io/games/input-keyboard">Keyboard</a>, <a href="https://itch.io/games/input-mouse">Mouse</a></td></tr>
+        </table></div>
+        """.trimIndent()
+
+    @Test
+    fun readsInputsFromTheInfoPanel() {
+        val inputs = ItchCatalog.infoLinks(infoPanel, "Inputs")
+        assertEquals(listOf("input-keyboard", "input-gamepad"), inputs.map { it.slug })
+        assertEquals(listOf("Keyboard", "Gamepad (any)"), inputs.map { it.label })
+    }
+
+    @Test
+    fun flagsControllerSupportFromInputSlugs() {
+        val details = ItchGameDetails(game = ItchGame(1, "t", "https://a.itch.io/b"), inputs = ItchCatalog.infoLinks(infoPanel, "Inputs"))
+        assertTrue(details.inputsKnown)
+        assertTrue(details.hasControllerSupport)
+        assertEquals(listOf("Gamepad (any)"), details.controllerInputs.map { it.label })
+
+        val keyboardOnly =
+            ItchGameDetails(game = ItchGame(1, "t", "https://a.itch.io/b"), inputs = ItchCatalog.infoLinks(keyboardOnlyPanel, "Inputs"))
+        assertTrue(keyboardOnly.inputsKnown)
+        assertFalse(keyboardOnly.hasControllerSupport)
+    }
+
+    @Test
+    fun readsTagsWithoutBleedingIntoNeighbouringRows() {
+        assertEquals(listOf("2D", "Horror"), ItchCatalog.infoLinks(infoPanel, "Tags").map { it.label })
+        assertEquals(listOf("Survival"), ItchCatalog.infoLinks(infoPanel, "Genre").map { it.label })
+        assertTrue(ItchCatalog.infoLinks(infoPanel, "Languages").isEmpty())
     }
 }

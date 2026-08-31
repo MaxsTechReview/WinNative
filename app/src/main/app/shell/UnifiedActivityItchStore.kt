@@ -40,6 +40,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Login
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Sell
+import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -97,6 +99,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private val ItchRed = Color(0xFFFA5C5C)
+private val DrawerHotZoneClearance = 44.dp
+private val DrawerHotZoneStart = 28.dp
 private const val SEARCH_DEBOUNCE_MS = 450L
 
 @Composable
@@ -166,10 +170,10 @@ internal fun UnifiedActivity.ItchStoreTab(
         installedIds = withContext(Dispatchers.IO) { ItchService.installedIds(context) }
     }
 
-    val visibleIn: (List<ItchGame>) -> List<ItchGame> = { list ->
+    val visibleIn: (List<ItchGame>, Boolean) -> List<ItchGame> = { list, platformsListed ->
         list.filter { game ->
-            (!windowsOnly || game.platforms.isEmpty() || game.hasWindowsBuild) &&
-                (game.isFree || game.id in ownedIds)
+            val windowsOk = !windowsOnly || game.hasWindowsBuild || (!platformsListed && game.platforms.isEmpty())
+            windowsOk && (game.isFree || game.id in ownedIds)
         }
     }
 
@@ -183,12 +187,12 @@ internal fun UnifiedActivity.ItchStoreTab(
             val filter = ItchBrowseFilter(facet, windowsOnly)
             val list =
                 when {
-                    isSearching -> visibleIn(ItchService.search(context, query))
-                    filter.isOwned -> ownedGames
+                    isSearching -> visibleIn(ItchService.search(context, query), false)
+                    filter.isOwned -> visibleIn(ownedGames, false)
                     else -> {
-                        val head = if (filter.isAll) ownedGames else emptyList()
+                        val head = if (filter.isAll) visibleIn(ownedGames, false) else emptyList()
                         val headIds = head.map { it.id }.toSet()
-                        head + visibleIn(ItchService.browse(context, filter, 1)).filterNot { it.id in headIds }
+                        head + visibleIn(ItchService.browse(context, filter, 1), true).filterNot { it.id in headIds }
                     }
                 }
             games.clear()
@@ -215,7 +219,7 @@ internal fun UnifiedActivity.ItchStoreTab(
                     try {
                         val list = ItchService.browse(context, ItchBrowseFilter(facet, windowsOnly), next)
                         val known = games.map { it.id }.toSet()
-                        val fresh = visibleIn(list).filterNot { it.id in known }
+                        val fresh = visibleIn(list, true).filterNot { it.id in known }
                         games.addAll(fresh)
                         page = next
                         if (list.size < ItchConstants.PAGE_SIZE) exhausted = true
@@ -372,7 +376,10 @@ private fun UnifiedActivity.ItchHeader(
             enter = expandVertically(tween(220, easing = FastOutSlowInEasing)) + fadeIn(tween(220)),
             exit = shrinkVertically(tween(220, easing = FastOutSlowInEasing)) + fadeOut(tween(160)),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(end = DrawerHotZoneClearance),
+            ) {
                 Text(
                     text =
                         if (signedIn && userName.isNotBlank()) {
@@ -439,7 +446,11 @@ private fun UnifiedActivity.ItchHeader(
         if (!searching) {
             Spacer(Modifier.height(6.dp))
             Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(start = DrawerHotZoneStart, end = DrawerHotZoneClearance)
+                        .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 facets.forEach { entry ->
@@ -653,6 +664,32 @@ internal fun UnifiedActivity.ItchGameDialog(
                 0L
             }
         }
+    val controllerLabel = stringResource(R.string.itch_store_controller)
+    val controllerNotListed = stringResource(R.string.itch_store_controller_not_listed)
+    val controllerUnsupported = stringResource(R.string.itch_store_controller_unsupported)
+    val tagsLabel = stringResource(R.string.itch_store_tags)
+    val detailChips =
+        remember(details, controllerLabel, tagsLabel) {
+            val current = details
+            buildList {
+                add(
+                    StoreDetailChip(
+                        icon = Icons.Outlined.SportsEsports,
+                        label = controllerLabel,
+                        value =
+                            when {
+                                current == null || !current.inputsKnown -> controllerNotListed
+                                current.hasControllerSupport -> current.controllerInputs.joinToString(", ") { it.label }
+                                else -> controllerUnsupported
+                            },
+                        highlight = current?.hasControllerSupport == true,
+                    ),
+                )
+                current?.tags?.take(4)?.takeIf { it.isNotEmpty() }?.let { tags ->
+                    add(StoreDetailChip(Icons.Outlined.Sell, tagsLabel, tags.joinToString(", ")))
+                }
+            }
+        }
     val uploadOptions =
         remember(uploads) {
             uploads.orEmpty().map { upload ->
@@ -698,6 +735,7 @@ internal fun UnifiedActivity.ItchGameDialog(
                 isInstallEnabled = selectedUpload != null && !busy,
                 customPathLabel = "",
                 showCustomPath = false,
+                detailChips = detailChips,
                 showCloudSync = false,
                 showUninstall = installed,
                 uninstallAsPrimaryAction = true,

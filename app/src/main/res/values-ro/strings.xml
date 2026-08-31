@@ -2592,5 +2592,10 @@ Cale instalata:
     <string name="itch_store_error_no_uploads">itch.io nu a listat fișiere descărcabile</string>
     <string name="itch_store_error_unsupported_archive">%1$s este o arhivă RAR — extrage-o manual din folderul jocului</string>
     <string name="itch_store_error_generic">Descărcarea nu a putut fi finalizată</string>
+    <string name="itch_store_controller">Controller</string>
+    <string name="itch_store_controller_not_listed">Nespecificat</string>
+    <string name="itch_store_controller_unsupported">Nu este acceptat</string>
+    <string name="itch_store_tags">Etichete</string>
+    <string name="itch_facet_gamepad">Gamepad</string>
 </resources>
 

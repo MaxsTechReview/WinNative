@@ -5,6 +5,7 @@ import androidx.core.text.HtmlCompat
 import com.winlator.cmod.feature.stores.itch.data.ItchBrowseFilter
 import com.winlator.cmod.feature.stores.itch.data.ItchGame
 import com.winlator.cmod.feature.stores.itch.data.ItchGameDetails
+import com.winlator.cmod.feature.stores.itch.data.ItchInput
 import com.winlator.cmod.feature.stores.itch.data.ItchPlatform
 import com.winlator.cmod.feature.stores.itch.data.ItchUpload
 import org.json.JSONObject
@@ -31,7 +32,7 @@ object ItchCatalog {
     private val screenshotRegex = Regex("<img[^>]*class=\"screenshot\"[^>]*>")
     private val metaTagRegex = Regex("<meta([^>]*)>")
     private val infoRowRegex = Regex("<td>([^<]{0,40})</td>\\s*<td>(.*?)</td>", RegexOption.DOT_MATCHES_ALL)
-    private val tagRegex = Regex("href=\"https://itch\\.io/games/(?:tag|genre)-[^\"]*\">([^<]+)</a>")
+    private val infoLinkRegex = Regex("<a[^>]*href=\"[^\"]*/games/([a-z0-9-]+)\"[^>]*>([^<]+)</a>")
     private val sizeRegex = Regex("([0-9]+(?:\\.[0-9]+)?)\\s*(B|KB|MB|GB|TB)", RegexOption.IGNORE_CASE)
 
     fun browse(
@@ -119,15 +120,49 @@ object ItchCatalog {
                 .take(8)
                 .toList()
         val minPrice = viewGameProps(html)?.optJSONObject("game")?.let { if (it.has("min_price")) it.optInt("min_price") else null }
+        val tags =
+            (infoLinks(html, "Tags") + infoLinks(html, "Genre"))
+                .map { it.label }
+                .filter { it.isNotEmpty() }
+                .distinct()
+                .take(12)
         return ItchGameDetails(
             game = game,
             heroImageUrl = metaContent(html, "property", "og:image").orEmpty(),
             description = description.take(4000),
             screenshots = screenshots,
-            tags = tagRegex.findAll(html).map { decode(it.groupValues[1]).trim() }.distinct().take(12).toList(),
+            tags = tags,
+            inputs = infoLinks(html, "Inputs"),
             infoRows = infoRows,
             minPriceCents = minPrice,
         )
+    }
+
+    fun infoLinks(
+        html: String,
+        label: String,
+    ): List<ItchInput> {
+        val cell = infoCell(html, label) ?: return emptyList()
+        return infoLinkRegex
+            .findAll(cell)
+            .map { ItchInput(it.groupValues[1], decode(it.groupValues[2]).trim()) }
+            .filter { it.label.isNotEmpty() }
+            .distinctBy { it.slug }
+            .toList()
+    }
+
+    private fun infoCell(
+        html: String,
+        label: String,
+    ): String? {
+        val marker = "<td>$label</td>"
+        val start = html.indexOf(marker)
+        if (start < 0) return null
+        val valueStart = html.indexOf("<td>", start + marker.length)
+        if (valueStart < 0) return null
+        val valueEnd = html.indexOf("</td>", valueStart)
+        if (valueEnd < 0) return null
+        return html.substring(valueStart, valueEnd)
     }
 
     fun parseUploads(html: String): List<ItchUpload> {

@@ -2592,5 +2592,10 @@
     <string name="itch_store_error_no_uploads">itch.io 未列出可下載的檔案</string>
     <string name="itch_store_error_unsupported_archive">%1$s 是 RAR 壓縮檔，請從遊戲資料夾中手動解壓縮</string>
     <string name="itch_store_error_generic">下載無法完成</string>
+    <string name="itch_store_controller">手把</string>
+    <string name="itch_store_controller_not_listed">未標註</string>
+    <string name="itch_store_controller_unsupported">不支援</string>
+    <string name="itch_store_tags">標籤</string>
+    <string name="itch_facet_gamepad">手把</string>
 </resources>
 

@@ -2599,5 +2599,10 @@
     <string name="itch_store_error_no_uploads">itch.io не показав файлів для завантаження</string>
     <string name="itch_store_error_unsupported_archive">%1$s — це архів RAR, розпакуйте його вручну з теки гри</string>
     <string name="itch_store_error_generic">Не вдалося завершити завантаження</string>
+    <string name="itch_store_controller">Контролер</string>
+    <string name="itch_store_controller_not_listed">Не вказано</string>
+    <string name="itch_store_controller_unsupported">Не підтримується</string>
+    <string name="itch_store_tags">Теги</string>
+    <string name="itch_facet_gamepad">Геймпад</string>
 </resources>
 
