@@ -35,6 +35,7 @@ import com.winlator.cmod.feature.library.GameSettingsNav
 import com.winlator.cmod.feature.library.GameSettingsStateHolder
 import com.winlator.cmod.feature.library.WinComponentItem
 import com.winlator.cmod.feature.library.parseEnvVarItems
+import com.winlator.cmod.runtime.audio.directaudio.DirectAudioDriver
 import com.winlator.cmod.runtime.compat.box64.Box64Preset
 import com.winlator.cmod.runtime.compat.box64.Box64PresetManager
 import com.winlator.cmod.runtime.container.Container
@@ -586,6 +587,9 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             c?.getAudioDriver() ?: Container.DEFAULT_AUDIO_DRIVER,
             state.selectedAudioDriver
         )
+        state.directAudioMic.value = DirectAudioDriver.isMicEnabled(
+            c?.getExtra(DirectAudioDriver.EXTRA_MIC)
+        )
 
         loadMidiSoundFonts()
 
@@ -865,6 +869,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                     if (loadoutJson == null) null else state.reshadeLoadout.firstEffectName())
             }
             c.setAudioDriver(audioDriver)
+            c.putExtra(DirectAudioDriver.EXTRA_MIC, if (state.directAudioMic.value) "1" else "0")
             c.setEmulator(emulator)
             c.setEmulator64(emulator64)
             c.setWinComponents(wincomponents)
@@ -940,6 +945,10 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                             if (state.selectedSurfaceEffect.intValue == 1) "1" else "0"
                         )
                         getRefreshRateFromState()?.let { newContainer.putExtra("refreshRate", it) }
+                        newContainer.putExtra(
+                            DirectAudioDriver.EXTRA_MIC,
+                            if (state.directAudioMic.value) "1" else "0"
+                        )
                         writeFrameGenExtras(newContainer)
                         newContainer.setZinkMode(if (state.selectedZinkMode.intValue == 1) "windows" else "unix")
                         newContainer.saveData()

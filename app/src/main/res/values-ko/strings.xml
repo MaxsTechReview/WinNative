@@ -349,6 +349,8 @@
     <string name="container_config_processor_affinity">프로세서 선호도</string>
     <string name="container_config_processor_affinity_32bit">프로세서 선호도 (32비트 앱)</string>
     <string name="container_config_audio_driver">오디오 드라이버</string>
+    <string name="container_config_direct_audio_mic">마이크 (DirectAudio)</string>
+    <string name="container_config_direct_audio_mic_help">게임 내 음성 채팅을 위해 게임이 기기 마이크로 녹음할 수 있도록 합니다. 로딩 중에 마이크를 확인하는 일부 타이틀은 이 기능을 켜면 실행되지 않습니다. 필요한 게임에서만 켜세요.</string>
     <string name="container_config_win_components">Windows 구성 요소</string>
     <string name="container_config_drives">드라이브</string>
     <string name="container_config_arch">아키텍처</string>

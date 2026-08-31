@@ -409,6 +409,8 @@
     <string name="container_config_processor_affinity">Prosessortilknytning</string>
     <string name="container_config_processor_affinity_32bit">Prosessortilknytning (32-biters apper)</string>
     <string name="container_config_audio_driver">Lyddriver</string>
+    <string name="container_config_direct_audio_mic">Mikrofon (DirectAudio)</string>
+    <string name="container_config_direct_audio_mic_help">Lar et spill ta opp fra enhetens mikrofon, for talechat i spillet. Enkelte titler som ser etter en mikrofon under innlasting, starter ikke med dette påslått – slå det bare på for et spill som trenger det.</string>
     <string name="container_config_win_components">Win-komponenter</string>
     <string name="container_config_drives">Stasjoner</string>
     <string name="container_config_arch">Arkitektur</string>

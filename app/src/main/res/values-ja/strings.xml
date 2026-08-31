@@ -409,6 +409,8 @@
     <string name="container_config_processor_affinity">プロセッサアフィニティ</string>
     <string name="container_config_processor_affinity_32bit">プロセッサアフィニティ (32ビットアプリ)</string>
     <string name="container_config_audio_driver">オーディオドライバー</string>
+    <string name="container_config_direct_audio_mic">マイク (DirectAudio)</string>
+    <string name="container_config_direct_audio_mic_help">ゲーム内ボイスチャット用に、ゲームがデバイスのマイクから録音できるようにします。読み込み中にマイクを確認する一部のタイトルは、これを有効にすると起動しません。必要なゲームでのみ有効にしてください。</string>
     <string name="container_config_win_components">Win コンポーネント</string>
     <string name="container_config_drives">ドライブ</string>
     <string name="container_config_arch">アーキテクチャ</string>

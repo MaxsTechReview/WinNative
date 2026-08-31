@@ -353,6 +353,8 @@
     <string name="container_config_processor_affinity">Powinowactwo procesora</string>
     <string name="container_config_processor_affinity_32bit">Powinowactwo procesora (aplikacje 32-bitowe)</string>
     <string name="container_config_audio_driver">Sterownik dźwięku</string>
+    <string name="container_config_direct_audio_mic">Mikrofon (DirectAudio)</string>
+    <string name="container_config_direct_audio_mic_help">Pozwala grze nagrywać z mikrofonu urządzenia na potrzeby czatu głosowego w grze. Niektóre tytuły sprawdzające mikrofon podczas wczytywania nie uruchomią się z tą opcją – włącz ją tylko dla gry, która jej potrzebuje.</string>
     <string name="container_config_win_components">Komponenty Windows</string>
     <string name="container_config_drives">Dyski</string>
     <string name="container_config_arch">Architektura</string>

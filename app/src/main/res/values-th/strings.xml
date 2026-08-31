@@ -409,6 +409,8 @@
     <string name="container_config_processor_affinity">ความสัมพันธ์ของโปรเซสเซอร์</string>
     <string name="container_config_processor_affinity_32bit">ความสัมพันธ์ของโปรเซสเซอร์ (แอป 32-bit)</string>
     <string name="container_config_audio_driver">ไดรเวอร์เสียง</string>
+    <string name="container_config_direct_audio_mic">ไมโครโฟน (DirectAudio)</string>
+    <string name="container_config_direct_audio_mic_help">ให้เกมบันทึกเสียงจากไมโครโฟนของอุปกรณ์ สำหรับแชทด้วยเสียงในเกม บางเกมที่ตรวจสอบไมโครโฟนขณะโหลดจะไม่เริ่มทำงานเมื่อเปิดตัวเลือกนี้ — เปิดเฉพาะกับเกมที่จำเป็นต้องใช้เท่านั้น</string>
     <string name="container_config_win_components">คอมโพเนนต์ Win</string>
     <string name="container_config_drives">ไดรฟ์</string>
     <string name="container_config_arch">สถาปัตยกรรม</string>

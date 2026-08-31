@@ -385,6 +385,8 @@
     <string name="container_config_processor_affinity">प्रोसेसर अफ़िनिटी</string>
     <string name="container_config_processor_affinity_32bit">प्रोसेसर अफ़िनिटी (32-बिट ऐप्स)</string>
     <string name="container_config_audio_driver">ऑडियो ड्राइवर</string>
+    <string name="container_config_direct_audio_mic">माइक्रोफ़ोन (DirectAudio)</string>
+    <string name="container_config_direct_audio_mic_help">किसी गेम को आपके डिवाइस के माइक्रोफ़ोन से रिकॉर्ड करने देता है, इन-गेम वॉइस चैट के लिए। कुछ गेम जो लोड होते समय माइक्रोफ़ोन की जाँच करते हैं, इसे चालू रखने पर शुरू नहीं होंगे — इसे केवल उसी गेम के लिए चालू करें जिसे इसकी ज़रूरत हो।</string>
     <string name="container_config_win_components">Win घटक</string>
     <string name="container_config_drives">ड्राइव</string>
     <string name="container_config_arch">आर्किटेक्चर</string>

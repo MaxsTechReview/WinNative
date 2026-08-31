@@ -349,6 +349,8 @@
     <string name="container_config_processor_affinity">Processoraffinitet</string>
     <string name="container_config_processor_affinity_32bit">Processoraffinitet (32-bit apps)</string>
     <string name="container_config_audio_driver">Lyddriver</string>
+    <string name="container_config_direct_audio_mic">Mikrofon (DirectAudio)</string>
+    <string name="container_config_direct_audio_mic_help">Lader et spil optage fra enhedens mikrofon til stemmechat i spillet. Nogle titler, der tjekker efter en mikrofon under indlæsning, starter ikke med dette slået til – slå det kun til for et spil, der har brug for det.</string>
     <string name="container_config_win_components">Win-komponenter</string>
     <string name="container_config_drives">Drev</string>
     <string name="container_config_arch">Arkitektur</string>

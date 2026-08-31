@@ -349,6 +349,8 @@
     <string name="container_config_processor_affinity">Affinità processore</string>
     <string name="container_config_processor_affinity_32bit">Affinità processore (app 32-bit)</string>
     <string name="container_config_audio_driver">Driver audio</string>
+    <string name="container_config_direct_audio_mic">Microfono (DirectAudio)</string>
+    <string name="container_config_direct_audio_mic_help">Consente a un gioco di registrare dal microfono del dispositivo, per la chat vocale in gioco. Alcuni titoli che cercano un microfono durante il caricamento non si avvieranno con questa opzione attiva: attivala solo per un gioco che ne ha bisogno.</string>
     <string name="container_config_win_components">Componenti Windows</string>
     <string name="container_config_drives">Unità</string>
     <string name="container_config_arch">Architettura</string>

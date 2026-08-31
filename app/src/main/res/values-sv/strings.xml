@@ -409,6 +409,8 @@
     <string name="container_config_processor_affinity">Processoraffinitet</string>
     <string name="container_config_processor_affinity_32bit">Processoraffinitet (32-bitars appar)</string>
     <string name="container_config_audio_driver">Ljuddrivrutin</string>
+    <string name="container_config_direct_audio_mic">Mikrofon (DirectAudio)</string>
+    <string name="container_config_direct_audio_mic_help">Låter ett spel spela in från enhetens mikrofon, för röstchatt i spelet. Vissa titlar som söker efter en mikrofon under laddning startar inte med detta påslaget – slå bara på det för ett spel som behöver det.</string>
     <string name="container_config_win_components">Win-komponenter</string>
     <string name="container_config_drives">Enheter</string>
     <string name="container_config_arch">Arkitektur</string>

@@ -349,6 +349,8 @@
     <string name="container_config_processor_affinity">处理器亲和性</string>
     <string name="container_config_processor_affinity_32bit">处理器亲和性（32 位应用）</string>
     <string name="container_config_audio_driver">音频驱动</string>
+    <string name="container_config_direct_audio_mic">麦克风 (DirectAudio)</string>
+    <string name="container_config_direct_audio_mic_help">允许游戏使用设备麦克风录音，用于游戏内语音聊天。某些在加载时检查麦克风的游戏在启用后将无法启动——请仅为需要的游戏启用。</string>
     <string name="container_config_win_components">Windows 组件</string>
     <string name="container_config_drives">驱动器</string>
     <string name="container_config_arch">架构</string>

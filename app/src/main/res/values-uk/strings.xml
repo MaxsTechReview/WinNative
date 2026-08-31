@@ -353,6 +353,8 @@
     <string name="container_config_processor_affinity">Прив\'язка до процесора</string>
     <string name="container_config_processor_affinity_32bit">Прив\'язка до процесора (32-бітні додатки)</string>
     <string name="container_config_audio_driver">Аудіодрайвер</string>
+    <string name="container_config_direct_audio_mic">Мікрофон (DirectAudio)</string>
+    <string name="container_config_direct_audio_mic_help">Дозволяє грі записувати звук з мікрофона пристрою для голосового чату. Деякі ігри, які перевіряють наявність мікрофона під час завантаження, не запустяться з увімкненою опцією — вмикайте її лише для гри, якій вона потрібна.</string>
     <string name="container_config_win_components">Компоненти Windows</string>
     <string name="container_config_drives">Диски</string>
     <string name="container_config_arch">Архітектура</string>
