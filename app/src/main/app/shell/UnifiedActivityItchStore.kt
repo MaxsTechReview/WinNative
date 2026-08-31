@@ -110,35 +110,65 @@ internal fun UnifiedActivity.ItchStoreTab(
     var installedIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var signedIn by remember { mutableStateOf(false) }
     var userName by remember { mutableStateOf("") }
+    var ownedGames by remember { mutableStateOf<List<ItchGame>>(emptyList()) }
 
     val query = searchQuery.trim()
     val isSearching = query.length >= 2
+    val ownedIds = remember(ownedGames) { ownedGames.map { it.id }.toSet() }
+    val facets = remember(signedIn) { ItchFacet.visible(signedIn) }
 
     LaunchedEffect(signInSignal) {
         signedIn = withContext(Dispatchers.IO) { ItchService.isLoggedIn(context) }
         userName = ItchService.userName(context)
     }
 
+    LaunchedEffect(signedIn, signInSignal, reloadKey) {
+        ownedGames =
+            if (signedIn) {
+                try {
+                    ItchService.owned(context, 1)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Throwable) {
+                    emptyList()
+                }
+            } else {
+                emptyList()
+            }
+        if (!signedIn && facet.kind == ItchFacet.Kind.OWNED) facet = ItchFacet.POPULAR
+    }
+
     LaunchedEffect(reloadKey) {
         installedIds = withContext(Dispatchers.IO) { ItchService.installedIds(context) }
     }
 
-    LaunchedEffect(facet, windowsOnly, query, reloadKey) {
+    val visibleIn: (List<ItchGame>) -> List<ItchGame> = { list ->
+        list.filter { game ->
+            (!windowsOnly || game.platforms.isEmpty() || game.hasWindowsBuild) &&
+                (game.isFree || game.id in ownedIds)
+        }
+    }
+
+    LaunchedEffect(facet, windowsOnly, query, reloadKey, ownedGames) {
         if (isSearching) delay(SEARCH_DEBOUNCE_MS)
         loading = true
         error = null
         exhausted = false
         page = 1
         try {
+            val filter = ItchBrowseFilter(facet, windowsOnly)
             val list =
-                if (isSearching) {
-                    ItchService.search(context, query)
-                } else {
-                    ItchService.browse(context, ItchBrowseFilter(facet, windowsOnly), 1)
+                when {
+                    isSearching -> visibleIn(ItchService.search(context, query))
+                    filter.isOwned -> ownedGames
+                    else -> {
+                        val head = if (facet == ItchFacet.POPULAR) ownedGames else emptyList()
+                        head + visibleIn(ItchService.browse(context, filter, 1))
+                    }
                 }
             games.clear()
             games.addAll(list)
-            exhausted = isSearching || list.size < ItchConstants.PAGE_SIZE
+            exhausted = isSearching || filter.isOwned
             loading = false
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -160,10 +190,10 @@ internal fun UnifiedActivity.ItchStoreTab(
                     try {
                         val list = ItchService.browse(context, ItchBrowseFilter(facet, windowsOnly), next)
                         val known = games.map { it.id }.toSet()
-                        val fresh = list.filterNot { it.id in known }
+                        val fresh = visibleIn(list).filterNot { it.id in known }
                         games.addAll(fresh)
                         page = next
-                        if (fresh.isEmpty() || list.size < ItchConstants.PAGE_SIZE) exhausted = true
+                        if (list.size < ItchConstants.PAGE_SIZE) exhausted = true
                     } catch (cancelled: CancellationException) {
                         loadingMore = false
                         throw cancelled
@@ -200,6 +230,7 @@ internal fun UnifiedActivity.ItchStoreTab(
 
     Column(Modifier.fillMaxSize()) {
         ItchHeader(
+            facets = facets,
             facet = facet,
             windowsOnly = windowsOnly,
             signedIn = signedIn,
@@ -246,7 +277,9 @@ internal fun UnifiedActivity.ItchStoreTab(
             games.isEmpty() ->
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        stringResource(R.string.itch_store_no_results),
+                        stringResource(
+                            if (facet.kind == ItchFacet.Kind.OWNED) R.string.itch_store_no_owned else R.string.itch_store_no_results,
+                        ),
                         color = TextSecondary,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(32.dp),
@@ -286,6 +319,7 @@ internal fun UnifiedActivity.ItchStoreTab(
 
 @Composable
 private fun UnifiedActivity.ItchHeader(
+    facets: List<ItchFacet>,
     facet: ItchFacet,
     windowsOnly: Boolean,
     signedIn: Boolean,
@@ -366,7 +400,7 @@ private fun UnifiedActivity.ItchHeader(
                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                ItchFacet.ALL.forEach { entry ->
+                facets.forEach { entry ->
                     val active = entry.segment == facet.segment
                     Box(
                         modifier =

@@ -1,0 +1,47 @@
+package com.winlator.cmod.feature.stores.itch
+
+import com.winlator.cmod.feature.stores.itch.data.ItchBrowseFilter
+import com.winlator.cmod.feature.stores.itch.data.ItchFacet
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class ItchBrowseFilterTest {
+    private fun facet(segment: String) = ItchFacet.visible(true).first { it.segment == segment }
+
+    @Test
+    fun defaultBrowseIsFreeOnly() {
+        assertEquals("games/free", ItchBrowseFilter().toPath())
+    }
+
+    @Test
+    fun sortFacetsPrecedeTheFreeSegment() {
+        assertEquals("games/newest/free", ItchBrowseFilter(facet("newest")).toPath())
+        assertEquals("games/top-rated/free", ItchBrowseFilter(facet("top-rated")).toPath())
+        assertEquals("games/new-and-popular/free", ItchBrowseFilter(facet("new-and-popular")).toPath())
+    }
+
+    @Test
+    fun genreAndTagFacetsFollowTheFreeSegment() {
+        assertEquals("games/free/genre-rpg", ItchBrowseFilter(facet("genre-rpg")).toPath())
+        assertEquals("games/free/tag-horror", ItchBrowseFilter(facet("tag-horror")).toPath())
+    }
+
+    @Test
+    fun everyFacetStaysWithinTheTwoSegmentLimit() {
+        ItchFacet.visible(true).forEach { entry ->
+            val segments = ItchBrowseFilter(entry).toPath().removePrefix("games/").split("/").filter { it.isNotEmpty() }
+            assertTrue("${entry.segment} produced ${segments.size} segments", segments.size <= 2)
+            assertTrue("${entry.segment} lost the free filter", "free" in segments)
+        }
+    }
+
+    @Test
+    fun ownedFacetIsFlaggedAndOnlyOfferedWhenSignedIn() {
+        assertTrue(ItchBrowseFilter(ItchFacet.OWNED).isOwned)
+        assertFalse(ItchBrowseFilter(ItchFacet.POPULAR).isOwned)
+        assertTrue(ItchFacet.visible(true).contains(ItchFacet.OWNED))
+        assertFalse(ItchFacet.visible(false).contains(ItchFacet.OWNED))
+    }
+}

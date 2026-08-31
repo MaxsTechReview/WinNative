@@ -70,6 +70,11 @@ object ItchService {
         query: String,
     ): List<ItchGame> = withContext(Dispatchers.IO) { ItchCatalog.search(context, query) }
 
+    suspend fun owned(
+        context: Context,
+        page: Int,
+    ): List<ItchGame> = withContext(Dispatchers.IO) { ItchOwnedGames.fetch(context, page) }
+
     suspend fun details(
         context: Context,
         game: ItchGame,

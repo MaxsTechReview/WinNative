@@ -51,44 +51,45 @@ data class ItchGameDetails(
 data class ItchFacet(
     val segment: String,
     val label: String,
-    val placement: Placement = Placement.LEADING,
+    val kind: Kind = Kind.SORT,
 ) {
-    enum class Placement { LEADING, TRAILING }
+    enum class Kind { SORT, GENRE, TAG, OWNED }
 
     companion object {
         val POPULAR = ItchFacet("", "Popular")
+        val OWNED = ItchFacet("owned", "Owned", Kind.OWNED)
 
-        val ALL =
+        private val BROWSABLE =
             listOf(
                 POPULAR,
                 ItchFacet("new-and-popular", "New & Popular"),
                 ItchFacet("newest", "Newest"),
                 ItchFacet("top-rated", "Top Rated"),
                 ItchFacet("top-sellers", "Top Sellers"),
-                ItchFacet("free", "Free"),
-                ItchFacet("on-sale", "On Sale"),
-                ItchFacet("genre-action", "Action"),
-                ItchFacet("genre-adventure", "Adventure"),
-                ItchFacet("genre-rpg", "RPG"),
-                ItchFacet("genre-platformer", "Platformer"),
-                ItchFacet("genre-shooter", "Shooter"),
-                ItchFacet("genre-puzzle", "Puzzle"),
-                ItchFacet("genre-simulation", "Simulation"),
-                ItchFacet("genre-strategy", "Strategy"),
-                ItchFacet("genre-sports", "Sports"),
-                ItchFacet("genre-visual-novel", "Visual Novel"),
-                ItchFacet("tag-horror", "Horror", Placement.TRAILING),
-                ItchFacet("tag-pixel-art", "Pixel Art", Placement.TRAILING),
-                ItchFacet("tag-2d", "2D", Placement.TRAILING),
-                ItchFacet("tag-3d", "3D", Placement.TRAILING),
-                ItchFacet("tag-roguelike", "Roguelike", Placement.TRAILING),
-                ItchFacet("tag-multiplayer", "Multiplayer", Placement.TRAILING),
-                ItchFacet("tag-anime", "Anime", Placement.TRAILING),
-                ItchFacet("tag-retro", "Retro", Placement.TRAILING),
-                ItchFacet("tag-story-rich", "Story Rich", Placement.TRAILING),
-                ItchFacet("tag-sandbox", "Sandbox", Placement.TRAILING),
-                ItchFacet("tag-fangame", "Fangame", Placement.TRAILING),
+                ItchFacet("genre-action", "Action", Kind.GENRE),
+                ItchFacet("genre-adventure", "Adventure", Kind.GENRE),
+                ItchFacet("genre-rpg", "RPG", Kind.GENRE),
+                ItchFacet("genre-platformer", "Platformer", Kind.GENRE),
+                ItchFacet("genre-shooter", "Shooter", Kind.GENRE),
+                ItchFacet("genre-puzzle", "Puzzle", Kind.GENRE),
+                ItchFacet("genre-simulation", "Simulation", Kind.GENRE),
+                ItchFacet("genre-strategy", "Strategy", Kind.GENRE),
+                ItchFacet("genre-sports", "Sports", Kind.GENRE),
+                ItchFacet("genre-visual-novel", "Visual Novel", Kind.GENRE),
+                ItchFacet("tag-horror", "Horror", Kind.TAG),
+                ItchFacet("tag-pixel-art", "Pixel Art", Kind.TAG),
+                ItchFacet("tag-2d", "2D", Kind.TAG),
+                ItchFacet("tag-3d", "3D", Kind.TAG),
+                ItchFacet("tag-roguelike", "Roguelike", Kind.TAG),
+                ItchFacet("tag-multiplayer", "Multiplayer", Kind.TAG),
+                ItchFacet("tag-anime", "Anime", Kind.TAG),
+                ItchFacet("tag-retro", "Retro", Kind.TAG),
+                ItchFacet("tag-story-rich", "Story Rich", Kind.TAG),
+                ItchFacet("tag-sandbox", "Sandbox", Kind.TAG),
+                ItchFacet("tag-fangame", "Fangame", Kind.TAG),
             )
+
+        fun visible(signedIn: Boolean): List<ItchFacet> = if (signedIn) listOf(POPULAR, OWNED) + BROWSABLE.drop(1) else BROWSABLE
     }
 }
 
@@ -96,14 +97,19 @@ data class ItchBrowseFilter(
     val facet: ItchFacet = ItchFacet.POPULAR,
     val windowsOnly: Boolean = true,
 ) {
+    val isOwned: Boolean get() = facet.kind == ItchFacet.Kind.OWNED
+
     fun toPath(): String {
-        val platform = if (windowsOnly) "platform-windows" else ""
         val segments =
-            when {
-                facet.segment.isEmpty() -> listOf(platform)
-                facet.placement == ItchFacet.Placement.LEADING -> listOf(facet.segment, platform)
-                else -> listOf(platform, facet.segment)
+            when (facet.kind) {
+                ItchFacet.Kind.OWNED -> listOf(FREE_SEGMENT)
+                ItchFacet.Kind.SORT -> listOf(facet.segment, FREE_SEGMENT)
+                else -> listOf(FREE_SEGMENT, facet.segment)
             }.filter { it.isNotEmpty() }
-        return if (segments.isEmpty()) "games" else "games/" + segments.joinToString("/")
+        return "games/" + segments.joinToString("/")
+    }
+
+    private companion object {
+        const val FREE_SEGMENT = "free"
     }
 }

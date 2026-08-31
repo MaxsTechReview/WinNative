@@ -115,7 +115,12 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -252,6 +257,10 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 // Main hub scaffold + top bar + glasses sheet + library carousel, split out of UnifiedActivity.kt (behavior-identical).
+
+private val StoreTabKeys = setOf("steam", "epic", "gog", "itch")
+private val HeaderCollapseTriggerDistance = 24.dp
+private const val HeaderRevealFraction = 0.5f
 
 @Composable
 internal fun UnifiedActivity.UnifiedHub() {
@@ -846,10 +855,71 @@ internal fun UnifiedActivity.UnifiedHub() {
                     },
                 )
             }
+            val activeTabKey = tabs.getOrNull(selectedIdx)?.key ?: "library"
+            val headerCollapsible = activeTabKey in StoreTabKeys
+            val headerCollapseTriggerPx = with(LocalDensity.current) { HeaderCollapseTriggerDistance.toPx() }
+            var headerHeightPx by remember { mutableIntStateOf(0) }
+            var headerVisible by remember { mutableStateOf(true) }
+            val headerOffsetPx by animateFloatAsState(
+                targetValue =
+                    if (!headerCollapsible || headerVisible || headerHeightPx == 0) {
+                        0f
+                    } else {
+                        -headerHeightPx.toFloat()
+                    },
+                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                label = "headerOffset",
+            )
+            LaunchedEffect(activeTabKey) { headerVisible = true }
+            val headerScrollConnection =
+                remember(headerCollapsible, headerCollapseTriggerPx) {
+                    object : NestedScrollConnection {
+                        private var downDistance = 0f
+                        private var upDistance = 0f
+
+                        override fun onPreScroll(
+                            available: Offset,
+                            source: NestedScrollSource,
+                        ): Offset {
+                            if (!headerCollapsible || headerHeightPx == 0) return Offset.Zero
+                            val delta = available.y
+                            if (delta < 0f) {
+                                upDistance = 0f
+                                downDistance -= delta
+                                if (downDistance > headerCollapseTriggerPx) headerVisible = false
+                            } else if (delta > 0f) {
+                                downDistance = 0f
+                                upDistance += delta
+                                if (upDistance > headerHeightPx * HeaderRevealFraction) headerVisible = true
+                            }
+                            return Offset.Zero
+                        }
+
+                        override fun onPostScroll(
+                            consumed: Offset,
+                            available: Offset,
+                            source: NestedScrollSource,
+                        ): Offset {
+                            if (headerCollapsible && available.y > 0f) {
+                                downDistance = 0f
+                                upDistance = 0f
+                                headerVisible = true
+                            }
+                            return Offset.Zero
+                        }
+                    }
+                }
+
             Scaffold(
+                modifier = Modifier.nestedScroll(headerScrollConnection),
                 containerColor = scaffoldContainer,
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 topBar = {
+                    Box(
+                        Modifier
+                            .onSizeChanged { headerHeightPx = it.height }
+                            .graphicsLayer { translationY = headerOffsetPx },
+                    ) {
                     TopBar(tabs, selectedIdx, {
                         selectedIdx = it
                     }, persona, context, scope, isControllerConnected, isPS, isLibraryTab, searchQueryTfv, {
@@ -882,6 +952,7 @@ internal fun UnifiedActivity.UnifiedHub() {
                             )
                         }
                     }
+                    }
                 },
             ) { padding ->
                 LaunchedEffect(selectedIdx, tabs) {
@@ -892,8 +963,26 @@ internal fun UnifiedActivity.UnifiedHub() {
 
                 val key = tabs.getOrNull(selectedIdx)?.key ?: "library"
                 val innerBoxBg = if (immersiveMode && key == "library") Color.Transparent else BgDark
+                val headerLayoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
+                val headerDensity = LocalDensity.current
+                val headerMinTopPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                val contentTopPadding =
+                    with(headerDensity) {
+                        (padding.calculateTopPadding().toPx() + headerOffsetPx)
+                            .coerceAtLeast(headerMinTopPadding.toPx())
+                            .toDp()
+                    }
 
-                Box(Modifier.padding(padding).fillMaxSize().background(innerBoxBg)) {
+                Box(
+                    Modifier
+                        .padding(
+                            start = padding.calculateStartPadding(headerLayoutDirection),
+                            top = contentTopPadding,
+                            end = padding.calculateEndPadding(headerLayoutDirection),
+                            bottom = padding.calculateBottomPadding(),
+                        ).fillMaxSize()
+                        .background(innerBoxBg),
+                ) {
 
                     LaunchedEffect(key) { libraryTabActive.value = (key == "library") }
 

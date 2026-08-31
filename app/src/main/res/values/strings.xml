@@ -263,11 +263,12 @@
     <string name="itch_store_sign_in_short">Sign in</string>
     <string name="itch_store_sign_out">Sign out</string>
     <string name="itch_store_signed_in">Signed in to itch.io</string>
-    <string name="itch_store_signed_in_as">Signed in as %1$s</string>
-    <string name="itch_store_signed_out_hint">Browsing anonymously — free games download without an account</string>
+    <string name="itch_store_signed_in_as">%1$s — free &amp; owned games</string>
+    <string name="itch_store_signed_out_hint">Free games — sign in to see games you own</string>
     <string name="itch_store_search_hint">Search itch.io</string>
     <string name="itch_store_windows_only">Windows only</string>
     <string name="itch_store_no_results">No games matched. Try another filter or search term.</string>
+    <string name="itch_store_no_owned">No owned games found on your itch.io account.</string>
     <string name="itch_store_load_failed">Could not reach itch.io: %1$s</string>
     <string name="itch_store_retry">Retry</string>
     <string name="itch_store_free">Free</string>
