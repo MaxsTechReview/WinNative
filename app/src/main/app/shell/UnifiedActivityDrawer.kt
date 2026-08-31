@@ -481,7 +481,7 @@ internal fun UnifiedActivity.DrawerContent(
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 DrawerFilterButton("GOG", storeVisible["gog"] == true, Modifier.weight(1f)) { onStoreVisibleChanged("gog", it) }
-                Spacer(Modifier.weight(1f))
+                DrawerFilterButton("itch.io", storeVisible["itch"] == true, Modifier.weight(1f)) { onStoreVisibleChanged("itch", it) }
             }
 
             Spacer(Modifier.height(16.dp))
@@ -1256,22 +1256,27 @@ internal suspend fun scrapeCustomGameArtwork(
     }
 }
 
-internal fun UnifiedActivity.addCustomGame(
+internal fun addCustomGame(
     context: android.content.Context,
     name: String,
     exePath: String,
     gameFolderPath: String,
 ) {
     val containerManager = ContainerManager(context)
-    var container = SetupWizardActivity.getPreferredGameContainer(context, containerManager)
+    val container = SetupWizardActivity.getPreferredGameContainer(context, containerManager)
     if (container == null) {
         SetupWizardActivity.promptToInstallWineOrCreateContainer(context)
         return
     }
 
     val exeFile = java.io.File(exePath)
-    normalizeContainerDrives(container)
-    val execCmd = buildWineExecCommand(container, gameFolderPath, exeFile)
+    container.drives =
+        com.winlator.cmod.runtime.wine.WineUtils
+            .normalizePersistentDrives(context, container.drives ?: Container.DEFAULT_DRIVES, false)
+    val windowsPath =
+        com.winlator.cmod.runtime.wine.WineUtils
+            .resolveGameExeWindowsPath(container, "CUSTOM", gameFolderPath, exeFile.absolutePath)
+    val execCmd = "wine \"$windowsPath\""
 
     val desktopDir = container.getDesktopDir()
     if (!desktopDir.exists()) desktopDir.mkdirs()

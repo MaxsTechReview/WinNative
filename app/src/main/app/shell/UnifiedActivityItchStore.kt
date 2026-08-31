@@ -1,0 +1,663 @@
+package com.winlator.cmod.app.shell
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.automirrored.outlined.Login
+import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.winlator.cmod.R
+import com.winlator.cmod.feature.stores.itch.data.ItchBrowseFilter
+import com.winlator.cmod.feature.stores.itch.data.ItchFacet
+import com.winlator.cmod.feature.stores.itch.data.ItchGame
+import com.winlator.cmod.feature.stores.itch.data.ItchGameDetails
+import com.winlator.cmod.feature.stores.itch.data.ItchPlatform
+import com.winlator.cmod.feature.stores.itch.data.ItchUpload
+import com.winlator.cmod.feature.stores.itch.service.ItchCatalog
+import com.winlator.cmod.feature.stores.itch.service.ItchConstants
+import com.winlator.cmod.feature.stores.itch.service.ItchService
+import com.winlator.cmod.runtime.input.ControllerHelper
+import com.winlator.cmod.shared.ui.FourByTwoGridView
+import com.winlator.cmod.shared.ui.widget.chasingBorder
+import com.winlator.cmod.shared.ui.toast.WinToast
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+private val ItchRed = Color(0xFFFA5C5C)
+private const val SEARCH_DEBOUNCE_MS = 450L
+
+@Composable
+internal fun UnifiedActivity.ItchStoreTab(
+    searchQuery: String,
+    signInSignal: Int,
+    onSignInClick: () -> Unit,
+    onSignedOut: () -> Unit,
+) {
+    val context = LocalContext.current
+    val activity = context as? UnifiedActivity
+    val scope = rememberCoroutineScope()
+    val gridState = rememberLazyGridState()
+
+    val games = remember { mutableStateListOf<ItchGame>() }
+    var facet by remember { mutableStateOf(ItchFacet.POPULAR) }
+    var windowsOnly by remember { mutableStateOf(true) }
+    var page by remember { mutableIntStateOf(1) }
+    var loading by remember { mutableStateOf(true) }
+    var loadingMore by remember { mutableStateOf(false) }
+    var exhausted by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var reloadKey by remember { mutableIntStateOf(0) }
+    var selected by remember { mutableStateOf<ItchGame?>(null) }
+    var installedIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var signedIn by remember { mutableStateOf(false) }
+    var userName by remember { mutableStateOf("") }
+
+    val query = searchQuery.trim()
+    val isSearching = query.length >= 2
+
+    LaunchedEffect(signInSignal) {
+        signedIn = withContext(Dispatchers.IO) { ItchService.isLoggedIn(context) }
+        userName = ItchService.userName(context)
+    }
+
+    LaunchedEffect(reloadKey) {
+        installedIds = withContext(Dispatchers.IO) { ItchService.installedIds(context) }
+    }
+
+    LaunchedEffect(facet, windowsOnly, query, reloadKey) {
+        if (isSearching) delay(SEARCH_DEBOUNCE_MS)
+        loading = true
+        error = null
+        exhausted = false
+        page = 1
+        try {
+            val list =
+                if (isSearching) {
+                    ItchService.search(context, query)
+                } else {
+                    ItchService.browse(context, ItchBrowseFilter(facet, windowsOnly), 1)
+                }
+            games.clear()
+            games.addAll(list)
+            exhausted = isSearching || list.size < ItchConstants.PAGE_SIZE
+            loading = false
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Throwable) {
+            games.clear()
+            error = failure.message ?: failure::class.java.simpleName
+            loading = false
+        }
+    }
+
+    LaunchedEffect(facet, windowsOnly, isSearching, reloadKey) {
+        snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
+            .collect { lastVisible ->
+                if (!exhausted && !loading && !loadingMore && !isSearching && games.isNotEmpty() &&
+                    lastVisible >= games.size - 6
+                ) {
+                    loadingMore = true
+                    val next = page + 1
+                    try {
+                        val list = ItchService.browse(context, ItchBrowseFilter(facet, windowsOnly), next)
+                        val known = games.map { it.id }.toSet()
+                        val fresh = list.filterNot { it.id in known }
+                        games.addAll(fresh)
+                        page = next
+                        if (fresh.isEmpty() || list.size < ItchConstants.PAGE_SIZE) exhausted = true
+                    } catch (cancelled: CancellationException) {
+                        loadingMore = false
+                        throw cancelled
+                    } catch (_: Throwable) {
+                        exhausted = true
+                    }
+                    loadingMore = false
+                }
+            }
+    }
+
+    LaunchedEffect(games.size) {
+        activity?.storeItemCount = games.size
+        val lastIndex = (games.size - 1).coerceAtLeast(0)
+        if (activity != null && games.isNotEmpty() && activity.storeFocusIndex.value > lastIndex) {
+            activity.storeFocusIndex.value = lastIndex
+        }
+    }
+
+    DisposableEffect(games.size) {
+        val clickCallback: (Int) -> Unit = { index -> games.getOrNull(index)?.let { selected = it } }
+        activity?.storeItemClickCallback = clickCallback
+        activity?.storeGridState = gridState
+        onDispose {
+            if (activity?.storeItemClickCallback === clickCallback) {
+                activity?.storeItemClickCallback = null
+                activity?.storeGridState = null
+            }
+        }
+    }
+
+    val isControllerActive = ControllerHelper.isControllerConnected()
+    val borderColor = if (isControllerActive) CardBorder else Color.Transparent
+
+    Column(Modifier.fillMaxSize()) {
+        ItchHeader(
+            facet = facet,
+            windowsOnly = windowsOnly,
+            signedIn = signedIn,
+            userName = userName,
+            searching = isSearching,
+            onFacetChange = { facet = it },
+            onWindowsOnlyChange = { windowsOnly = it },
+            onSignIn = onSignInClick,
+            onSignOut = {
+                scope.launch {
+                    ItchService.signOut(context)
+                    signedIn = false
+                    userName = ""
+                    onSignedOut()
+                }
+            },
+        )
+
+        when {
+            loading ->
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = ItchRed)
+                }
+
+            error != null ->
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
+                        Text(
+                            stringResource(R.string.itch_store_load_failed, error.orEmpty()),
+                            color = TextSecondary,
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        CompactActionButton(
+                            icon = Icons.Outlined.Refresh,
+                            label = stringResource(R.string.itch_store_retry),
+                            tint = ItchRed,
+                            modifier = Modifier.width(180.dp),
+                        ) { reloadKey++ }
+                    }
+                }
+
+            games.isEmpty() ->
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        stringResource(R.string.itch_store_no_results),
+                        color = TextSecondary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(32.dp),
+                    )
+                }
+
+            else -> {
+                val focusIndex by (activity?.storeFocusIndex ?: kotlinx.coroutines.flow.MutableStateFlow(0)).collectAsState()
+                FourByTwoGridView(
+                    items = games.toList(),
+                    modifier = Modifier.tabScreenPadding(top = TabGridTopPadding),
+                    gridState = gridState,
+                    keyOf = { it.id },
+                ) { game, index, rowHeight ->
+                    ItchGameCell(
+                        game = game,
+                        installed = game.id in installedIds,
+                        focused = isControllerActive && index == focusIndex,
+                        borderColor = borderColor,
+                        rowHeight = rowHeight,
+                        onClick = { selected = game },
+                    )
+                }
+            }
+        }
+    }
+
+    selected?.let { game ->
+        ItchGameDialog(
+            game = game,
+            installed = game.id in installedIds,
+            onDismiss = { selected = null },
+            onInstalledChanged = { reloadKey++ },
+        )
+    }
+}
+
+@Composable
+private fun UnifiedActivity.ItchHeader(
+    facet: ItchFacet,
+    windowsOnly: Boolean,
+    signedIn: Boolean,
+    userName: String,
+    searching: Boolean,
+    onFacetChange: (ItchFacet) -> Unit,
+    onWindowsOnlyChange: (Boolean) -> Unit,
+    onSignIn: () -> Unit,
+    onSignOut: () -> Unit,
+) {
+    Column(Modifier.fillMaxWidth().tabScreenPadding(top = 6.dp, bottom = 2.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text =
+                    if (signedIn && userName.isNotBlank()) {
+                        stringResource(R.string.itch_store_signed_in_as, userName)
+                    } else if (signedIn) {
+                        stringResource(R.string.itch_store_signed_in)
+                    } else {
+                        stringResource(R.string.itch_store_signed_out_hint)
+                    },
+                color = TextSecondary,
+                fontSize = 11.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.width(10.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier =
+                    Modifier
+                        .clip(RoundedCornerShape(14.dp))
+                        .border(1.dp, ItchRed.copy(alpha = 0.6f), RoundedCornerShape(14.dp))
+                        .clickable { if (signedIn) onSignOut() else onSignIn() }
+                        .padding(horizontal = 10.dp, vertical = 5.dp),
+            ) {
+                Icon(
+                    if (signedIn) Icons.AutoMirrored.Outlined.Logout else Icons.AutoMirrored.Outlined.Login,
+                    contentDescription = null,
+                    tint = ItchRed,
+                    modifier = Modifier.size(15.dp),
+                )
+                Spacer(Modifier.width(5.dp))
+                Text(
+                    stringResource(if (signedIn) R.string.itch_store_sign_out else R.string.itch_store_sign_in_short),
+                    color = ItchRed,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            Text(
+                stringResource(R.string.itch_store_windows_only),
+                color = TextSecondary,
+                fontSize = 11.sp,
+            )
+            Spacer(Modifier.width(4.dp))
+            Switch(
+                checked = windowsOnly,
+                onCheckedChange = onWindowsOnlyChange,
+                colors =
+                    SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = ItchRed,
+                        checkedBorderColor = ItchRed,
+                        uncheckedThumbColor = TextSecondary,
+                        uncheckedTrackColor = CardDark,
+                        uncheckedBorderColor = CardBorder,
+                    ),
+            )
+        }
+
+        if (!searching) {
+            Spacer(Modifier.height(6.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                ItchFacet.ALL.forEach { entry ->
+                    val active = entry.segment == facet.segment
+                    Box(
+                        modifier =
+                            Modifier
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(if (active) ItchRed.copy(alpha = 0.18f) else CardDark, RoundedCornerShape(14.dp))
+                                .border(
+                                    1.dp,
+                                    if (active) ItchRed.copy(alpha = 0.7f) else CardBorder,
+                                    RoundedCornerShape(14.dp),
+                                ).clickable { onFacetChange(entry) }
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                    ) {
+                        Text(
+                            entry.label,
+                            color = if (active) TextPrimary else TextSecondary,
+                            fontSize = 12.sp,
+                            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UnifiedActivity.ItchGameCell(
+    game: ItchGame,
+    installed: Boolean,
+    focused: Boolean,
+    borderColor: Color,
+    rowHeight: androidx.compose.ui.unit.Dp,
+    onClick: () -> Unit,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(rowHeight)
+                .border(1.dp, borderColor, RoundedCornerShape(16.dp))
+                .chasingBorder(isFocused = focused, paused = chasingBordersPaused.value, cornerRadius = 16.dp)
+                .background(CardDark, RoundedCornerShape(16.dp))
+                .clickable(onClick = onClick),
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)),
+        ) {
+            AsyncImage(
+                model =
+                    ImageRequest
+                        .Builder(LocalContext.current)
+                        .data(game.coverUrl)
+                        .crossfade(250)
+                        .build(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+            if (installed) {
+                StoreInstalledBadge(modifier = Modifier.align(Alignment.BottomEnd), attachedCorner = true)
+            } else if (game.priceLabel.isNotBlank()) {
+                Box(
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(4.dp)
+                            .background(Color.Black.copy(alpha = 0.66f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                ) {
+                    Text(game.priceLabel, color = TextPrimary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                }
+            }
+        }
+        Text(
+            text = game.title,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = TextPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+internal fun UnifiedActivity.ItchGameDialog(
+    game: ItchGame,
+    installed: Boolean,
+    onDismiss: () -> Unit,
+    onInstalledChanged: () -> Unit,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var details by remember(game.id) { mutableStateOf<ItchGameDetails?>(null) }
+    var uploads by remember(game.id) { mutableStateOf<List<ItchUpload>?>(null) }
+    var uploadsError by remember(game.id) { mutableStateOf<String?>(null) }
+    var busy by remember(game.id) { mutableStateOf(false) }
+
+    LaunchedEffect(game.id) {
+        try {
+            details = ItchService.details(context, game)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Throwable) {
+            details = null
+        }
+        try {
+            uploads = ItchService.uploads(context, game)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Throwable) {
+            uploadsError = failure.message ?: failure::class.java.simpleName
+        }
+    }
+
+    val installPath = remember(game.id) { ItchService.installPath(context, game) }
+    val recommended = remember(uploads) { uploads?.let { ItchCatalog.pickWindowsUpload(it) } }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = BgDark,
+            modifier = Modifier.fillMaxWidth(0.92f).heightIn(max = 620.dp).padding(vertical = 12.dp),
+        ) {
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(18.dp)) {
+                val hero = details?.heroImageUrl?.ifBlank { game.coverUrl } ?: game.coverUrl
+                if (hero.isNotBlank()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context).data(hero).crossfade(250).build(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(12.dp)),
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
+                Text(game.title, color = TextPrimary, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                if (game.author.isNotBlank()) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(game.author, color = TextSecondary, fontSize = 12.sp)
+                }
+                Spacer(Modifier.height(10.dp))
+
+                val description = details?.description?.takeIf { it.isNotBlank() } ?: game.shortText
+                if (description.isNotBlank()) {
+                    Text(
+                        description.take(900),
+                        color = TextSecondary,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
+
+                Text(
+                    stringResource(R.string.itch_store_install_location, installPath),
+                    color = TextSecondary.copy(alpha = 0.75f),
+                    fontSize = 10.sp,
+                )
+                Spacer(Modifier.height(12.dp))
+
+                Text(stringResource(R.string.itch_store_files), color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(6.dp))
+
+                when {
+                    uploadsError != null ->
+                        Text(uploadsError.orEmpty(), color = DangerRed, fontSize = 12.sp)
+
+                    uploads == null ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(color = ItchRed, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        }
+
+                    uploads?.isEmpty() == true ->
+                        Text(stringResource(R.string.itch_store_no_uploads), color = TextSecondary, fontSize = 12.sp)
+
+                    else ->
+                        uploads.orEmpty().forEach { upload ->
+                            ItchUploadRow(
+                                upload = upload,
+                                recommended = upload.id == recommended?.id,
+                                enabled = !busy,
+                            ) {
+                                busy = true
+                                scope.launch {
+                                    ItchService.download(context, game, upload)
+                                    WinToast.show(
+                                        context,
+                                        getString(R.string.itch_store_download_started, game.title),
+                                        android.widget.Toast.LENGTH_SHORT,
+                                    )
+                                    busy = false
+                                    onInstalledChanged()
+                                    onDismiss()
+                                }
+                            }
+                            Spacer(Modifier.height(6.dp))
+                        }
+                }
+
+                Spacer(Modifier.height(14.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CompactActionButton(
+                        icon = Icons.AutoMirrored.Outlined.OpenInNew,
+                        label = stringResource(R.string.itch_store_open_page),
+                        tint = TextSecondary,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        runCatching {
+                            startActivity(
+                                android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(game.url)),
+                            )
+                        }
+                    }
+                    if (installed) {
+                        CompactActionButton(
+                            icon = Icons.Outlined.Download,
+                            label = stringResource(R.string.itch_store_uninstall),
+                            tint = DangerRed,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            scope.launch {
+                                withContext(Dispatchers.IO) { ItchService.uninstall(context, game.id) }
+                                onInstalledChanged()
+                                onDismiss()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UnifiedActivity.ItchUploadRow(
+    upload: ItchUpload,
+    recommended: Boolean,
+    enabled: Boolean,
+    onDownload: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(CardDark, RoundedCornerShape(10.dp))
+                .border(
+                    1.dp,
+                    if (recommended) ItchRed.copy(alpha = 0.6f) else CardBorder,
+                    RoundedCornerShape(10.dp),
+                ).clickable(enabled = enabled, onClick = onDownload)
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(upload.fileName, color = TextPrimary, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            val meta =
+                listOfNotNull(
+                    upload.sizeLabel.takeIf { it.isNotBlank() },
+                    upload.version.takeIf { it.isNotBlank() },
+                    upload.platforms.joinToString("/") { platformLabel(it) }.takeIf { it.isNotBlank() },
+                ).joinToString(" · ")
+            if (meta.isNotBlank()) {
+                Text(meta, color = TextSecondary, fontSize = 10.sp, maxLines = 1)
+            }
+        }
+        Spacer(Modifier.width(8.dp))
+        Icon(
+            Icons.Outlined.Download,
+            contentDescription = stringResource(R.string.itch_store_download),
+            tint = if (recommended) ItchRed else TextSecondary,
+            modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
+private fun platformLabel(platform: ItchPlatform): String =
+    when (platform) {
+        ItchPlatform.WINDOWS -> "Windows"
+        ItchPlatform.LINUX -> "Linux"
+        ItchPlatform.MACOS -> "macOS"
+        ItchPlatform.ANDROID -> "Android"
+        ItchPlatform.WEB -> "Web"
+    }

@@ -185,6 +185,7 @@ import com.winlator.cmod.feature.stores.gog.service.GOGManifestSizes
 import com.winlator.cmod.feature.stores.gog.service.GOGService
 import com.winlator.cmod.feature.stores.gog.service.GOGUpdateInfo
 import com.winlator.cmod.feature.stores.gog.ui.auth.GOGOAuthActivity
+import com.winlator.cmod.feature.stores.itch.ui.auth.ItchLoginActivity
 import com.winlator.cmod.feature.stores.steam.SteamLoginActivity
 import com.winlator.cmod.feature.stores.steam.data.DepotInfo
 import com.winlator.cmod.feature.stores.steam.data.DownloadInfo
@@ -257,7 +258,7 @@ internal fun UnifiedActivity.UnifiedHub() {
     val horizontalNavigationInsets =
         WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
     val initialLibraryLayoutMode = startupLibraryLayoutMode
-    val initialStoreVisible = startupStoreVisible ?: mapOf("steam" to true, "epic" to true, "gog" to true)
+    val initialStoreVisible = startupStoreVisible ?: mapOf("steam" to true, "epic" to true, "gog" to true, "itch" to true)
     val initialContentFilters = startupContentFilters ?: mapOf("games" to true, "dlc" to false, "applications" to false, "tools" to false)
     if (!startupBootstrapReady || initialLibraryLayoutMode == null) {
         Box(
@@ -465,6 +466,21 @@ internal fun UnifiedActivity.UnifiedHub() {
                         }
                     }
                 }
+            }
+        }
+
+    var itchAuthRefreshKey by remember { mutableIntStateOf(0) }
+    val itchLoginLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.StartActivityForResult(),
+        ) { result ->
+            itchAuthRefreshKey++
+            if (result.resultCode == android.app.Activity.RESULT_OK) {
+                com.winlator.cmod.shared.ui.toast.WinToast.show(
+                    context,
+                    R.string.itch_store_signed_in,
+                    android.widget.Toast.LENGTH_SHORT,
+                )
             }
         }
 
@@ -937,6 +953,17 @@ internal fun UnifiedActivity.UnifiedHub() {
                                     GOGStoreTab(isGogLoggedIn, gogApps, searchQuery, LibraryLayoutMode.GRID_4) {
                                         gogLoginLauncher.launch(Intent(this@UnifiedHub, GOGOAuthActivity::class.java))
                                     }
+                                }
+
+                                "itch" -> {
+                                    ItchStoreTab(
+                                        searchQuery = searchQuery,
+                                        signInSignal = itchAuthRefreshKey,
+                                        onSignInClick = {
+                                            itchLoginLauncher.launch(Intent(this@UnifiedHub, ItchLoginActivity::class.java))
+                                        },
+                                        onSignedOut = { itchAuthRefreshKey++ },
+                                    )
                                 }
 
                                 else -> {}

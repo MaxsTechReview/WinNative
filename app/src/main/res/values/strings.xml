@@ -256,6 +256,41 @@
     <string name="stores_accounts_manage">Manage Store Accounts</string>
     <string name="stores_accounts_sign_into_store">Sign into %1$s</string>
 
+    <!-- Stores &gt; itch.io -->
+    <string name="itch_store_title">itch.io</string>
+    <string name="itch_store_downloads">itch.io Downloads</string>
+    <string name="itch_store_sign_in">Sign in to itch.io</string>
+    <string name="itch_store_sign_in_short">Sign in</string>
+    <string name="itch_store_sign_out">Sign out</string>
+    <string name="itch_store_signed_in">Signed in to itch.io</string>
+    <string name="itch_store_signed_in_as">Signed in as %1$s</string>
+    <string name="itch_store_signed_out_hint">Browsing anonymously — free games download without an account</string>
+    <string name="itch_store_search_hint">Search itch.io</string>
+    <string name="itch_store_windows_only">Windows only</string>
+    <string name="itch_store_no_results">No games matched. Try another filter or search term.</string>
+    <string name="itch_store_load_failed">Could not reach itch.io: %1$s</string>
+    <string name="itch_store_retry">Retry</string>
+    <string name="itch_store_free">Free</string>
+    <string name="itch_store_download">Download</string>
+    <string name="itch_store_downloading">Downloading…</string>
+    <string name="itch_store_installed">Installed</string>
+    <string name="itch_store_uninstall">Uninstall</string>
+    <string name="itch_store_open_page">Open on itch.io</string>
+    <string name="itch_store_files">Files</string>
+    <string name="itch_store_no_uploads">This game has no downloadable files.</string>
+    <string name="itch_store_no_windows_upload">No Windows build — pick a file to download anyway.</string>
+    <string name="itch_store_install_location">Installs to %1$s</string>
+    <string name="itch_store_status_preparing">Preparing download</string>
+    <string name="itch_store_status_extracting">Extracting archive</string>
+    <string name="itch_store_status_added">Added to your library</string>
+    <string name="itch_store_status_no_executable">Installed, but no executable was found</string>
+    <string name="itch_store_download_needs_restart">Download details were lost. Start the download again.</string>
+    <string name="itch_store_download_started">Downloading %1$s</string>
+    <string name="itch_store_error_no_token">itch.io did not return a download token</string>
+    <string name="itch_store_error_no_uploads">itch.io listed no downloadable files</string>
+    <string name="itch_store_error_unsupported_archive">%1$s is a RAR archive — extract it manually from the game folder</string>
+    <string name="itch_store_error_generic">The download could not be completed</string>
+
     <!-- Downloads > Queue -->
     <string name="downloads_queue_cancel_all">Cancel All</string>
     <string name="downloads_queue_preparing_download">Preparing download</string>
