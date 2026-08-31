@@ -45,6 +45,7 @@ static const int kVtUser_GetSteamID         = 10;  // slot 10: CSteamID& GetStea
 static const int kVtUser_BHasCachedCreds    = 49; // slot 49: bool BHasCachedCredentials(const char*)
 static const int kVtUser_SetLoginToken      = 56; // slot 56: EResult SetLoginToken(const char* token, const char* account)
 static const int kVtUser_BIsSubscribedApp   = 181; // bool BIsSubscribedApp(AppId_t)
+static const int kVtUser_BGameConnectTokensAvailable = 130;
 static const int kVtUser_BUpdateAppOwnershipTicket = 69; // bool(AppId_t, bool bOnlyIfStale, bool bIsDepot)
 static const int kVtUser_GetAppOwnershipTicketLength = 103; // uint32(AppId_t)
 
@@ -952,6 +953,22 @@ static void sync_app_ownership(void* engine, int hUser, int pipe, uint32_t appId
              "(license sync %s)", appId, owned ? 1 : 0, waited,
              owned ? "complete" : "INCOMPLETE — appinfo and the game's own entitlement "
                                   "checks may see stale data");
+
+    void* tokensP = user_vt[kVtUser_BGameConnectTokensAvailable];
+    if (is_exec_ptr(tokensP)) {
+        typedef bool (WN_THISCALL *BGameConnectTokensAvailableFn)(void* self);
+        bool tokens = ((BGameConnectTokensAvailableFn) tokensP)(iuser);
+        log_line("[wn-launcher] ownership: BGameConnectTokensAvailable -> %d — %s",
+                 tokens ? 1 : 0,
+                 tokens ? "the client holds game-connect tokens, so the game can "
+                          "authenticate to secure (VAC-enabled) servers"
+                        : "NO game-connect tokens: joining a secure server will fail "
+                          "auth even though the launch itself is secure");
+    } else {
+        log_line("[wn-launcher] ownership: BGameConnectTokensAvailable slot %d not "
+                 "executable — secure-server readiness unknown",
+                 kVtUser_BGameConnectTokensAvailable);
+    }
 
     const long ticketSlot =
         env_int("WN_STEAM_OWNERSHIP_SLOT",

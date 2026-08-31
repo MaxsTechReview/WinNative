@@ -189,26 +189,150 @@ Five more interfaces exist as abstract vtables with no marshalling stub — they
 `IClientEngine` (80 virtuals), `IClientController` (86), `IClientHTMLSurface` (39),
 `IClientUnifiedServiceTransport` (10), `IClientNetworkingMessages` (8), `IClientServiceMethodRPC` (4).
 
-## 7. `IClientEngine`
+## 7. `IClientEngine` — complete getter map
 
-`CreateInterface("CLIENTENGINE_INTERFACE_VERSION005")` is the root object. It has **80 virtual
-methods** (proven from its `_purecall` vtable). It has no marshalling stub, so slot names cannot be
-recovered the same way; the interfaces it hands out are stored in a `m_mapClientInterfaces` lookup
-rather than returned from per-slot code, so there is no vtable reference to follow either.
+`CreateInterface("CLIENTENGINE_INTERFACE_VERSION005")` is the root object: **80 virtual methods**,
+of which **55 are interface getters**. The singleton lives at RVA `0x1780BA0`; its factory is
+`0x957AF0` (registered by the `InterfaceReg` at `0xBCE10`) and its vtable is at **RVA `0x13151B0`**,
+installed by the constructor at `0x9562D0`.
 
-Getter slots verified by use on-device:
+### How a getter works
 
-| Slot | Byte offset | Returns | Signature |
+Every getter compiles to the same shape — the only thing that differs between them is one
+instruction, the struct offset of the cached interface pointer:
+
+```
+mov  rdi, rcx                    ; this
+mov  esi, edx                    ; hUser
+mov  ebx, r8d                    ; hPipe
+call <enter critical section>
+lea  rcx, [rdi + 0xC8]           ; the (hUser,hPipe) -> index map
+call 0x9579A0                    ; lookup, -1 on miss
+movsxd rdx, eax
+shl  rdx, 5                      ; 32-byte map entries
+mov  rbx, [rdx + rax + 0x18]     ; -> the per-user interface container
+call <leave critical section>
+mov  rax, [rbx + FIELD]          ; <-- the ONLY per-getter difference
+ret
+```
+
+So the getters are pure field reads. Everything is created up front, not lazily: the container is
+constructed by `0xA09BA0` (which null-initialises fields `0x18`–`0x168`) and then populated by
+**`CClientUserContainer::Init` at `0xA0A650`**, which calls 37 `CreateIClient*Map` factories in a
+row and stores each result into its field. That function is the authoritative field-to-interface
+table, and it is where the mapping below comes from.
+
+Pipe-scoped interfaces work the same way but hang off a second map at `[this+0x138]` with **0x80-byte
+entries**, built by **`Init` at `0x95779B`**. That one assembles the entry on the stack and hands it
+to the map insert at `0x955FB0`, so the payload starts `0x10` bytes into the entry — which is why
+`GetIClientUtils` reads `entry+0x18` for what is the first pointer in the struct.
+
+### Validation
+
+Five getter slots were already known from independent sources (four from our own agent's working
+code, `IClientUserStats` from the SteamLite agent). This derivation reproduces **5 of 5** with no
+adjustment:
+
+| Slot | Previously known | Derived here |
+|---|---|---|
+| 8 | `IClientUser` | `IClientUserMap` (user field `0x18`) |
+| 14 | `IClientUtils` | `IClientUtilsMap` (pipe field `0x18`) |
+| 17 | `IClientApps` | `IClientAppsMap` (user field `0x50`) |
+| 21 | `IClientUserStats` | `IClientUserStatsMap` (user field `0x58`) |
+| 43 | `IClientAppManager` | `IClientAppManagerMap` (user field `0x90`) |
+
+Class names are recovered from MSVC RTTI on the vtable each factory installs, so they are the
+binary's own names, not guesses. Note that what the engine hands out is the **`IClientXxxMap`
+marshalling proxy**, not the implementation object.
+
+### The map
+
+Byte offset = slot x 8 on x64, slot x 4 on x86. Scope is which map the interface is cached in:
+`user` = per `(hUser,hPipe)`, signature `(HSteamUser, HSteamPipe)`; `pipe` = per `hPipe` only,
+signature `(HSteamPipe)`. Getting that wrong passes `hUser` where `hPipe` is expected.
+
+| Slot | Byte off | Scope | Field | Returns |
+|---|---|---|---|---|
+| 8 | 0x40 | user | 0x18 | `IClientUser` |
+| 9 | 0x48 | user | 0x30 | `IClientGameServerInternal` |
+| 10 | 0x50 | user | None | `IClientGameServerPacketHandler` |
+| 13 | 0x68 | user | 0x20 | `IClientFriends` |
+| 14 | 0x70 | pipe | 0x18 | `IClientUtils` |
+| 15 | 0x78 | user | 0x28 | `IClientBilling` |
+| 16 | 0x80 | user | 0x48 | `IClientMatchmaking` |
+| 17 | 0x88 | user | 0x50 | `IClientApps` |
+| 18 | 0x90 | user | None | (CSteamMatchMakingServers) |
+| 21 | 0xa8 | user | 0x58 | `IClientUserStats` |
+| 22 | 0xb0 | user | 0xa0 | `IClientGameServerStats` |
+| 23 | 0xb8 | user | 0x60 | `IClientNetworking` |
+| 24 | 0xc0 | user | 0x68 | `IClientRemoteStorage` |
+| 25 | 0xc8 | user | 0x70 | `IClientScreenshots` |
+| 27 | 0xd8 | user | 0x78 | `IClientGameCoordinator` |
+| 34 | 0x110 | user | 0x80 | `IClientProductBuilder` |
+| 35 | 0x118 | user | 0x88 | `IClientDepotBuilder` |
+| 36 | 0x120 | pipe | 0x28 | `IClientNetworkDeviceManager` |
+| 37 | 0x128 | pipe | 0x30 | `IClientSystemPerfManager` |
+| 38 | 0x130 | pipe | 0x38 | `IClientSystemManager` |
+| 39 | 0x138 | pipe | 0x40 | `IClientSystemDockManager` |
+| 40 | 0x140 | pipe | 0x48 | `IClientSystemAudioManager` |
+| 41 | 0x148 | pipe | 0x50 | `IClientSystemDisplayManager` |
+| 43 | 0x158 | user | 0x90 | `IClientAppManager` |
+| 44 | 0x160 | user | 0x98 | `IClientConfigStore` |
+| 46 | 0x170 | user | 0xa8 | `IClientGameStats` |
+| 47 | 0x178 | user | 0xb0 | `IClientHTTP` |
+| 50 | 0x190 | user | 0xb8 | `IClientAudio` |
+| 51 | 0x198 | user | 0xc0 | `IClientMusic` |
+| 52 | 0x1a0 | user | 0xc8 | `IClientUnifiedMessages` |
+| 53 | 0x1a8 | pipe | 0x78 | (factory 0x5c88e0) |
+| 54 | 0x1b0 | user | 0x148 | `IClientParentalSettings` |
+| 55 | 0x1b8 | user | 0xd0 | `IClientStreamLauncher` |
+| 56 | 0x1c0 | pipe | 0x20 | `IClientRemoteClientManager` |
+| 57 | 0x1c8 | user | 0xe8 | `IClientStreamClient` |
+| 58 | 0x1d0 | user | 0xf0 | `IClientShortcuts` |
+| 59 | 0x1d8 | user | 0xd8 | `IClientUGC` |
+| 60 | 0x1e0 | user | 0xe0 | `IClientInventory` |
+| 61 | 0x1e8 | pipe | 0x58 | `IClientVR` |
+| 62 | 0x1f0 | user | 0xf8 | `IClientGameNotifications` |
+| 63 | 0x1f8 | user | None | (CSteamHTMLSurface) |
+| 64 | 0x200 | user | 0x100 | `IClientTimeline` |
+| 65 | 0x208 | user | 0x108 | `IClientVideo` |
+| 66 | 0x210 | pipe | 0x60 | `IClientControllerSerialized` |
+| 67 | 0x218 | user | 0x110 | `IClientAppDisableUpdate` |
+| 69 | 0x228 | user | 0x118 | `IClientSharedConnection` |
+| 70 | 0x230 | user | 0x120 | `IClientShader` |
+| 71 | 0x238 | user | 0x128 | `IClientNetworkingSocketsSerialized` |
+| 72 | 0x240 | user | 0x130 | `IClientCompat` |
+| 74 | 0x250 | user | 0x138 | `IClientParties` |
+| 75 | 0x258 | user | None | (CSteamClient-family) |
+| 76 | 0x260 | user | None | (CSteamClient-family) |
+| 77 | 0x268 | pipe | 0x68 | (CSteamClient-family, factory 0xa78d90) |
+| 78 | 0x270 | pipe | 0x70 | `IClientNetworkingUtilsSerialized` |
+| 79 | 0x278 | user | 0x140 | `IClientRemotePlay` |
+
+Six slots return objects that are not `IClient*` internals — they are the public
+`ISteamClient`-family objects (`CSteamClient`, `CSteamMatchMakingServers`, `CSteamHTMLSurface`),
+which is what `steam_api` consumes.
+
+## 7a. Where the other five interfaces live
+
+49 of the 54 documented interfaces are reachable from `IClientEngine`. The remaining five are
+**not in `steamclient64.dll` at all** — their RTTI and implementations are in **`steamservice.dll`**,
+the elevated Windows service, reached over its **separate IPC pipe**:
+
+| Interface | ipc id | Slots | Why it is service-side |
 |---|---|---|---|
-| 8 | 0x40 | `IClientUser*` | `(HSteamUser, HSteamPipe)` |
-| 14 | 0x70 | `IClientUtils*` | `(HSteamPipe)` |
-| 17 | 0x88 | `IClientApps*` | `(HSteamUser, HSteamPipe)` |
-| 21 | 0xA8 | `IClientUserStats*` | `(HSteamUser, HSteamPipe)` |
-| 43 | 0x158 | `IClientAppManager*` | `(HSteamUser, HSteamPipe)` |
+| `IClientInstallUtils` | 0x1 | 25 | Installer/registry work needing elevation |
+| `IClientModuleManager` | 0x2 | 6 | Loads privileged modules |
+| `IClientProcessMonitor` | 0x4 | 5 | Cross-session process inspection |
+| `IClientSecureDesktop` | 0x5 | 3 | Secure-desktop transitions |
+| `IClientWindowsHWMonitor` | 0x6 | 4 | Hardware/driver queries |
 
-Slot 21 comes from the SteamLite agent (which writes it as byte offset `0xA8`); the rest are ours.
-Byte offset = slot x 8 on x64, slot x 4 on x86 — mixing the two up is an easy way to call the
-wrong function.
+This also explains the apparent duplicate ipc ids noted earlier: `IClientInstallUtils` is 0x1 and so
+is `IClientUser`; `IClientModuleManager` is 0x2 and so is `IClientGameServerInternal`. **ipc ids are
+per-pipe namespaces, not global.** They collide only across the client pipe and the service pipe,
+never within one. Any code that keys interfaces by ipc id alone will mis-dispatch.
+
+Machine-readable: [`steam-engine-getters.json`](steam-engine-getters.json).
 
 ## 8. Defect this map exposed
 

@@ -343,10 +343,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
     private volatile boolean serviceAffinityStarted = false;
     private static final String[] SERVICE_AFFINITY_PROCESSES = {
         "services.exe", "rpcss.exe", "svchost.exe", "winedevice.exe",
-        "plugplay.exe", "conhost.exe", "start.exe"
+        "plugplay.exe", "conhost.exe", "start.exe", "steamservice.exe"
     };
     private static final String[] SHELL_AFFINITY_PROCESSES = {
-        "explorer.exe", "steamwebhelper.exe"
+        "explorer.exe", "steamwebhelper.exe", "steam.exe"
     };
     // assemblyIdentity names marking the SxS activeCodePage manifests we deploy; anything else is game-owned and never touched.
     private static final String UTF8_MANIFEST_MARKER = "WinNative.Utf8CodePage";
@@ -7366,7 +7366,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 envVars.put("SteamPath", "C:\\Program Files (x86)\\Steam");
                 envVars.put("ValvePlatformMutex", "c:\\Program Files (x86)\\Steam/");
                 String currentWineDebug = envVars.get("WINEDEBUG");
-                if (currentWineDebug == null || currentWineDebug.equals("-all")) {
+                if (enableWineDebug
+                        && (currentWineDebug == null || currentWineDebug.equals("-all"))) {
                     String steamClasses = preferences.getString(
                             "wine_debug_classes", SettingsConfig.DEFAULT_WINE_DEBUG_CLASSES);
                     envVars.put("WINEDEBUG", buildWineDebug(steamClasses, "module,loaddll"));
