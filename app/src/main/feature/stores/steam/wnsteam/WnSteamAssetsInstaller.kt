@@ -443,12 +443,14 @@ object WnSteamAssetsInstaller {
                 try { stageStamp.writeText(apkId) } catch (_: Exception) {}
             }
         }
-        try {
-            val probeDst = File(steamDir, "wn-iface-probe.exe")
-            context.assets.open("$ASSET_DIR/bionic/wn-iface-probe.exe").use { input ->
-                probeDst.outputStream().use { output -> input.copyTo(output) }
-            }
-        } catch (_: Exception) {}
+        for (probeName in listOf("wn-iface-probe.exe", "wn-iface-probe32.exe")) {
+            try {
+                val probeDst = File(steamDir, probeName)
+                context.assets.open("$ASSET_DIR/bionic/$probeName").use { input ->
+                    probeDst.outputStream().use { output -> input.copyTo(output) }
+                }
+            } catch (_: Exception) {}
+        }
         try {
             val caSrc = File(context.filesDir, "wnsteam_cacert.pem")
             if (caSrc.exists() && caSrc.length() > 0) {

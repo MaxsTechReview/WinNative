@@ -877,16 +877,15 @@ static bool clear_other_session(void* user, Steam_BGetCallback_fn bGetCallback,
     return false;
 }
 
-static bool run_iface_probe(const char* gameRootDir, uint32_t appId) {
-    if (GetFileAttributesA("C:\\wn-iface-probe.on") == INVALID_FILE_ATTRIBUTES) return false;
-    const char* probeExe = "C:\\Program Files (x86)\\Steam\\wn-iface-probe.exe";
+static bool run_probe_exe(const char* probeExe, const char* logPath,
+                          const char* gameRootDir, uint32_t appId) {
     if (GetFileAttributesA(probeExe) == INVALID_FILE_ATTRIBUTES) {
         log_line("[wn-launcher] iface-probe: %s not present", probeExe);
         return false;
     }
     char cmd[2048];
-    snprintf(cmd, sizeof(cmd), "\"%s\" \"%s\" %u \"C:\\wn-iface-probe.log\"",
-             probeExe, gameRootDir ? gameRootDir : "", (unsigned) appId);
+    snprintf(cmd, sizeof(cmd), "\"%s\" \"%s\" %u \"%s\"",
+             probeExe, gameRootDir ? gameRootDir : "", (unsigned) appId, logPath);
     STARTUPINFOA si;
     PROCESS_INFORMATION pi;
     memset(&si, 0, sizeof(si));
@@ -903,10 +902,10 @@ static bool run_iface_probe(const char* gameRootDir, uint32_t appId) {
     GetExitCodeProcess(pi.hProcess, &rc);
     CloseHandle(pi.hThread);
     CloseHandle(pi.hProcess);
-    log_line("[wn-launcher] iface-probe: exited rc=%lu", (unsigned long) rc);
-    FILE* f = fopen("C:\\wn-iface-probe.log", "r");
+    log_line("[wn-launcher] iface-probe: %s exited rc=%lu", probeExe, (unsigned long) rc);
+    FILE* f = fopen(logPath, "r");
     if (!f) {
-        log_line("[wn-launcher] iface-probe: no log produced");
+        log_line("[wn-launcher] iface-probe: no log produced at %s", logPath);
         return true;
     }
     char line[1024];
@@ -917,6 +916,17 @@ static bool run_iface_probe(const char* gameRootDir, uint32_t appId) {
     }
     fclose(f);
     return true;
+}
+
+static bool run_iface_probe(const char* gameRootDir, uint32_t appId) {
+    if (GetFileAttributesA("C:\\wn-iface-probe.on") == INVALID_FILE_ATTRIBUTES) return false;
+    bool ran = run_probe_exe("C:\\Program Files (x86)\\Steam\\wn-iface-probe.exe",
+                             "C:\\wn-iface-probe.log", gameRootDir, appId);
+    if (run_probe_exe("C:\\Program Files (x86)\\Steam\\wn-iface-probe32.exe",
+                      "C:\\wn-iface-probe32.log", gameRootDir, appId)) {
+        ran = true;
+    }
+    return ran;
 }
 
 static void sync_app_ownership(void* engine, int hUser, int pipe, uint32_t appId,

@@ -66,3 +66,18 @@ PROBE_OUT="../../assets/wnsteam/bionic/wn-iface-probe.exe"
 "$STRIP" "$PROBE_OUT"
 echo "Built: $PROBE_OUT  ($(stat -c '%s' "$PROBE_OUT") bytes)"
 file "$PROBE_OUT"
+
+PROBE32_OUT="../../assets/wnsteam/bionic/wn-iface-probe32.exe"
+if command -v "$CXX32" >/dev/null 2>&1; then
+    "$CXX32" -std=c++17 -O2 -Wall -Wextra -Wno-unused-parameter \
+        -static -static-libgcc -static-libstdc++ \
+        -I. \
+        -o "$PROBE32_OUT" \
+        src/iface_probe.cpp \
+        -lkernel32 -lcrypt32 -liphlpapi
+    "$STRIP32" "$PROBE32_OUT"
+    echo "Built: $PROBE32_OUT  ($(stat -c '%s' "$PROBE32_OUT") bytes)"
+    file "$PROBE32_OUT"
+else
+    echo "SKIPPED 32-bit probe: $CXX32 not installed"
+fi

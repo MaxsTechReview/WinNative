@@ -1,5 +1,13 @@
 #include <windows.h>
 #include <iphlpapi.h>
+
+#ifdef __i386__
+#define WN_STEAM_API_DLL "steam_api.dll"
+#define WN_PROBE_ARCH "32"
+#else
+#define WN_STEAM_API_DLL "steam_api64.dll"
+#define WN_PROBE_ARCH "64"
+#endif
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -209,6 +217,26 @@ static void probe_auth_ticket(HMODULE api, void* user, void* apps) {
     plog("[wn-probe] callresult: ISteamUtils=%p IsAPICallCompleted=%p",
          utils, (void*) fDone);
 
+    typedef unsigned int (*Flat_GetAppID_t)(void*);
+    Flat_GetAppID_t fAppId =
+        (Flat_GetAppID_t) GetProcAddress(api, "SteamAPI_ISteamUtils_GetAppID");
+    if (utils && fAppId) {
+        plog("[wn-probe] pipe app context: ISteamUtils::GetAppID -> %u (expect 291550)",
+             fAppId(utils));
+    } else {
+        plog("[wn-probe] pipe app context: GetAppID unavailable (utils=%p fn=%p)",
+             utils, (void*) fAppId);
+    }
+
+    if (fEnc) {
+        unsigned char pre[2048];
+        unsigned int precb = 0;
+        bool prerc = fEnc(user, pre, sizeof(pre), &precb);
+        plog("[wn-probe] auth: GetEncryptedAppTicket BEFORE any request -> rc=%d length=%u "
+             "(this is what SteamAir sees if it never calls Request)",
+             prerc ? 1 : 0, precb);
+    }
+
     if (fEnc && fReqEnc) {
         unsigned long long call = fReqEnc(user, nullptr, 0);
         plog("[wn-probe] auth: RequestEncryptedAppTicket -> HSteamAPICall=%llu", call);
@@ -365,19 +393,19 @@ int main(int argc, char** argv) {
     }
 
     char dllPath[MAX_PATH];
-    snprintf(dllPath, sizeof(dllPath), "%s\\steam_api64.dll", gameDir);
+    snprintf(dllPath, sizeof(dllPath), "%s\\" WN_STEAM_API_DLL, gameDir);
     HMODULE api = LoadLibraryA(dllPath);
     if (!api) {
         plog("[wn-probe] LoadLibrary(\"%s\") failed GLE=%lu; trying bare name",
              dllPath, (unsigned long) GetLastError());
-        api = LoadLibraryA("steam_api64.dll");
+        api = LoadLibraryA(WN_STEAM_API_DLL);
     }
     if (!api) {
-        plog("[wn-probe] FATAL: steam_api64.dll not loadable GLE=%lu",
+        plog("[wn-probe] FATAL: " WN_STEAM_API_DLL " not loadable GLE=%lu",
              (unsigned long) GetLastError());
         return 2;
     }
-    plog("[wn-probe] steam_api64.dll loaded at %p", (void*) api);
+    plog("[wn-probe] arch=" WN_PROBE_ARCH "-bit " WN_STEAM_API_DLL " loaded at %p", (void*) api);
 
     SteamAPI_Init_t initLegacy =
         (SteamAPI_Init_t) GetProcAddress(api, "SteamAPI_Init");
