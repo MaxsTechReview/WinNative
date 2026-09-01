@@ -2187,9 +2187,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                             java.util.concurrent.Executors.newFixedThreadPool(2);
                     java.util.concurrent.Future<?> cloudFuture = prepExec.submit(() -> {
                         try {
-                            SteamLaunchCloudSync.syncBeforeLaunch(
-                                    this, shortcut, isCloudSyncEnabledForShortcut(),
-                                    this::showLaunchPreloader);
+                            if (steamCloudHandledByAgent()) {
+                                Log.i("XServerDisplayActivity",
+                                        "Steam cloud pre-launch sync skipped — the Steam Launcher "
+                                                + "agent runs RunAutoCloudOnAppLaunch inside the "
+                                                + "prefix");
+                            } else {
+                                SteamLaunchCloudSync.syncBeforeLaunch(
+                                        this, shortcut, isCloudSyncEnabledForShortcut(),
+                                        this::showLaunchPreloader);
+                            }
                             EpicLaunchCloudSync.syncBeforeLaunch(
                                     this, shortcut, isCloudSyncEnabledForShortcut(),
                                     this::showLaunchPreloader);
@@ -3745,7 +3752,25 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         return shortcut == null || !"1".equals(shortcut.getExtra("cloud_sync_disabled", "0"));
     }
 
+    private static final boolean STEAM_AGENT_CLOUD_ENABLED = true;
+
+    private boolean steamCloudHandledByAgent() {
+        return STEAM_AGENT_CLOUD_ENABLED
+                && isSteamShortcut()
+                && isBionicSteamEnabledForShortcut()
+                && com.winlator.cmod.feature.stores.steam.utils.PrefManager.INSTANCE.getWnPlanW();
+    }
+
     private void syncSteamCloudOnExit(Runnable onComplete) {
+        if (steamCloudHandledByAgent()) {
+            Log.i("XServerDisplayActivity",
+                    "Steam cloud exit sync skipped — the Steam Launcher agent runs "
+                            + "RunAutoCloudOnAppExit inside the prefix and blocks until it "
+                            + "reports synchronized");
+            onComplete.run();
+            return;
+        }
+
         String appId = shortcut.getExtra("app_id");
         if (appId == null || appId.isEmpty()) {
             onComplete.run();
@@ -4066,6 +4091,96 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         }
     }
 
+    private void writeSteamCloudConflictAnswer(Container container, String answer) {
+        steamCloudConflictShown.set(false);
+        File out = new File(container.getRootDir(),
+                ".wine/drive_c/wn-steam-cloud-conflict-answer.txt");
+        try (java.io.FileOutputStream fos = new java.io.FileOutputStream(out, false)) {
+            fos.write(answer.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            fos.flush();
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity",
+                    "Steam Launcher: failed to write cloud-conflict answer: " + e.getMessage());
+        }
+    }
+
+    private String steamCloudConflictLabel(long unixSeconds) {
+        if (unixSeconds <= 0L) return getString(R.string.steam_cloud_conflict_unknown_time);
+        return java.text.DateFormat
+                .getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT)
+                .format(new java.util.Date(unixSeconds * 1000L));
+    }
+
+    private void backupDiscardedSteamSave(
+            boolean keepBackup,
+            com.winlator.cmod.feature.sync.google.GameSaveBackupManager.BackupOrigin origin,
+            Runnable then) {
+        if (!keepBackup) {
+            then.run();
+            return;
+        }
+        if (preloaderDialog != null) {
+            preloaderDialog.setStepOnUiThread(getString(R.string.steam_cloud_conflict_backing_up));
+        }
+        new Thread(() -> {
+            try {
+                com.winlator.cmod.feature.steamcloudsync.SteamCloudConflictBackup.INSTANCE
+                        .backupDiscardedSave(this, shortcut, origin);
+            } catch (Throwable t) {
+                Log.w("XServerDisplayActivity",
+                        "Steam Launcher: cloud-conflict backup failed; continuing without it", t);
+            }
+            then.run();
+        }, "SteamCloudConflictBackup").start();
+    }
+
+    private final java.util.concurrent.atomic.AtomicBoolean steamCloudConflictShown =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
+
+    private void showSteamCloudConflictDialog(Container container, int appId,
+                                              long localTime, long remoteTime) {
+        Log.i("XServerDisplayActivity",
+                "Steam Launcher: cloud conflict for appId=" + appId
+                        + " local=" + localTime + " remote=" + remoteTime);
+        if (isFinishing() || isDestroyed()) {
+            Log.w("XServerDisplayActivity",
+                    "Steam Launcher: activity is going away — answering the cloud conflict with "
+                            + "\"local\" so the agent is not left blocking on a prompt nobody "
+                            + "can see; the cloud copy is left untouched");
+            writeSteamCloudConflictAnswer(container, "local");
+            return;
+        }
+        if (!steamCloudConflictShown.compareAndSet(false, true)) {
+            Log.w("XServerDisplayActivity",
+                    "Steam Launcher: a cloud-conflict dialog is already up; ignoring the repeat");
+            return;
+        }
+        if (preloaderDialog != null) {
+            preloaderDialog.setStepOnUiThread(getString(R.string.steam_cloud_conflict_waiting));
+        }
+        com.winlator.cmod.feature.steamcloudsync.SteamCloudConflictTimestamps timestamps =
+                new com.winlator.cmod.feature.steamcloudsync.SteamCloudConflictTimestamps(
+                        steamCloudConflictLabel(localTime),
+                        steamCloudConflictLabel(remoteTime));
+        com.winlator.cmod.feature.steamcloudsync.SteamCloudConflictDialog.show(
+                this,
+                timestamps,
+                keepBackup -> {
+                    backupDiscardedSteamSave(keepBackup,
+                            com.winlator.cmod.feature.sync.google.GameSaveBackupManager
+                                    .BackupOrigin.LOCAL,
+                            () -> writeSteamCloudConflictAnswer(container, "cloud"));
+                    return kotlin.Unit.INSTANCE;
+                },
+                keepBackup -> {
+                    backupDiscardedSteamSave(keepBackup,
+                            com.winlator.cmod.feature.sync.google.GameSaveBackupManager
+                                    .BackupOrigin.CLOUD,
+                            () -> writeSteamCloudConflictAnswer(container, "local"));
+                    return kotlin.Unit.INSTANCE;
+                });
+    }
+
     private void showSteamBlockedDialog(Container container, String targetName,
                                         String kind, int blockingAppId) {
         String blockingName = steamAppNameForId(container, blockingAppId);
@@ -4218,8 +4333,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
     private static final String WN_LAUNCHER_SHUTDOWN_SENTINEL = "wn-launcher.shutdown";
     private static final String WN_LAUNCHER_ARMED_MARKER = "[wn-launcher] clean-shutdown armed";
     private static final String WN_LAUNCHER_LOGOFF_DONE_MARKER = "[wn-launcher] clean logoff complete";
-    // Ceiling; returns early once the "clean logoff complete" marker appears. Covers the cloud exit upload (~15s) plus the logoff flush.
-    private static final long WN_LAUNCHER_SHUTDOWN_TIMEOUT_MS = 20000L;
+    private static final String WN_LAUNCHER_GRACEFUL_CLOSE_MARKER = "graceful close \"";
+    private static final String WN_LAUNCHER_CLOUD_EXIT_START_MARKER = "cloud: RunAutoCloudOnAppExit";
+    private static final String WN_LAUNCHER_CLOUD_EXIT_DONE_MARKER = "cloud: exit sync COMPLETE";
+    // Ceiling; returns early once the "clean logoff complete" marker appears. Must cover the agent's RunAutoCloudOnAppExit budget (60s) plus the logoff flush, or the container is torn down mid-upload and the cloud save is lost.
+    private static final long WN_LAUNCHER_SHUTDOWN_TIMEOUT_MS = 90000L;
     private static final long WN_LAUNCHER_SHUTDOWN_POLL_MS = 150L;
 
     private void signalPlanWLauncherCleanShutdown(String trigger) {
@@ -4250,7 +4368,25 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         long deadline = System.currentTimeMillis() + WN_LAUNCHER_SHUTDOWN_TIMEOUT_MS;
         boolean cleanLogoff = false;
         boolean launcherExited = false;
+        boolean shownClosing = false;
+        boolean shownUploading = false;
+        boolean shownUploaded = false;
+        final String closingName = (shortcutName != null && !shortcutName.isEmpty())
+                ? shortcutName : getString(R.string.preloader_default_name);
         while (System.currentTimeMillis() < deadline) {
+            if (!shownUploaded && wnLauncherLogContains(log, WN_LAUNCHER_CLOUD_EXIT_DONE_MARKER)) {
+                shownUploaded = true;
+                preloaderDialog.showOnUiThread(getString(R.string.preloader_cloud_upload_done));
+            } else if (!shownUploading
+                    && wnLauncherLogContains(log, WN_LAUNCHER_CLOUD_EXIT_START_MARKER)) {
+                shownUploading = true;
+                preloaderDialog.showOnUiThread(getString(R.string.preloader_uploading_cloud));
+            } else if (!shownClosing
+                    && wnLauncherLogContains(log, WN_LAUNCHER_GRACEFUL_CLOSE_MARKER)) {
+                shownClosing = true;
+                preloaderDialog.showOnUiThread(
+                        getString(R.string.preloader_closing_game_waiting, closingName));
+            }
             if (wnLauncherLogContains(log, WN_LAUNCHER_LOGOFF_DONE_MARKER)) {
                 cleanLogoff = true;
                 break;
@@ -7724,6 +7860,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                                 runOnUiThread(() -> WinToast.show(this,
                                         getString(R.string.steam_launch_insecure_warning, gameName)));
                                 return kotlin.Unit.INSTANCE;
+                            },
+                            (conflictAppId, localTime, remoteTime) -> {
+                                showSteamCloudConflictDialog(container, conflictAppId,
+                                        localTime, remoteTime);
+                                return kotlin.Unit.INSTANCE;
                             });
                 wnLauncherStatusTailer.start();
                 wnLauncherDrivesDismiss.set(true);
@@ -10815,6 +10956,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
     // Installs _CommonRedist once per game/container.
     private void installRedistributablesIfNeeded(GuestProgramLauncherComponent launcher) {
         if (shortcut == null || !"STEAM".equals(shortcut.getExtra("game_source"))) return;
+        if (steamCloudHandledByAgent()) {
+            Log.i("XServerDisplayActivity",
+                    "Redistributables skipped here — the Steam Launcher agent runs the app's "
+                            + "installscript.vdf entries inside the prefix, honours their "
+                            + "hasrunkey, and reads installer exit codes");
+            return;
+        }
 
         int appId;
         try {

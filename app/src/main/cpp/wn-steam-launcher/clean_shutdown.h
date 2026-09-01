@@ -19,8 +19,8 @@ void wn_launcher_arm_clean_shutdown(void* hSteamClient, int pipe, int user,
 
 void wn_launcher_set_cloud_context(void* engine, int hUser, int hPipe, unsigned int appId);
 
-int wn_launcher_cloud_sync(void* engine, int hUser, int hPipe,
-                           unsigned int appId, int cmd, int flags, int timeoutMs);
+int wn_launcher_cloud_run(void* engine, int hUser, int hPipe,
+                          unsigned int appId, int onExit, int timeoutMs);
 
 void wn_launcher_clean_shutdown_now(const char* reason);
 

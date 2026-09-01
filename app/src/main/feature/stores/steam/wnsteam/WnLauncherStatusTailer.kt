@@ -18,6 +18,7 @@ class WnLauncherStatusTailer(
     private val onLaunchFailed: ((reason: String) -> Unit)? = null,
     private val onBlocked: ((kind: String, blockingAppId: Int, pid: Int) -> Unit)? = null,
     private val onInsecureLaunch: (() -> Unit)? = null,
+    private val onCloudConflict: ((appId: Int, localTime: Long, remoteTime: Long) -> Unit)? = null,
 ) {
     private val running = AtomicBoolean(false)
     private val appContext = context.applicationContext
@@ -122,6 +123,14 @@ class WnLauncherStatusTailer(
             main.post { onBlocked?.invoke(kind, blocking, pid) }
             return
         }
+        if (line.contains("CLOUD-CONFLICT: appid=")) {
+            val appId = field(line, "appid=")?.toIntOrNull() ?: 0
+            val localTime = field(line, "local=")?.toLongOrNull() ?: 0L
+            val remoteTime = field(line, "remote=")?.toLongOrNull() ?: 0L
+            android.util.Log.w(TAG, "cloud conflict: appId=$appId local=$localTime remote=$remoteTime")
+            main.post { onCloudConflict?.invoke(appId, localTime, remoteTime) }
+            return
+        }
         if (line.contains("direct-exe mode:")) directExeMode = true
         val startedViaFallback = line.contains("game process started pid=")
                 && line.contains("CreateProcess fallback")
@@ -206,6 +215,7 @@ class WnLauncherStatusTailer(
         line.contains("redist scan: 0 *.exe installers") -> appContext.getString(R.string.preloader_no_redists)
         line.contains("redist scan: no _CommonRedist") -> appContext.getString(R.string.preloader_no_redists)
         line.contains("steamservice: post-start state=4") -> appContext.getString(R.string.preloader_steam_service_running)
+        line.contains("cloud: RunAutoCloudOnAppLaunch") -> appContext.getString(R.string.preloader_syncing_cloud_saves)
         line.contains("IClientAppManager.LaunchApp(appId=") -> appContext.getString(R.string.preloader_launching_game, gameDisplayName)
         line.contains("LoadLibrary(") && line.contains("FAILED after all strategies") ->
             appContext.getString(R.string.preloader_steam_launcher_failed_restaging)

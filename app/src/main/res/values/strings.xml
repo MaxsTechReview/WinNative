@@ -1659,10 +1659,14 @@ Installed path:
     <string name="preloader_redists_ready">Redistributables ready</string>
     <string name="preloader_no_redists">No redistributables to install</string>
     <string name="preloader_steam_service_running">Steam service running</string>
+    <string name="preloader_syncing_cloud_saves">Syncing Steam Cloud saves…</string>
     <string name="preloader_launching_game">Launching %1$s</string>
     <string name="preloader_steam_launcher_failed_restaging">Steam Launcher failed — re-staging assets</string>
     <string name="preloader_steam_launcher_start_failed">Steam Launcher could not start. Re-staging — please relaunch</string>
     <string name="preloader_steam_launcher_game_never_started">Steam Launcher reached the game but it never started</string>
+    <string name="steam_cloud_conflict_backing_up">Backing up the discarded save…</string>
+    <string name="steam_cloud_conflict_waiting">Waiting for your Steam Cloud choice…</string>
+    <string name="steam_cloud_conflict_unknown_time">Unknown</string>
     <string name="steam_blocked_title">Steam is still playing a game</string>
     <string name="steam_blocked_running_message">Steam still has %1$s registered as running from an earlier session, so it will not start %2$s.\n\nStop it and continue?</string>
     <string name="steam_blocked_same_game_message">Steam still has %1$s registered as running from an earlier session, so it will not start it again.\n\nStop it and continue?</string>
@@ -1680,6 +1684,8 @@ Installed path:
     <string name="preloader_downloading_cloud">Downloading cloud saves</string>
     <string name="preloader_syncing_cloud">Syncing cloud saves</string>
     <string name="preloader_uploading_cloud">Uploading cloud saves</string>
+    <string name="preloader_closing_game_waiting">Closing %1$s — waiting for the game to save…</string>
+    <string name="preloader_cloud_upload_done">Cloud save uploaded — finishing up…</string>
     <string name="preloader_checking_cloud">Checking cloud saves</string>
     <string name="preloader_cloud_sync_retry">%1$s Retry %2$d/%3$d</string>
     <string name="preloader_cloud_downloading">Cloud Sync Downloading</string>

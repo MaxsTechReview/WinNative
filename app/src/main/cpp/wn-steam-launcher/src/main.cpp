@@ -11,6 +11,7 @@
 #include <tlhelp32.h>
 #include <filesystem>
 #include <string>
+#include <thread>
 #include <vector>
 
 #ifndef LOAD_LIBRARY_SEARCH_SYSTEM32
@@ -33,6 +34,12 @@
 #endif
 
 #ifdef __i386__
+#define WN_AGENT_ARCH "x86"
+#else
+#define WN_AGENT_ARCH "x86_64"
+#endif
+
+#ifdef __i386__
 static const char* const kSteamClientDll = "steamclient.dll";
 #else
 static const char* const kSteamClientDll = "steamclient64.dll";
@@ -52,7 +59,7 @@ static const int kVtUser_GetAppOwnershipTicketLength = 103; // uint32(AppId_t)
 static const int kOwnershipWaitMsDefault = 20000;
 static const int kTicketWaitMsDefault = 15000;
 static const int kAppInfoWaitMsDefault   = 8000;
-static const int kAppInfoWaitMsAfterMiss = 1500;
+static const int kAppInfoWaitMsAfterMiss = 400;
 
 static const int kVtUser_NumGamesRunning          = 131;
 static const int kVtUser_GetRunningGameID         = 132;
@@ -99,16 +106,30 @@ static void open_log(void) {
 
 static void log_line(const char* fmt, ...) __attribute__((format(gnu_printf, 1, 2)));
 
+static DWORD g_logT0 = 0;
+
 static void log_line(const char* fmt, ...) {
-    char buf[1024];
+    char msg[1024];
     va_list ap;
     va_start(ap, fmt);
-    int n = vsnprintf(buf, sizeof(buf) - 2, fmt, ap);
+    int n = vsnprintf(msg, sizeof(msg), fmt, ap);
     va_end(ap);
     if (n < 0) n = 0;
-    if (n > (int)sizeof(buf) - 2) n = (int)sizeof(buf) - 2;
-    buf[n] = '\n';
-    buf[n + 1] = '\0';
+    if (n > (int)sizeof(msg) - 1) n = (int)sizeof(msg) - 1;
+    msg[n] = '\0';
+
+    if (g_logT0 == 0) g_logT0 = GetTickCount();
+    DWORD elapsed = GetTickCount() - g_logT0;
+
+    char buf[1152];
+    int m = snprintf(buf, sizeof(buf) - 2, "[%3lu.%03lus] %s",
+                     (unsigned long)(elapsed / 1000),
+                     (unsigned long)(elapsed % 1000), msg);
+    if (m < 0) m = 0;
+    if (m > (int)sizeof(buf) - 2) m = (int)sizeof(buf) - 2;
+    buf[m] = '\n';
+    buf[m + 1] = '\0';
+
     fputs(buf, stderr);
     OutputDebugStringA(buf);
     if (g_logFile) {
@@ -690,6 +711,17 @@ static const char* eapp_update_error_name(int e) {
 static const char* const kBlockedRequestPath = "C:\\wn-steam-blocked.txt";
 static const char* const kBlockedAnswerPath  = "C:\\wn-steam-blocked-answer.txt";
 
+static void query_running_game_quiet(void* user, int* countOut) {
+    if (countOut) *countOut = 0;
+    if (!user) return;
+    void** vt = *(void***) user;
+    void* numP = vt[kVtUser_NumGamesRunning];
+    if (!is_exec_ptr(numP)) return;
+    typedef int (WN_THISCALL *NumGamesRunningFn2)(void* self);
+    int n = ((NumGamesRunningFn2) numP)(user);
+    if (countOut) *countOut = n;
+}
+
 static uint32_t query_running_game(void* user, uint32_t* pidOut, int* countOut) {
     if (pidOut) *pidOut = 0;
     if (countOut) *countOut = 0;
@@ -1122,14 +1154,17 @@ static void resolve_game_root_dir(const char* gameExe, char* out, size_t outSize
     out[len] = '\0';
 }
 
+static const int kLaunchRegisterGraceMs = 20000;
+
 static bool wait_for_game_process(const char* exeName, int maxSeconds, const char* context,
                                   Steam_BGetCallback_fn bGetCallback,
                                   Steam_FreeLastCallback_fn freeLastCallback,
-                                  int pipe) {
+                                  int pipe, void* blockUser) {
     const int kPollMs = 500;
     const int kHeartbeatMs = 5000;
     int elapsed = 0;
     int sinceHeartbeat = 0;
+    bool steamRegistered = false;
     while (elapsed < maxSeconds * 1000) {
         if (wn_launcher_count_game_processes() > 0) {
             log_line("[wn-launcher] LaunchApp: \"%s\" is running after %dms (%s)",
@@ -1140,13 +1175,38 @@ static bool wait_for_game_process(const char* exeName, int maxSeconds, const cha
             char cb[64];
             while (bGetCallback(pipe, cb)) freeLastCallback(pipe);
         }
+        if (blockUser) {
+            int running = 0;
+            query_running_game_quiet(blockUser, &running);
+            if (!steamRegistered) {
+                if (running > 0) {
+                    steamRegistered = true;
+                    log_line("[wn-launcher] LaunchApp: Steam registered the app as running "
+                             "after %dms — the launch was accepted, waiting for the process",
+                             elapsed);
+                } else if (elapsed >= kLaunchRegisterGraceMs) {
+                    log_line("[wn-launcher] LaunchApp: Steam still reports 0 running games "
+                             "after %dms and \"%s\" has not spawned — the dispatch did not "
+                             "take effect; stopping the wait early instead of burning %ds",
+                             elapsed, exeName, maxSeconds);
+                    return false;
+                }
+            } else if (running == 0) {
+                log_line("[wn-launcher] LaunchApp: Steam de-registered the app after %dms "
+                         "and \"%s\" was never seen alive — the game started and exited "
+                         "immediately (startup crash); not waiting the remaining %ds",
+                         elapsed, exeName, maxSeconds - elapsed / 1000);
+                return false;
+            }
+        }
         Sleep(kPollMs);
         elapsed += kPollMs;
         sinceHeartbeat += kPollMs;
         if (sinceHeartbeat >= kHeartbeatMs) {
             sinceHeartbeat = 0;
             log_line("[wn-launcher] LaunchApp: still waiting for \"%s\" to appear "
-                     "(%ds/%ds, %s)", exeName, elapsed / 1000, maxSeconds, context);
+                     "(%ds/%ds, steam-registered=%d, %s)",
+                     exeName, elapsed / 1000, maxSeconds, steamRegistered ? 1 : 0, context);
         }
     }
     return wn_launcher_count_game_processes() > 0;
@@ -1521,34 +1581,44 @@ static bool is_known_redist_installer(const std::filesystem::path& p) {
            name.find("redist") != std::string::npos;
 }
 
-static std::vector<std::filesystem::path> collect_redist_installers(const std::filesystem::path& gameExePath) {
-    std::vector<std::filesystem::path> out;
-    try {
-        auto root = gameExePath.parent_path();
-        if (root.empty()) return out;
-        const std::vector<std::string> hotDirs = {
-            "redist", "redists", "_redist", "redistributables", "installer",
-            "installers", "support", "prereq", "prereqs", "commonredist",
-        };
-        for (auto it = std::filesystem::recursive_directory_iterator(root,
-                     std::filesystem::directory_options::skip_permission_denied);
-             it != std::filesystem::recursive_directory_iterator(); ++it) {
-            const auto& p = it->path();
-            if (it->is_directory()) {
-                std::string lower = p.filename().string();
-                for (char& c : lower) c = (char) std::tolower((unsigned char) c);
-                bool keep = false;
-                for (const auto& needle : hotDirs) {
-                    if (lower.find(needle) != std::string::npos) { keep = true; break; }
-                }
-                if (!keep && p.parent_path() != root) {
-                    it.disable_recursion_pending();
-                }
-                continue;
+static bool is_redisty_dir_name(const std::string& nameRaw) {
+    std::string n = nameRaw;
+    for (char& c : n) c = (char) tolower((unsigned char) c);
+    static const char* const kNeedles[] = {
+        "redist", "redists", "_redist", "redistributables", "installer",
+        "installers", "support", "prereq", "prereqs", "commonredist",
+    };
+    for (const char* needle : kNeedles) {
+        if (n.find(needle) != std::string::npos) return true;
+    }
+    return false;
+}
+
+static void collect_redist_installers_at(const std::filesystem::path& dir,
+                                         std::vector<std::filesystem::path>& out,
+                                         int depth, bool insideRedist) {
+    if (depth > 5) return;
+    std::error_code ec;
+    std::filesystem::directory_iterator it(dir,
+            std::filesystem::directory_options::skip_permission_denied, ec);
+    if (ec) return;
+    for (const auto& e : it) {
+        std::error_code isDirEc;
+        if (e.is_directory(isDirEc)) {
+            bool redisty = insideRedist || is_redisty_dir_name(e.path().filename().string());
+            if (depth == 0 || redisty) {
+                collect_redist_installers_at(e.path(), out, depth + 1, redisty);
             }
-            if (is_known_redist_installer(p)) out.push_back(p);
+            continue;
         }
-    } catch (...) {}
+        if (is_known_redist_installer(e.path())) out.push_back(e.path());
+    }
+}
+
+static std::vector<std::filesystem::path> collect_redist_installers(const std::filesystem::path& root) {
+    std::vector<std::filesystem::path> out;
+    if (root.empty()) return out;
+    collect_redist_installers_at(root, out, 0, false);
     return out;
 }
 
@@ -1647,10 +1717,389 @@ static RedistInstallResult run_redist_installer(const std::filesystem::path& ins
                                                : RedistInstallResult::FAILED;
 }
 
-static void scan_and_install_redists(const char* gameExe) {
-    if (!gameExe || !*gameExe) return;
-    std::filesystem::path gamePath(gameExe);
-    auto installers = collect_redist_installers(gamePath);
+struct VdfNode {
+    std::string value;
+    bool isBlock = false;
+    std::vector<std::pair<std::string, VdfNode>> children;
+
+    const VdfNode* find(const char* key) const {
+        for (const auto& kv : children) {
+            if (_stricmp(kv.first.c_str(), key) == 0) return &kv.second;
+        }
+        return NULL;
+    }
+};
+
+static void vdf_skip_ws(const std::string& s, size_t& i) {
+    while (i < s.size()) {
+        if (isspace((unsigned char) s[i])) { ++i; continue; }
+        if (s[i] == '/' && i + 1 < s.size() && s[i + 1] == '/') {
+            while (i < s.size() && s[i] != '\n') ++i;
+            continue;
+        }
+        break;
+    }
+}
+
+static bool vdf_read_token(const std::string& s, size_t& i, std::string& out) {
+    vdf_skip_ws(s, i);
+    if (i >= s.size()) return false;
+    if (s[i] == '{' || s[i] == '}') { out.assign(1, s[i]); ++i; return true; }
+    if (s[i] != '"') return false;
+    ++i;
+    out.clear();
+    while (i < s.size() && s[i] != '"') {
+        if (s[i] == '\\' && i + 1 < s.size()) {
+            char c = s[i + 1];
+            out.push_back(c == 'n' ? '\n' : c == 't' ? '\t' : c);
+            i += 2;
+            continue;
+        }
+        out.push_back(s[i]);
+        ++i;
+    }
+    if (i < s.size()) ++i;
+    return true;
+}
+
+static bool vdf_parse_block(const std::string& s, size_t& i, VdfNode& out) {
+    out.isBlock = true;
+    for (;;) {
+        std::string key;
+        size_t save = i;
+        if (!vdf_read_token(s, i, key)) return true;
+        if (key == "}") return true;
+        if (key == "{") { i = save; return false; }
+
+        std::string tok;
+        if (!vdf_read_token(s, i, tok)) return true;
+        VdfNode child;
+        if (tok == "{") {
+            if (!vdf_parse_block(s, i, child)) return false;
+        } else {
+            child.value = tok;
+        }
+        out.children.emplace_back(key, child);
+    }
+}
+
+static bool vdf_parse_file(const std::filesystem::path& path, VdfNode& root) {
+    FILE* f = fopen(path.string().c_str(), "rb");
+    if (!f) return false;
+    std::string text;
+    char buf[8192];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0) text.append(buf, n);
+    fclose(f);
+    size_t i = 0;
+    root = VdfNode();
+    root.isBlock = true;
+    for (;;) {
+        std::string key;
+        if (!vdf_read_token(text, i, key)) break;
+        if (key == "{" || key == "}") continue;
+        std::string tok;
+        if (!vdf_read_token(text, i, tok)) break;
+        VdfNode child;
+        if (tok == "{") {
+            if (!vdf_parse_block(text, i, child)) break;
+        } else {
+            child.value = tok;
+        }
+        root.children.emplace_back(key, child);
+    }
+    return !root.children.empty();
+}
+
+static bool split_hasrunkey(const std::string& full, HKEY& hive, std::string& subKey) {
+    size_t slash = full.find('\\');
+    if (slash == std::string::npos) return false;
+    std::string hiveName = full.substr(0, slash);
+    subKey = full.substr(slash + 1);
+    if (_stricmp(hiveName.c_str(), "HKEY_LOCAL_MACHINE") == 0 || _stricmp(hiveName.c_str(), "HKLM") == 0) {
+        hive = HKEY_LOCAL_MACHINE;
+        return true;
+    }
+    if (_stricmp(hiveName.c_str(), "HKEY_CURRENT_USER") == 0 || _stricmp(hiveName.c_str(), "HKCU") == 0) {
+        hive = HKEY_CURRENT_USER;
+        return true;
+    }
+    return false;
+}
+
+static bool hasrunkey_is_set(const std::string& full, const std::string& entryName) {
+    HKEY hive;
+    std::string sub;
+    if (!split_hasrunkey(full, hive, sub)) return false;
+    const REGSAM views[] = { KEY_WOW64_64KEY, KEY_WOW64_32KEY };
+    for (REGSAM view : views) {
+        HKEY h;
+        if (RegOpenKeyExA(hive, sub.c_str(), 0, KEY_READ | view, &h) != ERROR_SUCCESS) continue;
+        LONG rc = RegQueryValueExA(h, entryName.c_str(), NULL, NULL, NULL, NULL);
+        RegCloseKey(h);
+        if (rc == ERROR_SUCCESS) return true;
+    }
+    return false;
+}
+
+static void hasrunkey_mark(const std::string& full, const std::string& entryName) {
+    HKEY hive;
+    std::string sub;
+    if (!split_hasrunkey(full, hive, sub)) return;
+    const REGSAM views[] = { KEY_WOW64_64KEY, KEY_WOW64_32KEY };
+    for (REGSAM view : views) {
+        HKEY h;
+        DWORD disp = 0;
+        if (RegCreateKeyExA(hive, sub.c_str(), 0, NULL, 0,
+                            KEY_WRITE | view, NULL, &h, &disp) != ERROR_SUCCESS) continue;
+        DWORD one = 1;
+        RegSetValueExA(h, entryName.c_str(), 0, REG_DWORD,
+                       (const BYTE*) &one, sizeof(one));
+        RegCloseKey(h);
+    }
+}
+
+static std::string expand_installdir(const std::string& in, const std::string& installDir) {
+    std::string out;
+    const char* token = "%INSTALLDIR%";
+    size_t tokenLen = strlen(token);
+    size_t pos = 0;
+    for (;;) {
+        size_t at = std::string::npos;
+        for (size_t i = pos; i + tokenLen <= in.size(); ++i) {
+            if (_strnicmp(in.c_str() + i, token, (int) tokenLen) == 0) { at = i; break; }
+        }
+        if (at == std::string::npos) { out.append(in, pos, std::string::npos); break; }
+        out.append(in, pos, at - pos);
+        out.append(installDir);
+        pos = at + tokenLen;
+    }
+    return out;
+}
+
+static bool install_script_os_ok(const VdfNode& entry) {
+    const VdfNode* req = entry.find("Requirement_OS");
+    if (!req) return true;
+    const VdfNode* win64 = req->find("Is64BitWindows");
+    if (win64 && win64->value == "0") return false;
+    return true;
+}
+
+static RedistInstallResult run_process_line(const std::string& exe, const std::string& args,
+                                            DWORD* exitCodeOut) {
+    std::string lower = exe;
+    for (char& c : lower) c = (char) tolower((unsigned char) c);
+    std::string cmd;
+    if (lower.size() > 4 && lower.compare(lower.size() - 4, 4, ".cmd") == 0) {
+        cmd = "cmd.exe /c \"\"" + exe + "\"";
+        if (!args.empty()) cmd += " " + args;
+        cmd += "\"";
+    } else if (lower.size() > 4 && lower.compare(lower.size() - 4, 4, ".msi") == 0) {
+        cmd = "msiexec.exe /i \"" + exe + "\" " + (args.empty() ? "/qn /norestart" : args);
+    } else {
+        cmd = "\"" + exe + "\"";
+        if (!args.empty()) cmd += " " + args;
+    }
+
+    STARTUPINFOA si;
+    PROCESS_INFORMATION pi;
+    memset(&si, 0, sizeof(si));
+    memset(&pi, 0, sizeof(pi));
+    si.cb = sizeof(si);
+    std::vector<char> mutableCmd(cmd.begin(), cmd.end());
+    mutableCmd.push_back('\0');
+
+    std::filesystem::path exePath(exe);
+    std::string workDir = exePath.parent_path().string();
+
+    if (!CreateProcessA(NULL, mutableCmd.data(), NULL, NULL, FALSE, 0, NULL,
+                        workDir.empty() ? NULL : workDir.c_str(), &si, &pi)) {
+        log_line("[wn-launcher] installscript: CreateProcess failed for %s (GLE=%lu)",
+                 cmd.c_str(), GetLastError());
+        return RedistInstallResult::FAILED;
+    }
+    DWORD wait = WaitForSingleObject(pi.hProcess, 180000);
+    DWORD exitCode = 0;
+    if (wait == WAIT_TIMEOUT) {
+        TerminateProcess(pi.hProcess, 1);
+        CloseHandle(pi.hThread);
+        CloseHandle(pi.hProcess);
+        return RedistInstallResult::TIMED_OUT;
+    }
+    GetExitCodeProcess(pi.hProcess, &exitCode);
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+    if (exitCodeOut) *exitCodeOut = exitCode;
+    if (exitCode == 0 || exitCode == 1638 || exitCode == 3010 || exitCode == 5100) {
+        return RedistInstallResult::INSTALLED;
+    }
+    return RedistInstallResult::FAILED;
+}
+
+static void collect_install_scripts_at(const std::filesystem::path& dir,
+                                       std::vector<std::filesystem::path>& out,
+                                       int depth, bool insideRedist) {
+    if (depth > 5) return;
+    std::error_code ec;
+    std::filesystem::directory_iterator it(dir,
+            std::filesystem::directory_options::skip_permission_denied, ec);
+    if (ec) return;
+    for (const auto& e : it) {
+        std::error_code isDirEc;
+        if (e.is_directory(isDirEc)) {
+            bool redisty = insideRedist || is_redisty_dir_name(e.path().filename().string());
+            if (depth == 0 || redisty) {
+                collect_install_scripts_at(e.path(), out, depth + 1, redisty);
+            }
+            continue;
+        }
+        std::string name = e.path().filename().string();
+        for (char& c : name) c = (char) tolower((unsigned char) c);
+        if (name.rfind("installscript", 0) == 0 &&
+            name.size() > 4 && name.compare(name.size() - 4, 4, ".vdf") == 0) {
+            out.push_back(e.path());
+        }
+    }
+}
+
+static void collect_install_scripts(const std::filesystem::path& root,
+                                    std::vector<std::filesystem::path>& out) {
+    collect_install_scripts_at(root, out, 0, false);
+}
+
+static void run_install_scripts(const char* gameRootDir, std::vector<std::string>& handledDirs) {
+    if (!gameRootDir || !*gameRootDir) return;
+    std::filesystem::path installDir(gameRootDir);
+    if (installDir.empty()) return;
+
+    std::vector<std::filesystem::path> scripts;
+    collect_install_scripts(installDir, scripts);
+    if (scripts.empty()) {
+        log_line("[wn-launcher] installscript: none found under %s",
+                 installDir.string().c_str());
+        return;
+    }
+    log_line("[wn-launcher] installscript: %zu script(s) found", scripts.size());
+
+    int ran = 0, already = 0, skippedOs = 0, failed = 0;
+    for (const auto& scriptPath : scripts) {
+        VdfNode root;
+        if (!vdf_parse_file(scriptPath, root)) {
+            log_line("[wn-launcher] installscript: could not parse %s",
+                     scriptPath.string().c_str());
+            continue;
+        }
+        const VdfNode* is = root.find("installscript");
+        if (!is) continue;
+        const VdfNode* rp = is->find("Run Process");
+        if (!rp) continue;
+
+        std::string scriptInstallDir = installDir.string();
+
+        for (const auto& kv : rp->children) {
+            const std::string& entryName = kv.first;
+            const VdfNode& entry = kv.second;
+            if (!entry.isBlock) continue;
+
+            if (!install_script_os_ok(entry)) {
+                skippedOs++;
+                log_line("[wn-launcher] installscript: \"%s\" skipped (OS requirement)",
+                         entryName.c_str());
+                continue;
+            }
+
+            const VdfNode* hrk = entry.find("hasrunkey");
+            std::string hasRunKey = hrk ? hrk->value : std::string();
+            if (!hasRunKey.empty() && hasrunkey_is_set(hasRunKey, entryName)) {
+                already++;
+                int claimed = 0;
+                for (int idx = 1; idx <= 8; ++idx) {
+                    char pkey[32];
+                    snprintf(pkey, sizeof(pkey), "process %d", idx);
+                    const VdfNode* pn = entry.find(pkey);
+                    if (!pn || pn->value.empty()) break;
+                    std::string exe = expand_installdir(pn->value, scriptInstallDir);
+                    std::string parent = std::filesystem::path(exe).parent_path().string();
+                    if (parent.empty()) continue;
+                    bool known = false;
+                    for (const auto& d : handledDirs) {
+                        if (_stricmp(d.c_str(), parent.c_str()) == 0) { known = true; break; }
+                    }
+                    if (!known) { handledDirs.push_back(parent); claimed++; }
+                }
+                log_line("[wn-launcher] installscript: \"%s\" already recorded under %s — "
+                         "skipping (claimed %d dir(s) so the redist scan will not rerun it)",
+                         entryName.c_str(), hasRunKey.c_str(), claimed);
+                continue;
+            }
+
+            bool allOk = true;
+            for (int idx = 1; idx <= 8; ++idx) {
+                char pkey[32], ckey[32];
+                snprintf(pkey, sizeof(pkey), "process %d", idx);
+                snprintf(ckey, sizeof(ckey), "command %d", idx);
+                const VdfNode* pn = entry.find(pkey);
+                if (!pn || pn->value.empty()) break;
+                const VdfNode* cn = entry.find(ckey);
+
+                std::string exe = expand_installdir(pn->value, scriptInstallDir);
+                std::string args = cn ? expand_installdir(cn->value, scriptInstallDir) : std::string();
+
+                if (GetFileAttributesA(exe.c_str()) == INVALID_FILE_ATTRIBUTES) {
+                    log_line("[wn-launcher] installscript: \"%s\" %s missing: %s",
+                             entryName.c_str(), pkey, exe.c_str());
+                    allOk = false;
+                    break;
+                }
+
+                log_line("[wn-launcher] installscript: running \"%s\" %s -> %s %s",
+                         entryName.c_str(), pkey, exe.c_str(), args.c_str());
+                DWORD exitCode = 0;
+                RedistInstallResult rc = run_process_line(exe, args, &exitCode);
+                {
+                    std::string parent = std::filesystem::path(exe).parent_path().string();
+                    bool known = false;
+                    for (const auto& d : handledDirs) {
+                        if (_stricmp(d.c_str(), parent.c_str()) == 0) { known = true; break; }
+                    }
+                    if (!known) handledDirs.push_back(parent);
+                }
+                if (rc == RedistInstallResult::INSTALLED) {
+                    log_line("[wn-launcher] installscript: \"%s\" %s OK exit=%lu",
+                             entryName.c_str(), pkey, (unsigned long) exitCode);
+                } else if (rc == RedistInstallResult::TIMED_OUT) {
+                    log_line("[wn-launcher] installscript: \"%s\" %s timed out after 180s",
+                             entryName.c_str(), pkey);
+                    allOk = false;
+                    break;
+                } else {
+                    log_line("[wn-launcher] installscript: \"%s\" %s FAILED exit=%lu",
+                             entryName.c_str(), pkey, (unsigned long) exitCode);
+                    allOk = false;
+                    break;
+                }
+            }
+
+            if (allOk) {
+                ran++;
+                if (!hasRunKey.empty()) {
+                    hasrunkey_mark(hasRunKey, entryName);
+                    log_line("[wn-launcher] installscript: \"%s\" recorded under %s",
+                             entryName.c_str(), hasRunKey.c_str());
+                }
+            } else {
+                failed++;
+            }
+        }
+    }
+    log_line("[wn-launcher] installscript done: ran %d, already-installed %d, "
+             "os-skipped %d, failed %d", ran, already, skippedOs, failed);
+}
+
+static void scan_and_install_redists(const char* gameRootDir,
+                                    const std::vector<std::string>& handledDirs) {
+    if (!gameRootDir || !*gameRootDir) return;
+    auto installers = collect_redist_installers(std::filesystem::path(gameRootDir));
     if (installers.empty()) {
         log_line("[wn-launcher] redist scan: none found");
         return;
@@ -1664,6 +2113,17 @@ static void scan_and_install_redists(const char* gameExe) {
         std::string abs = installer.string();
         if (marker_contains(marker, abs)) {
             skipped++;
+            continue;
+        }
+        std::string parent = installer.parent_path().string();
+        bool handledByScript = false;
+        for (const auto& d : handledDirs) {
+            if (_stricmp(d.c_str(), parent.c_str()) == 0) { handledByScript = true; break; }
+        }
+        if (handledByScript) {
+            skipped++;
+            log_line("[wn-launcher] redist scan: %s skipped — an installscript entry already "
+                     "ran in %s", installer.filename().string().c_str(), parent.c_str());
             continue;
         }
         DWORD exitCode = 0;
@@ -1708,6 +2168,8 @@ int main(int argc, char** argv) {
     setbuf(stdout, NULL);
     open_log();
     wn_launcher_set_log_sink(clean_shutdown_log_sink);
+    log_line("[wn-launcher] build stamp: " __DATE__ " " __TIME__
+             " (" WN_AGENT_ARCH ")");
     log_line("[wn-launcher] Steam Launcher in-process Steam launcher starting (pid=%lu tid=%lu)",
              (unsigned long) GetCurrentProcessId(),
              (unsigned long) GetCurrentThreadId());
@@ -1780,7 +2242,14 @@ int main(int argc, char** argv) {
         log_line("[wn-launcher] game identity: exe=\"%s\" stem=\"%s\" root=\"%s\"",
                  exeName, stem, gameRootDir[0] ? gameRootDir : "(none)");
     }
-    verify_game_steam_api(gameRootDir);
+    std::thread steamApiScanThread;
+    {
+        static char scanRoot[MAX_PATH];
+        snprintf(scanRoot, sizeof(scanRoot), "%s", gameRootDir);
+        log_line("[wn-launcher] steam_api: scan started on background thread "
+                 "(overlaps steamclient load + logon)");
+        steamApiScanThread = std::thread([]() { verify_game_steam_api(scanRoot); });
+    }
 
     const char* kSteamDir = "C:\\Program Files (x86)\\Steam";
     SetDllDirectoryA(kSteamDir);
@@ -2191,22 +2660,31 @@ int main(int argc, char** argv) {
         }
     }
 
-    scan_and_install_redists(gameExe);
+    std::vector<std::string> installScriptDirs;
+    run_install_scripts(gameRootDir, installScriptDirs);
+    scan_and_install_redists(gameRootDir, installScriptDirs);
 
     bool svcRunning = start_steam_client_service();
     log_line("[wn-launcher] steamservice running: %d", svcRunning ? 1 : 0);
 
     // Pull cloud saves + set the teardown cloud context now, so the exit upload
     // has a baseline to diff.
-#ifdef __i386__
-    log_line("[wn-launcher] cloud: skipped on the 32-bit client (RemoteStorage vtable "
-             "indices are unverified for this build)");
-#else
-    if (loggedOn && engine && appId != 0) {
+    const bool agentCloud = env_int("WN_STEAM_AGENT_CLOUD", 1) != 0;
+    if (loggedOn && engine && appId != 0 && agentCloud) {
         wn_launcher_set_cloud_context(engine, hUser, pipe, appId);
-        wn_launcher_cloud_sync(engine, hUser, pipe, appId, 1, 0, 15000);
+        wn_launcher_cloud_run(engine, hUser, pipe, appId, 0, 120000);
+    } else if (loggedOn && engine && appId != 0) {
+        log_line("[wn-launcher] cloud: agent-side sync disabled "
+                 "(RemoteStorage vtable slots unvalidated on this steamclient build); "
+                 "the app handles Steam Cloud");
     }
-#endif
+
+    if (steamApiScanThread.joinable()) {
+        DWORD joinT0 = GetTickCount();
+        steamApiScanThread.join();
+        log_line("[wn-launcher] steam_api: background scan joined (blocked %lums)",
+                 (unsigned long)(GetTickCount() - joinT0));
+    }
 
     bool launchedViaApp = false;
     bool blockedAbort = false;
@@ -2428,7 +2906,7 @@ int main(int argc, char** argv) {
                     launchFailureReason = "LaunchApp returned a null call handle";
                     launchedViaApp = wait_for_game_process(
                         exeName, kErrorAppearSeconds, "null-handle grace",
-                        bGetCallback, freeLastCallback, pipe);
+                        bGetCallback, freeLastCallback, pipe, blockUser);
                 }
                 continue;
             }
@@ -2512,7 +2990,7 @@ int main(int argc, char** argv) {
                 launchFailureReason = "LaunchApp returned a non-NoError EAppUpdateError";
                 launchedViaApp = wait_for_game_process(
                     exeName, kErrorAppearSeconds, "post-error grace",
-                    bGetCallback, freeLastCallback, pipe);
+                    bGetCallback, freeLastCallback, pipe, blockUser);
                 break;
             } else {
                 log_line("[wn-launcher] LaunchApp dispatched (attempt %d/%d, "
@@ -2522,13 +3000,13 @@ int main(int argc, char** argv) {
                          kSecureAppearSeconds, exeName);
                 launchedViaApp = wait_for_game_process(
                     exeName, kSecureAppearSeconds, "secure launch",
-                    bGetCallback, freeLastCallback, pipe);
+                    bGetCallback, freeLastCallback, pipe, blockUser);
                 if (!launchedViaApp) {
                     log_line("[wn-launcher] LaunchApp attempt %d/%d: \"%s\" "
-                             "accepted (EAppUpdateError=%d) but never spawned in "
-                             "%ds — not re-dispatching (would cancel the pending "
+                             "accepted (EAppUpdateError=%d) but never became a live "
+                             "process — not re-dispatching (would cancel the pending "
                              "launch) — falling back", attempt, kMaxLaunchAttempts,
-                             exeName, eAppError, kSecureAppearSeconds);
+                             exeName, eAppError);
                     launchFailureReason =
                         "LaunchApp accepted but the game never spawned";
                     break;
@@ -2596,7 +3074,7 @@ int main(int argc, char** argv) {
             wn_launcher_clean_shutdown_now("game-exit");
             // Block until teardown finishes so returning from main() doesn't kill
             // the process mid-reap (cutting the logoff flush → AlreadyRunning).
-            wn_launcher_wait_clean_shutdown(12000);
+            wn_launcher_wait_clean_shutdown(90000);
         }
         log_line("[wn-launcher] Steam Launcher shutdown");
         return 0;
