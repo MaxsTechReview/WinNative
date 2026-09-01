@@ -35,7 +35,7 @@ Designed for enthusiasts and power users, WinNative delivers the full Winlator e
 
 1. **Clone with submodules and pull LFS objects** (Required):
    ```bash
-   git clone --recursive https://github.com/MaxsTechReview/WinNative.git
+   git clone --recursive https://github.com/WinNative-Emu/WinNative.git
    cd WinNative
    git lfs pull                          # fetches imagefs
    git submodule update --init --recursive

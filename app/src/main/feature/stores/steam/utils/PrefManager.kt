@@ -272,7 +272,18 @@ object PrefManager {
         }
 
     var libraryStoreVisible: String
-        get() = getString("library_store_visible", "steam,epic,gog")
+        get() {
+            val stored = getString("library_store_visible", DEFAULT_STORE_VISIBLE)
+            if (!getBoolean("library_store_visible_itch_added", false)) {
+                setBoolean("library_store_visible_itch_added", true)
+                if (stored.isNotBlank() && !stored.split(",").contains("itch")) {
+                    val merged = "$stored,itch"
+                    setString("library_store_visible", merged)
+                    return merged
+                }
+            }
+            return stored
+        }
         set(value) {
             setString("library_store_visible", value)
         }
@@ -335,6 +346,12 @@ object PrefManager {
         get() = getString("gog_download_folder", "")
         set(value) {
             setString("gog_download_folder", value)
+        }
+
+    var itchDownloadFolder: String
+        get() = getString("itch_download_folder", "")
+        set(value) {
+            setString("itch_download_folder", value)
         }
 
     var chatServiceEnabled: Boolean
@@ -430,4 +447,6 @@ object PrefManager {
         libraryLayoutModeCache = null
         requirePrefs().edit().clear().commit()
     }
+
+    const val DEFAULT_STORE_VISIBLE = "steam,epic,gog,itch"
 }
