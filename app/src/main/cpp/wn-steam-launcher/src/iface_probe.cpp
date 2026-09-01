@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <iphlpapi.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -112,9 +113,123 @@ static void probe_auth_ticket(HMODULE api, void* user, void* apps) {
         (Flat_RequestEncryptedAppTicket_t) GetProcAddress(api, "SteamAPI_ISteamUser_RequestEncryptedAppTicket");
     RunCallbacks_t fRun = (RunCallbacks_t) GetProcAddress(api, "SteamAPI_RunCallbacks");
 
+    {
+        typedef const char* (*S_t)(void*);
+        typedef bool (*B_t)(void*);
+        typedef unsigned int (*U_t)(void*);
+        typedef unsigned int (*UA_t)(void*, unsigned int);
+        typedef int (*I_t)(void*);
+        struct { const char* nm; const char* sym; int kind; } q[] = {
+            {"ISteamUtils::GetIPCountry",          "SteamAPI_ISteamUtils_GetIPCountry", 0},
+            {"ISteamUtils::GetSteamUILanguage",    "SteamAPI_ISteamUtils_GetSteamUILanguage", 0},
+            {"ISteamApps::GetCurrentGameLanguage", "SteamAPI_ISteamApps_GetCurrentGameLanguage", 0},
+            {"ISteamApps::BIsCybercafe",           "SteamAPI_ISteamApps_BIsCybercafe", 1},
+            {"ISteamApps::BIsLowViolence",         "SteamAPI_ISteamApps_BIsLowViolence", 1},
+            {"ISteamApps::BIsSubscribedFromFreeWeekend","SteamAPI_ISteamApps_BIsSubscribedFromFreeWeekend", 1},
+            {"ISteamUser::BIsBehindNAT",           "SteamAPI_ISteamUser_BIsBehindNAT", 1},
+            {"ISteamUtils::GetServerRealTime",     "SteamAPI_ISteamUtils_GetServerRealTime", 2},
+            {"ISteamUtils::GetSecondsSinceAppActive","SteamAPI_ISteamUtils_GetSecondsSinceAppActive", 2},
+            {"ISteamUser::GetPlayerSteamLevel",    "SteamAPI_ISteamUser_GetPlayerSteamLevel", 3},
+        };
+        for (unsigned i = 0; i < sizeof(q)/sizeof(q[0]); ++i) {
+            void* fn = (void*) GetProcAddress(api, q[i].sym);
+            void* self = user;
+            if (strstr(q[i].sym, "ISteamUtils")) {
+                typedef void* (*GU_t)(void);
+                GU_t g = (GU_t) GetProcAddress(api, "SteamAPI_SteamUtils_v010");
+                if (!g) g = (GU_t) GetProcAddress(api, "SteamAPI_SteamUtils_v009");
+                self = g ? g() : nullptr;
+            } else if (strstr(q[i].sym, "ISteamApps")) {
+                self = apps;
+            }
+            if (!fn || !self) { plog("[wn-probe] q %-42s = <unavailable>", q[i].nm); continue; }
+            if (q[i].kind == 0) {
+                const char* v = ((S_t) fn)(self);
+                plog("[wn-probe] q %-42s = \"%s\"", q[i].nm, v ? v : "(null)");
+            } else if (q[i].kind == 1) {
+                plog("[wn-probe] q %-42s = %d", q[i].nm, ((B_t) fn)(self) ? 1 : 0);
+            } else if (q[i].kind == 2) {
+                plog("[wn-probe] q %-42s = %u", q[i].nm, ((U_t) fn)(self));
+            } else {
+                plog("[wn-probe] q %-42s = %d", q[i].nm, ((I_t) fn)(self));
+            }
+        }
+        void* lenFn = (void*) GetProcAddress(api, "SteamAPI_ISteamUser_GetAuthTicketForWebApi");
+        plog("[wn-probe] q GetAuthTicketForWebApi export           = %s",
+             lenFn ? "present" : "MISSING");
+    }
+
+    {
+        DWORD vser = 0; char volName[MAX_PATH] = {0}, fsName[MAX_PATH] = {0};
+        DWORD maxComp = 0, flags = 0;
+        BOOL okv = GetVolumeInformationA("C:\\", volName, sizeof(volName), &vser,
+                                         &maxComp, &flags, fsName, sizeof(fsName));
+        plog("[wn-probe] hw  GetVolumeInformation(C:) ok=%d serial=0x%08lx label=\"%s\" fs=\"%s\"",
+             okv ? 1 : 0, (unsigned long) vser, volName, fsName);
+
+        HMODULE ip = LoadLibraryA("iphlpapi.dll");
+        typedef unsigned long (WINAPI *GAI_t)(void*, unsigned long*);
+        GAI_t gai = ip ? (GAI_t) GetProcAddress(ip, "GetAdaptersInfo") : nullptr;
+        if (!gai) { plog("[wn-probe] hw  GetAdaptersInfo UNAVAILABLE"); }
+        else {
+            unsigned long sz = 0;
+            unsigned long rc = gai(nullptr, &sz);
+            plog("[wn-probe] hw  GetAdaptersInfo sizeprobe rc=%lu needed=%lu", rc, sz);
+            if (sz) {
+                unsigned char* buf = (unsigned char*) malloc(sz);
+                rc = gai(buf, &sz);
+                int n = 0;
+                if (rc == 0) {
+                    for (PIP_ADAPTER_INFO ai = (PIP_ADAPTER_INFO) buf; ai && n < 6; ai = ai->Next) {
+                        char mac[64] = {0};
+                        for (UINT k = 0; k < ai->AddressLength && k < 8; ++k)
+                            snprintf(mac + k*3, 4, "%02x:", ai->Address[k]);
+                        plog("[wn-probe] hw  adapter[%d] idx=%lu type=%u addrlen=%u mac=%s ip=%s",
+                             n, ai->Index, ai->Type, ai->AddressLength, mac,
+                             ai->IpAddressList.IpAddress.String);
+                        n++;
+                    }
+                }
+                plog("[wn-probe] hw  GetAdaptersInfo rc=%lu adapters=%d", rc, n);
+                free(buf);
+            }
+        }
+        char cname[256] = {0}; DWORD cl = sizeof(cname);
+        GetComputerNameA(cname, &cl);
+        plog("[wn-probe] hw  ComputerName=\"%s\"", cname);
+    }
+
+    typedef bool (*Flat_IsAPICallCompleted_t)(void*, unsigned long long, bool*);
+    typedef void* (*Flat_SteamUtils_t)(void);
+    Flat_IsAPICallCompleted_t fDone =
+        (Flat_IsAPICallCompleted_t) GetProcAddress(api, "SteamAPI_ISteamUtils_IsAPICallCompleted");
+    Flat_SteamUtils_t fUtils = (Flat_SteamUtils_t) GetProcAddress(api, "SteamAPI_SteamUtils_v010");
+    if (!fUtils) fUtils = (Flat_SteamUtils_t) GetProcAddress(api, "SteamAPI_SteamUtils_v009");
+    void* utils = fUtils ? fUtils() : nullptr;
+    plog("[wn-probe] callresult: ISteamUtils=%p IsAPICallCompleted=%p",
+         utils, (void*) fDone);
+
     if (fEnc && fReqEnc) {
         unsigned long long call = fReqEnc(user, nullptr, 0);
         plog("[wn-probe] auth: RequestEncryptedAppTicket -> HSteamAPICall=%llu", call);
+        if (utils && fDone && call) {
+            bool failed = false;
+            bool done = false;
+            int cw = 0;
+            for (int i = 0; i < 150; ++i) {
+                if (fRun) fRun();
+                Sleep(100);
+                cw += 100;
+                failed = false;
+                done = fDone(utils, call, &failed);
+                if (done) break;
+            }
+            plog("[wn-probe] callresult: IsAPICallCompleted(0x%llx) -> done=%d failed=%d after %dms "
+                 "-- %s", call, done ? 1 : 0, failed ? 1 : 0, cw,
+                 done ? "CallResults DO complete for this pipe (the game's CCallResult would fire)"
+                      : "*** NEVER COMPLETED *** async Steam API calls never finish here, so any "
+                        "game using CCallResult (e.g. EncryptedAppTicketResponse_t) hangs forever");
+        }
         unsigned char enc[4096];
         unsigned int cbEnc = 0;
         int rc = 0;

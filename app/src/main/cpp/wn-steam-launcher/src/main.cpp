@@ -64,6 +64,10 @@ static const int kAppInfoWaitMsAfterMiss = 400;
 static const int kVtUser_NumGamesRunning          = 131;
 static const int kVtUser_GetRunningGameID         = 132;
 static const int kVtUser_GetRunningGamePID        = 133;
+static const int kVtUtils_SetAppIDForCurrentPipe   = 18;
+static const int kVtUtils_GetAppID                = 19;
+static const int kVtUser_RequestEncryptedAppTicket = 120;
+static const int kVtUser_GetEncryptedAppTicket     = 121;
 static const int kVtUser_BIsOtherSessionPlaying   = 220;
 static const int kVtUser_BKickOtherPlayingSession = 221;
 
@@ -1050,6 +1054,109 @@ static void sync_app_ownership(void* engine, int hUser, int pipe, uint32_t appId
              after ? "ticket acquired; GetAuthSessionTicket can now produce a signed ticket"
                    : "STILL EMPTY — the game's GetAuthSessionTicket will fail and its "
                      "online/version handshake with the publisher will be rejected");
+}
+
+static void prewarm_encrypted_app_ticket(void* engine, int hUser, int pipe, uint32_t appId,
+                                         Steam_BGetCallback_fn bGetCallback,
+                                         Steam_FreeLastCallback_fn freeLastCallback) {
+    if (!engine || appId == 0) return;
+    if (env_int("WN_STEAM_APPTICKET_PREWARM", 0) == 0) {
+        return;
+    }
+
+    void** engine_vt = *(void***) engine;
+    typedef void* (WN_THISCALL *GetIClientUserFn)(void* self, int hUser, int hPipe);
+    void* getUserP = engine_vt[kVtEngine_GetIClientUser];
+    if (!is_exec_ptr(getUserP)) return;
+    void* iuser = ((GetIClientUserFn) getUserP)(engine, hUser, pipe);
+    if (!iuser || !interface_looks_valid(iuser, kVtUser_BIsSubscribedApp)) {
+        log_line("[wn-launcher] appticket: no usable IClientUser — skipping prewarm");
+        return;
+    }
+
+    void** user_vt = *(void***) iuser;
+    void* reqP = user_vt[kVtUser_RequestEncryptedAppTicket];
+    void* getP = user_vt[kVtUser_GetEncryptedAppTicket];
+    if (!is_exec_ptr(reqP) || !is_exec_ptr(getP)) {
+        log_line("[wn-launcher] appticket: slots %d/%d not executable — cannot prewarm the "
+                 "encrypted app ticket the game needs for publisher auth",
+                 kVtUser_RequestEncryptedAppTicket, kVtUser_GetEncryptedAppTicket);
+        return;
+    }
+
+    typedef uint64_t (WN_THISCALL *RequestEncFn)(void* self, void* data, int cbData);
+    typedef bool (WN_THISCALL *GetEncFn)(void* self, void* ticket, int cbMax, uint32_t* pcb);
+
+    static unsigned char ticket[4096];
+    uint32_t cb = 0;
+    memset(ticket, 0, sizeof(ticket));
+    bool have = ((GetEncFn) getP)(iuser, ticket, (int) sizeof(ticket), &cb);
+    if (have && cb) {
+        log_line("[wn-launcher] appticket: already cached (%u bytes) — the game's "
+                 "GetEncryptedAppTicket will return immediately", cb);
+        return;
+    }
+
+    typedef void* (WN_THISCALL *GetIClientUtilsFn)(void* self, int hPipe);
+    typedef uint32_t (WN_THISCALL *GetAppIDFn)(void* self);
+    typedef void (WN_THISCALL *SetAppIDForCurrentPipeFn)(void* self, uint32_t app, bool track);
+    void* utils = NULL;
+    uint32_t priorApp = 0;
+    bool contextSet = false;
+    void* getUtilsP = engine_vt[kVtEngine_GetIClientUtils];
+    if (is_exec_ptr(getUtilsP)) utils = ((GetIClientUtilsFn) getUtilsP)(engine, pipe);
+    if (utils) {
+        void** utils_vt = *(void***) utils;
+        void* getAppP = utils_vt[kVtUtils_GetAppID];
+        void* setAppP = utils_vt[kVtUtils_SetAppIDForCurrentPipe];
+        if (is_exec_ptr(getAppP)) priorApp = ((GetAppIDFn) getAppP)(utils);
+        log_line("[wn-launcher] appticket: pipe app context = %u (want %u)", priorApp, appId);
+        if (priorApp != appId && is_exec_ptr(setAppP)) {
+            ((SetAppIDForCurrentPipeFn) setAppP)(utils, appId, false);
+            contextSet = true;
+            uint32_t nowApp = is_exec_ptr(getAppP) ? ((GetAppIDFn) getAppP)(utils) : 0;
+            log_line("[wn-launcher] appticket: SetAppIDForCurrentPipe(%u, track=false) -> "
+                     "context now %u (encrypted app tickets are scoped to the pipe's app)",
+                     appId, nowApp);
+        }
+    } else {
+        log_line("[wn-launcher] appticket: no IClientUtils — cannot scope the pipe to appId %u",
+                 appId);
+    }
+
+    uint64_t call = ((RequestEncFn) reqP)(iuser, NULL, 0);
+    log_line("[wn-launcher] appticket: RequestEncryptedAppTicket -> HSteamAPICall=0x%llx",
+             (unsigned long long) call);
+
+    const int waitMs = env_int("WN_STEAM_APPTICKET_WAIT_MS", 5000);
+    int waited = 0;
+    while (waited < waitMs) {
+        if (bGetCallback && freeLastCallback) {
+            char cbbuf[64];
+            while (bGetCallback(pipe, cbbuf)) freeLastCallback(pipe);
+        }
+        Sleep(100);
+        waited += 100;
+        cb = 0;
+        memset(ticket, 0, sizeof(ticket));
+        have = ((GetEncFn) getP)(iuser, ticket, (int) sizeof(ticket), &cb);
+        if (have && cb) break;
+    }
+    log_line("[wn-launcher] appticket: GetEncryptedAppTicket -> rc=%d length=%u (%dms) — %s",
+             have ? 1 : 0, cb, waited,
+             (have && cb)
+                 ? "ticket cached before launch; the game's DNA/publisher init can proceed"
+                 : "STILL EMPTY — the game will see an empty encrypted app ticket and skip "
+                   "its publisher (Ubisoft/DNA) initialisation entirely");
+
+    if (contextSet && utils) {
+        void** utils_vt = *(void***) utils;
+        void* setAppP = utils_vt[kVtUtils_SetAppIDForCurrentPipe];
+        if (is_exec_ptr(setAppP)) {
+            ((SetAppIDForCurrentPipeFn) setAppP)(utils, priorApp, false);
+            log_line("[wn-launcher] appticket: pipe app context restored to %u", priorApp);
+        }
+    }
 }
 
 static void log_active_process_registry(const char* when) {
@@ -2540,6 +2647,8 @@ int main(int argc, char** argv) {
 
     if (loggedOn && engine && appId != 0) {
         sync_app_ownership(engine, hUser, pipe, appId, bGetCallback, freeLastCallback);
+        prewarm_encrypted_app_ticket(engine, hUser, pipe, appId, bGetCallback,
+                                     freeLastCallback);
     }
 
 
