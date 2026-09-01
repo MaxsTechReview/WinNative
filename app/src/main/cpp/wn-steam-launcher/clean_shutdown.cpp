@@ -53,6 +53,7 @@ constexpr int kVtRS_GetConflictingFileTimestamps = 75;
 constexpr int kVtRS_ResolveSyncConflict          = 77;
 constexpr int kVtRS_IsAppSyncInProgress          = 79;
 constexpr int kVtRS_RunAutoCloudOnAppLaunch      = 80;
+constexpr int kCloudDrainCapPerTick              = 64;
 constexpr int kVtRS_RunAutoCloudOnAppExit        = 81;
 
 constexpr int kSyncDisabled       = 0;
@@ -673,16 +674,34 @@ extern "C" int wn_launcher_cloud_run(void* engine, int hUser, int hPipe,
 
         int attemptCap = remaining < kCloudAttemptCapMs ? remaining : kCloudAttemptCapMs;
         int waited = 0;
+        int nextHeartbeat = 5000;
+        const DWORD attemptStart = ::GetTickCount();
         while (reinterpret_cast<InProgFn>(inProgP)(rs, appId) && waited < attemptCap) {
             if (g_bgetcallback && g_freelastcallback) {
                 char cb[64];
-                while (g_bgetcallback(g_pipe, cb)) g_freelastcallback(g_pipe);
+                int drained = 0;
+                while (drained < kCloudDrainCapPerTick && g_bgetcallback(g_pipe, cb)) {
+                    g_freelastcallback(g_pipe);
+                    ++drained;
+                }
+                if (drained >= kCloudDrainCapPerTick) {
+                    std::snprintf(buf, sizeof(buf),
+                        "cloud: callback queue still non-empty after draining %d entries — "
+                        "continuing without a full drain", drained);
+                    wn_log(buf);
+                }
             }
             ::Sleep(10);
-            waited += 10;
-            if (waited >= kCloudMinSettleMs
-                && reinterpret_cast<StateFn>(stateP)(rs, appId) == kSyncSynchronized) {
-                break;
+            waited = (int) (::GetTickCount() - attemptStart);
+            if (waited >= nextHeartbeat) {
+                std::snprintf(buf, sizeof(buf),
+                    "cloud: %s sync still in progress after %dms (cap %dms)", phase, waited, attemptCap);
+                wn_log(buf);
+                nextHeartbeat += 5000;
+            }
+            if (waited >= kCloudMinSettleMs) {
+                int st = reinterpret_cast<StateFn>(stateP)(rs, appId);
+                if (st == kSyncSynchronized || st == kSyncDisabled) break;
             }
         }
         finalState = reinterpret_cast<StateFn>(stateP)(rs, appId);

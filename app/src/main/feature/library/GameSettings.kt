@@ -45,12 +45,14 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.PaddingValues
+import com.winlator.cmod.runtime.display.environment.components.NetworkingSettings
 import com.winlator.cmod.shared.ui.layout.isPortraitLayout
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
@@ -82,10 +84,12 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SliderState
 import androidx.compose.material3.Switch
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -430,6 +434,11 @@ class GameSettingsStateHolder {
 
     val frameGenEnabled = mutableStateOf(false)
     val frameGenMultiplier = mutableIntStateOf(2)
+
+    val netDriverEntries = mutableStateOf<List<String>>(emptyList())
+    val selectedNetDriver = mutableIntStateOf(0)
+    val netMac = mutableStateOf("")
+    val netMacAuto = mutableStateOf("")
     val frameGenTargetRate = mutableIntStateOf(0)
     val frameGenFlowScale = mutableIntStateOf(70)
     val frameGenShaderState = mutableIntStateOf(FRAMEGEN_SHADERS_CHECKING)
@@ -687,6 +696,7 @@ private const val SEC_INPUT = 7
 private const val SEC_ADVANCED = 8
 private const val SEC_DRIVES = 9
 private const val SEC_SAVES = 10
+private const val SEC_NETWORKING = 11
 
 private fun buildSections(isSteam: Boolean, isContainer: Boolean): List<Pair<Int, SidebarSection>> {
     val list = mutableListOf<Pair<Int, SidebarSection>>()
@@ -698,6 +708,7 @@ private fun buildSections(isSteam: Boolean, isContainer: Boolean): List<Pair<Int
     list += SEC_VARIABLES to SidebarSection(Icons.Outlined.Code, R.string.container_config_variables)
     list += SEC_INPUT to SidebarSection(Icons.Outlined.SportsEsports, R.string.common_ui_input_controls)
     list += SEC_COMPONENTS to SidebarSection(Icons.Outlined.Extension, R.string.settings_content_components)
+    list += SEC_NETWORKING to SidebarSection(Icons.Outlined.Wifi, R.string.networking_section_title)
     if (isContainer) {
         list += SEC_DRIVES to SidebarSection(Icons.Outlined.Storage, R.string.container_config_drives)
     }
@@ -1042,6 +1053,7 @@ private fun SectionContent(
                     SEC_ADVANCED -> AdvancedSection(state, callbacks)
                     SEC_DRIVES -> DrivesSection(state, callbacks)
                     SEC_SAVES -> SavesSection(state, callbacks)
+                    SEC_NETWORKING -> NetworkingSection(state)
                 }
                 Spacer(Modifier.height(SettingSectionGap))
             }
@@ -3937,6 +3949,48 @@ private fun ComponentsSection(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun NetworkingSection(state: GameSettingsStateHolder) {
+    val driverActive = state.selectedNetDriver.intValue == 0
+    val macValid = NetworkingSettings.isValidMac(state.netMac.value)
+    SubsectionLabel(stringResource(R.string.networking_driver))
+    Spacer(Modifier.height(8.dp))
+    SettingGroup {
+        SettingDropdown(
+            label = stringResource(R.string.networking_driver),
+            entries = state.netDriverEntries.value,
+            selectedIndex = state.selectedNetDriver.intValue,
+            onSelected = { state.selectedNetDriver.intValue = it }
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = stringResource(R.string.networking_driver_summary),
+            style = MaterialTheme.typography.bodySmall,
+            color = LocalContentColor.current.copy(alpha = 0.7f)
+        )
+    }
+    Spacer(Modifier.height(SettingSectionGap))
+    SubsectionLabel(stringResource(R.string.networking_mac))
+    Spacer(Modifier.height(8.dp))
+    SettingGroup {
+        SettingTextField(
+            label = stringResource(R.string.networking_mac),
+            value = state.netMac.value,
+            onValueChange = { v -> state.netMac.value = v.filter { it.isLetterOrDigit() || it == ':' || it == '-' }.take(17) },
+            keyboardType = KeyboardType.Ascii,
+            enabled = driverActive
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = if (!macValid) stringResource(R.string.networking_mac_invalid)
+            else if (state.netMac.value.isBlank()) stringResource(R.string.networking_mac_automatic, state.netMacAuto.value)
+            else stringResource(R.string.networking_mac_summary),
+            style = MaterialTheme.typography.bodySmall,
+            color = if (!macValid) MaterialTheme.colorScheme.error else LocalContentColor.current.copy(alpha = 0.7f)
+        )
     }
 }
 

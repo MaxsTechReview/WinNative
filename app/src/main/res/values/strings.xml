@@ -2642,4 +2642,13 @@ Installed path:
     <string name="settings_general_update_channel_summary">Official ships tested releases. Development ships early builds.</string>
     <string name="update_channel_official">Official</string>
     <string name="update_channel_development">Development</string>
+    <string name="networking_section_title">Networking</string>
+    <string name="networking_driver">Network driver</string>
+    <string name="networking_driver_winnative">WinNative Network Driver</string>
+    <string name="networking_driver_none">Wine default (no adapter emulation)</string>
+    <string name="networking_driver_summary">Gives Windows programs a real network adapter list with stable MAC addresses. Android hides interface details from apps, so without it games and DRM see a machine with no network cards.</string>
+    <string name="networking_mac">MAC address</string>
+    <string name="networking_mac_summary">Hardware address reported for the primary adapter. Leave empty for the automatic device-derived address.</string>
+    <string name="networking_mac_automatic">Automatic: %1$s</string>
+    <string name="networking_mac_invalid">Enter 12 hex digits (for example 3c:5a:b4:12:34:56). The first byte must be unicast and globally administered, so bits 0 and 1 clear; many games reject locally administered addresses such as 02:….</string>
 </resources>

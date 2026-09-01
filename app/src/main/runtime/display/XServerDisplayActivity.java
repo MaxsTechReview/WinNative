@@ -63,6 +63,7 @@ import com.winlator.cmod.app.update.UpdateService;
 import com.winlator.cmod.feature.settings.DebugFragment;
 import com.winlator.cmod.feature.setup.SetupWizardActivity;
 import com.winlator.cmod.runtime.container.Container;
+import com.winlator.cmod.runtime.display.environment.components.NetworkingSettings;
 import com.winlator.cmod.runtime.container.ContainerManager;
 import com.winlator.cmod.runtime.container.Shortcut;
 import com.winlator.cmod.runtime.container.WinComponentSetup;
@@ -7877,6 +7878,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
             }
         }
 
+        NetworkingSettings.applyEnv(envVars, this,
+                getShortcutSetting(NetworkingSettings.EXTRA_DRIVER,
+                        container.getExtra(NetworkingSettings.EXTRA_DRIVER, NetworkingSettings.DEFAULT_DRIVER)),
+                getShortcutSetting(NetworkingSettings.EXTRA_MAC, container.getExtra(NetworkingSettings.EXTRA_MAC, "")));
         guestProgramLauncherComponent.setEnvVars(envVars);
         guestProgramLauncherComponent.setTerminationCallback((status) -> {
             Log.d("XServerDisplayActivity", "Guest process terminated with status: " + status);

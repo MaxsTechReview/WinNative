@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatDialog
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import com.winlator.cmod.runtime.display.environment.components.NetworkingSettings
 import com.winlator.cmod.shared.ui.nav.PANE_DIR_ACTIVATE
 import com.winlator.cmod.shared.ui.nav.PaneNavWindowHandlers
 import com.winlator.cmod.shared.ui.nav.bindPaneNav
@@ -568,6 +569,15 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         state.frameGenFlowScale.intValue =
             c?.getExtra("frameGenFlowScale", "70")?.toIntOrNull()?.coerceIn(25, 100) ?: 70
 
+        state.netDriverEntries.value = listOf(
+            context.getString(R.string.networking_driver_winnative),
+            context.getString(R.string.networking_driver_none)
+        )
+        state.selectedNetDriver.intValue =
+            if (NetworkingSettings.driverOrDefault(c?.getExtra(NetworkingSettings.EXTRA_DRIVER, NetworkingSettings.DEFAULT_DRIVER)) == NetworkingSettings.DRIVER_NONE) 1 else 0
+        state.netMac.value = c?.getExtra(NetworkingSettings.EXTRA_MAC, "") ?: ""
+        state.netMacAuto.value = NetworkingSettings.automaticMac(context)
+
         // init() migrates a legacy single reshadeEffect / flat reshadeParams into the loadout model
         val reshadeEffects = com.winlator.cmod.runtime.reshade.ReshadeManager.scanEffects(context)
         state.reshadeEffects.value = reshadeEffects
@@ -850,6 +860,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             c.putExtra("swapRB", if (state.selectedSurfaceEffect.intValue == 1) "1" else "0")
             c.putExtra("refreshRate", getRefreshRateFromState())
             writeFrameGenExtras(c)
+            writeNetworkingExtras(c)
             run {
                 // reshadeEffect stays coherent (= first effect) for legacy readers; all null when empty
                 val loadoutJson = state.reshadeLoadout.loadoutJsonOrNull()
@@ -941,6 +952,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                         )
                         getRefreshRateFromState()?.let { newContainer.putExtra("refreshRate", it) }
                         writeFrameGenExtras(newContainer)
+                        writeNetworkingExtras(newContainer)
                         newContainer.setZinkMode(if (state.selectedZinkMode.intValue == 1) "windows" else "unix")
                         newContainer.saveData()
                         saveMouseWarpOverride(newContainer)
@@ -986,6 +998,14 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         c.putExtra("frameGenMultiplier", state.frameGenMultiplier.intValue.coerceIn(2, 4).toString())
         c.putExtra("frameGenTargetRate", state.frameGenTargetRate.intValue.coerceAtLeast(0).toString())
         c.putExtra("frameGenFlowScale", state.frameGenFlowScale.intValue.coerceIn(25, 100).toString())
+    }
+
+    private fun writeNetworkingExtras(c: Container) {
+        c.putExtra(
+            NetworkingSettings.EXTRA_DRIVER,
+            if (state.selectedNetDriver.intValue == 1) NetworkingSettings.DRIVER_NONE else NetworkingSettings.DRIVER_WINNATIVE
+        )
+        c.putExtra(NetworkingSettings.EXTRA_MAC, NetworkingSettings.normalizeMac(state.netMac.value))
     }
 
     private fun saveMouseWarpOverride(c: Container) {

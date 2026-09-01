@@ -16,6 +16,8 @@
 #include <linux/if_arp.h>
 #include <linux/sockios.h>
 #include <netinet/tcp.h>
+#include <netdb.h>
+#include <time.h>
 
 #define WN_IF_NAME  "eth0"
 #define WN_IF_INDEX 2
@@ -28,6 +30,15 @@ static int wn_enabled = 1;
 static int wn_tap = 0;
 static int wn_tap_events = 0;
 static int wn_logfd = -2;
+static int wn_mac_fixed = 0;
+static unsigned char wn_mac_value[6];
+static struct timespec wn_t0;
+
+static long wn_elapsed_ms(void) {
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return (now.tv_sec - wn_t0.tv_sec) * 1000L + (now.tv_nsec - wn_t0.tv_nsec) / 1000000L;
+}
 
 static void wn_log(const char *fmt, ...) {
     if (wn_logfd == -2) {
@@ -36,7 +47,7 @@ static void wn_log(const char *fmt, ...) {
     }
     if (wn_logfd < 0) return;
     char buf[512];
-    int n = snprintf(buf, sizeof(buf), "[netshim %d] ", (int) getpid());
+    int n = snprintf(buf, sizeof(buf), "[%6ld ms netshim %d] ", wn_elapsed_ms(), (int) getpid());
     va_list ap;
     va_start(ap, fmt);
     n += vsnprintf(buf + n, sizeof(buf) - n - 2, fmt, ap);
@@ -47,7 +58,43 @@ static void wn_log(const char *fmt, ...) {
     (void) ignored;
 }
 
+static int wn_parse_mac(const char *text, unsigned char *out) {
+    int nibbles = 0;
+    unsigned char acc[6] = {0};
+    for (const char *p = text; *p; ++p) {
+        int v;
+        if (*p >= '0' && *p <= '9') v = *p - '0';
+        else if (*p >= 'a' && *p <= 'f') v = *p - 'a' + 10;
+        else if (*p >= 'A' && *p <= 'F') v = *p - 'A' + 10;
+        else if (*p == ':' || *p == '-' || *p == '.' || *p == ' ') continue;
+        else return 0;
+        if (nibbles >= 12) return 0;
+        acc[nibbles / 2] = (unsigned char) ((acc[nibbles / 2] << 4) | v);
+        nibbles++;
+    }
+    if (nibbles != 12) return 0;
+    if (acc[0] & 0x03) return 0;
+    memcpy(out, acc, 6);
+    return 1;
+}
+
+static const unsigned char wn_vendor_ouis[][3] = {
+    {0x3c, 0x5a, 0xb4}, {0x00, 0x1a, 0x11}, {0xac, 0x5f, 0x3e}, {0x8c, 0xf5, 0xa3},
+    {0x94, 0x65, 0x2d}, {0xc0, 0xee, 0xfb}, {0x64, 0xa2, 0xf9}, {0x00, 0xa0, 0xc6},
+};
+
+static int wn_iface_is_uplink(const char *iface) {
+    if (!iface) return 1;
+    return strncmp(iface, "wlan", 4) == 0 || strncmp(iface, "eth", 3) == 0
+        || strncmp(iface, "rmnet", 5) == 0 || strncmp(iface, "ccmni", 5) == 0
+        || strncmp(iface, "usb", 3) == 0 || strncmp(iface, "swlan", 5) == 0;
+}
+
 static void wn_mac_for(const char *iface, unsigned char *out) {
+    if (wn_mac_fixed && wn_iface_is_uplink(iface)) {
+        memcpy(out, wn_mac_value, 6);
+        return;
+    }
     const char *seed = getenv("WN_NET_MAC_SEED");
     unsigned long h = 0x811c9dc5UL;
     if (seed && *seed) {
@@ -64,12 +111,13 @@ static void wn_mac_for(const char *iface, unsigned char *out) {
             h *= 16777619UL;
         }
     }
-    out[0] = 0x02;
-    out[1] = (unsigned char) (h >> 24);
-    out[2] = (unsigned char) (h >> 16);
-    out[3] = (unsigned char) (h >> 8);
-    out[4] = (unsigned char) h;
-    out[5] = (unsigned char) ((h >> 29) ^ 0x5a);
+    const unsigned char *oui = wn_vendor_ouis[(h >> 40) % (sizeof(wn_vendor_ouis) / sizeof(wn_vendor_ouis[0]))];
+    out[0] = oui[0];
+    out[1] = oui[1];
+    out[2] = oui[2];
+    out[3] = (unsigned char) (h >> 16);
+    out[4] = (unsigned char) (h >> 8);
+    out[5] = (unsigned char) h;
 }
 
 static void wn_mac(unsigned char *out) {
@@ -77,14 +125,17 @@ static void wn_mac(unsigned char *out) {
 }
 
 __attribute__((constructor)) static void wn_init(void) {
+    clock_gettime(CLOCK_MONOTONIC, &wn_t0);
     const char *off = getenv("WN_NET_SHIM");
     if (off && off[0] == '0') wn_enabled = 0;
     const char *tap = getenv("WN_NET_TAP");
     wn_tap = tap && tap[0] == '1';
+    const char *fixed = getenv("WN_NET_MAC");
+    wn_mac_fixed = fixed && *fixed && wn_parse_mac(fixed, wn_mac_value);
     unsigned char m[6];
     wn_mac(m);
-    wn_log("loaded enabled=%d mac=%02x:%02x:%02x:%02x:%02x:%02x",
-           wn_enabled, m[0], m[1], m[2], m[3], m[4], m[5]);
+    wn_log("loaded enabled=%d fixed=%d mac=%02x:%02x:%02x:%02x:%02x:%02x",
+           wn_enabled, wn_mac_fixed, m[0], m[1], m[2], m[3], m[4], m[5]);
 }
 
 struct wn_block {
@@ -247,7 +298,7 @@ static int wn_mac_unusable(const struct ifreq *ifr) {
         if (a[i]) zero = 0;
         if (i && a[i]) placeholder = 0;
     }
-    return zero || placeholder;
+    return zero || placeholder || (a[0] & 0x03);
 }
 
 int ioctl(int fd, int req, ...) {
@@ -406,5 +457,38 @@ ssize_t recvmsg(int fd, struct msghdr *msg, int flags) {
     if (rc > 0 && msg && msg->msg_iovlen > 0)
         wn_tap_dump("IN", fd, (const unsigned char *) msg->msg_iov[0].iov_base,
                     rc < (ssize_t) msg->msg_iov[0].iov_len ? rc : (ssize_t) msg->msg_iov[0].iov_len);
+    return rc;
+}
+
+static int wn_conn_events = 0;
+
+int connect(int fd, const struct sockaddr *addr, socklen_t len) {
+    static int (*real)(int, const struct sockaddr *, socklen_t);
+    if (!real) real = (int (*)(int, const struct sockaddr *, socklen_t)) dlsym(RTLD_NEXT, "connect");
+    int rc = real(fd, addr, len);
+    int saved = errno;
+    if (wn_tap && wn_conn_events < 400 && addr && addr->sa_family == AF_INET) {
+        const struct sockaddr_in *sa = (const struct sockaddr_in *) addr;
+        unsigned int a = ntohl(sa->sin_addr.s_addr);
+        wn_conn_events++;
+        wn_log("CONNECT %u.%u.%u.%u:%d rc=%d errno=%d",
+               (a >> 24) & 255u, (a >> 16) & 255u, (a >> 8) & 255u, a & 255u,
+               (int) ntohs(sa->sin_port), rc, rc == 0 ? 0 : saved);
+    }
+    errno = saved;
+    return rc;
+}
+
+int getaddrinfo(const char *node, const char *service,
+                const struct addrinfo *hints, struct addrinfo **res) {
+    static int (*real)(const char *, const char *, const struct addrinfo *, struct addrinfo **);
+    if (!real) real = (int (*)(const char *, const char *, const struct addrinfo *, struct addrinfo **))
+                      dlsym(RTLD_NEXT, "getaddrinfo");
+    int rc = real(node, service, hints, res);
+    if (wn_tap && wn_conn_events < 400 && node) {
+        wn_conn_events++;
+        wn_log("RESOLVE %s%s%s -> rc=%d", node,
+               service ? ":" : "", service ? service : "", rc);
+    }
     return rc;
 }
