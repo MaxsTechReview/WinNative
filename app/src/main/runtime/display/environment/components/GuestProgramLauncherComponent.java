@@ -1107,6 +1107,9 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
       netshimLog.getParentFile().mkdirs();
       netshimLog.delete();
       envVars.put("WN_NET_LOG", netshimLog.getAbsolutePath());
+      if (new File(imageFs.getRootDir(), "tmp/wn-net-tap.on").exists()) {
+        envVars.put("WN_NET_TAP", "1");
+      }
       Log.d("GuestLauncher", "netshim preloaded; synthetic adapter MAC seed installed");
     } else {
       Log.w("GuestLauncher", "libnetshim.so missing — GetAdaptersInfo will report no adapters "

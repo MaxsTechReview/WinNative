@@ -15,6 +15,7 @@
 #include <linux/if_packet.h>
 #include <linux/if_arp.h>
 #include <linux/sockios.h>
+#include <netinet/tcp.h>
 
 #define WN_IF_NAME  "eth0"
 #define WN_IF_INDEX 2
@@ -24,6 +25,8 @@
 #define WN_IF_BCAST 0x0a0000ffu
 
 static int wn_enabled = 1;
+static int wn_tap = 0;
+static int wn_tap_events = 0;
 static int wn_logfd = -2;
 
 static void wn_log(const char *fmt, ...) {
@@ -76,6 +79,8 @@ static void wn_mac(unsigned char *out) {
 __attribute__((constructor)) static void wn_init(void) {
     const char *off = getenv("WN_NET_SHIM");
     if (off && off[0] == '0') wn_enabled = 0;
+    const char *tap = getenv("WN_NET_TAP");
+    wn_tap = tap && tap[0] == '1';
     unsigned char m[6];
     wn_mac(m);
     wn_log("loaded enabled=%d mac=%02x:%02x:%02x:%02x:%02x:%02x",
@@ -335,4 +340,71 @@ FILE *fopen(const char *path, const char *mode) {
         return fmemopen((void *) "1\n", 2, "r");
     }
     return real(path, mode);
+}
+
+static int wn_peer_port(int fd) {
+    struct sockaddr_in sa;
+    socklen_t sl = sizeof(sa);
+    if (getpeername(fd, (struct sockaddr *) &sa, &sl) != 0) return -1;
+    if (sa.sin_family != AF_INET) return -1;
+    return ntohs(sa.sin_port);
+}
+
+static void wn_tap_dump(const char *dir, int fd, const unsigned char *buf, long len) {
+    if (!wn_tap || len <= 0 || !buf) return;
+    if (wn_tap_events > 400) return;
+    int port = wn_peer_port(fd);
+    if (port != 23001 && port != 23002) return;
+    wn_tap_events++;
+    char hex[3 * 40 + 1];
+    long n = len < 40 ? len : 40;
+    for (long i = 0; i < n; i++) snprintf(hex + i * 3, 4, "%02x ", buf[i]);
+    hex[n * 3] = 0;
+    wn_log("TAP %s port=%d len=%ld %s", dir, port, len, hex);
+}
+
+ssize_t send(int fd, const void *buf, size_t len, int flags) {
+    static ssize_t (*real)(int, const void *, size_t, int);
+    if (!real) real = (ssize_t (*)(int, const void *, size_t, int)) dlsym(RTLD_NEXT, "send");
+    ssize_t rc = real(fd, buf, len, flags);
+    if (rc > 0) wn_tap_dump("OUT", fd, (const unsigned char *) buf, rc);
+    return rc;
+}
+
+ssize_t sendto(int fd, const void *buf, size_t len, int flags,
+               const struct sockaddr *dst, socklen_t dstlen) {
+    static ssize_t (*real)(int, const void *, size_t, int, const struct sockaddr *, socklen_t);
+    if (!real) real = (ssize_t (*)(int, const void *, size_t, int, const struct sockaddr *, socklen_t))
+        dlsym(RTLD_NEXT, "sendto");
+    ssize_t rc = real(fd, buf, len, flags, dst, dstlen);
+    if (rc > 0) wn_tap_dump("OUT", fd, (const unsigned char *) buf, rc);
+    return rc;
+}
+
+ssize_t recv(int fd, void *buf, size_t len, int flags) {
+    static ssize_t (*real)(int, void *, size_t, int);
+    if (!real) real = (ssize_t (*)(int, void *, size_t, int)) dlsym(RTLD_NEXT, "recv");
+    ssize_t rc = real(fd, buf, len, flags);
+    if (rc > 0) wn_tap_dump("IN", fd, (const unsigned char *) buf, rc);
+    return rc;
+}
+
+ssize_t sendmsg(int fd, const struct msghdr *msg, int flags) {
+    static ssize_t (*real)(int, const struct msghdr *, int);
+    if (!real) real = (ssize_t (*)(int, const struct msghdr *, int)) dlsym(RTLD_NEXT, "sendmsg");
+    ssize_t rc = real(fd, msg, flags);
+    if (rc > 0 && msg && msg->msg_iovlen > 0)
+        wn_tap_dump("OUT", fd, (const unsigned char *) msg->msg_iov[0].iov_base,
+                    rc < (ssize_t) msg->msg_iov[0].iov_len ? rc : (ssize_t) msg->msg_iov[0].iov_len);
+    return rc;
+}
+
+ssize_t recvmsg(int fd, struct msghdr *msg, int flags) {
+    static ssize_t (*real)(int, struct msghdr *, int);
+    if (!real) real = (ssize_t (*)(int, struct msghdr *, int)) dlsym(RTLD_NEXT, "recvmsg");
+    ssize_t rc = real(fd, msg, flags);
+    if (rc > 0 && msg && msg->msg_iovlen > 0)
+        wn_tap_dump("IN", fd, (const unsigned char *) msg->msg_iov[0].iov_base,
+                    rc < (ssize_t) msg->msg_iov[0].iov_len ? rc : (ssize_t) msg->msg_iov[0].iov_len);
+    return rc;
 }
