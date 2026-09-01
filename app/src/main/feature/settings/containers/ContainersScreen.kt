@@ -89,8 +89,7 @@ private const val ContainerCardAspect = 1.2f
 
 data class ContainersScreenState(
     val containers: List<Container> = emptyList(),
-    val defaultX86ContainerId: Int = 0,
-    val defaultArm64ContainerId: Int = 0,
+    val defaultContainerId: Int = 0,
     val dialog: ContainersDialogUiState = ContainersDialogUiState.None,
 )
 
@@ -202,12 +201,24 @@ fun ContainersScreen(
                                         cellIndex <= state.containers.size -> {
                                             val container = state.containers[cellIndex - 1]
                                             key(container.id) {
+                                                val isDefaultContainer =
+                                                    state.defaultContainerId > 0 &&
+                                                        container.id == state.defaultContainerId
+                                                val defaultArchLabel =
+                                                    if (isDefaultContainer) {
+                                                        if (container.getWineVersion().contains("arm64ec", ignoreCase = true)) {
+                                                            stringResource(R.string.container_config_arch_arm64)
+                                                        } else {
+                                                            stringResource(R.string.container_config_arch_x86_64)
+                                                        }
+                                                    } else {
+                                                        null
+                                                    }
                                                 ContainerCard(
                                                     container = container,
                                                     navRow = gyBase,
                                                     navCol = gxBase,
-                                                    isDefault = container.id == state.defaultX86ContainerId ||
-                                                        container.id == state.defaultArm64ContainerId,
+                                                    defaultArchLabel = defaultArchLabel,
                                                     onRun = { onRunContainer(container) },
                                                     onEdit = { onEditContainer(container) },
                                                     onDuplicate = { onDuplicateContainer(container) },
@@ -409,7 +420,7 @@ private fun ContainerCard(
     onInstallComponents: () -> Unit,
     onRemove: () -> Unit,
     onShowInfo: () -> Unit,
-    isDefault: Boolean,
+    defaultArchLabel: String?,
     onSetDefault: () -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -517,7 +528,7 @@ private fun ContainerCard(
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                if (isDefault) {
+                if (defaultArchLabel != null) {
                     Spacer(Modifier.height(4.dp))
                     Box(
                         modifier =
@@ -528,7 +539,7 @@ private fun ContainerCard(
                                 .padding(horizontal = 8.dp, vertical = 2.dp),
                     ) {
                         Text(
-                            text = stringResource(R.string.containers_default_badge),
+                            text = stringResource(R.string.containers_default_badge, defaultArchLabel),
                             color = ContainersAccent,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.SemiBold,

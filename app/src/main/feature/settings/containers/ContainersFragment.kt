@@ -98,8 +98,7 @@ class ContainersFragment : Fragment() {
         screenState =
             screenState.copy(
                 containers = manager.containers.toList(),
-                defaultX86ContainerId = SetupWizardActivity.getDefaultX86ContainerId(context),
-                defaultArm64ContainerId = SetupWizardActivity.getDefaultArm64ContainerId(context),
+                defaultContainerId = SetupWizardActivity.getDefaultContainerId(context),
             )
     }
 
@@ -164,17 +163,16 @@ class ContainersFragment : Fragment() {
 
     private fun setDefaultContainer(container: Container) {
         val ctx = context ?: return
+        // Resolve the container's architecture. We deliberately skip
+        // ContentsManager.syncContents() here (it walks every content directory
+        // on the main thread just to compute one boolean); the identifier string
+        // already encodes the arch (e.g. "proton-10-arm64ec-..."), and
+        // WineInfo.fromIdentifier parses it without a fresh sync.
         val isArm64 =
             runCatching {
-                val contents = ContentsManager(ctx)
-                contents.syncContents()
-                WineInfo.fromIdentifier(ctx, contents, container.getWineVersion()).isArm64EC()
-            }.getOrDefault(container.getWineVersion().contains("arm64ec", ignoreCase = true))
-        if (isArm64) {
-            SetupWizardActivity.saveDefaultArm64ContainerId(ctx, container.id)
-        } else {
-            SetupWizardActivity.saveDefaultX86ContainerId(ctx, container.id)
-        }
+                WineInfo.fromIdentifier(ctx, ContentsManager(ctx), container.getWineVersion()).isArm64EC()
+            }.getOrElse { container.getWineVersion().contains("arm64ec", ignoreCase = true) }
+        SetupWizardActivity.saveDefaultContainerId(ctx, container.id)
         loadContainersList()
         val archLabel =
             if (isArm64) getString(R.string.container_config_arch_arm64)
