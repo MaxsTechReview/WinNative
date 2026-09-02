@@ -1094,6 +1094,28 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     envVars.put("SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD", "1");
     envVars.put("SDL_JOYSTICK_HIDAPI", "0");
 
+    File netshimDest = ensureImageFsNativeLibrary(context, imageFs, "libnetshim.so");
+    if (netshimDest != null && netshimDest.exists()) {
+      ld_preload = ld_preload.isEmpty()
+          ? netshimDest.getAbsolutePath()
+          : netshimDest.getAbsolutePath() + ":" + ld_preload;
+      String macSeed = android.provider.Settings.Secure.getString(
+          context.getContentResolver(), android.provider.Settings.Secure.ANDROID_ID);
+      if (macSeed == null || macSeed.isEmpty()) macSeed = "winnative";
+      envVars.put("WN_NET_MAC_SEED", macSeed);
+      File netshimLog = new File(imageFs.getRootDir(), "tmp/wn-netshim.log");
+      netshimLog.getParentFile().mkdirs();
+      netshimLog.delete();
+      envVars.put("WN_NET_LOG", netshimLog.getAbsolutePath());
+      if (new File(imageFs.getRootDir(), "tmp/wn-net-tap.on").exists()) {
+        envVars.put("WN_NET_TAP", "1");
+      }
+      Log.d("GuestLauncher", "netshim preloaded; synthetic adapter MAC seed installed");
+    } else {
+      Log.w("GuestLauncher", "libnetshim.so missing — GetAdaptersInfo will report no adapters "
+          + "and titles that derive a hardware id from the MAC (e.g. Brawlhalla) will be rejected");
+    }
+
     Log.d("GuestLauncher", "Final LD_PRELOAD: " + ld_preload);
     envVars.put("LD_PRELOAD", ld_preload);
 
