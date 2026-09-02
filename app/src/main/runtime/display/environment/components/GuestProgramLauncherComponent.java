@@ -776,6 +776,12 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     } else if (overrideFakeUdevDataDir != null && !overrideFakeUdevDataDir.isEmpty()) {
       envVars.put("FAKE_UDEV_DATA_DIR", overrideFakeUdevDataDir);
     }
+
+    // PeekMessage idle-spin limiter (Wine patch, per-shortcut opt-in)
+    if (shortcut != null && "1".equals(shortcut.getExtra("peekMessageLimiter", "0"))) {
+        envVars.put("WINE_PEEK_LIMITER", "4");
+        Log.d("GuestLauncher", "PeekMessage limiter enabled, delay=4ms");
+    }
   }
 
   private void prepareFakeInputUdevMetadata(ImageFs imageFs, File devInputDir, EnvVars envVars) {

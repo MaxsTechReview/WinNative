@@ -552,6 +552,7 @@ class GameSettingsStateHolder {
     val numControllersEntries = mutableStateOf<List<String>>(emptyList())
     val selectedNumControllers = mutableIntStateOf(0)
     val disableXInput = mutableStateOf(false)
+    val peekMessageLimiter = mutableStateOf(false)
     val simTouchScreen = mutableStateOf(false)
     val screenTouchMode = mutableIntStateOf(0)
     val gestureProfileEntries = mutableStateOf<List<String>>(emptyList())
@@ -4915,6 +4916,13 @@ private fun InputSection(state: GameSettingsStateHolder) {
                     }
                 )
             }
+
+            Spacer(Modifier.height(4.dp))
+            SettingCheckbox(
+                label = stringResource(R.string.shortcuts_properties_peekmessage_limiter),
+                checked = state.peekMessageLimiter.value,
+                onCheckedChange = { state.peekMessageLimiter.value = it }
+            )
         }
     }
 
