@@ -9809,8 +9809,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                                     com.winlator.cmod.runtime.wine.WineUtils
                                             .getNativePath(container, imageFs, winDir);
                         }
-                        // The folder extra may be stale after the game moved; only trust it when it
-                        // actually contains the exe being launched, else re-derive from the real exe dir.
                         String exeName = null;
                         int lastSlash = path.lastIndexOf("\\");
                         if (lastSlash > 0 && lastSlash + 1 < path.length()) exeName = path.substring(lastSlash + 1);
@@ -9832,8 +9830,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                         }
                         if (nativeDir != null && nativeDir.isDirectory()) {
                             launcherComponent.setWorkingDir(nativeDir);
-                            Log.w("XServerDisplayActivity", "Custom process working dir: " + nativeDir.getPath()
-                                    + " (extras=" + nativeDirPath + ", winDir=" + (winDir == null ? "null" : winDir) + ")");
+                            Log.d("XServerDisplayActivity", "Set native working dir for Custom process: " + nativeDir.getPath());
                         }
                     } else {
                         int lastBackslash = path.lastIndexOf("\\");
