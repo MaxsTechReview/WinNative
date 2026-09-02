@@ -3008,12 +3008,9 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 saveDefaultContainerId(this@SetupWizardActivity, c.id)
                 defaultContainerId.intValue = c.id
                 refreshWizardState()
-                val archRes =
-                    if (isArm64) R.string.container_config_arch_arm64
-                    else R.string.container_config_arch_x86_64
                 WinToast.show(
                     this@SetupWizardActivity,
-                    getString(R.string.containers_set_default_success, getString(archRes)),
+                    getString(R.string.containers_set_default_success, c.name),
                 )
             }
             Unit

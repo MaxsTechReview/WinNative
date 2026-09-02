@@ -26,7 +26,6 @@ import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.content.ContentsManager
 import com.winlator.cmod.runtime.display.XServerDisplayActivity
 import com.winlator.cmod.runtime.display.environment.ImageFs
-import com.winlator.cmod.runtime.wine.WineInfo
 import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.io.FileUtils
@@ -163,23 +162,11 @@ class ContainersFragment : Fragment() {
 
     private fun setDefaultContainer(container: Container) {
         val ctx = context ?: return
-        // Resolve the container's architecture. We deliberately skip
-        // ContentsManager.syncContents() here (it walks every content directory
-        // on the main thread just to compute one boolean); the identifier string
-        // already encodes the arch (e.g. "proton-10-arm64ec-..."), and
-        // WineInfo.fromIdentifier parses it without a fresh sync.
-        val isArm64 =
-            runCatching {
-                WineInfo.fromIdentifier(ctx, ContentsManager(ctx), container.getWineVersion()).isArm64EC()
-            }.getOrElse { container.getWineVersion().contains("arm64ec", ignoreCase = true) }
         SetupWizardActivity.saveDefaultContainerId(ctx, container.id)
         loadContainersList()
-        val archLabel =
-            if (isArm64) getString(R.string.container_config_arch_arm64)
-            else getString(R.string.container_config_arch_x86_64)
         WinToast.show(
             ctx,
-            getString(R.string.containers_set_default_success, archLabel),
+            getString(R.string.containers_set_default_success, container.name),
         )
     }
 
