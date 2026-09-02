@@ -1653,6 +1653,7 @@ Installed path:
     <string name="preloader_steam_ready">Steam ready</string>
     <string name="preloader_updating_game_info">Updating game info</string>
     <string name="preloader_verifying_install">Verifying install</string>
+    <string name="preloader_checking_install_scripts">Checking install scripts</string>
     <string name="preloader_scanning_redists">Scanning redistributables</string>
     <string name="preloader_installing_redist_single">Installing redistributable</string>
     <string name="preloader_installing_named_redist">Installing %1$s</string>
@@ -1660,10 +1661,23 @@ Installed path:
     <string name="preloader_redists_ready">Redistributables ready</string>
     <string name="preloader_no_redists">No redistributables to install</string>
     <string name="preloader_steam_service_running">Steam service running</string>
+    <string name="preloader_syncing_cloud_saves">Syncing Steam Cloud saves…</string>
     <string name="preloader_launching_game">Launching %1$s</string>
     <string name="preloader_steam_launcher_failed_restaging">Steam Launcher failed — re-staging assets</string>
     <string name="preloader_steam_launcher_start_failed">Steam Launcher could not start. Re-staging — please relaunch</string>
     <string name="preloader_steam_launcher_game_never_started">Steam Launcher reached the game but it never started</string>
+    <string name="steam_cloud_conflict_backing_up">Backing up the discarded save…</string>
+    <string name="steam_cloud_conflict_waiting">Waiting for your Steam Cloud choice…</string>
+    <string name="steam_cloud_conflict_unknown_time">Unknown</string>
+    <string name="steam_blocked_title">Steam is still playing a game</string>
+    <string name="steam_blocked_running_message">Steam still has %1$s registered as running from an earlier session, so it will not start %2$s.\n\nStop it and continue?</string>
+    <string name="steam_blocked_same_game_message">Steam still has %1$s registered as running from an earlier session, so it will not start it again.\n\nStop it and continue?</string>
+    <string name="steam_blocked_other_session_message">Your Steam account is playing %1$s in another session, so %2$s cannot start.\n\nStop the other session and continue?</string>
+    <string name="steam_blocked_confirm">Stop and continue</string>
+    <string name="steam_blocked_unknown_game">another game</string>
+    <string name="steam_blocked_declined">Launch cancelled — Steam is still playing another game</string>
+    <string name="steam_blocked_waiting">Waiting for Steam to stop the other game…</string>
+    <string name="steam_launch_insecure_warning">Steam refused the secure launch — %1$s started without VAC. Online play may be unavailable.</string>
     <string name="preloader_setup_environment">Setting up environment</string>
     <string name="preloader_retrying_steam_client_download">Retrying Steam client download</string>
     <string name="preloader_installing_mono">Installing Wine Mono v%1$s</string>
@@ -1672,6 +1686,8 @@ Installed path:
     <string name="preloader_downloading_cloud">Downloading cloud saves</string>
     <string name="preloader_syncing_cloud">Syncing cloud saves</string>
     <string name="preloader_uploading_cloud">Uploading cloud saves</string>
+    <string name="preloader_closing_game_waiting">Closing %1$s — waiting for the game to save…</string>
+    <string name="preloader_cloud_upload_done">Cloud save uploaded — finishing up…</string>
     <string name="preloader_checking_cloud">Checking cloud saves</string>
     <string name="preloader_cloud_sync_retry">%1$s Retry %2$d/%3$d</string>
     <string name="preloader_cloud_downloading">Cloud Sync Downloading</string>
@@ -2628,4 +2644,13 @@ Installed path:
     <string name="settings_general_update_channel_summary">Official ships tested releases. Development ships early builds.</string>
     <string name="update_channel_official">Official</string>
     <string name="update_channel_development">Development</string>
+    <string name="networking_section_title">Networking</string>
+    <string name="networking_driver">Network driver</string>
+    <string name="networking_driver_winnative">WinNative Network Driver</string>
+    <string name="networking_driver_none">Wine default (no adapter emulation)</string>
+    <string name="networking_driver_summary">Gives Windows programs a real network adapter list with stable MAC addresses. Android hides interface details from apps, so without it games and DRM see a machine with no network cards.</string>
+    <string name="networking_mac">MAC address</string>
+    <string name="networking_mac_summary">Hardware address reported for the primary adapter. Leave empty for the automatic device-derived address.</string>
+    <string name="networking_mac_automatic">Automatic: %1$s</string>
+    <string name="networking_mac_invalid">Enter 12 hex digits (for example 3c:5a:b4:12:34:56). The first byte must be unicast and globally administered, so bits 0 and 1 clear; many games reject locally administered addresses such as 02:….</string>
 </resources>
