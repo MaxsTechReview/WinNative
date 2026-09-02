@@ -9456,6 +9456,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                     String nativeDirPath = getActiveGameDirectoryPath();
                     if (nativeDirPath != null) {
                         File nativeDir = null;
+                        // Round-trip host -> Wine -> host to re-resolve through this container's dosdevices symlinks.
                         String winDir =
                                 com.winlator.cmod.runtime.wine.WineUtils
                                         .hostPathToRootWinePath(container, nativeDirPath);
