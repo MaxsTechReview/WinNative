@@ -6058,17 +6058,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 renderDrawerMenu();
                 break;
             case R.id.main_menu_pip_mode:
-                // enterPictureInPictureMode can throw (no aspect ratio on API 26-30, stricter OEM
-                // builds, or when the window isn't in a resumable state). PiP needs no runtime
-                // permission — it is gated by the system's per-app PiP allowance, which returns
-                // false (not an exception) when disabled. Guard both cases so the button can
-                // never crash the session.
+                // OEM builds can throw when entering PiP; guard so the button never crashes the session.
                 try {
                     android.graphics.Point pipSize = new android.graphics.Point();
                     getWindowManager().getDefaultDisplay().getSize(pipSize);
+                    float pipRatio = Math.max(1.0f / 2.39f, Math.min((float) pipSize.x / pipSize.y, 2.39f));
                     android.app.PictureInPictureParams pipParams =
                             new android.app.PictureInPictureParams.Builder()
-                                    .setAspectRatio(new android.util.Rational(pipSize.x, pipSize.y))
+                                    .setAspectRatio(new android.util.Rational((int) (pipRatio * 1000), 1000))
                                     .build();
                     enterPictureInPictureMode(pipParams);
                 } catch (Throwable t) {
