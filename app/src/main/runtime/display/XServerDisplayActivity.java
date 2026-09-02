@@ -194,7 +194,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 import cn.sherlock.com.sun.media.sound.SF2Soundbank;
 import static com.winlator.cmod.runtime.display.XServerDisplayUtils.*;
@@ -352,8 +351,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
     private static final String UTF8_ACTIVE_CODEPAGE_MANIFEST = codePageManifest(UTF8_MANIFEST_MARKER, "UTF-8");
     private static final Pattern ACTIVE_CODE_PAGE_PATTERN =
         Pattern.compile("<activeCodePage[^>]*>([^<]*)</activeCodePage>", Pattern.CASE_INSENSITIVE);
-    // Shown once the game window is up; a toast raised during setup would sit behind the preloader dialog.
-    private final AtomicReference<String> pendingLocaleManifestWarning = new AtomicReference<>();
     private int frameRatingWindowId = -1;
     private android.net.wifi.WifiManager.MulticastLock multicastLock;
     private final float[] xform = XForm.getInstance();
@@ -2083,9 +2080,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                             if (activeProfile != null) showInputControls(activeProfile);
                             else startTouchscreenTimeout();
                         }
-                        // Locale/codepage warning prompt removed per user request — do not show on screen.
-                        // String localeWarning = pendingLocaleManifestWarning.getAndSet(null);
-                        // if (localeWarning != null) WinToast.show(XServerDisplayActivity.this, localeWarning);
                     });
                     if (startFullscreenStretched) {
                         timeoutHandler.post(() -> {
@@ -8109,13 +8103,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                 if (!embeddedCodePage.isEmpty()) {
                     Log.w("ContainerLaunch", "Game exe embeds activeCodePage " + embeddedCodePage
                             + "; the external " + localeName + " manifest is ignored for " + gamePath);
-                    pendingLocaleManifestWarning.set(getString(
-                            R.string.session_locale_manifest_embedded_codepage, embeddedCodePage));
                 } else {
                     Log.w("ContainerLaunch", "Game exe has an embedded manifest; the external "
                             + localeName + " activeCodePage manifest may be ignored for " + gamePath);
-                    pendingLocaleManifestWarning.set(getString(
-                            R.string.session_locale_manifest_embedded, localeName));
                 }
             }
 
@@ -8124,7 +8114,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
             if (current != null && !current.contains(LOCALE_MANIFEST_MARKER)
                     && !current.contains(UTF8_MANIFEST_MARKER)) {
                 Log.w("ContainerLaunch", "Game ships its own manifest, not overriding: " + manifestFile);
-                pendingLocaleManifestWarning.set(getString(R.string.session_locale_manifest_external));
                 return;
             }
             if (FileUtils.writeString(manifestFile, manifest)) {
