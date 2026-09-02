@@ -1976,6 +1976,103 @@ static void hasrunkey_mark(const std::string& full, const std::string& entryName
     }
 }
 
+typedef BOOL (WINAPI *Wow64DisableFsRedirFn)(PVOID*);
+typedef BOOL (WINAPI *Wow64RevertFsRedirFn)(PVOID);
+
+static bool file_exists_plain(const std::string& path) {
+    DWORD attrs = GetFileAttributesA(path.c_str());
+    return attrs != INVALID_FILE_ATTRIBUTES && !(attrs & FILE_ATTRIBUTE_DIRECTORY);
+}
+
+static bool file_exists_unredirected(const std::string& path) {
+    HMODULE k32 = GetModuleHandleA("kernel32.dll");
+    Wow64DisableFsRedirFn disable = k32
+        ? (Wow64DisableFsRedirFn) GetProcAddress(k32, "Wow64DisableWow64FsRedirection") : NULL;
+    Wow64RevertFsRedirFn revert = k32
+        ? (Wow64RevertFsRedirFn) GetProcAddress(k32, "Wow64RevertWow64FsRedirection") : NULL;
+    PVOID old = NULL;
+    bool disabled = disable && revert && disable(&old);
+    bool exists = file_exists_plain(path);
+    if (disabled) revert(old);
+    return exists;
+}
+
+static int vc_redist_year(const std::string& text) {
+    std::string t = text;
+    for (char& c : t) c = (char) tolower((unsigned char) c);
+    size_t at = t.find("vcredist");
+    if (at == std::string::npos) at = t.find("vc_redist");
+    if (at == std::string::npos) return 0;
+    for (size_t i = at; i + 4 <= t.size(); ++i) {
+        if (t[i] == '2' && t[i + 1] == '0' &&
+            isdigit((unsigned char) t[i + 2]) && isdigit((unsigned char) t[i + 3])) {
+            int year = atoi(t.substr(i, 4).c_str());
+            if (year >= 2005 && year <= 2035) return year;
+        }
+    }
+    return 0;
+}
+
+static bool vc_runtime_present(int year, const std::string& archHint, std::string& whereOut) {
+    std::vector<const char*> dlls;
+    if (year >= 2015)      dlls = { "msvcp140.dll", "vcruntime140.dll" };
+    else if (year == 2013) dlls = { "msvcr120.dll", "msvcp120.dll" };
+    else if (year == 2012) dlls = { "msvcr110.dll", "msvcp110.dll" };
+    else if (year == 2010) dlls = { "msvcr100.dll", "msvcp100.dll" };
+    else if (year == 2008) dlls = { "msvcr90.dll", "msvcp90.dll" };
+    else if (year == 2005) dlls = { "msvcr80.dll", "msvcp80.dll" };
+    else return false;
+
+    std::string hint = archHint;
+    for (char& c : hint) c = (char) tolower((unsigned char) c);
+    const bool want32 = hint.find("x86") != std::string::npos &&
+                        hint.find("x64") == std::string::npos &&
+                        hint.find("amd64") == std::string::npos &&
+                        hint.find("arm64") == std::string::npos;
+
+    char winDir[MAX_PATH];
+    if (!GetWindowsDirectoryA(winDir, MAX_PATH)) return false;
+    std::string system32 = std::string(winDir) + "\\system32";
+
+    if (want32) {
+        char wow[MAX_PATH];
+        wow[0] = 0;
+        if (GetSystemWow64DirectoryA(wow, MAX_PATH) && wow[0]) {
+            bool all = true;
+            for (const char* dll : dlls) {
+                if (!file_exists_plain(std::string(wow) + "\\" + dll)) { all = false; break; }
+            }
+            if (all) { whereOut = wow; return true; }
+            return false;
+        }
+        bool all = true;
+        for (const char* dll : dlls) {
+            if (!file_exists_plain(system32 + "\\" + dll)) { all = false; break; }
+        }
+        if (all) { whereOut = system32; return true; }
+        return false;
+    }
+
+    bool all = true;
+    for (const char* dll : dlls) {
+        if (!file_exists_unredirected(system32 + "\\" + dll)) { all = false; break; }
+    }
+    if (all) { whereOut = system32; return true; }
+    std::string sysnative = std::string(winDir) + "\\sysnative";
+    all = true;
+    for (const char* dll : dlls) {
+        if (!file_exists_plain(sysnative + "\\" + dll)) { all = false; break; }
+    }
+    if (all) { whereOut = sysnative; return true; }
+    return false;
+}
+
+static bool is_vc_redist_installer_name(const std::string& nameRaw) {
+    std::string n = nameRaw;
+    for (char& c : n) c = (char) tolower((unsigned char) c);
+    return n.find("vcredist") != std::string::npos || n.find("vc_redist") != std::string::npos;
+}
+
 static std::string expand_installdir(const std::string& in, const std::string& installDir) {
     std::string out;
     const char* token = "%INSTALLDIR%";
@@ -2084,6 +2181,26 @@ static void collect_install_scripts(const std::filesystem::path& root,
     collect_install_scripts_at(root, out, 0, false);
 }
 
+static int claim_entry_dirs(const VdfNode& entry, const std::string& scriptInstallDir,
+                            std::vector<std::string>& handledDirs) {
+    int claimed = 0;
+    for (int idx = 1; idx <= 8; ++idx) {
+        char pkey[32];
+        snprintf(pkey, sizeof(pkey), "process %d", idx);
+        const VdfNode* pn = entry.find(pkey);
+        if (!pn || pn->value.empty()) break;
+        std::string exe = expand_installdir(pn->value, scriptInstallDir);
+        std::string parent = std::filesystem::path(exe).parent_path().string();
+        if (parent.empty()) continue;
+        bool known = false;
+        for (const auto& d : handledDirs) {
+            if (_stricmp(d.c_str(), parent.c_str()) == 0) { known = true; break; }
+        }
+        if (!known) { handledDirs.push_back(parent); claimed++; }
+    }
+    return claimed;
+}
+
 static void run_install_scripts(const char* gameRootDir, std::vector<std::string>& handledDirs) {
     if (!gameRootDir || !*gameRootDir) return;
     std::filesystem::path installDir(gameRootDir);
@@ -2098,7 +2215,7 @@ static void run_install_scripts(const char* gameRootDir, std::vector<std::string
     }
     log_line("[wn-launcher] installscript: %zu script(s) found", scripts.size());
 
-    int ran = 0, already = 0, skippedOs = 0, failed = 0;
+    int ran = 0, already = 0, satisfied = 0, skippedOs = 0, failed = 0;
     for (const auto& scriptPath : scripts) {
         VdfNode root;
         if (!vdf_parse_file(scriptPath, root)) {
@@ -2129,24 +2246,24 @@ static void run_install_scripts(const char* gameRootDir, std::vector<std::string
             std::string hasRunKey = hrk ? hrk->value : std::string();
             if (!hasRunKey.empty() && hasrunkey_is_set(hasRunKey, entryName)) {
                 already++;
-                int claimed = 0;
-                for (int idx = 1; idx <= 8; ++idx) {
-                    char pkey[32];
-                    snprintf(pkey, sizeof(pkey), "process %d", idx);
-                    const VdfNode* pn = entry.find(pkey);
-                    if (!pn || pn->value.empty()) break;
-                    std::string exe = expand_installdir(pn->value, scriptInstallDir);
-                    std::string parent = std::filesystem::path(exe).parent_path().string();
-                    if (parent.empty()) continue;
-                    bool known = false;
-                    for (const auto& d : handledDirs) {
-                        if (_stricmp(d.c_str(), parent.c_str()) == 0) { known = true; break; }
-                    }
-                    if (!known) { handledDirs.push_back(parent); claimed++; }
-                }
+                int claimed = claim_entry_dirs(entry, scriptInstallDir, handledDirs);
                 log_line("[wn-launcher] installscript: \"%s\" already recorded under %s — "
                          "skipping (claimed %d dir(s) so the redist scan will not rerun it)",
                          entryName.c_str(), hasRunKey.c_str(), claimed);
+                continue;
+            }
+
+            const int vcYear = vc_redist_year(hasRunKey);
+            std::string runtimeDir;
+            if (vcYear && vc_runtime_present(vcYear, entryName, runtimeDir)) {
+                satisfied++;
+                int claimed = claim_entry_dirs(entry, scriptInstallDir, handledDirs);
+                hasrunkey_mark(hasRunKey, entryName);
+                log_line("[wn-launcher] installscript: \"%s\" satisfied — the prefix already "
+                         "provides the Visual C++ %d runtime in %s; recorded under %s without "
+                         "running the installer (claimed %d dir(s))",
+                         entryName.c_str(), vcYear, runtimeDir.c_str(), hasRunKey.c_str(),
+                         claimed);
                 continue;
             }
 
@@ -2210,7 +2327,8 @@ static void run_install_scripts(const char* gameRootDir, std::vector<std::string
         }
     }
     log_line("[wn-launcher] installscript done: ran %d, already-installed %d, "
-             "os-skipped %d, failed %d", ran, already, skippedOs, failed);
+             "satisfied-by-prefix %d, os-skipped %d, failed %d",
+             ran, already, satisfied, skippedOs, failed);
 }
 
 static void scan_and_install_redists(const char* gameRootDir,
@@ -2225,7 +2343,7 @@ static void scan_and_install_redists(const char* gameRootDir,
     std::vector<std::string> marker;
     load_installed_redists(marker);
 
-    int installed = 0, skipped = 0, failedMarked = 0, timedOut = 0;
+    int installed = 0, skipped = 0, satisfied = 0, failedMarked = 0, timedOut = 0;
     for (const auto& installer : installers) {
         std::string abs = installer.string();
         if (marker_contains(marker, abs)) {
@@ -2242,6 +2360,24 @@ static void scan_and_install_redists(const char* gameRootDir,
             log_line("[wn-launcher] redist scan: %s skipped — an installscript entry already "
                      "ran in %s", installer.filename().string().c_str(), parent.c_str());
             continue;
+        }
+        {
+            const std::string fname = installer.filename().string();
+            if (is_vc_redist_installer_name(fname)) {
+                int year = vc_redist_year(abs);
+                std::string lowerName = fname;
+                for (char& c : lowerName) c = (char) tolower((unsigned char) c);
+                if (!year && lowerName.find("vc_redist") != std::string::npos) year = 2015;
+                std::string runtimeDir;
+                if (year && vc_runtime_present(year, fname, runtimeDir)) {
+                    marker.push_back(abs);
+                    satisfied++;
+                    log_line("[wn-launcher] redist scan: %s satisfied — the prefix already "
+                             "provides the Visual C++ %d runtime in %s; marking done without "
+                             "running it", fname.c_str(), year, runtimeDir.c_str());
+                    continue;
+                }
+            }
         }
         DWORD exitCode = 0;
         log_line("[wn-launcher] redist install: %s%s",
@@ -2276,8 +2412,8 @@ static void scan_and_install_redists(const char* gameRootDir,
     }
     save_installed_redists(marker);
     log_line("[wn-launcher] redist scan done: installed %d, skipped %d, "
-             "failed-marked %d, timed-out-unmarked %d (of %zu total)",
-             installed, skipped, failedMarked, timedOut, installers.size());
+             "satisfied-by-prefix %d, failed-marked %d, timed-out-unmarked %d (of %zu total)",
+             installed, skipped, satisfied, failedMarked, timedOut, installers.size());
 }
 
 int main(int argc, char** argv) {

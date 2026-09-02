@@ -208,6 +208,10 @@ class WnLauncherStatusTailer(
         line.contains("Steam_BLoggedOn=true") -> appContext.getString(R.string.preloader_steam_ready)
         line.contains("RequestAppInfoUpdate(appId=") -> appContext.getString(R.string.preloader_updating_game_info)
         line.contains("GetAppInstallState(appId=") -> appContext.getString(R.string.preloader_verifying_install)
+        line.contains("installscript: ") && line.contains("script(s) found") ->
+            appContext.getString(R.string.preloader_checking_install_scripts)
+        line.contains("installscript: running \"") -> phaseForInstallScript(line)
+        line.contains("redist install: ") -> phaseForRedistInstall(line)
         line.contains("redist scan: scanning") -> appContext.getString(R.string.preloader_scanning_redists)
         line.contains("installing redistributable:") -> phaseForInstallingRedist(line)
         line.contains("redist scan: installed") -> appContext.getString(R.string.preloader_redists_ready)
@@ -220,6 +224,28 @@ class WnLauncherStatusTailer(
         line.contains("LoadLibrary(") && line.contains("FAILED after all strategies") ->
             appContext.getString(R.string.preloader_steam_launcher_failed_restaging)
         else -> null
+    }
+
+    private fun phaseForInstallScript(line: String): String {
+        val tail = line.substringAfter(" -> ", "").substringAfterLast('\\')
+        val name = INSTALLER_NAME.find(tail)?.groupValues?.get(1)?.trim().orEmpty()
+        return if (name.isNotEmpty()) {
+            appContext.getString(R.string.preloader_installing_named_redist, name)
+        } else {
+            appContext.getString(R.string.preloader_installing_redist_single)
+        }
+    }
+
+    private fun phaseForRedistInstall(line: String): String? {
+        if (line.contains(" exit=") || line.contains("timed out") || line.contains("timeout")
+            || line.contains("CreateProcess failed") || line.contains("satisfied")) return null
+        val tail = line.substringAfter("redist install: ", "")
+        val name = INSTALLER_NAME.find(tail)?.groupValues?.get(1)?.trim().orEmpty()
+        return if (name.isNotEmpty()) {
+            appContext.getString(R.string.preloader_installing_named_redist, name)
+        } else {
+            appContext.getString(R.string.preloader_installing_redist_single)
+        }
     }
 
     private fun phaseForInstallingRedist(line: String): String {
@@ -241,5 +267,6 @@ class WnLauncherStatusTailer(
     companion object {
         private const val TAG = "WnLauncherTailer"
         private const val LAUNCH_APP_WATCHDOG_MS = 35_000L
+        private val INSTALLER_NAME = Regex("""^(.+?)\.(?:cmd|bat|exe|msi)\b""", RegexOption.IGNORE_CASE)
     }
 }

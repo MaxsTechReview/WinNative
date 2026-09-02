@@ -1652,6 +1652,7 @@ Installed path:
     <string name="preloader_steam_ready">Steam ready</string>
     <string name="preloader_updating_game_info">Updating game info</string>
     <string name="preloader_verifying_install">Verifying install</string>
+    <string name="preloader_checking_install_scripts">Checking install scripts</string>
     <string name="preloader_scanning_redists">Scanning redistributables</string>
     <string name="preloader_installing_redist_single">Installing redistributable</string>
     <string name="preloader_installing_named_redist">Installing %1$s</string>
