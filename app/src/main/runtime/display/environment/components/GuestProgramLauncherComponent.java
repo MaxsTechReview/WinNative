@@ -778,9 +778,14 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     }
 
     // PeekMessage idle-spin limiter (Wine patch, per-shortcut opt-in)
-    if (shortcut != null && "1".equals(shortcut.getExtra("peekMessageLimiter", "0"))) {
-        envVars.put("WINE_PEEK_LIMITER", "4");
-        Log.d("GuestLauncher", "PeekMessage limiter enabled, delay=4ms");
+    String peekDelay = shortcut != null ? shortcut.getExtra("peekMessageLimiter", "0") : "0";
+    if (!"0".equals(peekDelay)) {
+        // Only apply when using WineD3D (not DXVK/VKD3D)
+        String dxWrapper = shortcut.getExtra("dxwrapper", "");
+        if (dxWrapper.toLowerCase().contains("wined3d")) {
+            envVars.put("WINE_PEEK_LIMITER", peekDelay);
+            Log.d("GuestLauncher", "PeekMessage limiter enabled, delay=" + peekDelay + "ms");
+        }
     }
   }
 
