@@ -8,6 +8,7 @@ import com.winlator.cmod.feature.stores.steam.enums.PathType
 import com.winlator.cmod.feature.stores.steam.enums.SpecialGameSaveMapping
 import com.winlator.cmod.feature.stores.steam.service.SteamBranchSelection
 import com.winlator.cmod.feature.stores.steam.service.SteamService
+import com.winlator.cmod.feature.stores.steam.service.ensureFreshDepotData
 import com.winlator.cmod.feature.stores.steam.service.getInstalledBuildId
 import com.winlator.cmod.feature.stores.steam.service.readInstalledDepotManifestIds
 import com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.getAppDirName
@@ -866,6 +867,38 @@ object SteamUtils {
         }
         return installedDepots
     }
+
+    @JvmStatic
+    fun installedDepotManifestIds(steamAppId: Int): Map<Int, Long> =
+        runCatching {
+            SteamService.readInstalledDepotManifestIds(SteamService.getAppDirPath(steamAppId))
+        }.getOrDefault(emptyMap())
+
+    @JvmStatic
+    fun installedBuildId(steamAppId: Int): Long =
+        runCatching { SteamService.getInstalledBuildId(steamAppId) }.getOrDefault(0L)
+
+    @JvmStatic
+    fun steamLaunchOptionFor(
+        steamAppId: Int,
+        relativeExe: String,
+    ): Int =
+        runCatching {
+            var infos = SteamService.getWindowsLaunchInfos(steamAppId).filter { it.launchId >= 0 }
+            if (infos.isEmpty()) {
+                SteamService.ensureFreshDepotData(steamAppId)
+                infos = SteamService.getWindowsLaunchInfos(steamAppId).filter { it.launchId >= 0 }
+            }
+            if (infos.isEmpty()) return@runCatching -1
+            fun norm(p: String) = p.replace('\\', '/').trim().trimStart('/').lowercase()
+            val want = norm(relativeExe)
+            val exact = infos.firstOrNull { norm(it.executable) == want }
+            val byName =
+                exact ?: infos.firstOrNull {
+                    norm(it.executable).substringAfterLast('/') == want.substringAfterLast('/')
+                }
+            (byName ?: infos.first()).launchId
+        }.getOrDefault(-1)
 
     @JvmStatic
     @JvmOverloads

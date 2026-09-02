@@ -1428,7 +1428,7 @@ public abstract class WineUtils {
     }
   }
 
-  private static final int LAUNCH_REGISTRY_POLICY_VERSION = 1;
+  private static final int LAUNCH_REGISTRY_POLICY_VERSION = 2;
 
   private static final String LAUNCH_REGISTRY_POLICY_EXTRA = "launchRegistryPolicy";
 
@@ -1491,7 +1491,7 @@ public abstract class WineUtils {
       "MountMgr:2",
       "MSIServer:3",
       "NDIS:2",
-      "nsiproxy:3",
+      "nsiproxy:2",
       "PlugPlay:2",
       "RpcSs:3",
       "scardsvr:3",
@@ -1508,7 +1508,7 @@ public abstract class WineUtils {
       "wuauserv:3"
     };
     final List<String> controllerCriticalServices =
-        Arrays.asList("winebus", "winehid", "MountMgr", "PlugPlay", "RpcSs");
+        Arrays.asList("winebus", "winehid", "MountMgr", "PlugPlay", "RpcSs", "nsiproxy");
     File systemRegFile = new File(container.getRootDir(), ".wine/system.reg");
     byte selection = 0;
     try {
