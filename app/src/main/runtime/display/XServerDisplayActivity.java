@@ -9465,12 +9465,31 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                                     com.winlator.cmod.runtime.wine.WineUtils
                                             .getNativePath(container, imageFs, winDir);
                         }
-                        if (nativeDir == null || !nativeDir.isDirectory()) {
-                            nativeDir = new File(nativeDirPath);
+                        // The folder extra may be stale after the game moved; only trust it when it
+                        // actually contains the exe being launched, else re-derive from the real exe dir.
+                        String exeName = null;
+                        int lastSlash = path.lastIndexOf("\\");
+                        if (lastSlash > 0 && lastSlash + 1 < path.length()) exeName = path.substring(lastSlash + 1);
+                        if (nativeDir == null || !nativeDir.isDirectory()
+                                || (exeName != null && !new File(nativeDir, exeName).isFile())) {
+                            File exeDir = null;
+                            if (lastSlash > 0) {
+                                exeDir =
+                                        com.winlator.cmod.runtime.wine.WineUtils
+                                                .getNativePath(container, imageFs, path.substring(0, lastSlash));
+                            }
+                            if (exeDir != null && exeDir.isDirectory()) {
+                                nativeDir = exeDir;
+                            } else if (new File(nativeDirPath).isDirectory()) {
+                                nativeDir = new File(nativeDirPath);
+                            } else {
+                                nativeDir = null;
+                            }
                         }
-                        if (nativeDir.isDirectory()) {
+                        if (nativeDir != null && nativeDir.isDirectory()) {
                             launcherComponent.setWorkingDir(nativeDir);
-                            Log.d("XServerDisplayActivity", "Set native working dir for Custom process: " + nativeDir.getPath());
+                            Log.w("XServerDisplayActivity", "Custom process working dir: " + nativeDir.getPath()
+                                    + " (extras=" + nativeDirPath + ", winDir=" + (winDir == null ? "null" : winDir) + ")");
                         }
                     } else {
                         int lastBackslash = path.lastIndexOf("\\");
