@@ -776,6 +776,17 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     } else if (overrideFakeUdevDataDir != null && !overrideFakeUdevDataDir.isEmpty()) {
       envVars.put("FAKE_UDEV_DATA_DIR", overrideFakeUdevDataDir);
     }
+
+    // PeekMessage idle-spin limiter (Wine patch, per-shortcut opt-in)
+    String peekDelay = shortcut != null ? shortcut.getExtra("peekMessageLimiter", "0") : "0";
+    if (!"0".equals(peekDelay)) {
+        // Only apply when using WineD3D (not DXVK/VKD3D)
+        String dxWrapper = shortcut.getExtra("dxwrapper", "");
+        if (dxWrapper.toLowerCase().contains("wined3d")) {
+            envVars.put("WINE_PEEK_LIMITER", peekDelay);
+            Log.d("GuestLauncher", "PeekMessage limiter enabled, delay=" + peekDelay + "ms");
+        }
+    }
   }
 
   private void prepareFakeInputUdevMetadata(ImageFs imageFs, File devInputDir, EnvVars envVars) {

@@ -561,6 +561,16 @@ class GameSettingsStateHolder {
     val numControllersEntries = mutableStateOf<List<String>>(emptyList())
     val selectedNumControllers = mutableIntStateOf(0)
     val disableXInput = mutableStateOf(false)
+    val peekMessageLimiterDelayValues = listOf(0, 1, 2, 4, 8, 16)
+    val peekMessageLimiterEntries = mutableStateOf(listOf(
+        "Off",
+        "1ms (Light, ~150fps)",
+        "2ms (Moderate, ~120fps)",
+        "4ms (Noticeable, ~80fps)",
+        "8ms (Strong, ~50fps)",
+        "16ms (Very Strong, ~30fps)"
+    ))
+    val peekMessageLimiterIndex = mutableIntStateOf(0)
     val simTouchScreen = mutableStateOf(false)
     val screenTouchMode = mutableIntStateOf(0)
     val gestureProfileEntries = mutableStateOf<List<String>>(emptyList())
@@ -2613,6 +2623,22 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
                             selectedIndex = state.wined3dSelectedRenderer.intValue,
                             onSelected = { state.wined3dSelectedRenderer.intValue = it }
                         )
+                    }
+                }
+
+                val isContainer = state.isContainerEditMode.value
+
+                if (!isContainer) {
+                    Spacer(Modifier.height(SettingItemGap))
+                    SettingPairRow {
+                        Box(Modifier.weight(1f)) {
+                            SettingDropdown(
+                                label = stringResource(R.string.shortcuts_properties_peekmessage_limiter),
+                                entries = state.peekMessageLimiterEntries.value,
+                                selectedIndex = state.peekMessageLimiterIndex.intValue,
+                                onSelected = { state.peekMessageLimiterIndex.intValue = it }
+                            )
+                        }
                     }
                 }
             }
@@ -4969,6 +4995,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
                     }
                 )
             }
+
         }
     }
 
