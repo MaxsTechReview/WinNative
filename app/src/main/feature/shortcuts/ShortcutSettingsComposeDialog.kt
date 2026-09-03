@@ -608,6 +608,10 @@ class ShortcutSettingsComposeDialog private constructor(
         // Audio driver
         val audioDriverArr =
             context.resources.getStringArray(R.array.audio_driver_entries).toList()
+                .filter {
+                    DirectAudioDriver.isSupportedFor(container.wineVersion) ||
+                        !it.equals("DirectAudio", true)
+                }
         state.audioDriverEntries.value = audioDriverArr
         selectByIdentifier(
             audioDriverArr,

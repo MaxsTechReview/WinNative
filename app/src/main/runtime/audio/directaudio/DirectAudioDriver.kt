@@ -24,6 +24,7 @@ object DirectAudioDriver {
     const val ENV_MIC = "BANNER_AUDIO_DIRECT_MIC"
     const val REQUEST_RECORD_AUDIO = 4120
 
+    private const val ARM64EC = "arm64ec"
     private const val ASSET_DIR = "directaudio"
     private const val DRV_NAME = "winedirectaudio.drv"
     private const val SO_NAME = "winedirectaudio.so"
@@ -52,7 +53,8 @@ object DirectAudioDriver {
     // One wine11 build serves every 11.0-x; 10.0-4 needs wine10. Anything else
     // is unsupported rather than guessed at.
     fun wineAbiTag(wineVersion: String?): String? {
-        val major = Regex("""(\d+)\.\d+""").find(wineVersion.orEmpty())
+        if (wineVersion?.contains(ARM64EC) != true) return null
+        val major = Regex("""(\d+)\.\d+""").find(wineVersion)
             ?.groupValues?.get(1)?.toIntOrNull() ?: return null
         return when (major) {
             11 -> "wine11"
@@ -64,7 +66,7 @@ object DirectAudioDriver {
     fun isSupportedFor(wineVersion: String?): Boolean = wineAbiTag(wineVersion) != null
 
     private fun assetFor(wineVersion: String?): String? =
-        wineAbiTag(wineVersion)?.let { "$ASSET_DIR/directaudio-$it-arm64ec-${pageSizeTag()}.zip" }
+        wineAbiTag(wineVersion)?.let { "$ASSET_DIR/directaudio-$it-$ARM64EC-${pageSizeTag()}.zip" }
 
     // Installs both PE halves plus the unixlib: which PE loads is decided by the
     // guest game's bitness, not the device. Stamped, so it runs once per layer.
