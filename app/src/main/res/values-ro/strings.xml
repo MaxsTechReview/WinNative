@@ -349,6 +349,8 @@
     <string name="container_config_processor_affinity">Afinitate procesor</string>
     <string name="container_config_processor_affinity_32bit">Afinitate procesor (aplicatii 32-bit)</string>
     <string name="container_config_audio_driver">Driver audio</string>
+    <string name="container_config_direct_audio_mic">Microfon (DirectAudio)</string>
+    <string name="container_config_direct_audio_mic_help">Permite unui joc să înregistreze de la microfonul dispozitivului, pentru chatul vocal din joc. Unele titluri care caută un microfon în timpul încărcării nu vor porni cu această opțiune activată — activeaz-o doar pentru un joc care are nevoie de ea.</string>
     <string name="container_config_win_components">Componente Windows</string>
     <string name="container_config_drives">Unitati</string>
     <string name="container_config_arch">Arhitectura</string>

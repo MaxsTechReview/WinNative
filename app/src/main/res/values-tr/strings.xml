@@ -409,6 +409,8 @@
     <string name="container_config_processor_affinity">İşlemci Benzeşimi</string>
     <string name="container_config_processor_affinity_32bit">İşlemci Benzeşimi (32-bit uygulamalar)</string>
     <string name="container_config_audio_driver">Ses Sürücüsü</string>
+    <string name="container_config_direct_audio_mic">Mikrofon (DirectAudio)</string>
+    <string name="container_config_direct_audio_mic_help">Bir oyunun oyun içi sesli sohbet için cihazınızın mikrofonundan kayıt yapmasına izin verir. Yüklenirken mikrofon arayan bazı oyunlar bu açıkken başlamaz — yalnızca ihtiyaç duyan bir oyun için açın.</string>
     <string name="container_config_win_components">Win Bileşenleri</string>
     <string name="container_config_drives">Sürücüler</string>
     <string name="container_config_arch">Mimari</string>

@@ -409,6 +409,8 @@
     <string name="container_config_processor_affinity">Suorittimen affiniteetti</string>
     <string name="container_config_processor_affinity_32bit">Suorittimen affiniteetti (32-bittiset sovellukset)</string>
     <string name="container_config_audio_driver">Ääniohjain</string>
+    <string name="container_config_direct_audio_mic">Mikrofoni (DirectAudio)</string>
+    <string name="container_config_direct_audio_mic_help">Antaa pelin tallentaa laitteen mikrofonista pelin sisäistä puhechattia varten. Jotkin pelit, jotka etsivät mikrofonia latauksen aikana, eivät käynnisty tämän ollessa käytössä – ota se käyttöön vain peliin, joka sitä tarvitsee.</string>
     <string name="container_config_win_components">Win-komponentit</string>
     <string name="container_config_drives">Asemat</string>
     <string name="container_config_arch">Arkkitehtuuri</string>
