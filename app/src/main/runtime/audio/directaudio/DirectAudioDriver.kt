@@ -81,19 +81,62 @@ object DirectAudioDriver {
         val installed = LAYOUT.all { (entry, dir) ->
             File(wineLibDir, "$dir/${File(entry).name}").isFile
         }
-        if (installed && isStampCurrent(stamp, stampId)) return true
-
-        val staged = try {
-            unzipAsset(context, asset, wineLibDir)
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "failed to install %s", asset)
-            return false
+        if (!installed || !isStampCurrent(stamp, stampId)) {
+            val staged = try {
+                unzipAsset(context, asset, wineLibDir)
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "failed to install %s", asset)
+                return false
+            }
+            if (!staged) return false
+            stamp.writeText(stampId)
+            Timber.tag(TAG).i("installed DirectAudio %s into %s", stampId, wineLibDir)
         }
-        if (!staged) return false
-
-        stamp.writeText(stampId)
-        Timber.tag(TAG).i("installed DirectAudio %s into %s", stampId, wineLibDir)
+        patchDirectAudioNeeded(File(wineLibDir, "aarch64-unix/$SO_NAME"))
+        mirrorIntoPrefix(imageFs, wineLibDir)
         return true
+    }
+
+    private fun mirrorIntoPrefix(imageFs: ImageFs, wineLibDir: File) {
+        val windowsDir = File(imageFs.rootDir, ImageFs.WINEPREFIX + "/drive_c/windows")
+        copyIfChanged(File(wineLibDir, "aarch64-windows/$DRV_NAME"), File(windowsDir, "system32/$DRV_NAME"))
+        copyIfChanged(File(wineLibDir, "i386-windows/$DRV_NAME"), File(windowsDir, "syswow64/$DRV_NAME"))
+    }
+
+    private fun copyIfChanged(src: File, dst: File) {
+        if (!src.isFile) {
+            Timber.tag(TAG).w("no driver PE at %s; mmdevapi will not find it", src)
+            return
+        }
+        if (dst.isFile && dst.length() == src.length()) return
+        try {
+            dst.parentFile?.mkdirs()
+            src.inputStream().use { input -> dst.outputStream().use { output -> input.copyTo(output) } }
+            dst.setExecutable(true, false)
+            Timber.tag(TAG).i("staged %s into %s", src.name, dst.parentFile?.name)
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "failed to stage %s into the prefix", src.name)
+        }
+    }
+
+    private fun patchDirectAudioNeeded(soFile: File) {
+        if (!soFile.isFile) return
+        try {
+            val bytes = soFile.readBytes()
+            val old = "libaaudio.so".toByteArray(Charsets.US_ASCII)
+            val repl = "libwaudio.so".toByteArray(Charsets.US_ASCII)
+            var idx = -1
+            outer@ for (i in 0..bytes.size - old.size - 1) {
+                for (j in old.indices) if (bytes[i + j] != old[j]) continue@outer
+                if (bytes[i + old.size] == 0.toByte()) { idx = i; break }
+            }
+            if (idx < 0) return
+            System.arraycopy(repl, 0, bytes, idx, repl.size)
+            soFile.writeBytes(bytes)
+            Timber.tag(TAG).i("patched winedirectaudio.so NEEDED libaaudio.so -> libwaudio.so")
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "failed to patch winedirectaudio.so NEEDED")
+        }
     }
 
     private fun unzipAsset(context: Context, asset: String, wineLibDir: File): Boolean {

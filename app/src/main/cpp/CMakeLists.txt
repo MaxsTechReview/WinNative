@@ -203,3 +203,9 @@ add_library(fakeinput SHARED
 )
 target_compile_options(fakeinput PRIVATE -Wall -Wextra -fvisibility=hidden)
 target_link_libraries(fakeinput log dl)
+
+add_library(waudio SHARED
+        wnaudiohook/wn_aaudio_shim.c
+)
+target_compile_options(waudio PRIVATE -Wall -Wextra -fvisibility=hidden)
+target_link_libraries(waudio log dl)

@@ -1,7 +1,19 @@
 # DirectAudio driver binaries — provenance
 
 The `.zip` files in this directory are **unmodified release artifacts** downloaded
-verbatim from the upstream project. WinNative has made **no changes** to them.
+verbatim from the upstream project — the shipped bytes match the checksums below.
+
+**On-device modification (LGPL-2.1 §2 disclosure).** At install time WinNative
+renames one entry in the unixlib's dynamic section: `winedirectaudio.so`'s
+`DT_NEEDED` string `libaaudio.so` is rewritten in place to `libwaudio.so` (same
+length). `libaaudio.so` is a public Android soname that bionic force-resolves from
+the system namespace, whose framework closure the Wine unixlib namespace cannot
+link, so the stock unixlib fails to load. `libwaudio.so` is a small AAudio bridge
+supplied by WinNative (its own code, not derived from this driver) that forwards
+the 27 `AAudio_*` entry points to the real `/system/lib64/libaaudio.so` through a
+platform-linked namespace. The corresponding source for a driver that needs no such
+rename — the AAudio bridge folded into the unixlib itself — is at
+https://github.com/WinNative-Emu/directaudio (branch `winnative/self-contained-aaudio`).
 
 - **Project:** DirectAudio — native Wine → Android AAudio mmdevapi driver
 - **Author:**  The412Banner <205237651+The412Banner@users.noreply.github.com>

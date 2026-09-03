@@ -102,6 +102,52 @@ lib/wine/aarch64-unix/winedirectaudio.so       bionic unixlib — the AAudio bac
 Which PE the loader picks is decided by the **guest game's** bitness, not the device, so both PE
 halves are always installed alongside the shared unixlib.
 
+### Making the unixlib loadable (the AAudio bridge)
+
+Upstream's `winedirectaudio.so` declares `DT_NEEDED libaaudio.so`. `libaaudio.so` is a **public**
+Android soname (`/system/etc/public.libraries.txt`), so bionic force-resolves it from the system
+namespace, and the real `/system/lib64/libaaudio.so` pulls in the Android framework closure
+(libbinder, libutils, libhidlbase, VNDK/APEX). WinNative's Wine unixlib runs in a linker namespace
+that cannot link that closure, so the stock unixlib fails to load with `STATUS_DLL_NOT_FOUND`
+(`c0000135`) and mmdevapi produces silence with **no** fallback.
+
+### Staging the driver where mmdevapi can find it
+
+`mmdevapi` resolves the backend with `LoadLibraryW(L"winedirectaudio.drv")`, which searches the
+**container's Wine prefix** (`drive_c/windows/system32`, and `syswow64` for wow64 guests) — not the
+Wine layer the overlay writes to. Every other backend is already in the prefix because the container
+pattern was built with them; `winedirectaudio.drv` is new, so it is absent and the load fails with
+`STATUS_DLL_NOT_FOUND` (`126` / `c0000135`) **before the unixlib is ever reached**. That failure looks
+identical to a missing-dependency problem and is easy to misdiagnose as an AAudio/linker issue.
+
+`DirectAudioDriver.mirrorIntoPrefix()` therefore copies both PE halves from the layer into the prefix
+after the overlay, size-gated so it is a no-op once staged. This is the same thing
+`WinComponentSetup.restoreWineBuiltinDllFiles` does for the stock builtins, and it is what makes the
+driver work on a container created before DirectAudio existed.
+
+Once the PE loads, two further pieces keep the unixlib loadable, entirely in the emulator, so any
+Proton layer works unchanged:
+
+1. **`DirectAudioDriver.patchDirectAudioNeeded()`** rewrites the unixlib's `DT_NEEDED` string
+   `libaaudio.so` → `libwaudio.so` in place (same length) after the overlay. It runs on every
+   install and is idempotent. `libwaudio.so` is a **non-public** soname, so bionic resolves it from
+   `usr/lib` via `LD_LIBRARY_PATH` instead of the system namespace.
+2. **`libwaudio.so`** is WinNative's own AAudio bridge, built by the app
+   (`app/src/main/cpp/wnaudiohook/wn_aaudio_shim.c` → CMake target `waudio`) and staged into
+   `imagefs/usr/lib` by `GuestProgramLauncherComponent` when DirectAudio is selected — the same
+   `ensureImageFsNativeLibrary` path `libnetshim.so` uses. It exports only the 27 `AAudio_*` symbols
+   the driver imports, links only `log dl` (never `android`, whose closure is the same framework
+   stack), and **never** exports `dlopen` (an injected `dlopen` stalls the Steam launcher). On first
+   call it builds a namespace linked to the platform default set, `android_dlopen_ext`s the real
+   `/system/lib64/libaaudio.so` through it, and forwards each call.
+
+This is host-side only: the shipped driver zips stay byte-verbatim (see `assets/directaudio/`),
+the rename happens on-device, and nothing is baked into a specific Proton build. A future driver
+that folds the bridge into the unixlib itself — removing both the rename and the separate shim — is
+staged at https://github.com/WinNative-Emu/directaudio (`winnative/self-contained-aaudio`); once its
+CI builds the four artifacts and they are device-verified, dropping them here retires both pieces
+above.
+
 ### Driver activation
 
 `changeWineAudioDriver()` in `XServerDisplayActivity` writes the Wine registry key that selects
