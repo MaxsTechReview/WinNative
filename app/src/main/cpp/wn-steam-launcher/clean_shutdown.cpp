@@ -776,6 +776,9 @@ extern "C" int wn_launcher_cloud_run(void* engine, int hUser, int hPipe,
             phase, appId, finalState, cs_sync_state_name(finalState));
     }
     wn_log(buf);
+    if (onExit && finalState == kSyncChangesLocally) {
+        wn_log("cloud: exit sync left local saves ahead of Steam Cloud — the app must upload them");
+    }
     return finalState;
 }
 

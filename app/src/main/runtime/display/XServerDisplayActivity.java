@@ -4332,6 +4332,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         if (planWActive) {
             scrubPlanWBridgeFilesForNextSession();
         }
+
+        try {
+            uploadSavesIfAgentExitSyncLeftThemLocal(trigger);
+        } catch (Throwable t) {
+            Log.w("XServerDisplayActivity",
+                    "Steam cloud: app-side exit upload fallback failed during " + trigger, t);
+        }
     }
 
     // ---- Plan-W launcher clean-shutdown handshake ---------------------------
@@ -4342,6 +4349,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
     private static final String WN_LAUNCHER_GRACEFUL_CLOSE_MARKER = "graceful close \"";
     private static final String WN_LAUNCHER_CLOUD_EXIT_START_MARKER = "cloud: RunAutoCloudOnAppExit";
     private static final String WN_LAUNCHER_CLOUD_EXIT_DONE_MARKER = "cloud: exit sync COMPLETE";
+    private static final String WN_LAUNCHER_CLOUD_EXIT_LOCAL_AHEAD_MARKER =
+            "cloud: exit sync left local saves ahead of Steam Cloud";
     // Ceiling; returns early once the "clean logoff complete" marker appears. Must cover the agent's RunAutoCloudOnAppExit budget (60s) plus the logoff flush, or the container is torn down mid-upload and the cloud save is lost.
     private static final long WN_LAUNCHER_SHUTDOWN_TIMEOUT_MS = 90000L;
     private static final long WN_LAUNCHER_SHUTDOWN_POLL_MS = 150L;
@@ -4416,6 +4425,66 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         try {
             if (sentinel.exists()) sentinel.delete();
         } catch (Exception ignored) {}
+    }
+
+    private static final int WN_CLOUD_FALLBACK_RECONNECT_TIMEOUT_MS = 20000;
+    private static final int WN_CLOUD_FALLBACK_RECONNECT_POLL_MS = 250;
+
+    private void uploadSavesIfAgentExitSyncLeftThemLocal(String trigger) {
+        if (container == null) return;
+        if (shortcut == null || !"STEAM".equals(shortcut.getExtra("game_source"))) return;
+        if (!isCloudSyncEnabledForShortcut() || isOfflineModeForShortcut()) return;
+
+        File log = new File(container.getRootDir(), ".wine/drive_c/wn-launcher.log");
+        if (!wnLauncherLogContains(log, WN_LAUNCHER_CLOUD_EXIT_LOCAL_AHEAD_MARKER)) return;
+
+        Log.i("XServerDisplayActivity",
+                "Steam cloud: the agent's exit sync left local saves ahead of the cloud during "
+                        + trigger + " — waiting for the app-side Steam client so the session is "
+                        + "not lost");
+        if (preloaderDialog != null) {
+            preloaderDialog.showOnUiThread(getString(R.string.preloader_uploading_cloud));
+        }
+
+        long deadline = System.currentTimeMillis() + WN_CLOUD_FALLBACK_RECONNECT_TIMEOUT_MS;
+        boolean ready = false;
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                if (!com.winlator.cmod.feature.stores.steam.service.SteamService
+                        .Companion.isBionicHandoffActive()
+                        && com.winlator.cmod.feature.stores.steam.service.SteamService
+                                .Companion.isLoggedIn()) {
+                    ready = true;
+                    break;
+                }
+            } catch (Throwable ignored) {}
+            try {
+                Thread.sleep(WN_CLOUD_FALLBACK_RECONNECT_POLL_MS);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+        if (!ready) {
+            Log.w("XServerDisplayActivity",
+                    "Steam cloud: the app-side Steam client did not reconnect within "
+                            + WN_CLOUD_FALLBACK_RECONNECT_TIMEOUT_MS + "ms — leaving the local "
+                            + "saves in place for the next launch to upload");
+            return;
+        }
+
+        boolean uploaded = false;
+        try {
+            uploaded = com.winlator.cmod.feature.steamcloudsync.SteamCloudSyncHelper
+                    .uploadLocalSavesBlocking(this, shortcut);
+        } catch (Throwable t) {
+            Log.w("XServerDisplayActivity", "Steam cloud: app-side exit upload failed", t);
+        }
+        Log.i("XServerDisplayActivity",
+                "Steam cloud: app-side exit upload " + (uploaded ? "succeeded" : "did NOT succeed"));
+        if (uploaded && preloaderDialog != null) {
+            preloaderDialog.showOnUiThread(getString(R.string.preloader_cloud_upload_done));
+        }
     }
 
     @Override
