@@ -3754,6 +3754,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
         return shortcut == null || !"1".equals(shortcut.getExtra("cloud_sync_disabled", "0"));
     }
 
+    private boolean isOfflineModeForShortcut() {
+        return shortcut != null && "1".equals(shortcut.getExtra("offline_mode", "0"));
+    }
+
     private static final boolean STEAM_AGENT_CLOUD_ENABLED = true;
 
     private boolean steamCloudHandledByAgent() {
@@ -7766,6 +7770,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity
                         } catch (Exception depotIgnored) {
                             Log.w("XServerDisplayActivity",
                                     "Steam Launcher: Could not query depot data", depotIgnored);
+                        }
+                        if (!isCloudSyncEnabledForShortcut() || isOfflineModeForShortcut()) {
+                            envVars.put("WN_STEAM_AGENT_CLOUD", "0");
+                            Log.i("XServerDisplayActivity",
+                                    "Steam Launcher: WN_STEAM_AGENT_CLOUD=0 — cloud saves are "
+                                    + "turned off for this shortcut, so the agent skips "
+                                    + "RunAutoCloudOnAppLaunch and RunAutoCloudOnAppExit");
                         }
                         if (wnSteamLaunchOption >= 0) {
                             envVars.put("WN_STEAM_LAUNCH_OPTION", String.valueOf(wnSteamLaunchOption));
