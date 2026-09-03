@@ -219,6 +219,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         private const val KEY_DRIVERS_VISITED = "drivers_visited"
         private const val KEY_DEFAULT_X86_CONTAINER_ID = "default_x86_container_id"
         private const val KEY_DEFAULT_ARM64_CONTAINER_ID = "default_arm64_container_id"
+        private const val KEY_DEFAULT_CONTAINER_ID = "default_container_id"
         private const val KEY_DEFAULT_X86_SETTINGS_DONE = "default_x86_settings_done"
         private const val KEY_DEFAULT_ARM64_SETTINGS_DONE = "default_arm64_settings_done"
         private const val KEY_LAST_DRIVER_ID = "last_driver_id"
@@ -248,35 +249,38 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         ): Container? {
             val contentsManager = ContentsManager(context)
             contentsManager.syncContents()
-            val preferredId = getDefaultX86ContainerId(context)
-            if (preferredId > 0) {
-                containerManager.getContainerById(preferredId)?.let {
+            // Single unified default container. 0 means unset (RETRO_CONTAINER_ID is 0),
+            // so guard the lookup with id > 0.
+            val defaultId = getDefaultContainerId(context)
+            if (defaultId > 0) {
+                containerManager.getContainerById(defaultId)?.let {
                     if (isContainerUsable(contentsManager, it)) return it
                 }
             }
             return containerManager.containers.firstOrNull { isContainerUsable(contentsManager, it) }
         }
 
+        /**
+         * Returns the single default container id. Falls back to the legacy
+         * per-architecture keys (default_x86_container_id, then
+         * default_arm64_container_id) so users who set a default before the
+         * unified key existed keep their choice.
+         */
         @JvmStatic
-        fun getDefaultX86ContainerId(context: Context): Int = prefs(context).getInt(KEY_DEFAULT_X86_CONTAINER_ID, 0)
-
-        @JvmStatic
-        fun getDefaultArm64ContainerId(context: Context): Int = prefs(context).getInt(KEY_DEFAULT_ARM64_CONTAINER_ID, 0)
-
-        @JvmStatic
-        fun saveDefaultX86ContainerId(
-            context: Context,
-            containerId: Int,
-        ) {
-            prefs(context).edit().putInt(KEY_DEFAULT_X86_CONTAINER_ID, containerId).apply()
+        fun getDefaultContainerId(context: Context): Int {
+            val unified = prefs(context).getInt(KEY_DEFAULT_CONTAINER_ID, 0)
+            if (unified > 0) return unified
+            val x86 = prefs(context).getInt(KEY_DEFAULT_X86_CONTAINER_ID, 0)
+            if (x86 > 0) return x86
+            return prefs(context).getInt(KEY_DEFAULT_ARM64_CONTAINER_ID, 0)
         }
 
         @JvmStatic
-        fun saveDefaultArm64ContainerId(
+        fun saveDefaultContainerId(
             context: Context,
             containerId: Int,
         ) {
-            prefs(context).edit().putInt(KEY_DEFAULT_ARM64_CONTAINER_ID, containerId).apply()
+            prefs(context).edit().putInt(KEY_DEFAULT_CONTAINER_ID, containerId).apply()
         }
 
         @JvmStatic
@@ -537,6 +541,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
     private val notifGranted = mutableStateOf(false)
     private val notifDenied = mutableStateOf(false)
     private val backgroundSessionEnabled = mutableStateOf(false)
+    private val defaultContainerId = mutableIntStateOf(0)
 
     private val pageIndex = mutableIntStateOf(0)
     private val navRegion = mutableIntStateOf(REGION_CONTENT)
@@ -943,22 +948,20 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
 
         val preferences = prefs(this)
         val containerManager = ContainerManager(this)
-        val x86Container =
+        val defaultId = getDefaultContainerId(this)
+        defaultContainerId.intValue = defaultId
+        val defaultContainer =
             containerManager
-                .getContainerById(getDefaultX86ContainerId(this))
-                ?.takeIf { isContainerUsable(this, it) }
-        val armContainer =
-            containerManager
-                .getContainerById(getDefaultArm64ContainerId(this))
+                .getContainerById(defaultId)
                 ?.takeIf { isContainerUsable(this, it) }
 
-        defaultX86ContainerName.value = x86Container?.name ?: ""
-        defaultArmContainerName.value = armContainer?.name ?: ""
+        defaultX86ContainerName.value = defaultContainer?.name ?: ""
+        defaultArmContainerName.value = defaultContainer?.name ?: ""
 
         defaultX86SettingsDone.value =
-            preferences.getBoolean(KEY_DEFAULT_X86_SETTINGS_DONE, false) && x86Container != null
+            preferences.getBoolean(KEY_DEFAULT_X86_SETTINGS_DONE, false) && defaultContainer != null
         defaultArmSettingsDone.value =
-            preferences.getBoolean(KEY_DEFAULT_ARM64_SETTINGS_DONE, false) && armContainer != null
+            preferences.getBoolean(KEY_DEFAULT_ARM64_SETTINGS_DONE, false) && defaultContainer != null
     }
 
     private fun hasStoragePermission(): Boolean =
@@ -2981,11 +2984,8 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                         withContext(Dispatchers.IO) {
                             try {
                                 val c = ensureContainerForProfile(profile, displayName)
-                                if (isArm64) {
-                                    saveDefaultArm64ContainerId(this@SetupWizardActivity, c.id)
-                                } else {
-                                    saveDefaultX86ContainerId(this@SetupWizardActivity, c.id)
-                                }
+                                // The wizard does not auto-assign a default container on
+                                // creation; the user picks one by tapping the card.
                                 c
                             } catch (e: Exception) {
                                 updateWizardError("Container creation failed: ${e.message}")
@@ -3003,6 +3003,23 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             existingContainer?.let { openContainerDefaultSettings(it.id, if (isArm64) "arm64" else "x86") }
             Unit
         }
+        val setAsDefault = {
+            existingContainer?.let { c ->
+                saveDefaultContainerId(this@SetupWizardActivity, c.id)
+                defaultContainerId.intValue = c.id
+                refreshWizardState()
+                WinToast.show(
+                    this@SetupWizardActivity,
+                    getString(R.string.containers_set_default_success, c.name),
+                )
+            }
+            Unit
+        }
+        val existing = existingContainer
+        val isDefault =
+            hasContainer && existing != null &&
+                existing.id == defaultContainerId.intValue &&
+                defaultContainerId.intValue > 0
 
         val lastActivate = remember { mutableStateOf(activate) }
         LaunchedEffect(activate) {
@@ -3048,6 +3065,50 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                         letterSpacing = 1.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
+                    if (hasContainer) {
+                        Spacer(Modifier.width(6.dp))
+                        if (isDefault) {
+                            // Default badge — no tap needed, this container is the default.
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(completedTurquoise.copy(alpha = 0.16f))
+                                        .border(1.dp, completedTurquoise.copy(alpha = 0.55f), RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 5.dp, vertical = 1.dp),
+                            ) {
+                                Text(
+                                    text =
+                                        stringResource(
+                                            R.string.containers_default_badge,
+                                            archLabel,
+                                        ),
+                                    color = completedTurquoise,
+                                    fontFamily = InterFont,
+                                    fontSize = if (compact) 7.sp else 8.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
+                        } else {
+                            // Tap to make this container the unified default.
+                            Text(
+                                text = stringResource(R.string.containers_set_default),
+                                color = turquoise,
+                                fontFamily = InterFont,
+                                fontSize = if (compact) 7.sp else 8.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier =
+                                    Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(turquoise.copy(alpha = 0.14f))
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null,
+                                        ) { onTap(); setAsDefault() }
+                                        .padding(horizontal = 5.dp, vertical = 1.dp),
+                            )
+                        }
+                    }
                 }
                 Spacer(Modifier.height(if (compact) 1.dp else 3.dp))
                 Text(

@@ -89,6 +89,7 @@ private const val ContainerCardAspect = 1.2f
 
 data class ContainersScreenState(
     val containers: List<Container> = emptyList(),
+    val defaultContainerId: Int = 0,
     val dialog: ContainersDialogUiState = ContainersDialogUiState.None,
 )
 
@@ -136,6 +137,7 @@ fun ContainersScreen(
     onInstallComponents: (Container) -> Unit,
     onRemoveContainer: (Container) -> Unit,
     onShowInfo: (Container) -> Unit,
+    onSetDefaultContainer: (Container) -> Unit,
     onDismissDialog: () -> Unit,
     onConfirmDuplicateDialog: (Container) -> Unit,
     onConfirmRemoveDialog: (Container) -> Unit,
@@ -199,16 +201,31 @@ fun ContainersScreen(
                                         cellIndex <= state.containers.size -> {
                                             val container = state.containers[cellIndex - 1]
                                             key(container.id) {
+                                                val isDefaultContainer =
+                                                    state.defaultContainerId > 0 &&
+                                                        container.id == state.defaultContainerId
+                                                val defaultArchLabel =
+                                                    if (isDefaultContainer) {
+                                                        if (container.getWineVersion().contains("arm64ec", ignoreCase = true)) {
+                                                            stringResource(R.string.container_config_arch_arm64)
+                                                        } else {
+                                                            stringResource(R.string.container_config_arch_x86_64)
+                                                        }
+                                                    } else {
+                                                        null
+                                                    }
                                                 ContainerCard(
                                                     container = container,
                                                     navRow = gyBase,
                                                     navCol = gxBase,
+                                                    defaultArchLabel = defaultArchLabel,
                                                     onRun = { onRunContainer(container) },
                                                     onEdit = { onEditContainer(container) },
                                                     onDuplicate = { onDuplicateContainer(container) },
                                                     onInstallComponents = { onInstallComponents(container) },
                                                     onRemove = { onRemoveContainer(container) },
                                                     onShowInfo = { onShowInfo(container) },
+                                                    onSetDefault = { onSetDefaultContainer(container) },
                                                 )
                                             }
                                         }
@@ -403,6 +420,8 @@ private fun ContainerCard(
     onInstallComponents: () -> Unit,
     onRemove: () -> Unit,
     onShowInfo: () -> Unit,
+    defaultArchLabel: String?,
+    onSetDefault: () -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val nameFontSize =
@@ -463,6 +482,13 @@ private fun ContainerCard(
                         },
                     )
                     DropdownMenuItem(
+                        text = { Text(stringResource(R.string.containers_set_default), color = ContainersTextPrimary) },
+                        onClick = {
+                            menuExpanded = false
+                            onSetDefault()
+                        },
+                    )
+                    DropdownMenuItem(
                         text = { Text(stringResource(R.string.container_config_storage_info), color = ContainersTextPrimary) },
                         onClick = {
                             menuExpanded = false
@@ -487,17 +513,40 @@ private fun ContainerCard(
                     .weight(1f),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = container.name,
-                color = ContainersTextPrimary,
-                fontSize = nameFontSize,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-            )
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = container.name,
+                    color = ContainersTextPrimary,
+                    fontSize = nameFontSize,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (defaultArchLabel != null) {
+                    Spacer(Modifier.height(4.dp))
+                    Box(
+                        modifier =
+                            Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(ContainersAccent.copy(alpha = 0.16f))
+                                .border(1.dp, ContainersAccent.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 8.dp, vertical = 2.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.containers_default_badge, defaultArchLabel),
+                            color = ContainersAccent,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+            }
         }
 
         Row(

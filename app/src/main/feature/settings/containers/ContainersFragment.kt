@@ -26,6 +26,7 @@ import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.content.ContentsManager
 import com.winlator.cmod.runtime.display.XServerDisplayActivity
 import com.winlator.cmod.runtime.display.environment.ImageFs
+import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.ui.dialog.ContainerProgressPopup
@@ -65,6 +66,7 @@ class ContainersFragment : Fragment() {
                         onInstallComponents = ::openComponentInstaller,
                         onRemoveContainer = ::removeContainer,
                         onShowInfo = ::showContainerInfo,
+                        onSetDefaultContainer = ::setDefaultContainer,
                         onDismissDialog = ::dismissDialog,
                         onConfirmDuplicateDialog = ::performDuplicateContainer,
                         onConfirmRemoveDialog = ::performRemoveContainer,
@@ -92,7 +94,11 @@ class ContainersFragment : Fragment() {
     private fun loadContainersList() {
         val context = context ?: return
         manager = ContainerManager(context)
-        screenState = screenState.copy(containers = manager.containers.toList())
+        screenState =
+            screenState.copy(
+                containers = manager.containers.toList(),
+                defaultContainerId = SetupWizardActivity.getDefaultContainerId(context),
+            )
     }
 
     private fun openAddContainer() {
@@ -152,6 +158,16 @@ class ContainersFragment : Fragment() {
                     ),
             )
         startStorageScan(container)
+    }
+
+    private fun setDefaultContainer(container: Container) {
+        val ctx = context ?: return
+        SetupWizardActivity.saveDefaultContainerId(ctx, container.id)
+        loadContainersList()
+        WinToast.show(
+            ctx,
+            getString(R.string.containers_set_default_success, container.name),
+        )
     }
 
     private fun performDuplicateContainer(container: Container) {
